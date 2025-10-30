@@ -1,7 +1,6 @@
 {
 	"name": "@ensemble-edge/conductor",
 	"version": "0.0.1",
-	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
@@ -16,5 +15,8 @@
 		"wrangler": "^4.45.2"
 	},
 	"repository": "https://github.com/ensemble-edge/conductor",
-	"author": "Ensemble Edge"
+	"author": "Ensemble Edge",
+	"publishConfig": {
+		"access": "public"
+	}
 }
