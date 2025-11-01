@@ -17,3 +17,8 @@ Conductor is the orchestration engine that powers Ensemble Edge. It executes ens
 ## License
 
 Apache 2.0
+
+
+## Trademark
+
+Ensemble® is a registered trademark of Higinio O. Maycotte.

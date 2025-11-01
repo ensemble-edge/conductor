@@ -9,9 +9,10 @@ Thank you for your interest in contributing to Ensemble Edge!
 3. Create a branch: `git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes: `npm test`
-6. Commit: `git commit -m "feat: add amazing feature"`
-7. Push: `git push origin feature/your-feature-name`
-8. Create a Pull Request
+6. Add a changeset: `npm run changeset` (for user-facing changes)
+7. Commit: `git commit -m "feat: add amazing feature"`
+8. Push: `git push origin feature/your-feature-name`
+9. Create a Pull Request
 
 ## Development Setup
 ```bash
@@ -32,6 +33,49 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 - `refactor:` Code changes that neither fix bugs nor add features
 - `test:` Adding or updating tests
 - `chore:` Maintenance tasks
+
+## Changesets for Version Management
+
+We use [Changesets](https://github.com/changesets/changesets) to manage versions and changelogs.
+
+### When to Add a Changeset
+
+Add a changeset for any user-facing changes:
+- New features
+- Bug fixes
+- Breaking changes
+- Performance improvements
+
+**Don't** add changesets for:
+- Documentation updates
+- Internal refactoring
+- Test changes
+- Build/CI configuration
+
+### How to Add a Changeset
+
+After making your changes:
+
+```bash
+npm run changeset
+```
+
+This will prompt you to:
+1. Select which packages are affected (press Enter for edgit)
+2. Choose the version bump type:
+   - **patch**: Bug fixes, small improvements (0.0.X)
+   - **minor**: New features, backwards compatible (0.X.0)
+   - **major**: Breaking changes (X.0.0)
+3. Write a summary of the changes (this goes in the changelog)
+
+A markdown file will be created in `.changeset/` - commit this with your PR!
+
+### Release Process
+
+When your PR is merged:
+1. Changesets bot creates a "Version Packages" PR automatically
+2. This PR updates version numbers and generates CHANGELOG.md
+3. When maintainers merge the Version PR, the package is published to npm
 
 ## Pull Request Guidelines
 
