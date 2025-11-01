@@ -61,7 +61,7 @@ npm run changeset
 ```
 
 This will prompt you to:
-1. Select which packages are affected (press Enter for edgit)
+1. Select which packages are affected (press Enter for conductor)
 2. Choose the version bump type:
    - **patch**: Bug fixes, small improvements (0.0.X)
    - **minor**: New features, backwards compatible (0.X.0)
