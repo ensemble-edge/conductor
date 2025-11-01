@@ -2,18 +2,18 @@
 
 ## Getting Help
 
-If you need help with Edgit, there are several ways to get support:
+If you need help with Conductor, there are several ways to get support:
 
 ### Documentation
 
-- **[Full Documentation](https://docs.ensemble.ai/edgit)** - Complete guides and API reference
-- **[Getting Started](https://docs.ensemble.ai/getting-started/edgit)** - Quick start guide
-- **[Examples](./examples/)** - Real-world usage patterns
+- **[Full Documentation](https://docs.ensemble.ai/conductor)** - Complete guides and API reference
+- **[Getting Started](https://docs.ensemble.ai/getting-started/conductor)** - Quick start guide
+- **[Examples](https://github.com/ensemble-edge/examples)** - Real-world usage patterns
 
 ### Community Support
 
-- **[GitHub Discussions](https://github.com/ensemble-edge/edgit/discussions)** - Ask questions, share ideas, and discuss with the community
-- **[GitHub Issues](https://github.com/ensemble-edge/edgit/issues)** - Report bugs or request features
+- **[GitHub Discussions](https://github.com/ensemble-edge/conductor/discussions)** - Ask questions, share ideas, and discuss with the community
+- **[GitHub Issues](https://github.com/ensemble-edge/conductor/issues)** - Report bugs or request features
 
 ### Contact
 
@@ -36,4 +36,4 @@ Please report security issues privately by email to [security@ensemble.ai](mailt
 
 ## Contributing
 
-If you'd like to contribute to Edgit, please see our [Contributing Guide](CONTRIBUTING.md).
+If you'd like to contribute to Conductor, please see our [Contributing Guide](CONTRIBUTING.md).
