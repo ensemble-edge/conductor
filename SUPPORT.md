@@ -17,7 +17,7 @@ If you need help with Edgit, there are several ways to get support:
 
 ### Contact
 
-- **Email**: [hello@ensemble.dev](mailto:hello@ensemble.dev)
+- **Email**: [hello@ensemble.ai](mailto:hello@ensemble.ai)
 
 ## Before Asking for Help
 
@@ -32,7 +32,7 @@ Before opening an issue or discussion, please:
 
 **Do not open public GitHub issues for security vulnerabilities.**
 
-Please report security issues privately by email to [security@ensemble.dev](mailto:security@ensemble.dev) or see our [Security Policy](SECURITY.md) for more details.
+Please report security issues privately by email to [security@ensemble.ai](mailto:security@ensemble.ai) or see our [Security Policy](SECURITY.md) for more details.
 
 ## Contributing
 
