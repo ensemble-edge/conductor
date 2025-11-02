@@ -1,0 +1,120 @@
+{
+  "version": "1.0.0",
+  "bindings": {
+    "kv": {
+      "type": "KVNamespace",
+      "description": "Workers KV binding for global key-value storage",
+      "required": false,
+      "usedBy": ["Data"],
+      "wranglerConfig": {
+        "field": "kv_namespaces",
+        "arrayItem": true,
+        "example": {
+          "binding": "CACHE",
+          "id": "your-kv-namespace-id"
+        }
+      },
+      "envInterface": "KVNamespace",
+      "methods": ["get", "put", "delete", "list"]
+    },
+    "d1": {
+      "type": "D1Database",
+      "description": "D1 SQL database binding",
+      "required": false,
+      "usedBy": ["Data"],
+      "wranglerConfig": {
+        "field": "d1_databases",
+        "arrayItem": true,
+        "example": {
+          "binding": "DB",
+          "database_name": "your-database",
+          "database_id": "your-database-id"
+        }
+      },
+      "envInterface": "D1Database",
+      "methods": ["prepare", "dump", "batch", "exec"]
+    },
+    "r2": {
+      "type": "R2Bucket",
+      "description": "R2 object storage binding",
+      "required": false,
+      "usedBy": ["Data"],
+      "wranglerConfig": {
+        "field": "r2_buckets",
+        "arrayItem": true,
+        "example": {
+          "binding": "STORAGE",
+          "bucket_name": "your-bucket"
+        }
+      },
+      "envInterface": "R2Bucket",
+      "methods": ["get", "put", "delete", "head", "list"]
+    },
+    "ai": {
+      "type": "Ai",
+      "description": "Workers AI binding for running inference",
+      "required": false,
+      "usedBy": ["Think"],
+      "wranglerConfig": {
+        "field": "ai",
+        "arrayItem": false,
+        "example": {
+          "binding": "AI"
+        }
+      },
+      "envInterface": "Ai",
+      "methods": ["run"]
+    },
+    "queue": {
+      "type": "Queue",
+      "description": "Queue binding for message queuing",
+      "required": false,
+      "usedBy": [],
+      "wranglerConfig": {
+        "field": "queues",
+        "example": {
+          "producers": [
+            {
+              "binding": "MY_QUEUE",
+              "queue": "your-queue-name"
+            }
+          ]
+        }
+      },
+      "envInterface": "Queue",
+      "methods": ["send", "sendBatch"]
+    },
+    "analytics-engine": {
+      "type": "AnalyticsEngineDataset",
+      "description": "Analytics Engine binding for time-series data",
+      "required": false,
+      "usedBy": [],
+      "wranglerConfig": {
+        "field": "analytics_engine_datasets",
+        "arrayItem": true,
+        "example": {
+          "binding": "ANALYTICS",
+          "dataset": "your-dataset"
+        }
+      },
+      "envInterface": "AnalyticsEngineDataset",
+      "methods": ["writeDataPoint"]
+    },
+    "vectorize": {
+      "type": "VectorizeIndex",
+      "description": "Vectorize binding for vector search",
+      "required": false,
+      "usedBy": [],
+      "wranglerConfig": {
+        "field": "vectorize",
+        "arrayItem": true,
+        "example": {
+          "binding": "VECTORS",
+          "index_name": "your-index"
+        }
+      },
+      "envInterface": "VectorizeIndex",
+      "methods": ["query", "insert", "upsert", "getByIds", "deleteByIds"]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+name = "my-conductor-project"
+main = "src/index.ts"
+compatibility_date = "2025-10-29"
+
+# Cloudflare bindings
+kv_namespaces = [
+  { binding = "CACHE", id = "your-kv-namespace-id", preview_id = "your-preview-kv-id" }
+]
+
+# AI binding for Think members
+[ai]
+binding = "AI"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "development"

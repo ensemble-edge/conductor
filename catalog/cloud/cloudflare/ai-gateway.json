@@ -1,0 +1,191 @@
+{
+  "platform": "cloudflare",
+  "name": "Cloudflare AI Gateway",
+  "description": "Universal API gateway for AI providers with built-in caching, analytics, and rate-limiting",
+  "website": "https://developers.cloudflare.com/ai-gateway/",
+  "documentation": "https://developers.cloudflare.com/ai-gateway/get-started/",
+  "version": "2025-11-02",
+  "lastUpdated": "2025-11-02T00:00:00Z",
+  "features": {
+    "caching": {
+      "description": "Cache AI responses to reduce costs and latency",
+      "enabled": true,
+      "documentation": "https://developers.cloudflare.com/ai-gateway/configuration/caching/"
+    },
+    "analytics": {
+      "description": "Track usage, costs, and performance metrics",
+      "enabled": true,
+      "metrics": ["requests", "tokens", "latency", "errors", "costs"],
+      "documentation": "https://developers.cloudflare.com/ai-gateway/observability/analytics/"
+    },
+    "rate-limiting": {
+      "description": "Control and limit API usage per user or endpoint",
+      "enabled": true,
+      "documentation": "https://developers.cloudflare.com/ai-gateway/configuration/rate-limiting/"
+    },
+    "logging": {
+      "description": "Log all requests and responses for debugging and compliance",
+      "enabled": true,
+      "documentation": "https://developers.cloudflare.com/ai-gateway/observability/logging/"
+    },
+    "cost-controls": {
+      "description": "Set spending limits and alerts",
+      "enabled": true,
+      "documentation": "https://developers.cloudflare.com/ai-gateway/configuration/cost-controls/"
+    },
+    "fallbacks": {
+      "description": "Automatic failover between providers",
+      "enabled": true,
+      "documentation": "https://developers.cloudflare.com/ai-gateway/configuration/fallbacks/"
+    },
+    "request-retry": {
+      "description": "Automatic retry on failures",
+      "enabled": true,
+      "documentation": "https://developers.cloudflare.com/ai-gateway/configuration/retries/"
+    }
+  },
+  "configuration": {
+    "endpointPattern": "https://gateway.ai.cloudflare.com/v1/{account}/{gateway}/{provider}",
+    "authentication": {
+      "type": "cloudflare-account",
+      "required": ["accountId", "gatewayName"],
+      "description": "Requires Cloudflare account ID and AI Gateway name"
+    }
+  },
+  "supportedProviders": [
+    {
+      "id": "workers-ai",
+      "name": "Workers AI",
+      "type": "platform-native",
+      "status": "active",
+      "endpointSuffix": "workers-ai",
+      "description": "Cloudflare's edge-hosted AI models",
+      "recommended": true,
+      "notes": "Direct access via Workers AI binding is faster; gateway useful for analytics"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "openai",
+      "description": "GPT-4, GPT-3.5, and other OpenAI models",
+      "recommended": true,
+      "apiCompatibility": "openai-v1"
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "anthropic",
+      "description": "Claude 3.5 and Claude 3 models",
+      "recommended": true,
+      "apiCompatibility": "anthropic-v1"
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "groq",
+      "description": "Ultra-fast LLM inference with custom LPU architecture",
+      "recommended": true,
+      "apiCompatibility": "openai-v1"
+    },
+    {
+      "id": "azure-openai",
+      "name": "Azure OpenAI",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "azure-openai",
+      "description": "OpenAI models via Azure",
+      "recommended": false,
+      "apiCompatibility": "azure-openai"
+    },
+    {
+      "id": "huggingface",
+      "name": "HuggingFace",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "huggingface",
+      "description": "Open-source models from HuggingFace",
+      "recommended": false,
+      "apiCompatibility": "huggingface"
+    },
+    {
+      "id": "replicate",
+      "name": "Replicate",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "replicate",
+      "description": "Run open-source models in the cloud",
+      "recommended": false,
+      "apiCompatibility": "replicate"
+    },
+    {
+      "id": "aws-bedrock",
+      "name": "AWS Bedrock",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "aws-bedrock",
+      "description": "Foundation models via AWS Bedrock",
+      "recommended": false,
+      "apiCompatibility": "aws-bedrock"
+    },
+    {
+      "id": "google-vertex",
+      "name": "Google Vertex AI",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "google-vertex-ai",
+      "description": "Google's AI models via Vertex AI",
+      "recommended": false,
+      "apiCompatibility": "google-vertex"
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity",
+      "type": "external",
+      "status": "active",
+      "endpointSuffix": "perplexity",
+      "description": "Perplexity's online LLMs",
+      "recommended": false,
+      "apiCompatibility": "openai-v1"
+    }
+  ],
+  "defaultRouting": {
+    "workers-ai": "cloudflare",
+    "openai": "cloudflare-gateway",
+    "anthropic": "cloudflare-gateway",
+    "groq": "cloudflare-gateway"
+  },
+  "usage": {
+    "configurationFile": "conductor.yaml",
+    "memberConfiguration": {
+      "example": {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "routing": "cloudflare-gateway"
+      },
+      "routingOptions": [
+        "cloudflare-gateway",
+        "direct",
+        "cloudflare"
+      ],
+      "notes": [
+        "routing: cloudflare-gateway - Use AI Gateway for external providers (analytics, caching)",
+        "routing: direct - Direct API call to provider (bypasses gateway)",
+        "routing: cloudflare - Platform-native Workers AI (for @cf/ models only)"
+      ]
+    }
+  },
+  "benefits": [
+    "Single API to access multiple AI providers",
+    "Persistent caching to reduce costs and latency",
+    "Real-time analytics and logging",
+    "Rate limiting and cost controls",
+    "Automatic failover and retries",
+    "No vendor lock-in"
+  ]
+}

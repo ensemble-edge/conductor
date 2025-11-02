@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "description": "AI provider catalog - model lists and capabilities",
+  "providers": {
+    "workers-ai": {
+      "name": "Cloudflare Workers AI",
+      "status": "stable",
+      "defaultRouting": "cloudflare",
+      "documentation": "https://developers.cloudflare.com/workers-ai/models/"
+    },
+    "openai": {
+      "name": "OpenAI",
+      "status": "stable",
+      "defaultRouting": "cloudflare-gateway",
+      "documentation": "https://platform.openai.com/docs/models"
+    },
+    "anthropic": {
+      "name": "Anthropic",
+      "status": "stable",
+      "defaultRouting": "cloudflare-gateway",
+      "documentation": "https://docs.anthropic.com"
+    },
+    "groq": {
+      "name": "Groq",
+      "status": "stable",
+      "defaultRouting": "cloudflare-gateway",
+      "documentation": "https://groq.com/docs"
+    }
+  }
+}

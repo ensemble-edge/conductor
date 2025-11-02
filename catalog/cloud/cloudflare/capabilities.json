@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "platform": "cloudflare",
+  "features": {
+    "bindings": {
+      "kv": {
+        "supported": true,
+        "description": "Workers KV - Global key-value storage",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/kv/"
+      },
+      "d1": {
+        "supported": true,
+        "description": "D1 - Serverless SQL database",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/d1/"
+      },
+      "r2": {
+        "supported": true,
+        "description": "R2 - Object storage compatible with S3",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/r2/"
+      },
+      "ai": {
+        "supported": true,
+        "description": "Workers AI - Run AI models on Cloudflare's network",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/workers-ai/"
+      },
+      "queue": {
+        "supported": true,
+        "description": "Queues - Message queuing for async processing",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/queues/"
+      },
+      "durable-objects": {
+        "supported": true,
+        "description": "Durable Objects - Stateful coordination primitives",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/durable-objects/"
+      },
+      "analytics-engine": {
+        "supported": true,
+        "description": "Analytics Engine - Time-series analytics",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/analytics/analytics-engine/"
+      },
+      "vectorize": {
+        "supported": true,
+        "description": "Vectorize - Vector database for embeddings",
+        "requiredIn": "wrangler.toml",
+        "documentation": "https://developers.cloudflare.com/vectorize/"
+      }
+    },
+    "runtime": {
+      "nodeCompatibility": true,
+      "maxExecutionTime": 30000,
+      "maxExecutionTimeExtended": 900000,
+      "maxMemory": "128MB",
+      "coldStartOptimized": true,
+      "streamingSupported": true
+    },
+    "deployment": {
+      "cli": "wrangler",
+      "configFile": "wrangler.toml",
+      "supportsEdgeFunctions": true,
+      "supportsScheduledJobs": true,
+      "supportsCustomDomains": true,
+      "supportsPreview": true
+    },
+    "ai": {
+      "workersAI": true,
+      "aiGateway": true,
+      "supportsStreaming": true,
+      "supportsOpenAI": true,
+      "supportsAnthropic": true,
+      "supportsCustomModels": false
+    }
+  }
+}
