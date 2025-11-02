@@ -1,0 +1,43 @@
+# Source files (only ship compiled dist/)
+src/
+tsconfig.json
+
+# Examples and docs (not needed in npm package)
+examples/
+.planning/
+docs/
+
+# Development files
+test/
+*.spec.ts
+*.test.ts
+vitest.config.mts
+
+# Wrangler (for conductor development only)
+wrangler.jsonc
+wrangler.toml
+.dev.vars
+worker-configuration.d.ts
+
+# Git and CI
+.git/
+.github/
+.gitignore
+.editorconfig
+.prettierrc
+
+# Build artifacts
+node_modules/
+.wrangler/
+dist/**/*.map
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Misc
+*.log
+npm-debug.log*
+.DS_Store
