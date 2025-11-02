@@ -1,18 +1,80 @@
 /**
- * Welcome to Cloudflare Workers! This is your first worker.
+ * @ensemble-edge/conductor
  *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
+ * Edge-native orchestration for AI members
+ * Built on Cloudflare Workers
  */
 
-export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		return new Response('Hello World!');
-	},
-} satisfies ExportedHandler<Env>;
+// Core Runtime
+export { Executor } from './runtime/executor';
+export { Parser } from './runtime/parser';
+export { StateManager } from './runtime/state-manager';
+
+// Member Types
+export { BaseMember } from './members/base-member';
+export { FunctionMember } from './members/function-member';
+export { ThinkMember } from './members/think-member';
+export { DataMember } from './members/data-member';
+export { APIMember } from './members/api-member';
+
+// Utilities
+export { MemberLoader, createLoader } from './utils/loader';
+// export { CacheManager } from './utils/cache';
+// export { Normalizer } from './utils/normalize';
+
+// API Layer
+// export { Router } from './api/router';
+// export { createHandler } from './api/handlers';
+// export { authenticate } from './api/auth';
+
+// Types
+export type {
+	EnsembleConfig,
+	MemberConfig,
+	FlowStep
+} from './runtime/parser';
+
+export type {
+	StateConfig,
+	MemberStateConfig,
+	StateContext,
+	AccessReport
+} from './runtime/state-manager';
+
+export type {
+	MemberExecutionContext,
+	MemberResponse
+} from './members/base-member';
+
+export type {
+	ExecutorConfig,
+	ExecutionResult,
+	ExecutionMetrics
+} from './runtime/executor';
+
+/**
+ * Create a Cloudflare Worker handler with Conductor
+ *
+ * @example
+ * ```typescript
+ * import { createConductorHandler } from '@ensemble-edge/conductor';
+ *
+ * export default createConductorHandler({
+ *   membersDir: './members',
+ *   ensemblesDir: './ensembles'
+ * });
+ * ```
+ */
+export function createConductorHandler(config?: {
+	membersDir?: string;
+	ensemblesDir?: string;
+}): ExportedHandler<Env> {
+	return {
+		async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+			// This will be implemented after we build the router and loader
+			return new Response('Conductor initialized - handler implementation coming soon', {
+				headers: { 'content-type': 'text/plain' }
+			});
+		}
+	};
+}
