@@ -9,6 +9,7 @@ import * as YAML from 'yaml';
 import { z } from 'zod';
 import { getInterpolator } from './interpolation';
 import type { ResolutionContext } from './interpolation';
+import { MemberType } from '../types/constants';
 
 /**
  * Schema for validating ensemble configuration
@@ -38,7 +39,14 @@ const EnsembleSchema = z.object({
 
 const MemberSchema = z.object({
 	name: z.string().min(1, 'Member name is required'),
-	type: z.enum(['Think', 'Function', 'Data', 'API', 'MCP', 'Scoring']),
+	type: z.enum([
+		MemberType.Think,
+		MemberType.Function,
+		MemberType.Data,
+		MemberType.API,
+		MemberType.MCP,
+		MemberType.Scoring
+	]),
 	description: z.string().optional(),
 	config: z.record(z.any()).optional(),
 	schema: z.object({

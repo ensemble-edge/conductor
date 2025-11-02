@@ -6,6 +6,7 @@
 
 import type { CreateMemberOptions, MemberHandler } from './types';
 import type { MemberConfig } from '../runtime/parser';
+import { MemberType } from '../types/constants';
 
 /**
  * Create a member with simplified syntax
@@ -41,7 +42,7 @@ export function createMember(options: CreateMemberOptions): MemberHandler {
  * ```
  */
 export function createThinkMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: 'Think' });
+	return createMember({ ...options, type: MemberType.Think });
 }
 
 /**
@@ -57,7 +58,7 @@ export function createThinkMember(options: Omit<CreateMemberOptions, 'type'>): M
  * ```
  */
 export function createFunctionMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: 'Function' });
+	return createMember({ ...options, type: MemberType.Function });
 }
 
 /**
@@ -74,7 +75,7 @@ export function createFunctionMember(options: Omit<CreateMemberOptions, 'type'>)
  * ```
  */
 export function createDataMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: 'Data' });
+	return createMember({ ...options, type: MemberType.Data });
 }
 
 /**
@@ -91,7 +92,7 @@ export function createDataMember(options: Omit<CreateMemberOptions, 'type'>): Me
  * ```
  */
 export function createAPIMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: 'API' });
+	return createMember({ ...options, type: MemberType.API });
 }
 
 /**

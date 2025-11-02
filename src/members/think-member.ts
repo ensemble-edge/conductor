@@ -12,10 +12,11 @@ import { BaseMember, type MemberExecutionContext } from './base-member';
 import type { MemberConfig } from '../runtime/parser';
 import { getProviderRegistry } from './think-providers';
 import type { AIMessage, AIProviderConfig } from './think-providers';
+import { AIProvider } from '../types/constants';
 
 export interface ThinkConfig {
 	model?: string;
-	provider?: 'openai' | 'anthropic' | 'cloudflare' | 'custom';
+	provider?: AIProvider;
 	temperature?: number;
 	maxTokens?: number;
 	apiKey?: string;
@@ -42,7 +43,7 @@ export class ThinkMember extends BaseMember {
 
 		this.thinkConfig = {
 			model: config.config?.model || 'claude-3-5-haiku-20241022',
-			provider: config.config?.provider || 'anthropic',
+			provider: config.config?.provider || AIProvider.Anthropic,
 			temperature: config.config?.temperature || 0.7,
 			maxTokens: config.config?.maxTokens || 1000,
 			apiKey: config.config?.apiKey,
@@ -62,7 +63,7 @@ export class ThinkMember extends BaseMember {
 		await this.resolvePrompt(env);
 
 		// Get provider from registry
-		const providerId = this.thinkConfig.provider || 'anthropic';
+		const providerId = this.thinkConfig.provider || AIProvider.Anthropic;
 		const provider = this.providerRegistry.get(providerId);
 
 		if (!provider) {

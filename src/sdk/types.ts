@@ -4,8 +4,10 @@
 
 import type { MemberExecutionContext, MemberResponse } from '../members/base-member';
 import type { MemberConfig } from '../runtime/parser';
+import { MemberType } from '../types/constants';
 
 export type { MemberExecutionContext, MemberResponse, MemberConfig };
+export { MemberType };
 
 /**
  * Member handler function signature
@@ -19,7 +21,7 @@ export type MemberHandler<TInput = any, TOutput = any> = (
  */
 export interface CreateMemberOptions {
 	name: string;
-	type: 'Function' | 'Think' | 'Data' | 'API';
+	type: MemberType.Function | MemberType.Think | MemberType.Data | MemberType.API;
 	description?: string;
 	config?: Record<string, any>;
 	schema?: {
