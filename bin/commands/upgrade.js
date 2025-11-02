@@ -176,22 +176,18 @@ async function checkMemberModels(cwd) {
 		return;
 	}
 
-	// Load AI provider data from catalog
-	const conductorPath = path.dirname(require.resolve('@ensemble-edge/conductor/package.json'));
-	const aiProvidersPath = path.join(conductorPath, 'catalog/ai');
+	// Load AI provider data from catalog using shared loader
+	const { loadPlatformData } = require('../utils/platform-loader');
 
-	if (!fs.existsSync(aiProvidersPath)) {
-		console.log(chalk.yellow('  ⚠  Could not load AI provider data\n'));
+	let platformData;
+	try {
+		platformData = loadPlatformData('cloudflare');
+	} catch (error) {
+		console.log(chalk.yellow(`  ⚠  Could not load platform data: ${error.message}\n`));
 		return;
 	}
 
-	// Load all provider catalogs
-	const modelData = loadAllProviders(aiProvidersPath);
-
-	if (!modelData) {
-		console.log(chalk.yellow('  ⚠  Could not load AI provider data\n'));
-		return;
-	}
+	const modelData = platformData.models;
 
 	console.log(chalk.gray(`  AI providers loaded: ${Object.keys(modelData.providers).join(', ')}`));
 	console.log(chalk.gray(`  Last updated: ${modelData.lastUpdated}\n`));
@@ -283,47 +279,6 @@ async function checkMemberModels(cwd) {
 	console.log(chalk.gray('  2. Test with the new models'));
 	console.log(chalk.gray('  3. Deploy when ready'));
 	console.log();
-}
-
-function loadAllProviders(aiProvidersPath) {
-	try {
-		const manifestPath = path.join(aiProvidersPath, 'manifest.json');
-		if (!fs.existsSync(manifestPath)) {
-			return null;
-		}
-
-		const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-		const providers = {};
-		let lastUpdated = manifest.lastUpdated || new Date().toISOString();
-
-		// Load each provider's model catalog
-		for (const [providerId, providerInfo] of Object.entries(manifest.providers)) {
-			const providerFile = path.join(aiProvidersPath, `${providerId}.json`);
-
-			if (fs.existsSync(providerFile)) {
-				const providerData = JSON.parse(fs.readFileSync(providerFile, 'utf-8'));
-				providers[providerId] = {
-					name: providerData.name,
-					description: providerData.description,
-					models: providerData.models || []
-				};
-
-				// Track most recent update
-				if (providerData.lastUpdated && providerData.lastUpdated > lastUpdated) {
-					lastUpdated = providerData.lastUpdated;
-				}
-			}
-		}
-
-		return {
-			version: manifest.version,
-			lastUpdated,
-			providers
-		};
-	} catch (error) {
-		console.error(chalk.yellow(`Error loading providers: ${error.message}`));
-		return null;
-	}
 }
 
 function findModel(modelData, modelId) {
