@@ -1,8 +1,8 @@
 /**
- * Core Executor - Heart of the Conductor runtime
+ * Core Executor - Refactored with Result Types
  *
- * Orchestrates ensemble execution: loads YAML, manages state, executes members sequentially,
- * resolves input interpolations, and returns standardized responses
+ * Orchestrates ensemble execution with explicit error handling using Result types.
+ * Makes all error cases explicit and checked at compile time.
  */
 
 import { Parser, type EnsembleConfig, type FlowStep, type MemberConfig } from './parser';
@@ -12,12 +12,33 @@ import { FunctionMember } from '../members/function-member';
 import { ThinkMember } from '../members/think-member';
 import { DataMember } from '../members/data-member';
 import { APIMember } from '../members/api-member';
+import { Result, type AsyncResult } from '../types/result';
+import {
+	Errors,
+	type ConductorError,
+	MemberExecutionError,
+	EnsembleExecutionError,
+	ConfigurationError
+} from '../errors/error-types';
 
 export interface ExecutorConfig {
 	env: Env;
 	ctx: ExecutionContext;
 }
 
+/**
+ * Successful execution output
+ */
+export interface ExecutionOutput {
+	output: any;
+	metrics: ExecutionMetrics;
+	stateReport?: any;
+}
+
+/**
+ * Legacy execution result for backwards compatibility
+ * New code should use Result<ExecutionOutput, ConductorError>
+ */
 export interface ExecutionResult {
 	success: boolean;
 	output?: any;
@@ -42,7 +63,7 @@ export interface MemberMetric {
 }
 
 /**
- * Core execution engine for ensembles
+ * Core execution engine for ensembles with Result-based error handling
  */
 export class Executor {
 	private env: Env;
@@ -57,102 +78,105 @@ export class Executor {
 
 	/**
 	 * Register a member for use in ensembles
-	 * @param member - Member instance to register
 	 */
 	registerMember(member: BaseMember): void {
 		this.memberRegistry.set(member.getName(), member);
 	}
 
 	/**
-	 * Get or load a member by reference
+	 * Resolve a member by reference with explicit error handling
 	 * Supports both simple names and versioned references (name@version)
 	 *
 	 * @param memberRef - Member reference (e.g., "greet" or "analyze-company@production")
-	 * @returns Member instance
+	 * @returns Result containing the member or an error
 	 */
-	private async resolveMember(memberRef: string): Promise<BaseMember> {
+	private async resolveMember(memberRef: string): AsyncResult<BaseMember, ConductorError> {
 		const { name, version } = Parser.parseMemberReference(memberRef);
 
 		// If no version specified, get from registry
 		if (!version) {
 			const member = this.memberRegistry.get(name);
 			if (!member) {
-				throw new Error(`Member "${name}" not found in registry`);
+				return Result.err(Errors.memberNotFound(name));
 			}
-			return member;
+			return Result.ok(member);
 		}
 
-		// Version specified - need to load from Edgit
-		// Check if we already have this exact version in registry (cached)
+		// Version specified - check cache first
 		const versionedKey = `${name}@${version}`;
 		if (this.memberRegistry.has(versionedKey)) {
-			return this.memberRegistry.get(versionedKey)!;
+			const member = this.memberRegistry.get(versionedKey)!;
+			return Result.ok(member);
 		}
 
-		// Load member config from Edgit
-		try {
-			// TODO: This will work once Edgit is integrated
-			// For now, we'll try to load from local registry and provide helpful error
-			const localMember = this.memberRegistry.get(name);
-			if (localMember) {
-				// Member exists locally but version was requested
-				// Cache it under versioned key for future use
-				this.memberRegistry.set(versionedKey, localMember);
-				return localMember;
-			}
-
-			throw new Error(
-				`Cannot load versioned member "${memberRef}". ` +
-				`Edgit integration not yet available. ` +
-				`Register members manually for now using executor.registerMember()`
-			);
-
-			// Future implementation when Edgit is available:
-			// import { loadMemberConfig } from '../sdk/edgit';
-			// const config = await loadMemberConfig(memberRef, this.env);
-			// const member = this.createMemberFromConfig(config);
-			// this.memberRegistry.set(versionedKey, member);
-			// return member;
-		} catch (error) {
-			throw new Error(
-				`Failed to load member "${memberRef}": ${error instanceof Error ? error.message : 'Unknown error'}`
-			);
+		// Try to load from local registry (Edgit not yet integrated)
+		const localMember = this.memberRegistry.get(name);
+		if (localMember) {
+			// Cache it under versioned key
+			this.memberRegistry.set(versionedKey, localMember);
+			return Result.ok(localMember);
 		}
+
+		// Not found
+		return Result.err(
+			Errors.memberConfig(
+				memberRef,
+				'Versioned member loading requires Edgit integration. ' +
+				'Register members manually using executor.registerMember()'
+			)
+		);
 	}
 
 	/**
 	 * Create a member instance from config
 	 * Used for dynamically loading members from Edgit
 	 */
-	private createMemberFromConfig(config: MemberConfig): BaseMember {
+	private createMemberFromConfig(config: MemberConfig): Result<BaseMember, ConductorError> {
 		switch (config.type) {
 			case 'Think':
-				return new ThinkMember(config);
+				return Result.ok(new ThinkMember(config));
+
 			case 'Data':
-				return new DataMember(config);
+				return Result.ok(new DataMember(config));
+
 			case 'API':
-				return new APIMember(config);
+				return Result.ok(new APIMember(config));
+
 			case 'Function':
-				throw new Error(
-					`Cannot dynamically load Function member "${config.name}". ` +
-					`Function members require code implementation and must be registered manually.`
+				return Result.err(
+					Errors.memberConfig(
+						config.name,
+						'Function members require code implementation and must be registered manually'
+					)
 				);
+
 			case 'MCP':
-				throw new Error('MCP member type not yet implemented');
+				return Result.err(
+					Errors.memberConfig(config.name, 'MCP member type not yet implemented')
+				);
+
 			case 'Scoring':
-				throw new Error('Scoring member type not yet implemented');
+				return Result.err(
+					Errors.memberConfig(config.name, 'Scoring member type not yet implemented')
+				);
+
 			default:
-				throw new Error(`Unknown member type: ${config.type}`);
+				return Result.err(
+					Errors.memberConfig(config.name, `Unknown member type: ${config.type}`)
+				);
 		}
 	}
 
 	/**
-	 * Execute an ensemble from parsed configuration
+	 * Execute an ensemble with Result-based error handling
 	 * @param ensemble - Parsed ensemble configuration
 	 * @param input - Input data for the ensemble
-	 * @returns Execution result
+	 * @returns Result containing execution output or error
 	 */
-	async executeEnsemble(ensemble: EnsembleConfig, input: Record<string, any>): Promise<ExecutionResult> {
+	async executeEnsembleV2(
+		ensemble: EnsembleConfig,
+		input: Record<string, any>
+	): AsyncResult<ExecutionOutput, ConductorError> {
 		const startTime = Date.now();
 		const metrics: ExecutionMetrics = {
 			ensemble: ensemble.name,
@@ -161,135 +185,205 @@ export class Executor {
 			cacheHits: 0
 		};
 
-		try {
-			// Initialize state manager if configured
-			const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
+		// Initialize state manager if configured
+		const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
 
-			// Context for resolving interpolations
-			const executionContext: Record<string, any> = {
-				input,
-				state: stateManager ? stateManager.getState() : {}
+		// Context for resolving interpolations
+		const executionContext: Record<string, any> = {
+			input,
+			state: stateManager ? stateManager.getState() : {}
+		};
+
+		// Execute flow steps sequentially
+		for (const step of ensemble.flow) {
+			const memberStartTime = Date.now();
+
+			// Resolve input interpolations
+			const resolvedInput = step.input
+				? Parser.resolveInterpolation(step.input, executionContext)
+				: {};
+
+			// Resolve member - error handling is explicit
+			const memberResult = await this.resolveMember(step.member);
+			if (!memberResult.success) {
+				return Result.err(
+					new EnsembleExecutionError(ensemble.name, step.member, memberResult.error)
+				);
+			}
+			const member = memberResult.value;
+
+			// Create member execution context
+			const memberContext: MemberExecutionContext = {
+				input: resolvedInput,
+				env: this.env,
+				ctx: this.ctx,
+				previousOutputs: executionContext
 			};
 
-			// Execute flow steps sequentially
-			for (const step of ensemble.flow) {
-				const memberStartTime = Date.now();
-
-				// Resolve input interpolations
-				const resolvedInput = step.input ? Parser.resolveInterpolation(step.input, executionContext) : {};
-
-				// Resolve member (supports versioned references like "member@version")
-				const member = await this.resolveMember(step.member);
-
-				// Create member execution context
-				const memberContext: MemberExecutionContext = {
-					input: resolvedInput,
-					env: this.env,
-					ctx: this.ctx,
-					previousOutputs: executionContext
-				};
-
-				// Add state context if available
-				if (stateManager && step.state) {
-					const stateContext = stateManager.getStateForMember(step.member, step.state);
-					memberContext.state = stateContext.state;
-					memberContext.setState = stateContext.setState;
-				}
-
-				// Execute member
-				const response = await member.execute(memberContext);
-
-				// Track metrics
-				const memberDuration = Date.now() - memberStartTime;
-				metrics.members.push({
-					name: step.member,
-					duration: memberDuration,
-					cached: response.cached,
-					success: response.success
-				});
-
-				if (response.cached) {
-					metrics.cacheHits++;
-				}
-
-				// Handle errors
-				if (!response.success) {
-					throw new Error(`Member "${step.member}" failed: ${response.error}`);
-				}
-
-				// Store member output in context for future interpolations
-				executionContext[step.member] = {
-					output: response.data
-				};
-
-				// Update state context if state manager exists
-				if (stateManager) {
-					executionContext.state = stateManager.getState();
-				}
+			// Add state context if available
+			if (stateManager && step.state) {
+				const stateContext = stateManager.getStateForMember(step.member, step.state);
+				memberContext.state = stateContext.state;
+				memberContext.setState = stateContext.setState;
 			}
 
-			// Resolve final output
-			const finalOutput = ensemble.output
-				? Parser.resolveInterpolation(ensemble.output, executionContext)
-				: executionContext;
+			// Execute member
+			const response = await member.execute(memberContext);
 
-			// Calculate total duration
-			metrics.totalDuration = Date.now() - startTime;
+			// Track metrics
+			const memberDuration = Date.now() - memberStartTime;
+			metrics.members.push({
+				name: step.member,
+				duration: memberDuration,
+				cached: response.cached,
+				success: response.success
+			});
 
-			// Get state report if available
-			const stateReport = stateManager?.getAccessReport();
+			if (response.cached) {
+				metrics.cacheHits++;
+			}
 
-			return {
-				success: true,
-				output: finalOutput,
-				metrics,
-				stateReport
+			// Handle member execution errors explicitly
+			if (!response.success) {
+				return Result.err(
+					new MemberExecutionError(
+						step.member,
+						response.error || 'Unknown error',
+						undefined
+					)
+				);
+			}
+
+			// Store member output in context for future interpolations
+			executionContext[step.member] = {
+				output: response.data
 			};
-		} catch (error) {
-			metrics.totalDuration = Date.now() - startTime;
 
-			return {
-				success: false,
-				error: error instanceof Error ? error.message : 'Unknown error',
-				metrics
-			};
+			// Update state context if state manager exists
+			if (stateManager) {
+				executionContext.state = stateManager.getState();
+			}
 		}
+
+		// Resolve final output
+		const finalOutput = ensemble.output
+			? Parser.resolveInterpolation(ensemble.output, executionContext)
+			: executionContext;
+
+		// Calculate total duration
+		metrics.totalDuration = Date.now() - startTime;
+
+		// Get state report if available
+		const stateReport = stateManager?.getAccessReport();
+
+		return Result.ok({
+			output: finalOutput,
+			metrics,
+			stateReport
+		});
 	}
 
 	/**
-	 * Load and execute an ensemble from YAML content
-	 * @param yamlContent - Ensemble YAML content
-	 * @param input - Input data
-	 * @returns Execution result
+	 * Execute an ensemble (legacy interface for backwards compatibility)
+	 * New code should use executeEnsembleV2 which returns Result
 	 */
-	async executeFromYAML(yamlContent: string, input: Record<string, any>): Promise<ExecutionResult> {
-		try {
-			// Parse the YAML
-			const ensemble = Parser.parseEnsemble(yamlContent);
+	async executeEnsemble(
+		ensemble: EnsembleConfig,
+		input: Record<string, any>
+	): Promise<ExecutionResult> {
+		const result = await this.executeEnsembleV2(ensemble, input);
 
-			// Validate that all referenced members exist
-			const availableMembers = new Set(this.memberRegistry.keys());
-			Parser.validateMemberReferences(ensemble, availableMembers);
-
-			// Execute the ensemble
-			return await this.executeEnsemble(ensemble, input);
-		} catch (error) {
+		if (result.success) {
 			return {
-				success: false,
-				error: error instanceof Error ? error.message : 'Unknown error',
-				metrics: {
-					ensemble: 'unknown',
-					totalDuration: 0,
-					members: [],
-					cacheHits: 0
-				}
+				success: true,
+				output: result.value.output,
+				metrics: result.value.metrics,
+				stateReport: result.value.stateReport
 			};
 		}
+
+		// Convert error to legacy format
+		return {
+			success: false,
+			error: result.error.message,
+			metrics: {
+				ensemble: ensemble.name,
+				totalDuration: 0,
+				members: [],
+				cacheHits: 0
+			}
+		};
+	}
+
+	/**
+	 * Load and execute an ensemble from YAML with Result-based error handling
+	 */
+	async executeFromYAMLV2(
+		yamlContent: string,
+		input: Record<string, any>
+	): AsyncResult<ExecutionOutput, ConductorError> {
+		// Parse YAML
+		const parseResult = Result.fromThrowable(() => Parser.parseEnsemble(yamlContent));
+		if (!parseResult.success) {
+			return Result.err(
+				Errors.ensembleParse(
+					'unknown',
+					parseResult.error.message
+				)
+			);
+		}
+		const ensemble = parseResult.value;
+
+		// Validate member references
+		const availableMembers = new Set(this.memberRegistry.keys());
+		const validationResult = Result.fromThrowable(() =>
+			Parser.validateMemberReferences(ensemble, availableMembers)
+		);
+		if (!validationResult.success) {
+			return Result.err(
+				Errors.ensembleParse(
+					ensemble.name,
+					validationResult.error.message
+				)
+			);
+		}
+
+		// Execute the ensemble
+		return await this.executeEnsembleV2(ensemble, input);
+	}
+
+	/**
+	 * Load and execute an ensemble from YAML (legacy interface)
+	 */
+	async executeFromYAML(
+		yamlContent: string,
+		input: Record<string, any>
+	): Promise<ExecutionResult> {
+		const result = await this.executeFromYAMLV2(yamlContent, input);
+
+		if (result.success) {
+			return {
+				success: true,
+				output: result.value.output,
+				metrics: result.value.metrics,
+				stateReport: result.value.stateReport
+			};
+		}
+
+		return {
+			success: false,
+			error: result.error.message,
+			metrics: {
+				ensemble: 'unknown',
+				totalDuration: 0,
+				members: [],
+				cacheHits: 0
+			}
+		};
 	}
 
 	/**
 	 * Get all registered member names
-	 * @returns Array of member names
 	 */
 	getRegisteredMembers(): string[] {
 		return Array.from(this.memberRegistry.keys());
@@ -297,8 +391,6 @@ export class Executor {
 
 	/**
 	 * Check if a member is registered
-	 * @param memberName - Name of the member
-	 * @returns True if member is registered
 	 */
 	hasMember(memberName: string): boolean {
 		return this.memberRegistry.has(memberName);

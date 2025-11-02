@@ -57,75 +57,11 @@ async function checkConfig(options = {}) {
 }
 
 function loadPlatformData(platform) {
+	const { loadPlatformData: loadData } = require('../utils/platform-loader');
 	try {
-		const conductorPath = path.dirname(require.resolve('@ensemble-edge/conductor/package.json'));
-
-		// Load AI provider data from catalog
-		const aiProvidersPath = path.join(conductorPath, 'catalog/ai');
-		if (!fs.existsSync(aiProvidersPath)) {
-			return null;
-		}
-
-		const models = loadAllProviders(aiProvidersPath);
-		if (!models) {
-			return null;
-		}
-
-		// Load cloud platform capabilities
-		const cloudPlatformPath = path.join(conductorPath, 'catalog/cloud', platform);
-		let capabilities = {};
-
-		if (fs.existsSync(cloudPlatformPath)) {
-			const capabilitiesFile = path.join(cloudPlatformPath, 'capabilities.json');
-			if (fs.existsSync(capabilitiesFile)) {
-				capabilities = JSON.parse(fs.readFileSync(capabilitiesFile, 'utf-8'));
-			}
-		}
-
-		return { models, capabilities };
+		return loadData(platform);
 	} catch (error) {
 		console.error(chalk.red(`Error loading platform data: ${error.message}`));
-		return null;
-	}
-}
-
-function loadAllProviders(aiProvidersPath) {
-	try {
-		const manifestPath = path.join(aiProvidersPath, 'manifest.json');
-		if (!fs.existsSync(manifestPath)) {
-			return null;
-		}
-
-		const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-		const providers = {};
-		let lastUpdated = manifest.lastUpdated || new Date().toISOString();
-
-		// Load each provider's model catalog
-		for (const [providerId, providerInfo] of Object.entries(manifest.providers)) {
-			const providerFile = path.join(aiProvidersPath, `${providerId}.json`);
-
-			if (fs.existsSync(providerFile)) {
-				const providerData = JSON.parse(fs.readFileSync(providerFile, 'utf-8'));
-				providers[providerId] = {
-					name: providerData.name,
-					description: providerData.description,
-					models: providerData.models || []
-				};
-
-				// Track most recent update
-				if (providerData.lastUpdated && providerData.lastUpdated > lastUpdated) {
-					lastUpdated = providerData.lastUpdated;
-				}
-			}
-		}
-
-		return {
-			version: manifest.version,
-			lastUpdated,
-			providers
-		};
-	} catch (error) {
-		console.error(chalk.red(`Error loading providers: ${error.message}`));
 		return null;
 	}
 }
