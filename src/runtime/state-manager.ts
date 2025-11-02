@@ -1,8 +1,8 @@
 /**
- * State Manager for Ensemble workflows
+ * State Manager V2 - Refactored for Immutability
  *
- * Manages shared state across member executions, providing selective access
- * and tracking state usage patterns for optimization
+ * Returns new instances instead of mutating internal state.
+ * Follows functional programming principles for predictability.
  */
 
 export interface StateConfig {
@@ -16,11 +16,12 @@ export interface MemberStateConfig {
 }
 
 export interface StateContext {
-	state: Record<string, any>;
+	state: Readonly<Record<string, any>>;
 	setState: (updates: Record<string, any>) => void;
 }
 
 export interface AccessLogEntry {
+	member: string;
 	key: string;
 	operation: 'read' | 'write';
 	timestamp: number;
@@ -32,125 +33,207 @@ export interface AccessReport {
 }
 
 /**
- * StateManager handles shared state across ensemble member executions
+ * Immutable StateManager - returns new instances for all mutations
  */
 export class StateManager {
-	private schema: Record<string, any>;
-	private state: Record<string, any>;
-	private accessLog: Map<string, AccessLogEntry[]>;
+	private readonly schema: Readonly<Record<string, any>>;
+	private readonly state: Readonly<Record<string, any>>;
+	private readonly accessLog: ReadonlyArray<AccessLogEntry>;
 
-	constructor(config: StateConfig) {
-		this.schema = config.schema || {};
-		this.state = { ...(config.initial || {}) };
-		this.accessLog = new Map();
+	constructor(
+		config: StateConfig,
+		existingState?: Readonly<Record<string, any>>,
+		existingLog?: ReadonlyArray<AccessLogEntry>
+	) {
+		this.schema = Object.freeze(config.schema || {});
+		this.state = Object.freeze(existingState || { ...(config.initial || {}) });
+		this.accessLog = existingLog || [];
 	}
 
 	/**
 	 * Create a state context for a specific member
-	 * @param memberName - Name of the member
-	 * @param memberStateConfig - State configuration for this member
-	 * @returns State context with limited access
+	 * Returns both the context and a function to retrieve accumulated updates
 	 */
-	getStateForMember(memberName: string, config: MemberStateConfig): StateContext {
+	getStateForMember(memberName: string, config: MemberStateConfig): {
+		context: StateContext;
+		getPendingUpdates: () => { updates: Record<string, any>; newLog: AccessLogEntry[] };
+	} {
 		const { use = [], set = [] } = config;
 
 		// Create read-only state view (only includes declared 'use' keys)
-		const state: Record<string, any> = {};
+		const viewState: Record<string, any> = {};
+		const newLog: AccessLogEntry[] = [...this.accessLog];
+
 		for (const key of use) {
 			if (this.state && key in this.state) {
-				state[key] = this.state[key];
-				this.logAccess(memberName, key, 'read');
+				viewState[key] = this.state[key];
+				newLog.push({
+					member: memberName,
+					key,
+					operation: 'read',
+					timestamp: Date.now()
+				});
 			}
 		}
 
-		// Create setter function (only allows declared 'set' keys)
+		// Track pending updates in closure
+		const pendingUpdates: Record<string, any> = {};
+
+		// Create setState function that accumulates updates
 		const setState = (updates: Record<string, any>) => {
-			this.setStateFromMember(memberName, updates, config);
+			for (const [key, value] of Object.entries(updates)) {
+				if (set.includes(key)) {
+					pendingUpdates[key] = value;
+					newLog.push({
+						member: memberName,
+						key,
+						operation: 'write',
+						timestamp: Date.now()
+					});
+				} else {
+					console.warn(`Member "${memberName}" attempted to set undeclared state key: "${key}"`);
+				}
+			}
 		};
 
-		return { state, setState };
+		return {
+			context: {
+				state: Object.freeze(viewState),
+				setState
+			},
+			getPendingUpdates: () => ({ updates: pendingUpdates, newLog })
+		};
 	}
 
 	/**
-	 * Update state from a member (enforces 'set' permissions)
-	 * @param memberName - Name of the member making the update
-	 * @param updates - State updates
-	 * @param config - Member's state configuration
+	 * Apply pending updates from a member execution (returns new StateManager instance)
+	 * This is the preferred method when using getStateForMember with getPendingUpdates
 	 */
-	setStateFromMember(memberName: string, updates: Record<string, any>, config: MemberStateConfig): void {
+	applyPendingUpdates(
+		updates: Record<string, any>,
+		newLog: AccessLogEntry[]
+	): StateManager {
+		// If no updates, return this instance (optimization)
+		if (Object.keys(updates).length === 0 && newLog.length === this.accessLog.length) {
+			return this;
+		}
+
+		// Create new state with updates
+		const newState: Record<string, any> = { ...this.state, ...updates };
+
+		// Return new StateManager with updated state and log
+		return new StateManager(
+			{ schema: this.schema, initial: {} },
+			newState,
+			newLog
+		);
+	}
+
+	/**
+	 * Update state from a member (returns new StateManager instance)
+	 * Use applyPendingUpdates for better performance when using getStateForMember
+	 */
+	setStateFromMember(
+		memberName: string,
+		updates: Record<string, any>,
+		config: MemberStateConfig
+	): StateManager {
 		const { set = [] } = config;
 
-		for (const key of Object.keys(updates)) {
+		// Create new state object
+		const newState: Record<string, any> = { ...this.state };
+		const newLog: AccessLogEntry[] = [...this.accessLog];
+
+		for (const [key, value] of Object.entries(updates)) {
 			if (set.includes(key)) {
-				this.state[key] = updates[key];
-				this.logAccess(memberName, key, 'write');
+				newState[key] = value;
+				newLog.push({
+					member: memberName,
+					key,
+					operation: 'write',
+					timestamp: Date.now()
+				});
 			} else {
 				console.warn(`Member "${memberName}" attempted to set undeclared state key: "${key}"`);
 			}
 		}
+
+		// Return new StateManager with updated state
+		return new StateManager(
+			{ schema: this.schema, initial: {} },
+			newState,
+			newLog
+		);
 	}
 
 	/**
-	 * Get the full current state snapshot (for final output)
-	 * @returns Current state
+	 * Get the full current state snapshot
 	 */
-	getState(): Record<string, any> {
-		return { ...this.state };
-	}
-
-	/**
-	 * Log state access for monitoring and optimization
-	 * @param member - Member name
-	 * @param key - State key being accessed
-	 * @param operation - Read or write operation
-	 */
-	private logAccess(member: string, key: string, operation: 'read' | 'write'): void {
-		if (!this.accessLog.has(member)) {
-			this.accessLog.set(member, []);
-		}
-
-		this.accessLog.get(member)!.push({
-			key,
-			operation,
-			timestamp: Date.now()
-		});
+	getState(): Readonly<Record<string, any>> {
+		return this.state;
 	}
 
 	/**
 	 * Generate an access report showing state usage patterns
-	 * @returns Access report
 	 */
 	getAccessReport(): AccessReport {
 		const allKeys = Object.keys(this.state);
 		const usedKeys = new Set<string>();
 
 		// Collect all keys that were accessed
-		for (const accesses of this.accessLog.values()) {
-			accesses.forEach(access => usedKeys.add(access.key));
+		for (const access of this.accessLog) {
+			usedKeys.add(access.key);
 		}
 
 		// Find unused keys
 		const unusedKeys = allKeys.filter(key => !usedKeys.has(key));
 
+		// Group access log by member
+		const accessPatterns: Record<string, AccessLogEntry[]> = {};
+		for (const access of this.accessLog) {
+			if (!accessPatterns[access.member]) {
+				accessPatterns[access.member] = [];
+			}
+			accessPatterns[access.member].push(access);
+		}
+
 		return {
 			unusedKeys,
-			accessPatterns: Object.fromEntries(this.accessLog)
+			accessPatterns
 		};
 	}
 
 	/**
-	 * Clear access logs (useful for testing or resetting monitoring)
+	 * Clear access logs (returns new instance)
 	 */
-	clearAccessLog(): void {
-		this.accessLog.clear();
+	clearAccessLog(): StateManager {
+		return new StateManager(
+			{ schema: this.schema, initial: {} },
+			this.state,
+			[]
+		);
 	}
 
 	/**
-	 * Reset state to initial values
+	 * Reset state to initial values (returns new instance)
 	 */
-	reset(): void {
-		// Reset to initial state based on schema
-		this.state = {};
-		this.clearAccessLog();
+	reset(initialState?: Record<string, any>): StateManager {
+		return new StateManager(
+			{ schema: this.schema, initial: initialState || {} },
+			undefined,
+			[]
+		);
+	}
+
+	/**
+	 * Create a new StateManager with merged state
+	 */
+	merge(updates: Record<string, any>): StateManager {
+		const newState = { ...this.state, ...updates };
+		return new StateManager(
+			{ schema: this.schema, initial: {} },
+			newState,
+			this.accessLog
+		);
 	}
 }

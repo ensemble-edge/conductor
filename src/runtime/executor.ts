@@ -20,6 +20,7 @@ import {
 	EnsembleExecutionError,
 	ConfigurationError
 } from '../errors/error-types';
+import { MemberType } from '../types/constants';
 
 export interface ExecutorConfig {
 	env: Env;
@@ -133,16 +134,16 @@ export class Executor {
 	 */
 	private createMemberFromConfig(config: MemberConfig): Result<BaseMember, ConductorError> {
 		switch (config.type) {
-			case 'Think':
+			case MemberType.Think:
 				return Result.ok(new ThinkMember(config));
 
-			case 'Data':
+			case MemberType.Data:
 				return Result.ok(new DataMember(config));
 
-			case 'API':
+			case MemberType.API:
 				return Result.ok(new APIMember(config));
 
-			case 'Function':
+			case MemberType.Function:
 				return Result.err(
 					Errors.memberConfig(
 						config.name,
@@ -150,12 +151,12 @@ export class Executor {
 					)
 				);
 
-			case 'MCP':
+			case MemberType.MCP:
 				return Result.err(
 					Errors.memberConfig(config.name, 'MCP member type not yet implemented')
 				);
 
-			case 'Scoring':
+			case MemberType.Scoring:
 				return Result.err(
 					Errors.memberConfig(config.name, 'Scoring member type not yet implemented')
 				);
@@ -186,7 +187,7 @@ export class Executor {
 		};
 
 		// Initialize state manager if configured
-		const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
+		let stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
 
 		// Context for resolving interpolations
 		const executionContext: Record<string, any> = {
@@ -220,15 +221,23 @@ export class Executor {
 				previousOutputs: executionContext
 			};
 
-			// Add state context if available
+			// Add state context if available and track updates
+			let getPendingUpdates: (() => { updates: Record<string, any>; newLog: any[] }) | null = null;
 			if (stateManager && step.state) {
-				const stateContext = stateManager.getStateForMember(step.member, step.state);
-				memberContext.state = stateContext.state;
-				memberContext.setState = stateContext.setState;
+				const { context, getPendingUpdates: getUpdates } = stateManager.getStateForMember(step.member, step.state);
+				memberContext.state = context.state;
+				memberContext.setState = context.setState;
+				getPendingUpdates = getUpdates;
 			}
 
 			// Execute member
 			const response = await member.execute(memberContext);
+
+			// Apply pending state updates (immutable pattern - returns new StateManager)
+			if (stateManager && getPendingUpdates) {
+				const { updates, newLog } = getPendingUpdates();
+				stateManager = stateManager.applyPendingUpdates(updates, newLog);
+			}
 
 			// Track metrics
 			const memberDuration = Date.now() - memberStartTime;
@@ -259,7 +268,7 @@ export class Executor {
 				output: response.data
 			};
 
-			// Update state context if state manager exists
+			// Update state context with new state from immutable StateManager
 			if (stateManager) {
 				executionContext.state = stateManager.getState();
 			}
