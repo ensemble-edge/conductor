@@ -1,0 +1,242 @@
+{
+  "provider": "workers-ai",
+  "name": "Cloudflare Workers AI",
+  "description": "AI models running on Cloudflare's global edge network",
+  "website": "https://ai.cloudflare.com",
+  "documentation": "https://developers.cloudflare.com/workers-ai/models/",
+  "version": "2025-11-02",
+  "lastUpdated": "2025-11-02T00:00:00Z",
+  "defaultRouting": "cloudflare",
+  "authentication": {
+    "type": "binding",
+    "binding": "AI",
+    "description": "Requires AI binding in wrangler.toml"
+  },
+  "endpoints": {
+    "cloudflare": {
+      "type": "binding",
+      "description": "Uses Workers AI binding"
+    }
+  },
+  "models": [
+    {
+      "id": "@cf/openai/gpt-oss-120b",
+      "name": "GPT OSS 120B",
+      "provider": "OpenAI",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "batch"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "recommended": true,
+      "description": "Designed for production, general purpose, high reasoning use-cases"
+    },
+    {
+      "id": "@cf/openai/gpt-oss-20b",
+      "name": "GPT OSS 20B",
+      "provider": "OpenAI",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "description": "For lower latency and local or specialized use-cases"
+    },
+    {
+      "id": "@cf/meta/llama-4-scout-17b-16e-instruct",
+      "name": "Llama 4 Scout 17B",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "multimodal", "function-calling", "batch"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "recommended": true,
+      "description": "Natively multimodal with mixture-of-experts architecture"
+    },
+    {
+      "id": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "name": "Llama 3.3 70B Instruct (FP8 Fast)",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "function-calling", "batch"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "recommended": true,
+      "description": "FP8 quantized, optimized for speed"
+    },
+    {
+      "id": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "name": "Llama 3.1 8B Instruct (Fast)",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "multilingual"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "recommended": true,
+      "description": "Fast version for multilingual dialogue"
+    },
+    {
+      "id": "@cf/meta/llama-3.1-8b-instruct",
+      "name": "Llama 3.1 8B Instruct",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "multilingual"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "recommended": true
+    },
+    {
+      "id": "@cf/ibm/granite-4.0-h-micro",
+      "name": "Granite 4.0 H Micro",
+      "provider": "IBM",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "function-calling", "agentic"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "description": "Strong performance in agentic tasks like instruction following and function calling"
+    },
+    {
+      "id": "@cf/google/gemma-3-12b-it",
+      "name": "Gemma 3 12B Instruct",
+      "provider": "Google",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "multimodal", "lora"],
+      "contextWindow": 128000,
+      "pricing": "free",
+      "recommended": true
+    },
+    {
+      "id": "@cf/mistral/mistral-small-3.1-24b-instruct",
+      "name": "Mistral Small 3.1 24B Instruct",
+      "provider": "Mistral AI",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "vision", "function-calling"],
+      "contextWindow": 128000,
+      "pricing": "free",
+      "recommended": true
+    },
+    {
+      "id": "@cf/qwen/qwq-32b",
+      "name": "QwQ 32B",
+      "provider": "Qwen",
+      "type": "reasoning",
+      "status": "active",
+      "capabilities": ["reasoning", "lora"],
+      "contextWindow": 32768,
+      "pricing": "free"
+    },
+    {
+      "id": "@cf/qwen/qwen2.5-coder-32b-instruct",
+      "name": "Qwen 2.5 Coder 32B Instruct",
+      "provider": "Qwen",
+      "type": "code-generation",
+      "status": "active",
+      "capabilities": ["code", "lora"],
+      "contextWindow": 32768,
+      "pricing": "free",
+      "recommended": true
+    },
+    {
+      "id": "@cf/deepseek/deepseek-r1-distill-qwen-32b",
+      "name": "DeepSeek R1 Distill Qwen 32B",
+      "provider": "DeepSeek",
+      "type": "reasoning",
+      "status": "active",
+      "capabilities": ["reasoning"],
+      "contextWindow": 32768,
+      "pricing": "free"
+    },
+    {
+      "id": "@cf/meta/llama-3.2-1b-instruct",
+      "name": "Llama 3.2 1B Instruct",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "multilingual"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "description": "Lightweight multilingual model"
+    },
+    {
+      "id": "@cf/meta/llama-3.2-3b-instruct",
+      "name": "Llama 3.2 3B Instruct",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "multilingual"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "description": "Lightweight multilingual model"
+    },
+    {
+      "id": "@cf/meta/llama-guard-3-8b",
+      "name": "Llama Guard 3 8B",
+      "provider": "Meta",
+      "type": "classification",
+      "status": "active",
+      "capabilities": ["safety", "lora"],
+      "contextWindow": 8192,
+      "pricing": "free",
+      "description": "Content safety classification"
+    },
+    {
+      "id": "@cf/mistral/mistral-7b-instruct-v0.2",
+      "name": "Mistral 7B Instruct v0.2",
+      "provider": "Mistral AI",
+      "type": "text-generation",
+      "status": "active",
+      "capabilities": ["chat", "lora"],
+      "contextWindow": 32768,
+      "pricing": "free"
+    },
+    {
+      "id": "@cf/meta/llama-2-7b-chat-int8",
+      "name": "Llama 2 7B Chat (Int8)",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "deprecated",
+      "deprecatedAt": "2024-10-01",
+      "deprecatedReason": "Replaced by Llama 3.1 with better performance",
+      "replacementModel": "@cf/meta/llama-3.1-8b-instruct",
+      "endOfLife": "2025-06-01",
+      "capabilities": ["chat"],
+      "contextWindow": 4096,
+      "pricing": "free"
+    },
+    {
+      "id": "@cf/meta/llama-2-7b-chat-fp16",
+      "name": "Llama 2 7B Chat (FP16)",
+      "provider": "Meta",
+      "type": "text-generation",
+      "status": "deprecated",
+      "deprecatedAt": "2024-10-01",
+      "deprecatedReason": "Replaced by Llama 3.1 with better performance",
+      "replacementModel": "@cf/meta/llama-3.1-8b-instruct",
+      "endOfLife": "2025-06-01",
+      "capabilities": ["chat"],
+      "contextWindow": 4096,
+      "pricing": "free"
+    },
+    {
+      "id": "@cf/qwen/qwen1.5-1.8b-chat",
+      "name": "Qwen 1.5 1.8B Chat",
+      "provider": "Qwen",
+      "type": "text-generation",
+      "status": "deprecated",
+      "deprecatedAt": "2024-11-01",
+      "deprecatedReason": "Replaced by Qwen 2.5 series",
+      "replacementModel": "@cf/qwen/qwen2.5-coder-32b-instruct",
+      "endOfLife": "2025-05-01",
+      "capabilities": ["chat"],
+      "contextWindow": 8192,
+      "pricing": "free"
+    }
+  ]
+}

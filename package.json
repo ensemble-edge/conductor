@@ -1,21 +1,83 @@
 {
 	"name": "@ensemble-edge/conductor",
 	"version": "0.0.1",
+	"description": "Edge-native orchestration for AI members. Built on Cloudflare Workers.",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.js"
+		},
+		"./sdk": {
+			"types": "./dist/sdk/index.d.ts",
+			"import": "./dist/sdk/index.js",
+			"require": "./dist/sdk/index.js"
+		}
+	},
+	"bin": {
+		"conductor": "./bin/conductor.js"
+	},
+	"files": [
+		"dist",
+		"bin",
+		"catalog",
+		"README.md",
+		"LICENSE"
+	],
 	"scripts": {
-		"deploy": "wrangler deploy",
+		"build": "tsc",
 		"dev": "wrangler dev",
-		"start": "wrangler dev",
 		"test": "vitest",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"prepublishOnly": "npm run build"
+	},
+	"dependencies": {
+		"chalk": "^4.1.2",
+		"commander": "^12.1.0",
+		"glob": "^10.3.10",
+		"yaml": "^2.4.0",
+		"zod": "^3.22.4"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
+		"@cloudflare/workers-types": "^4.20241127.0",
+		"@types/node": "^20.11.0",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
 		"wrangler": "^4.45.2"
 	},
-	"repository": "https://github.com/ensemble-edge/conductor",
+	"peerDependencies": {
+		"@cloudflare/workers-types": "^4.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@ensemble-edge/edgit": {
+			"optional": true
+		}
+	},
+	"keywords": [
+		"cloudflare",
+		"workers",
+		"ai",
+		"orchestration",
+		"edge",
+		"llm",
+		"workflow",
+		"ensemble",
+		"conductor"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ensemble-edge/conductor"
+	},
+	"bugs": {
+		"url": "https://github.com/ensemble-edge/conductor/issues"
+	},
+	"homepage": "https://github.com/ensemble-edge/conductor#readme",
 	"author": "Ensemble Edge",
+	"license": "Apache-2.0",
 	"publishConfig": {
 		"access": "public"
 	}

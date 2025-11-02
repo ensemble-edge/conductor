@@ -1,0 +1,110 @@
+{
+  "provider": "groq",
+  "name": "Groq",
+  "description": "Extremely fast LLM inference using custom LPU architecture",
+  "website": "https://groq.com",
+  "documentation": "https://console.groq.com/docs",
+  "version": "2025-11-02",
+  "lastUpdated": "2025-11-02T00:00:00Z",
+  "defaultRouting": "cloudflare-gateway",
+  "authentication": {
+    "type": "api-key",
+    "header": "Authorization",
+    "format": "Bearer {key}",
+    "envVar": "GROQ_API_KEY"
+  },
+  "endpoints": {
+    "direct": {
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "chatCompletions": "/chat/completions"
+    },
+    "cloudflare-gateway": {
+      "baseUrl": "https://gateway.ai.cloudflare.com/v1/{account}/{gateway}/groq",
+      "chatCompletions": "/chat/completions",
+      "features": ["caching", "rate-limiting", "analytics", "logging"]
+    }
+  },
+  "models": [
+    {
+      "id": "llama-3.3-70b-versatile",
+      "name": "Llama 3.3 70B Versatile",
+      "family": "llama-3",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-12-01",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 32768,
+      "maxOutputTokens": 8192,
+      "pricing": "metered",
+      "recommended": true,
+      "description": "Most capable Llama model on Groq with excellent performance"
+    },
+    {
+      "id": "llama-3.3-70b-specdec",
+      "name": "Llama 3.3 70B SpecDec",
+      "family": "llama-3",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-12-01",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 8192,
+      "maxOutputTokens": 8192,
+      "pricing": "metered",
+      "recommended": true,
+      "description": "Speculative decoding for ultra-low latency"
+    },
+    {
+      "id": "llama-3.1-70b-versatile",
+      "name": "Llama 3.1 70B Versatile",
+      "family": "llama-3",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-07-23",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 131072,
+      "maxOutputTokens": 8192,
+      "pricing": "metered",
+      "recommended": false
+    },
+    {
+      "id": "llama-3.1-8b-instant",
+      "name": "Llama 3.1 8B Instant",
+      "family": "llama-3",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-07-23",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 131072,
+      "maxOutputTokens": 8192,
+      "pricing": "metered",
+      "recommended": true,
+      "description": "Extremely fast and cost-effective"
+    },
+    {
+      "id": "mixtral-8x7b-32768",
+      "name": "Mixtral 8x7B",
+      "family": "mixtral",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-01-01",
+      "capabilities": ["chat", "streaming"],
+      "contextWindow": 32768,
+      "maxOutputTokens": 32768,
+      "pricing": "metered",
+      "recommended": false
+    },
+    {
+      "id": "gemma2-9b-it",
+      "name": "Gemma 2 9B Instruct",
+      "family": "gemma",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-06-01",
+      "capabilities": ["chat", "streaming"],
+      "contextWindow": 8192,
+      "maxOutputTokens": 8192,
+      "pricing": "metered",
+      "recommended": false
+    }
+  ]
+}

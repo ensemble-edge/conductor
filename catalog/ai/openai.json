@@ -1,0 +1,156 @@
+{
+  "provider": "openai",
+  "name": "OpenAI",
+  "description": "OpenAI language models including GPT-4, GPT-4o, and GPT-3.5",
+  "website": "https://openai.com",
+  "documentation": "https://platform.openai.com/docs/models",
+  "version": "2025-11-02",
+  "lastUpdated": "2025-11-02T00:00:00Z",
+  "defaultRouting": "cloudflare-gateway",
+  "authentication": {
+    "type": "api-key",
+    "header": "Authorization",
+    "format": "Bearer {key}",
+    "envVar": "OPENAI_API_KEY"
+  },
+  "endpoints": {
+    "direct": {
+      "baseUrl": "https://api.openai.com/v1",
+      "chatCompletions": "/chat/completions",
+      "completions": "/completions",
+      "embeddings": "/embeddings"
+    },
+    "cloudflare-gateway": {
+      "baseUrl": "https://gateway.ai.cloudflare.com/v1/{account}/{gateway}/openai",
+      "chatCompletions": "/chat/completions",
+      "completions": "/completions",
+      "embeddings": "/embeddings",
+      "features": ["caching", "rate-limiting", "analytics", "logging", "cost-tracking"]
+    }
+  },
+  "models": [
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "family": "gpt-4",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-05-13",
+      "capabilities": ["chat", "vision", "function-calling", "structured-outputs", "streaming"],
+      "contextWindow": 128000,
+      "maxOutputTokens": 16384,
+      "pricing": "metered",
+      "recommended": true,
+      "description": "Most advanced multimodal model, great for complex tasks"
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o Mini",
+      "family": "gpt-4",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-07-18",
+      "capabilities": ["chat", "vision", "function-calling", "structured-outputs", "streaming"],
+      "contextWindow": 128000,
+      "maxOutputTokens": 16384,
+      "pricing": "metered",
+      "recommended": true,
+      "description": "Fast and affordable, good for most use cases"
+    },
+    {
+      "id": "gpt-4-turbo",
+      "name": "GPT-4 Turbo",
+      "family": "gpt-4",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2024-04-09",
+      "capabilities": ["chat", "vision", "function-calling", "streaming"],
+      "contextWindow": 128000,
+      "maxOutputTokens": 4096,
+      "pricing": "metered",
+      "recommended": false
+    },
+    {
+      "id": "gpt-4-turbo-preview",
+      "name": "GPT-4 Turbo Preview",
+      "family": "gpt-4",
+      "type": "text-generation",
+      "status": "deprecated",
+      "deprecatedAt": "2024-04-09",
+      "deprecatedReason": "Replaced by stable gpt-4-turbo release",
+      "replacementModel": "gpt-4-turbo",
+      "endOfLife": "2025-04-09",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 128000,
+      "pricing": "metered"
+    },
+    {
+      "id": "gpt-4",
+      "name": "GPT-4",
+      "family": "gpt-4",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2023-03-14",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 8192,
+      "maxOutputTokens": 8192,
+      "pricing": "metered",
+      "recommended": false
+    },
+    {
+      "id": "gpt-3.5-turbo",
+      "name": "GPT-3.5 Turbo",
+      "family": "gpt-3.5",
+      "type": "text-generation",
+      "status": "active",
+      "introducedAt": "2023-03-01",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 16385,
+      "maxOutputTokens": 4096,
+      "pricing": "metered",
+      "recommended": false
+    },
+    {
+      "id": "gpt-3.5-turbo-16k",
+      "name": "GPT-3.5 Turbo 16k",
+      "family": "gpt-3.5",
+      "type": "text-generation",
+      "status": "deprecated",
+      "deprecatedAt": "2024-06-13",
+      "deprecatedReason": "Replaced by standard gpt-3.5-turbo with 16k context",
+      "replacementModel": "gpt-3.5-turbo",
+      "endOfLife": "2025-06-13",
+      "capabilities": ["chat", "function-calling", "streaming"],
+      "contextWindow": 16385,
+      "pricing": "metered"
+    },
+    {
+      "id": "o1-preview",
+      "name": "o1-preview",
+      "family": "o1",
+      "type": "reasoning",
+      "status": "active",
+      "introducedAt": "2024-09-12",
+      "capabilities": ["reasoning", "problem-solving"],
+      "contextWindow": 128000,
+      "maxOutputTokens": 32768,
+      "pricing": "metered",
+      "recommended": false,
+      "description": "Advanced reasoning model for complex problems"
+    },
+    {
+      "id": "o1-mini",
+      "name": "o1-mini",
+      "family": "o1",
+      "type": "reasoning",
+      "status": "active",
+      "introducedAt": "2024-09-12",
+      "capabilities": ["reasoning", "problem-solving"],
+      "contextWindow": 128000,
+      "maxOutputTokens": 65536,
+      "pricing": "metered",
+      "recommended": false,
+      "description": "Faster reasoning model for coding and STEM"
+    }
+  ]
+}
