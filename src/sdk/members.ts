@@ -13,7 +13,7 @@ export interface FetchInput {
 	url: string;
 	method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 	headers?: Record<string, string>;
-	body?: any;
+	body?: unknown;
 }
 
 export interface FetchOutput {
@@ -69,7 +69,7 @@ export interface ValidateOutput {
 	passed: boolean;
 	score: number;
 	scores: Record<string, number>;
-	details: Record<string, any>;
+	details: Record<string, unknown>;
 	evalType: string;
 }
 
@@ -99,7 +99,7 @@ export interface RAGSearchOutput {
 	results: Array<{
 		content: string;
 		score: number;
-		metadata?: Record<string, any>;
+		metadata?: Record<string, unknown>;
 	}>;
 	count: number;
 	reranked: boolean;
@@ -122,7 +122,7 @@ export interface RAGConfig {
  */
 export interface HITLInput {
 	operation: 'request' | 'respond';
-	approvalData?: Record<string, any>;
+	approvalData?: Record<string, unknown>;
 	approvalId?: string;
 	approved?: boolean;
 	feedback?: string;
@@ -156,12 +156,12 @@ export interface HITLConfig {
 export interface QueriesInput {
 	queryName?: string;
 	sql?: string;
-	input?: Record<string, any> | any[];
+	input?: Record<string, unknown> | unknown[];
 	database?: string;
 }
 
 export interface QueriesOutput {
-	rows: any[];
+	rows: unknown[];
 	count: number;
 	metadata: {
 		columns: string[];
@@ -255,7 +255,7 @@ export class MemberHelpers {
 	 * Execute HITL member - request approval
 	 */
 	async hitlRequest(
-		approvalData: Record<string, any>,
+		approvalData: Record<string, unknown>,
 		config?: HITLConfig
 	): Promise<ExecuteResult<HITLRequestOutput>> {
 		return this.client.execute<HITLRequestOutput>({
@@ -286,7 +286,7 @@ export class MemberHelpers {
 	 */
 	async queryCatalog(
 		queryName: string,
-		input: Record<string, any>,
+		input: Record<string, unknown>,
 		database?: string,
 		config?: QueriesConfig
 	): Promise<ExecuteResult<QueriesOutput>> {
@@ -302,7 +302,7 @@ export class MemberHelpers {
 	 */
 	async querySql(
 		sql: string,
-		params?: Record<string, any> | any[],
+		params?: Record<string, unknown> | unknown[],
 		database?: string,
 		config?: QueriesConfig
 	): Promise<ExecuteResult<QueriesOutput>> {
