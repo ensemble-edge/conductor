@@ -6,8 +6,19 @@
  */
 
 import { Hono } from 'hono';
+import type { ConductorEnv } from '../../types/env.js';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: ConductorEnv }>();
+
+interface ExecutionStateResponse {
+	status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+	result?: unknown;
+	error?: string;
+	metrics?: Record<string, unknown>;
+	startedAt?: number;
+	completedAt?: number;
+	events?: Array<Record<string, unknown>>;
+}
 
 /**
  * Get execution status
@@ -21,7 +32,7 @@ app.get('/:id/status', async (c) => {
 
 	try {
 		// Get ExecutionState DO binding
-		const namespace = (env as any).EXECUTION_STATE;
+		const namespace = env.EXECUTION_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'ExecutionState Durable Object not configured',
@@ -40,7 +51,7 @@ app.get('/:id/status', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
 		const state = await response.json();
@@ -75,7 +86,7 @@ app.get('/:id/stream', async (c) => {
 		}
 
 		// Get ExecutionState DO binding
-		const namespace = (env as any).EXECUTION_STATE;
+		const namespace = env.EXECUTION_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'ExecutionState Durable Object not configured',
@@ -116,7 +127,7 @@ app.post('/:id/cancel', async (c) => {
 
 	try {
 		// Get ExecutionState DO binding
-		const namespace = (env as any).EXECUTION_STATE;
+		const namespace = env.EXECUTION_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'ExecutionState Durable Object not configured',
@@ -135,10 +146,10 @@ app.post('/:id/cancel', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
-		const result = await response.json();
+		const result = await response.json() as Record<string, unknown>;
 		return c.json({
 			...result,
 			executionId,
@@ -165,7 +176,7 @@ app.get('/:id/result', async (c) => {
 
 	try {
 		// Get ExecutionState DO binding
-		const namespace = (env as any).EXECUTION_STATE;
+		const namespace = env.EXECUTION_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'ExecutionState Durable Object not configured',
@@ -184,10 +195,10 @@ app.get('/:id/result', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
-		const state = await response.json() as any;
+		const state = await response.json() as ExecutionStateResponse;
 
 		// Check if execution is complete
 		if (state.status === 'running' || state.status === 'pending') {
@@ -229,7 +240,7 @@ app.get('/:id/events', async (c) => {
 
 	try {
 		// Get ExecutionState DO binding
-		const namespace = (env as any).EXECUTION_STATE;
+		const namespace = env.EXECUTION_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'ExecutionState Durable Object not configured',
@@ -248,10 +259,10 @@ app.get('/:id/events', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
-		const state = await response.json() as any;
+		const state = await response.json() as ExecutionStateResponse;
 
 		// Return events
 		return c.json({
@@ -284,7 +295,7 @@ app.get('/hitl/:token/status', async (c) => {
 
 	try {
 		// Get HITLState DO binding
-		const namespace = (env as any).HITL_STATE;
+		const namespace = env.HITL_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'HITLState Durable Object not configured',
@@ -303,7 +314,7 @@ app.get('/hitl/:token/status', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
 		const state = await response.json();
@@ -334,7 +345,7 @@ app.post('/hitl/:token/approve', async (c) => {
 		const approvalData = body.data || body.approvalData;
 
 		// Get HITLState DO binding
-		const namespace = (env as any).HITL_STATE;
+		const namespace = env.HITL_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'HITLState Durable Object not configured',
@@ -355,10 +366,10 @@ app.post('/hitl/:token/approve', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
-		const result = await response.json();
+		const result = await response.json() as Record<string, unknown>;
 		return c.json({
 			...result,
 			token,
@@ -390,7 +401,7 @@ app.post('/hitl/:token/reject', async (c) => {
 		const reason = body.reason;
 
 		// Get HITLState DO binding
-		const namespace = (env as any).HITL_STATE;
+		const namespace = env.HITL_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'HITLState Durable Object not configured',
@@ -411,10 +422,10 @@ app.post('/hitl/:token/reject', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
-		const result = await response.json();
+		const result = await response.json() as Record<string, unknown>;
 		return c.json({
 			...result,
 			token,
@@ -441,7 +452,7 @@ app.delete('/hitl/:token', async (c) => {
 
 	try {
 		// Get HITLState DO binding
-		const namespace = (env as any).HITL_STATE;
+		const namespace = env.HITL_STATE;
 		if (!namespace) {
 			return c.json({
 				error: 'HITLState Durable Object not configured',
@@ -460,10 +471,10 @@ app.delete('/hitl/:token', async (c) => {
 
 		if (!response.ok) {
 			const error = await response.json();
-			return c.json(error, response.status);
+			return c.json(error, response.status as 500);
 		}
 
-		const result = await response.json();
+		const result = await response.json() as Record<string, unknown>;
 		return c.json({
 			...result,
 			token,
