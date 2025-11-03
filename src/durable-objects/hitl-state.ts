@@ -25,7 +25,7 @@ export interface HITLEvent {
 	type: 'suspended' | 'approved' | 'rejected' | 'expired' | 'resumed';
 	timestamp: number;
 	actor?: string;
-	data?: any;
+	data?: unknown;
 }
 
 /**
@@ -37,7 +37,7 @@ export interface StoredHITLState {
 	suspendedState: SuspendedExecutionState;
 	suspendedAt: number;
 	expiresAt: number;
-	approvalData?: any;
+	approvalData?: unknown;
 	rejectionReason?: string;
 	events: HITLEvent[];
 }
@@ -87,7 +87,7 @@ export class HITLState extends DurableObject {
 			if (request.method === 'POST' && path === '/approve') {
 				const body = await request.json() as {
 					actor: string;
-					approvalData?: any;
+					approvalData?: unknown;
 				};
 				return this.handleApprove(body);
 			}
@@ -274,7 +274,7 @@ export class HITLState extends DurableObject {
 	 */
 	private async handleApprove(body: {
 		actor: string;
-		approvalData?: any;
+		approvalData?: unknown;
 	}): Promise<Response> {
 		if (!this.state) {
 			this.state = await this.ctx.storage.get<StoredHITLState>('state') || null;
@@ -462,7 +462,7 @@ export class HITLState extends DurableObject {
 	/**
 	 * Broadcast event to all connected WebSocket clients
 	 */
-	private broadcast(message: any): void {
+	private broadcast(message: unknown): void {
 		const payload = JSON.stringify(message);
 
 		for (const ws of this.connections) {

@@ -5,10 +5,10 @@
  */
 
 import { BaseEvaluator } from './base-evaluator';
-import type { EvaluationScore } from '../types';
+import type { EvaluationScore, ValidateConfig } from '../types';
 
 export class NLPEvaluator extends BaseEvaluator {
-	async evaluate(content: string, config: any): Promise<EvaluationScore> {
+	async evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore> {
 		const reference = config.reference;
 
 		if (!reference) {

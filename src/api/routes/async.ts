@@ -18,7 +18,7 @@ const executions = new Map<
 	string,
 	{
 		status: 'queued' | 'running' | 'completed' | 'failed';
-		result?: any;
+		result?: unknown;
 		error?: string;
 		startedAt?: number;
 		completedAt?: number;
@@ -179,7 +179,7 @@ async function executeAsync(executionId: string, request: AsyncExecuteRequest, e
 			ctx: {
 				waitUntil: () => {},
 				passThroughOnException: () => {}
-			} as any
+			} as unknown as ExecutionContext
 		};
 
 		// Execute member
@@ -225,7 +225,7 @@ async function executeAsync(executionId: string, request: AsyncExecuteRequest, e
 /**
  * Send webhook notification
  */
-async function sendWebhook(url: string, data: any): Promise<void> {
+async function sendWebhook(url: string, data: unknown): Promise<void> {
 	try {
 		await fetch(url, {
 			method: 'POST',

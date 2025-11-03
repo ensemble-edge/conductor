@@ -197,7 +197,7 @@ export class OpenTelemetryLogger implements Logger {
 	/**
 	 * Convert context to OTLP attributes
 	 */
-	private contextToAttributes(context?: LogContext): Array<{ key: string; value: any }> {
+	private contextToAttributes(context?: LogContext): Array<{ key: string; value: { stringValue?: string; intValue?: number; doubleValue?: number; boolValue?: boolean } }> {
 		if (!context) return [];
 
 		return Object.entries(context).map(([key, value]) => ({
@@ -209,7 +209,7 @@ export class OpenTelemetryLogger implements Logger {
 	/**
 	 * Convert value to OTLP format
 	 */
-	private valueToOTLP(value: unknown): any {
+	private valueToOTLP(value: unknown): { stringValue?: string; intValue?: number; doubleValue?: number; boolValue?: boolean } {
 		if (typeof value === 'string') {
 			return { stringValue: value };
 		} else if (typeof value === 'number') {

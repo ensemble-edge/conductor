@@ -2,13 +2,13 @@
  * Base Evaluator - Abstract class for all evaluators
  */
 
-import type { EvaluationScore } from '../types';
+import type { EvaluationScore, ValidateConfig } from '../types';
 
 export abstract class BaseEvaluator {
 	/**
 	 * Evaluate content and return scores
 	 */
-	abstract evaluate(content: string, config: any): Promise<EvaluationScore>;
+	abstract evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore>;
 
 	/**
 	 * Normalize score to 0-1 range

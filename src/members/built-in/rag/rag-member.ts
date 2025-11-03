@@ -155,7 +155,7 @@ export class RAGMember extends BaseMember {
 		docId: string,
 		chunks: Array<{ text: string; index: number }>,
 		embeddings: number[][],
-		metadata?: Record<string, any>
+		metadata?: Record<string, unknown>
 	): Promise<void> {
 		// TODO: Integrate with Cloudflare Vectorize
 		// const vectorize = this.env.VECTORIZE;
@@ -176,7 +176,7 @@ export class RAGMember extends BaseMember {
 	/**
 	 * Search Vectorize for similar vectors
 	 */
-	private async searchVectorize(queryEmbedding: number[], filter?: Record<string, any>): Promise<any[]> {
+	private async searchVectorize(queryEmbedding: number[], filter?: Record<string, unknown>): Promise<Array<{ score: number; metadata: Record<string, unknown> }>> {
 		// TODO: Integrate with Cloudflare Vectorize
 		// const vectorize = this.env.VECTORIZE;
 		// const results = await vectorize.query(queryEmbedding, {
@@ -194,7 +194,7 @@ export class RAGMember extends BaseMember {
 	/**
 	 * Rerank search results
 	 */
-	private async rerank(query: string, results: any[]): Promise<any[]> {
+	private async rerank(query: string, results: Array<{ score: number; metadata: Record<string, unknown> }>): Promise<Array<{ score: number; metadata: Record<string, unknown> }>> {
 		// TODO: Implement reranking algorithms
 		// - cross-encoder: Use a cross-encoder model for reranking
 		// - mmr: Maximal Marginal Relevance for diversity

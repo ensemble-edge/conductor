@@ -6,7 +6,7 @@
  */
 
 export class WorkingMemory {
-	private memory = new Map<string, any>();
+	private memory = new Map<string, unknown>();
 
 	/**
 	 * Set a value in working memory
@@ -46,7 +46,7 @@ export class WorkingMemory {
 	/**
 	 * Get all values as object
 	 */
-	getAll(): Record<string, any> {
+	getAll(): Record<string, unknown> {
 		return Object.fromEntries(this.memory);
 	}
 
@@ -67,7 +67,7 @@ export class WorkingMemory {
 	/**
 	 * Merge another object into working memory
 	 */
-	merge(data: Record<string, any>): void {
+	merge(data: Record<string, unknown>): void {
 		for (const [key, value] of Object.entries(data)) {
 			this.memory.set(key, value);
 		}
@@ -76,14 +76,14 @@ export class WorkingMemory {
 	/**
 	 * Create a snapshot of working memory
 	 */
-	snapshot(): Record<string, any> {
+	snapshot(): Record<string, unknown> {
 		return { ...this.getAll() };
 	}
 
 	/**
 	 * Restore from a snapshot
 	 */
-	restore(snapshot: Record<string, any>): void {
+	restore(snapshot: Record<string, unknown>): void {
 		this.memory.clear();
 		this.merge(snapshot);
 	}

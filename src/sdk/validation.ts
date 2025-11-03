@@ -15,11 +15,16 @@
  * });
  * ```
  */
-export function validateInput(input: any, schema: Record<string, string>): void {
+export function validateInput(input: unknown, schema: Record<string, string>): void {
+	if (typeof input !== 'object' || input === null) {
+		throw new Error('Input must be an object');
+	}
+
+	const inputObj = input as Record<string, unknown>;
 	for (const [key, type] of Object.entries(schema)) {
 		const optional = type.endsWith('?');
 		const actualType = optional ? type.slice(0, -1) : type;
-		const value = input[key];
+		const value = inputObj[key];
 
 		// Check required fields
 		if (!optional && value === undefined) {
@@ -59,7 +64,7 @@ export function validateInput(input: any, schema: Record<string, string>): void 
 /**
  * Validate output against a schema
  */
-export function validateOutput(output: any, schema: Record<string, string>): void {
+export function validateOutput(output: unknown, schema: Record<string, string>): void {
 	validateInput(output, schema); // Same logic
 }
 
@@ -84,13 +89,18 @@ export function assertExists<T>(value: T | null | undefined, name: string): asse
 /**
  * Coerce input to expected types
  */
-export function coerceInput(input: any, schema: Record<string, string>): any {
-	const coerced: any = {};
+export function coerceInput(input: unknown, schema: Record<string, string>): Record<string, unknown> {
+	if (typeof input !== 'object' || input === null) {
+		throw new Error('Input must be an object');
+	}
+
+	const inputObj = input as Record<string, unknown>;
+	const coerced: Record<string, unknown> = {};
 
 	for (const [key, type] of Object.entries(schema)) {
 		const optional = type.endsWith('?');
 		const actualType = optional ? type.slice(0, -1) : type;
-		const value = input[key];
+		const value = inputObj[key];
 
 		if (value === undefined) {
 			if (!optional) {
@@ -105,10 +115,11 @@ export function coerceInput(input: any, schema: Record<string, string>): any {
 				coerced[key] = String(value);
 				break;
 			case 'number':
-				coerced[key] = Number(value);
-				if (isNaN(coerced[key])) {
+				const numValue = Number(value);
+				if (isNaN(numValue)) {
 					throw new Error(`Cannot coerce ${key} to number`);
 				}
+				coerced[key] = numValue;
 				break;
 			case 'boolean':
 				coerced[key] = Boolean(value);

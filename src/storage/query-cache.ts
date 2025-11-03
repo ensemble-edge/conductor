@@ -50,7 +50,7 @@ export interface CacheStats {
 /**
  * Cache metadata stored with query results
  */
-interface CacheEntry<T = any> {
+interface CacheEntry<T = unknown> {
 	/**
 	 * Cached query result
 	 */
@@ -104,9 +104,9 @@ export class QueryCache {
 	/**
 	 * Get cached query result
 	 */
-	async get<T = any>(
+	async get<T = unknown>(
 		sql: string,
-		params?: any[],
+		params?: unknown[],
 		database?: string
 	): Promise<Result<QueryResult<T> | null, ConductorError>> {
 		try {
@@ -140,10 +140,10 @@ export class QueryCache {
 	/**
 	 * Set cached query result
 	 */
-	async set<T = any>(
+	async set<T = unknown>(
 		sql: string,
 		result: QueryResult<T>,
-		params?: any[],
+		params?: unknown[],
 		database?: string,
 		ttl?: number
 	): Promise<Result<void, ConductorError>> {
@@ -180,7 +180,7 @@ export class QueryCache {
 	/**
 	 * Delete cached query result
 	 */
-	async delete(sql: string, params?: any[], database?: string): Promise<Result<void, ConductorError>> {
+	async delete(sql: string, params?: unknown[], database?: string): Promise<Result<void, ConductorError>> {
 		try {
 			const key = await this.generateKey(sql, params, database);
 			await this.kv.delete(key);
@@ -270,7 +270,7 @@ export class QueryCache {
 	/**
 	 * Generate cache key from query, params, and database
 	 */
-	private async generateKey(sql: string, params?: any[], database?: string): Promise<string> {
+	private async generateKey(sql: string, params?: unknown[], database?: string): Promise<string> {
 		// Normalize SQL (remove extra whitespace, lowercase)
 		const normalizedSQL = sql.trim().replace(/\s+/g, ' ').toLowerCase();
 

@@ -25,7 +25,7 @@ program
 	.command('health')
 	.description('Check API health')
 	.option('--api-url <url>', 'API URL (default: from CONDUCTOR_API_URL env)')
-	.action(async (options: any) => {
+	.action(async (options: { apiUrl?: string }) => {
 		try {
 			const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;
 
@@ -35,7 +35,7 @@ program
 			}
 
 			const response = await fetch(`${apiUrl}/health`);
-			const data = (await response.json()) as any;
+			const data = (await response.json()) as { status: string; version: string; checks: Record<string, boolean> };
 
 			console.log('');
 			console.log(chalk.bold('API Health:'));

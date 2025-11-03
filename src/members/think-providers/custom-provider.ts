@@ -39,7 +39,13 @@ export class CustomProvider extends BaseAIProvider {
 				temperature: config.temperature,
 				max_tokens: config.maxTokens
 			}
-		);
+		) as {
+			choices?: Array<{ message?: { content?: string } }>;
+			response?: string;
+			content?: string;
+			usage?: { total_tokens?: number };
+			[key: string]: unknown;
+		};
 
 		// Try multiple response formats
 		const content =
@@ -53,7 +59,7 @@ export class CustomProvider extends BaseAIProvider {
 			model: config.model,
 			tokensUsed: data.usage?.total_tokens,
 			provider: this.id,
-			metadata: data
+			metadata: data as Record<string, unknown>
 		};
 	}
 

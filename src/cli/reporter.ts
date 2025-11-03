@@ -115,7 +115,7 @@ export class ConsoleReporter extends Reporter {
 				if (value && key !== 'member') {
 					if (key === 'replacement') {
 						console.log(this.chalk.green(`     → Use "${value}" instead`));
-					} else if (key === 'endOfLife') {
+					} else if (key === 'endOfLife' && typeof value === 'string') {
 						const daysUntilEOL = this.calculateDaysUntilEOL(value);
 						if (daysUntilEOL !== null) {
 							if (daysUntilEOL > 0) {

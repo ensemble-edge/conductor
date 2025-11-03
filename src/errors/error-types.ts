@@ -61,9 +61,9 @@ export enum ErrorCode {
 export abstract class ConductorError extends Error {
 	abstract readonly code: ErrorCode;
 	abstract readonly isOperational: boolean;
-	readonly details?: Record<string, any>;
+	readonly details?: Record<string, unknown>;
 
-	constructor(message: string, details?: Record<string, any>) {
+	constructor(message: string, details?: Record<string, unknown>) {
 		super(message);
 		this.name = this.constructor.name;
 		this.details = details;

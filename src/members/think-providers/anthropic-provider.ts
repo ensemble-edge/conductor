@@ -46,7 +46,7 @@ export class AnthropicProvider extends BaseAIProvider {
 				temperature: config.temperature,
 				max_tokens: config.maxTokens
 			}
-		);
+		) as { content: Array<{ text?: string }>; usage?: { input_tokens?: number; output_tokens?: number }; stop_reason?: string };
 
 		return {
 			content: data.content[0]?.text || '',

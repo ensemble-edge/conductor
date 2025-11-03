@@ -77,7 +77,7 @@ export class MemberLoader {
 	 */
 	registerMember(
 		memberConfig: MemberConfig | string,
-		implementation?: any
+		implementation?: FunctionImplementation
 	): BaseMember {
 		// Parse config if it's a string (YAML)
 		const config = typeof memberConfig === 'string'

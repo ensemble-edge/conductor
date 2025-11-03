@@ -58,7 +58,7 @@ export class APIMember extends BaseMember {
 	/**
 	 * Execute the API request
 	 */
-	protected async run(context: MemberExecutionContext): Promise<any> {
+	protected async run(context: MemberExecutionContext): Promise<{ status: number; headers: Record<string, string>; data: unknown }> {
 		const { input } = context;
 
 		// Resolve URL (may contain interpolations)
@@ -104,7 +104,7 @@ export class APIMember extends BaseMember {
 		for (const [key, value] of Object.entries(headers)) {
 			// Replace ${env.VAR_NAME} with actual env var
 			resolved[key] = value.replace(/\$\{env\.(\w+)\}/g, (_, varName) => {
-				return (context.env as any)[varName] || '';
+				return (context.env as unknown as Record<string, unknown>)[varName] as string || '';
 			});
 		}
 
@@ -118,7 +118,7 @@ export class APIMember extends BaseMember {
 		url: string,
 		init: RequestInit,
 		attempt: number = 0
-	): Promise<any> {
+	): Promise<{ status: number; headers: Record<string, string>; data: unknown }> {
 		try {
 			// Create abort controller for timeout
 			const controller = new AbortController();
@@ -135,7 +135,7 @@ export class APIMember extends BaseMember {
 
 				// Parse response
 				const contentType = response.headers.get('content-type');
-				let data: any;
+				let data: unknown;
 
 				if (contentType?.includes('application/json')) {
 					data = await response.json();

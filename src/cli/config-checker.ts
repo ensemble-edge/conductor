@@ -19,7 +19,7 @@ export interface Issue {
 	severity: 'error' | 'warning' | 'info';
 	file: string;
 	message: string;
-	details?: Record<string, any>;
+	details?: Record<string, unknown>;
 }
 
 export interface PlatformData {
@@ -47,14 +47,14 @@ export interface MemberConfig {
 	type: string;
 	config?: {
 		model?: string;
-		[key: string]: any;
+		[key: string]: unknown;
 	};
 }
 
 export interface EnsembleConfig {
 	name: string;
-	flow: any[];
-	[key: string]: any;
+	flow: unknown[];
+	[key: string]: unknown;
 }
 
 /**

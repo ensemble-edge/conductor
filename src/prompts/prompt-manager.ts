@@ -9,7 +9,7 @@
  * - Template validation
  */
 
-import type { PromptTemplate } from './prompt-schema';
+import type { PromptTemplate, PromptVariable } from './prompt-schema';
 import { validatePromptVariables, applyDefaultVariables } from './prompt-schema';
 import { PromptParser, type ParserOptions } from './prompt-parser';
 
@@ -29,7 +29,7 @@ export interface RenderedPrompt {
 	metadata: {
 		name: string;
 		version: string;
-		variables: Record<string, any>;
+		variables: Record<string, unknown>;
 	};
 }
 
@@ -109,7 +109,7 @@ export class PromptManager {
 	/**
 	 * Render a prompt with variables
 	 */
-	render(template: PromptTemplate, variables: Record<string, any>, options?: RenderOptions): RenderedPrompt {
+	render(template: PromptTemplate, variables: Record<string, unknown>, options?: RenderOptions): RenderedPrompt {
 		const opts: Required<RenderOptions> = {
 			validate: options?.validate ?? this.config.strictValidation,
 			parserOptions: options?.parserOptions || this.config.parserOptions
@@ -143,7 +143,7 @@ export class PromptManager {
 	/**
 	 * Render a prompt by name from cache
 	 */
-	renderByName(name: string, variables: Record<string, any>, version?: string, options?: RenderOptions): RenderedPrompt {
+	renderByName(name: string, variables: Record<string, unknown>, version?: string, options?: RenderOptions): RenderedPrompt {
 		const template = this.get(name, version);
 		if (!template) {
 			throw new Error(`Prompt not found: ${name}${version ? `@${version}` : ''}`);
@@ -165,14 +165,14 @@ export class PromptManager {
 	 */
 	private parseSimpleYAML(yaml: string): PromptTemplate {
 		const lines = yaml.split('\n');
-		const template: any = {
-			metadata: {},
+		const template: Partial<PromptTemplate> = {
+			metadata: {} as PromptTemplate['metadata'],
 			variables: [],
 			template: ''
 		};
 
 		let currentSection: string | null = null;
-		let currentVariable: any = null;
+		let currentVariable: Record<string, unknown> | null = null;
 		let templateLines: string[] = [];
 
 		for (let line of lines) {
@@ -194,20 +194,20 @@ export class PromptManager {
 			}
 
 			// Parse metadata
-			if (currentSection === 'metadata') {
+			if (currentSection === 'metadata' && template.metadata) {
 				const match = line.match(/^\s+(\w+):\s*(.+)$/);
 				if (match) {
 					const [, key, value] = match;
-					template.metadata[key] = value.replace(/['"]/g, '');
+					(template.metadata as unknown as Record<string, unknown>)[key] = value.replace(/['"]/g, '');
 				}
 			}
 
 			// Parse variables
-			if (currentSection === 'variables') {
+			if (currentSection === 'variables' && template.variables) {
 				// New variable
 				if (line.match(/^\s+-\s+name:/)) {
 					if (currentVariable) {
-						template.variables.push(currentVariable);
+						template.variables.push(currentVariable as unknown as PromptVariable);
 					}
 					currentVariable = {};
 					const match = line.match(/name:\s*(.+)$/);
@@ -218,7 +218,7 @@ export class PromptManager {
 					const match = line.match(/^\s+(\w+):\s*(.+)$/);
 					if (match) {
 						const [, key, value] = match;
-						let parsedValue: any = value.replace(/['"]/g, '');
+						let parsedValue: string | boolean = value.replace(/['"]/g, '');
 						if (key === 'required') {
 							parsedValue = parsedValue === 'true';
 						}
@@ -239,8 +239,8 @@ export class PromptManager {
 		}
 
 		// Add last variable
-		if (currentVariable) {
-			template.variables.push(currentVariable);
+		if (currentVariable && template.variables) {
+			template.variables.push(currentVariable as unknown as PromptVariable);
 		}
 
 		// Join template lines
