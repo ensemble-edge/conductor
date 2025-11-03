@@ -1,0 +1,183 @@
+name: advanced-workflow
+description: |
+  Showcase of all advanced workflow features:
+  - Retry with backoff
+  - Timeout with fallback
+  - Conditional execution (when)
+  - Try/Catch error handling
+  - Switch/Case branching
+  - While loops
+  - Map/Reduce
+  - Early exit from loops
+
+flow:
+  # Feature 1: Retry with Exponential Backoff
+  - member: call-external-api
+    input:
+      url: ${input.apiUrl}
+    retry:
+      attempts: 3
+      backoff: exponential
+      initialDelay: 1000
+      maxDelay: 10000
+      retryOn: ["NETWORK_ERROR", "TIMEOUT"]
+
+  # Feature 2: Timeout with Fallback
+  - member: slow-operation
+    input:
+      data: ${input.data}
+    timeout: 5000  # 5 seconds
+    onTimeout:
+      fallback: { result: "default", cached: true }
+      error: false
+
+  # Feature 3: Conditional Execution (when)
+  - member: optional-analytics
+    input:
+      event: ${input.event}
+    when: ${input.enableAnalytics === true}
+
+  # Feature 4: Try/Catch Error Handling
+  - type: try
+    steps:
+      - member: risky-operation
+        input:
+          data: ${input.data}
+
+      - member: validate-result
+        input:
+          result: ${risky-operation.output}
+
+    catch:
+      - member: handle-error
+        input:
+          error: ${error}
+          fallback: true
+
+      - member: log-error
+        input:
+          error: ${error}
+          timestamp: ${Date.now()}
+
+    finally:
+      - member: cleanup-resources
+        input:
+          sessionId: ${input.sessionId}
+
+  # Feature 5: Switch/Case Branching
+  - type: switch
+    value: ${input.requestType}
+    cases:
+      urgent:
+        - member: handle-urgent
+          input:
+            priority: high
+            data: ${input.data}
+
+      normal:
+        - member: handle-normal
+          input:
+            priority: medium
+            data: ${input.data}
+
+      low-priority:
+        - member: queue-for-later
+          input:
+            data: ${input.data}
+
+    default:
+      - member: handle-unknown
+        input:
+          type: ${input.requestType}
+          data: ${input.data}
+
+  # Feature 6: While Loop with Safety Limit
+  - type: while
+    condition: ${batch.output.hasMore === true}
+    maxIterations: 100
+    steps:
+      - member: fetch-batch
+        input:
+          cursor: ${batch.output.nextCursor || null}
+
+      - member: process-batch
+        input:
+          items: ${fetch-batch.output.items}
+
+  # Feature 7: ForEach with Early Exit
+  - type: foreach
+    items: ${input.searchTargets}
+    maxConcurrency: 5
+    breakWhen: ${check-target.output.found === true}
+    step:
+      member: check-target
+      input:
+        target: ${item}
+        query: ${input.searchQuery}
+
+  # Feature 8: Map/Reduce Pattern
+  - type: map-reduce
+    items: ${input.documents}
+    maxConcurrency: 10
+    map:
+      member: analyze-document
+      input:
+        document: ${item}
+    reduce:
+      member: aggregate-analysis
+      input:
+        results: ${results}
+
+  # Feature 9: Combined - Parallel with Retry and Timeout
+  - type: parallel
+    waitFor: all
+    steps:
+      - member: fetch-user-data
+        input:
+          userId: ${input.userId}
+        retry:
+          attempts: 2
+          backoff: linear
+        timeout: 3000
+
+      - member: fetch-preferences
+        input:
+          userId: ${input.userId}
+        timeout: 2000
+        onTimeout:
+          fallback: { theme: "default", language: "en" }
+          error: false
+
+  # Feature 10: Nested Try/Catch with Switch
+  - type: try
+    steps:
+      - type: switch
+        value: ${fetch-user-data.output.accountType}
+        cases:
+          premium:
+            - member: premium-features
+              input:
+                userId: ${input.userId}
+
+          basic:
+            - member: basic-features
+              input:
+                userId: ${input.userId}
+
+    catch:
+      - member: fallback-features
+        input:
+          error: ${error}
+
+output:
+  success: true
+  apiResult: ${call-external-api.output}
+  operationResult: ${slow-operation.output}
+  analytics: ${optional-analytics.output}
+  errorHandled: ${handle-error.output || null}
+  requestHandled: ${handle-urgent.output || handle-normal.output || queue-for-later.output}
+  batchProcessed: ${process-batch.output}
+  searchResult: ${check-target.output}
+  documentAnalysis: ${aggregate-analysis.output}
+  userData: ${fetch-user-data.output}
+  preferences: ${fetch-preferences.output}
