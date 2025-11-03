@@ -10,7 +10,7 @@
 
 import { BaseMember, type MemberExecutionContext } from './base-member';
 import type { MemberConfig } from '../runtime/parser';
-import { getProviderRegistry } from './think-providers';
+import { getProviderRegistry, type ProviderRegistry } from './think-providers';
 import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-providers';
 import { AIProvider } from '../types/constants';
 import type { ConductorEnv } from '../types/env';
@@ -37,10 +37,13 @@ export interface ThinkInput {
  */
 export class ThinkMember extends BaseMember {
 	private thinkConfig: ThinkConfig;
-	private providerRegistry = getProviderRegistry();
+	private providerRegistry: ProviderRegistry;
 
-	constructor(config: MemberConfig) {
+	constructor(config: MemberConfig, providerRegistry?: ProviderRegistry) {
 		super(config);
+
+		// Use injected registry for testing, or global registry for production
+		this.providerRegistry = providerRegistry || getProviderRegistry();
 
 		const cfg = config.config as ThinkConfig | undefined;
 		this.thinkConfig = {
