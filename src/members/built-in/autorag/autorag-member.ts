@@ -1,48 +1,69 @@
 /**
- * AutoRAG Member - Cloudflare AutoRAG Integration
+ * AutoRAG Member - Cloudflare's Fully Managed RAG Service
  *
- * Leverages Cloudflare's built-in AutoRAG capabilities for effortless
- * RAG (Retrieval Augmented Generation) with automatic chunking and embedding.
+ * Uses Cloudflare's AutoRAG service which provides completely automatic
+ * RAG with R2 storage integration. Zero manual work required.
  *
  * Cloudflare AutoRAG Features:
- * - Automatic document chunking with optimal sizes
- * - Automatic embedding generation
- * - Built into Vectorize for seamless integration
- * - No manual preprocessing needed
+ * - Automatic document ingestion from R2 buckets
+ * - Automatic chunking with configurable size/overlap
+ * - Automatic embedding generation via Workers AI
+ * - Automatic indexing in Vectorize
+ * - Continuous monitoring and updates
+ * - Supports PDFs, images, text, HTML, CSV, and more
+ *
+ * This is the easiest way to do RAG on Cloudflare - just point to an R2 bucket!
  */
 
-import { BaseMember, type MemberExecutionContext, type MemberResponse } from '../../base-member';
+import { BaseMember, type MemberExecutionContext } from '../../base-member';
 
 export interface AutoRAGConfig {
-	/** Vectorize index to use */
-	index: string;
+	/** AutoRAG instance name (configured in wrangler.toml) */
+	instance: string;
 
-	/** Number of results to return */
+	/** Return format: 'answer' (AI-generated) or 'results' (raw search results) */
+	mode?: 'answer' | 'results';
+
+	/** Number of results to retrieve */
 	topK?: number;
 
-	/** Minimum similarity score (0-1) */
-	minScore?: number;
-
-	/** Enable hybrid search (vector + keyword) */
-	hybridSearch?: boolean;
-
-	/** Metadata filters */
-	filter?: Record<string, unknown>;
+	/** Optional query rewriting for better retrieval */
+	rewriteQuery?: boolean;
 }
 
 export interface AutoRAGInput {
 	/** Query text */
 	query: string;
 
-	/** Optional namespace for multi-tenancy */
-	namespace?: string;
-
 	/** Override topK for this query */
 	topK?: number;
 }
 
-export interface AutoRAGResult {
-	/** Search results */
+export interface AutoRAGAnswerResult {
+	/** AI-generated answer grounded in retrieved documents */
+	answer: string;
+
+	/** Sources used to generate the answer */
+	sources: Array<{
+		/** Document content excerpt */
+		content: string;
+
+		/** Similarity score (0-1) */
+		score: number;
+
+		/** Document metadata */
+		metadata: Record<string, unknown>;
+
+		/** Document ID */
+		id: string;
+	}>;
+
+	/** Original query */
+	query: string;
+}
+
+export interface AutoRAGSearchResult {
+	/** Retrieved search results without generation */
 	results: Array<{
 		/** Document content */
 		content: string;
@@ -60,103 +81,120 @@ export interface AutoRAGResult {
 	/** Combined context for LLM */
 	context: string;
 
-	/** Number of results returned */
+	/** Number of results */
 	count: number;
 
-	/** Query that was executed */
+	/** Original query */
 	query: string;
 }
 
 /**
- * AutoRAG Member using Cloudflare's native capabilities
+ * AutoRAG Member - Dead simple RAG with zero configuration
  */
 export class AutoRAGMember extends BaseMember {
-	async run(ctx: MemberExecutionContext): Promise<AutoRAGResult> {
+	async run(ctx: MemberExecutionContext): Promise<AutoRAGAnswerResult | AutoRAGSearchResult> {
 		const input = ctx.input as AutoRAGInput;
 		const config = this.config.config as unknown as AutoRAGConfig;
 
-		// Get Vectorize index
-		const vectorize = (ctx.env as unknown as Record<string, unknown>)[config.index] as VectorizeIndex | undefined;
+		// Get AI binding
+		const ai = (ctx.env as unknown as Record<string, unknown>).AI as CloudflareAI | undefined;
 
-		if (!vectorize) {
-			throw new Error(`Vectorize index '${config.index}' not found in environment bindings`);
+		if (!ai) {
+			throw new Error('AI binding not found in environment. Make sure you have Workers AI configured.');
 		}
 
-		// Perform vector search with AutoRAG
-		// Cloudflare automatically generates embeddings for the query
-		const results = await vectorize.query(input.query, {
-			topK: input.topK || config.topK || 5,
-			namespace: input.namespace,
-			returnMetadata: 'all',
-			returnValues: false,
-			filter: config.filter
-		});
+		// Get AutoRAG instance
+		const autorag = ai.autorag(config.instance);
 
-		// Filter by minimum score if configured
-		const minScore = config.minScore || 0;
-		const filteredResults = results.matches.filter(match => match.score >= minScore);
+		if (!autorag) {
+			throw new Error(`AutoRAG instance '${config.instance}' not found. Check your wrangler.toml configuration.`);
+		}
 
-		// Transform results
-		const searchResults = filteredResults.map(match => ({
-			content: (match.metadata?.text as string) || '',
-			score: match.score,
-			metadata: match.metadata || {},
-			id: match.id
-		}));
+		const mode = config.mode || 'answer';
+		const topK = input.topK || config.topK;
 
-		// Combine results into context string for LLM
-		const contextString = searchResults
-			.map((result, index) => {
-				const source = result.metadata.source || result.id;
-				return `[${index + 1}] Source: ${source}\n${result.content}`;
-			})
-			.join('\n\n---\n\n');
+		if (mode === 'answer') {
+			// Use aiSearch for AI-generated answers
+			const result = await autorag.aiSearch({
+				query: input.query,
+				topK
+			});
 
-		return {
-			results: searchResults,
-			context: contextString,
-			count: searchResults.length,
-			query: input.query
-		};
+			// Transform to our result format
+			return {
+				answer: result.answer,
+				sources: result.sources?.map(source => ({
+					content: source.content,
+					score: source.score,
+					metadata: source.metadata || {},
+					id: source.id
+				})) || [],
+				query: input.query
+			};
+
+		} else {
+			// Use search for raw results without generation
+			const result = await autorag.search({
+				query: input.query,
+				topK
+			});
+
+			// Transform results
+			const searchResults = result.results.map(match => ({
+				content: match.content,
+				score: match.score,
+				metadata: match.metadata || {},
+				id: match.id
+			}));
+
+			// Combine into context string for LLM
+			const contextString = searchResults
+				.map((result, index) => {
+					const source = result.metadata.source || result.id;
+					return `[${index + 1}] Source: ${source}\n${result.content}`;
+				})
+				.join('\n\n---\n\n');
+
+			return {
+				results: searchResults,
+				context: contextString,
+				count: searchResults.length,
+				query: input.query
+			};
+		}
 	}
 }
 
 /**
- * Vectorize Index interface (from @cloudflare/workers-types)
+ * Cloudflare AI interface (from @cloudflare/workers-types)
  */
-interface VectorizeIndex {
-	query(
-		queryVector: number[] | string,
-		options: {
-			topK?: number;
-			namespace?: string;
-			returnMetadata?: 'none' | 'indexed' | 'all';
-			returnValues?: boolean;
-			filter?: Record<string, unknown>;
-		}
-	): Promise<VectorizeMatches>;
-
-	insert(vectors: VectorizeVector[]): Promise<VectorizeAsyncMutation>;
-	upsert(vectors: VectorizeVector[]): Promise<VectorizeAsyncMutation>;
+interface CloudflareAI {
+	autorag(instance: string): AutoRAGInstance;
 }
 
-interface VectorizeMatches {
-	matches: Array<{
-		id: string;
-		score: number;
-		values?: number[];
-		metadata?: Record<string, unknown>;
+interface AutoRAGInstance {
+	aiSearch(options: {
+		query: string;
+		topK?: number;
+	}): Promise<{
+		answer: string;
+		sources?: Array<{
+			content: string;
+			score: number;
+			metadata?: Record<string, unknown>;
+			id: string;
+		}>;
 	}>;
-	count: number;
-}
 
-interface VectorizeVector {
-	id: string;
-	values: number[];
-	namespace?: string;
-	metadata?: Record<string, unknown>;
-}
-
-interface VectorizeAsyncMutation {
-	mutationId: string;
+	search(options: {
+		query: string;
+		topK?: number;
+	}): Promise<{
+		results: Array<{
+			content: string;
+			score: number;
+			metadata?: Record<string, unknown>;
+			id: string;
+		}>;
+	}>;
 }

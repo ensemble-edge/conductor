@@ -1,41 +1,31 @@
 name: rag-qa
 description: |
-  Question answering with Retrieval Augmented Generation (RAG).
+  Dead simple question answering with Cloudflare AutoRAG.
 
-  Uses Cloudflare AutoRAG for automatic document retrieval and
-  combines it with AI to generate accurate, context-aware answers.
+  AutoRAG handles EVERYTHING automatically:
+  - Monitors R2 bucket for documents
+  - Automatically chunks and embeds documents
+  - Retrieves relevant content
+  - Generates grounded answers
+
+  Zero manual work required - just point to an R2 bucket!
+
+  Setup: Configure in wrangler.toml:
+    [[ai_autorag]]
+    name = "my-docs-rag"
+    r2_bucket = "my-docs"
 
 flow:
-  # Step 1: Retrieve relevant documents using AutoRAG
-  - member: autorag
+  # Single step: AutoRAG retrieves AND generates answer
+  - member: docs-search
     input:
       query: ${input.question}
-      namespace: ${input.namespace || "default"}
       topK: 5
 
-  # Step 2: Generate answer using retrieved context
-  - member: answer-generator
-    type: think
-    input:
-      prompt: |
-        Answer the question using ONLY the provided context.
-        If the context doesn't contain enough information, say so.
-
-        Context:
-        ${autorag.output.context}
-
-        Question: ${input.question}
-
-        Instructions:
-        - Be concise and accurate
-        - Cite sources when possible
-        - If information is missing, acknowledge it
-        - Use a helpful, professional tone
-
 output:
-  answer: ${answer-generator.output.message}
-  sources: ${autorag.output.results}
-  confidence: ${autorag.output.results[0].score}
+  # AutoRAG returns ready-to-use answer
+  answer: ${docs-search.output.answer}
+  sources: ${docs-search.output.sources}
+  confidence: ${docs-search.output.sources[0].score}
   metadata:
-    retrievedDocs: ${autorag.output.count}
-    query: ${autorag.output.query}
+    query: ${docs-search.output.query}
