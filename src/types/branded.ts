@@ -69,6 +69,33 @@ export type BindingName = Brand<string, 'BindingName'>;
 export type VersionString = Brand<string, 'VersionString'>;
 
 /**
+ * Execution ID - uniquely identifies an execution
+ * Format: exec_<uuid>
+ * Examples: 'exec_550e8400-e29b-41d4-a716-446655440000'
+ */
+export type ExecutionId = Brand<string, 'ExecutionId'>;
+
+/**
+ * Request ID - uniquely identifies an API request
+ * Format: req_<uuid>
+ * Examples: 'req_550e8400-e29b-41d4-a716-446655440000'
+ */
+export type RequestId = Brand<string, 'RequestId'>;
+
+/**
+ * Resume Token - uniquely identifies a suspended execution
+ * Format: resume_<uuid>
+ * Examples: 'resume_550e8400-e29b-41d4-a716-446655440000'
+ */
+export type ResumeToken = Brand<string, 'ResumeToken'>;
+
+/**
+ * Cache Key - identifies a cached value
+ * Examples: 'member:analyze:a1b2c3', 'query:d4e5f6'
+ */
+export type CacheKey = Brand<string, 'CacheKey'>;
+
+/**
  * Model ID validation and creation
  */
 export const ModelId = {

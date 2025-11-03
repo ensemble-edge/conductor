@@ -8,6 +8,7 @@
 import type { QueryResult } from './hyperdrive-repository.js';
 import { Result } from '../types/result.js';
 import { Errors, type ConductorError } from '../errors/error-types.js';
+import { TTL } from '../config/constants.js';
 
 /**
  * Cache configuration
@@ -19,7 +20,7 @@ export interface QueryCacheConfig {
 	kv: KVNamespace;
 
 	/**
-	 * Default TTL in seconds (default: 300 = 5 minutes)
+	 * Default TTL in seconds (default: TTL.CACHE_SHORT = 5 minutes)
 	 */
 	defaultTTL?: number;
 
@@ -95,7 +96,7 @@ export class QueryCache {
 
 	constructor(config: QueryCacheConfig) {
 		this.kv = config.kv;
-		this.defaultTTL = config.defaultTTL || 300; // 5 minutes default
+		this.defaultTTL = config.defaultTTL || TTL.CACHE_SHORT;
 		this.keyPrefix = config.keyPrefix || 'query:';
 		this.enableStats = config.enableStats !== false;
 	}
