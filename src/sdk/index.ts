@@ -1,61 +1,41 @@
 /**
- * @ensemble-edge/conductor/sdk
- *
- * SDK for building and calling Conductor members
+ * Conductor SDK - Exports
  */
 
-// Member development
-export {
-	createMember,
-	createThinkMember,
-	createFunctionMember,
-	createDataMember,
-	createAPIMember,
-	generateMemberConfig
-} from './member-factory';
+export { ConductorClient, ConductorError, createClient } from './client.js';
 
-// Client for calling deployed conductors
-export { ConductorClient } from './client';
-
-// Edgit integration
-export {
-	loadComponent,
-	loadMemberConfig,
-	loadComponentMetadata,
-	listComponentVersions,
-	getComponentDeployment
-} from './edgit';
-
-// Validation helpers
-export {
-	validateInput,
-	validateOutput,
-	assert,
-	assertExists,
-	coerceInput
-} from './validation';
-
-// Testing utilities
-export {
-	mockContext,
-	mockEnv,
-	mockExecutionContext,
-	mockKV,
-	mockAI,
-	mockD1,
-	mockR2,
-	spy
-} from './testing';
-
-// Types
 export type {
-	MemberHandler,
-	MemberExecutionContext,
-	MemberResponse,
-	MemberConfig,
-	CreateMemberOptions,
-	ClientOptions,
-	ExecutionResult,
-	MemberResult,
+	ClientConfig,
+	ExecuteOptions,
+	ExecuteResult,
+	Member,
+	MemberDetail,
 	HealthStatus
-} from './types';
+} from './client.js';
+
+export { MemberHelpers, createMemberHelpers } from './members.js';
+
+export type {
+	FetchInput,
+	FetchOutput,
+	FetchConfig,
+	ScrapeInput,
+	ScrapeOutput,
+	ScrapeConfig,
+	ValidateInput,
+	ValidateOutput,
+	ValidateConfig,
+	RAGInput,
+	RAGIndexOutput,
+	RAGSearchOutput,
+	RAGOutput,
+	RAGConfig,
+	HITLInput,
+	HITLRequestOutput,
+	HITLRespondOutput,
+	HITLOutput,
+	HITLConfig,
+	QueriesInput,
+	QueriesOutput,
+	QueriesConfig
+} from './members.js';

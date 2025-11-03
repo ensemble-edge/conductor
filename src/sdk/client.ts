@@ -1,25 +1,83 @@
 /**
- * SDK Client
+ * Conductor SDK Client
  *
- * HTTP client for calling deployed Conductor instances
+ * Type-safe client for the Conductor API.
  */
 
-import type { ClientOptions, ExecutionResult, MemberResult, HealthStatus } from './types';
+export interface ClientConfig {
+	baseUrl: string;
+	apiKey?: string;
+	timeout?: number;
+	headers?: Record<string, string>;
+}
+
+export interface ExecuteOptions {
+	member: string;
+	input: Record<string, any>;
+	config?: Record<string, any>;
+	userId?: string;
+	sessionId?: string;
+	metadata?: Record<string, any>;
+}
+
+export interface ExecuteResult<T = any> {
+	success: boolean;
+	data?: T;
+	error?: string;
+	metadata: {
+		executionId: string;
+		duration: number;
+		timestamp: number;
+	};
+}
+
+export interface Member {
+	name: string;
+	type: string;
+	version?: string;
+	description?: string;
+	builtIn: boolean;
+}
+
+export interface MemberDetail extends Member {
+	config?: {
+		schema?: Record<string, any>;
+		defaults?: Record<string, any>;
+	};
+	input?: {
+		schema?: Record<string, any>;
+		examples?: any[];
+	};
+	output?: {
+		schema?: Record<string, any>;
+	};
+}
+
+export interface HealthStatus {
+	status: 'healthy' | 'degraded' | 'unhealthy';
+	timestamp: number;
+	version: string;
+	checks: {
+		database?: boolean;
+		cache?: boolean;
+		queue?: boolean;
+	};
+}
+
+export class ConductorError extends Error {
+	constructor(
+		public code: string,
+		message: string,
+		public details?: any,
+		public requestId?: string
+	) {
+		super(message);
+		this.name = 'ConductorError';
+	}
+}
 
 /**
- * Client for calling deployed Conductor instances
- *
- * @example
- * ```typescript
- * const client = new ConductorClient({
- *   baseUrl: 'https://owner-oiq.example.com',
- *   apiKey: process.env.OWNER_OIQ_API_KEY
- * });
- *
- * const result = await client.executeEnsemble('company-intelligence', {
- *   domain: 'acme.com'
- * });
- * ```
+ * Conductor API Client
  */
 export class ConductorClient {
 	private baseUrl: string;
@@ -27,158 +85,94 @@ export class ConductorClient {
 	private timeout: number;
 	private headers: Record<string, string>;
 
-	constructor(options: ClientOptions) {
-		this.baseUrl = options.baseUrl.replace(/\/$/, ''); // Remove trailing slash
-		this.apiKey = options.apiKey;
-		this.timeout = options.timeout || 30000;
+	constructor(config: ClientConfig) {
+		this.baseUrl = config.baseUrl.replace(/\/$/, '');
+		this.apiKey = config.apiKey;
+		this.timeout = config.timeout || 30000;
 		this.headers = {
 			'Content-Type': 'application/json',
-			...options.headers
+			...config.headers
 		};
 
 		if (this.apiKey) {
-			this.headers['Authorization'] = `Bearer ${this.apiKey}`;
+			this.headers['X-API-Key'] = this.apiKey;
 		}
 	}
 
-	/**
-	 * Execute an ensemble
-	 */
-	async executeEnsemble(name: string, input: any): Promise<ExecutionResult> {
-		const response = await this.fetch(`/ensemble/${name}`, {
-			method: 'POST',
-			body: JSON.stringify(input)
-		});
-
-		return await response.json() as ExecutionResult;
+	async execute<T = any>(options: ExecuteOptions): Promise<ExecuteResult<T>> {
+		const response = await this.request<ExecuteResult<T>>('POST', '/api/v1/execute', options);
+		return response;
 	}
 
-	/**
-	 * Execute a single member
-	 */
-	async executeMember(name: string, input: any): Promise<MemberResult> {
-		const response = await this.fetch(`/member/${name}`, {
-			method: 'POST',
-			body: JSON.stringify(input)
-		});
-
-		return await response.json() as MemberResult;
+	async listMembers(): Promise<Member[]> {
+		const response = await this.request<{ members: Member[]; count: number }>('GET', '/api/v1/members');
+		return response.members;
 	}
 
-	/**
-	 * Stream ensemble execution (for long-running Think members)
-	 */
-	async *streamEnsemble(name: string, input: any): AsyncIterableIterator<any> {
-		const response = await this.fetch(`/ensemble/${name}/stream`, {
-			method: 'POST',
-			body: JSON.stringify(input)
-		});
-
-		if (!response.body) {
-			throw new Error('Response body is null');
-		}
-
-		const reader = response.body.getReader();
-		const decoder = new TextDecoder();
-
-		try {
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-
-				const chunk = decoder.decode(value);
-				const lines = chunk.split('\n').filter(line => line.trim());
-
-				for (const line of lines) {
-					if (line.startsWith('data: ')) {
-						const data = line.slice(6);
-						if (data === '[DONE]') return;
-						yield JSON.parse(data);
-					}
-				}
-			}
-		} finally {
-			reader.releaseLock();
-		}
+	async getMember(name: string): Promise<MemberDetail> {
+		const response = await this.request<MemberDetail>('GET', `/api/v1/members/${name}`);
+		return response;
 	}
 
-	/**
-	 * Execute multiple requests in batch
-	 */
-	async executeBatch(requests: Array<{ ensemble: string; input: any }>): Promise<ExecutionResult[]> {
-		const response = await this.fetch('/batch', {
-			method: 'POST',
-			body: JSON.stringify({ requests })
-		});
-
-		return await response.json() as ExecutionResult[];
-	}
-
-	/**
-	 * Health check
-	 */
 	async health(): Promise<HealthStatus> {
-		const response = await this.fetch('/health', {
-			method: 'GET'
-		});
-
-		return await response.json() as HealthStatus;
+		const response = await this.request<HealthStatus>('GET', '/health');
+		return response;
 	}
 
-	/**
-	 * List available ensembles
-	 */
-	async listEnsembles(): Promise<string[]> {
-		const response = await this.fetch('/ensembles', {
-			method: 'GET'
-		});
-
-		const data = await response.json() as { ensembles: string[] };
-		return data.ensembles;
+	async ready(): Promise<boolean> {
+		const response = await this.request<{ ready: boolean }>('GET', '/health/ready');
+		return response.ready;
 	}
 
-	/**
-	 * List available members
-	 */
-	async listMembers(): Promise<string[]> {
-		const response = await this.fetch('/members', {
-			method: 'GET'
-		});
-
-		const data = await response.json() as { members: string[] };
-		return data.members;
+	async alive(): Promise<boolean> {
+		const response = await this.request<{ alive: boolean }>('GET', '/health/live');
+		return response.alive;
 	}
 
-	/**
-	 * Internal fetch wrapper with timeout and error handling
-	 */
-	private async fetch(path: string, init: RequestInit): Promise<Response> {
+	private async request<T>(method: string, path: string, body?: any): Promise<T> {
 		const url = `${this.baseUrl}${path}`;
 
-		// Create abort controller for timeout
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
 		try {
 			const response = await fetch(url, {
-				...init,
+				method,
 				headers: this.headers,
+				body: body ? JSON.stringify(body) : undefined,
 				signal: controller.signal
 			});
 
+			clearTimeout(timeoutId);
+
+			const data = (await response.json()) as any;
+
 			if (!response.ok) {
-				const error = await response.text();
-				throw new Error(`HTTP ${response.status}: ${error}`);
+				throw new ConductorError(
+					data.error || 'UnknownError',
+					data.message || 'An error occurred',
+					data.details,
+					data.requestId
+				);
 			}
 
-			return response;
+			return data as T;
 		} catch (error) {
-			if ((error as Error).name === 'AbortError') {
-				throw new Error(`Request timeout after ${this.timeout}ms`);
-			}
-			throw error;
-		} finally {
 			clearTimeout(timeoutId);
+
+			if ((error as Error).name === 'AbortError') {
+				throw new ConductorError('TimeoutError', `Request timeout after ${this.timeout}ms`);
+			}
+
+			if (error instanceof ConductorError) {
+				throw error;
+			}
+
+			throw new ConductorError('NetworkError', (error as Error).message || 'Network error occurred');
 		}
 	}
+}
+
+export function createClient(config: ClientConfig): ConductorClient {
+	return new ConductorClient(config);
 }

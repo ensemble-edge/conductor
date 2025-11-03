@@ -1,1 +1,0 @@
-At first we will make conductor completely cloudflare native but we should scaffold out the idea that we will have different deployment paths, ie vercel and others and to ptentially include an ensemble managed service as part of ensemble cloud.

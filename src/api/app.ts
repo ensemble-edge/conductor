@@ -1,0 +1,148 @@
+/**
+ * Conductor API Application
+ *
+ * Main Hono application with routes and middleware.
+ */
+
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+import type { ConductorContext } from './types';
+import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware';
+import { execute, members, health, stream, async } from './routes';
+import { openapi } from './openapi';
+
+export interface APIConfig {
+	auth?: {
+		apiKeys?: string[];
+		allowAnonymous?: boolean;
+	};
+	cors?: {
+		origin?: string | string[];
+		allowMethods?: string[];
+		allowHeaders?: string[];
+	};
+	logging?: boolean;
+}
+
+/**
+ * Create Conductor API application
+ */
+export function createConductorAPI(config: APIConfig = {}): Hono {
+	const app = new Hono<{ Bindings: Env }>();
+
+	// ==================== Global Middleware ====================
+
+	// Request ID (first, so all logs have it)
+	app.use('*', requestId());
+
+	// Timing
+	app.use('*', timing());
+
+	// Logger (if enabled)
+	if (config.logging !== false) {
+		app.use('*', logger());
+	}
+
+	// CORS
+	app.use(
+		'*',
+		cors({
+			origin: config.cors?.origin || '*',
+			allowMethods: config.cors?.allowMethods || ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+			allowHeaders: config.cors?.allowHeaders || ['Content-Type', 'X-API-Key', 'Authorization', 'X-Request-ID']
+		})
+	);
+
+	// Error handler (early in chain)
+	app.use('*', errorHandler());
+
+	// Authentication (if configured)
+	if (config.auth) {
+		app.use(
+			'/api/*',
+			createAuthMiddleware({
+				apiKeys: config.auth.apiKeys || [],
+				allowAnonymous: config.auth.allowAnonymous ?? false
+			})
+		);
+	}
+
+	// ==================== Routes ====================
+
+	// Health checks (public, no auth)
+	app.route('/health', health);
+
+	// OpenAPI documentation (public, no auth)
+	app.route('/', openapi);
+
+	// API routes (authenticated)
+	app.route('/api/v1/execute', execute);
+	app.route('/api/v1/members', members);
+	app.route('/api/v1/stream', stream);
+	app.route('/api/v1/async', async);
+
+	// Root endpoint
+	app.get('/', (c) => {
+		return c.json({
+			name: 'Conductor API',
+			version: '1.0.0',
+			description: 'Agentic workflow orchestration framework for Cloudflare Workers',
+			documentation: 'https://conductor.dev/docs',
+			endpoints: {
+				health: '/health',
+				execute: '/api/v1/execute',
+				members: '/api/v1/members'
+			}
+		});
+	});
+
+	// 404 handler
+	app.notFound((c) => {
+		return c.json(
+			{
+				error: 'NotFound',
+				message: 'Endpoint not found',
+				path: c.req.path,
+				timestamp: Date.now()
+			},
+			404
+		);
+	});
+
+	// Error handler (catch-all)
+	app.onError((err, c) => {
+		console.error('Unhandled error:', err);
+
+		return c.json(
+			{
+				error: 'InternalServerError',
+				message: err.message || 'An unexpected error occurred',
+				timestamp: Date.now()
+			},
+			500
+		);
+	});
+
+	return app as any;
+}
+
+/**
+ * Default export for Cloudflare Workers
+ */
+export default {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		// Create API with config from environment
+		const config: APIConfig = {
+			auth: {
+				apiKeys: (env as any).API_KEYS ? ((env as any).API_KEYS as string).split(',') : [],
+				allowAnonymous: (env as any).ALLOW_ANONYMOUS === 'true'
+			},
+			logging: (env as any).DISABLE_LOGGING !== 'true'
+		};
+
+		const app = createConductorAPI(config);
+
+		return app.fetch(request, env, ctx);
+	}
+};
