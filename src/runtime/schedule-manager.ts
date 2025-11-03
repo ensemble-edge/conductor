@@ -7,6 +7,7 @@
 
 import type { EnsembleConfig, ScheduleConfig } from './parser';
 import { Executor } from './executor';
+import { createLogger, type Logger } from '../observability';
 
 /**
  * Cloudflare scheduled event
@@ -35,6 +36,11 @@ export interface ScheduleExecutionResult {
  */
 export class ScheduleManager {
 	private readonly ensembles: Map<string, EnsembleConfig> = new Map();
+	private readonly logger: Logger;
+
+	constructor(logger?: Logger) {
+		this.logger = logger || createLogger({ serviceName: 'schedule-manager' });
+	}
 
 	/**
 	 * Register ensemble with schedules
@@ -71,11 +77,11 @@ export class ScheduleManager {
 		const matches = this.findMatchingEnsembles(event.cron);
 
 		if (matches.length === 0) {
-			console.log('[SCHEDULE] No ensembles found for cron:', event.cron);
+			this.logger.info('No ensembles found for cron', { cron: event.cron });
 			return results;
 		}
 
-		console.log('[SCHEDULE] Found matches:', {
+		this.logger.info('Found scheduled ensembles', {
 			cron: event.cron,
 			count: matches.length,
 			ensembles: matches.map(m => m.ensemble.name)
@@ -86,8 +92,8 @@ export class ScheduleManager {
 
 		for (const { ensemble, schedule } of matches) {
 			if (schedule.enabled === false) {
-				console.log('[SCHEDULE] Skipping disabled schedule:', {
-					ensemble: ensemble.name,
+				this.logger.debug('Skipping disabled schedule', {
+					ensembleName: ensemble.name,
 					cron: schedule.cron
 				});
 				continue;
@@ -116,28 +122,27 @@ export class ScheduleManager {
 						const duration = Date.now() - startTime;
 
 						if (result.success) {
-							console.log('[SCHEDULE] Execution completed:', {
-								ensemble: ensemble.name,
+							this.logger.info('Scheduled execution completed', {
+								ensembleName: ensemble.name,
 								cron: schedule.cron,
-								duration,
+								durationMs: duration,
 								success: true
 							});
 						} else {
-							console.error('[SCHEDULE] Execution failed:', {
-								ensemble: ensemble.name,
+							this.logger.error('Scheduled execution failed', undefined, {
+								ensembleName: ensemble.name,
 								cron: schedule.cron,
-								duration,
+								durationMs: duration,
 								error: result.error
 							});
 						}
 					}).catch(error => {
 						const duration = Date.now() - startTime;
 
-						console.error('[SCHEDULE] Execution error:', {
-							ensemble: ensemble.name,
+						this.logger.error('Scheduled execution error', error instanceof Error ? error : undefined, {
+							ensembleName: ensemble.name,
 							cron: schedule.cron,
-							duration,
-							error: error instanceof Error ? error.message : 'Unknown error'
+							durationMs: duration
 						});
 					})
 				);
@@ -150,10 +155,9 @@ export class ScheduleManager {
 			} catch (error) {
 				const duration = Date.now() - startTime;
 
-				console.error('[SCHEDULE] Failed to start execution:', {
-					ensemble: ensemble.name,
-					cron: schedule.cron,
-					error: error instanceof Error ? error.message : 'Unknown error'
+				this.logger.error('Failed to start scheduled execution', error instanceof Error ? error : undefined, {
+					ensembleName: ensemble.name,
+					cron: schedule.cron
 				});
 
 				results.push({

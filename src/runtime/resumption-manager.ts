@@ -92,13 +92,12 @@ export class ResumptionManager {
 	}
 
 	/**
-	 * Generate a unique resumption token
+	 * Generate a cryptographically secure unique resumption token
 	 */
 	static generateToken(): string {
-		const timestamp = Date.now();
-		const random = Math.random().toString(36).substring(2, 15);
-		const random2 = Math.random().toString(36).substring(2, 15);
-		return `resume_${timestamp}_${random}${random2}`;
+		// Use crypto.randomUUID() for cryptographically secure random tokens
+		// Format: resume_<uuid> for easy identification and secure randomness
+		return `resume_${crypto.randomUUID()}`;
 	}
 
 	/**

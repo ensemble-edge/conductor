@@ -7,13 +7,18 @@
 import type { MiddlewareHandler } from 'hono';
 import type { ConductorContext, ErrorResponse } from '../types';
 import { ConductorError } from '../../errors/error-types';
+import { createLogger } from '../../observability';
+
+const logger = createLogger({ serviceName: 'api-error-handler' });
 
 export function errorHandler(): MiddlewareHandler {
 	return async (c: ConductorContext, next) => {
 		try {
 			await next();
 		} catch (error) {
-			console.error('API Error:', error);
+			logger.error('API error caught by error handler', error instanceof Error ? error : undefined, {
+				requestId: c.get('requestId')
+			});
 
 			// Get request ID if available
 			const requestId = c.get('requestId');

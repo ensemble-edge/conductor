@@ -117,12 +117,13 @@ export abstract class BaseMember {
 	 * @param input - Input data
 	 * @returns Cache key string
 	 */
-	generateCacheKey(input: Record<string, any>): string {
+	async generateCacheKey(input: Record<string, any>): Promise<string> {
 		// Create a stable string representation of input
 		const inputString = JSON.stringify(this.sortObjectKeys(input));
 
-		// Simple hash function for cache key
-		return `member:${this.name}:${this.hashString(inputString)}`;
+		// SHA-256 hash for cache key
+		const hash = await this.hashString(inputString);
+		return `member:${this.name}:${hash}`;
 	}
 
 	/**
@@ -150,18 +151,24 @@ export abstract class BaseMember {
 	}
 
 	/**
-	 * Simple string hash function
+	 * Cryptographically secure SHA-256 hash function
 	 * @param str - String to hash
-	 * @returns Hash value
+	 * @returns Hash value (hex string)
 	 */
-	private hashString(str: string): string {
-		let hash = 0;
-		for (let i = 0; i < str.length; i++) {
-			const char = str.charCodeAt(i);
-			hash = ((hash << 5) - hash) + char;
-			hash = hash & hash; // Convert to 32-bit integer
-		}
-		return Math.abs(hash).toString(36);
+	private async hashString(str: string): Promise<string> {
+		// Encode string to Uint8Array
+		const encoder = new TextEncoder();
+		const data = encoder.encode(str);
+
+		// Calculate SHA-256 hash
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+		// Convert to hex string
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+		// Return first 16 chars for reasonable key length
+		return hashHex.substring(0, 16);
 	}
 
 	/**

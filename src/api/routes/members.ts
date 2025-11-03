@@ -7,8 +7,10 @@
 import { Hono } from 'hono';
 import type { ConductorContext, MemberListResponse, MemberDetailResponse } from '../types';
 import { getBuiltInRegistry } from '../../members/built-in/registry';
+import { createLogger } from '../../observability';
 
 const members = new Hono<{ Bindings: Env }>();
+const logger = createLogger({ serviceName: 'api-members' });
 
 /**
  * GET /members - List all available members
@@ -36,7 +38,9 @@ members.get('/', async (c: ConductorContext) => {
 
 		return c.json(response);
 	} catch (error) {
-		console.error('Members list error:', error);
+		logger.error('Failed to list members', error instanceof Error ? error : undefined, {
+			requestId: c.get('requestId')
+		});
 
 		return c.json(
 			{
@@ -105,7 +109,10 @@ members.get('/:name', async (c: ConductorContext) => {
 			404
 		);
 	} catch (error) {
-		console.error('Member detail error:', error);
+		logger.error('Failed to get member details', error instanceof Error ? error : undefined, {
+			requestId: c.get('requestId'),
+			memberName: c.req.param('name')
+		});
 
 		return c.json(
 			{

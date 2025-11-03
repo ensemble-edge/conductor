@@ -9,8 +9,10 @@ import { Parser } from '../../runtime/parser.js';
 import { Executor } from '../../runtime/executor.js';
 import { ResumptionManager } from '../../runtime/resumption-manager.js';
 import { Errors } from '../../errors/error-types.js';
+import { createLogger } from '../../observability';
 
 const app = new Hono<{ Bindings: Env }>();
+const logger = createLogger({ serviceName: 'api-webhooks' });
 
 /**
  * Webhook trigger endpoint
@@ -122,7 +124,11 @@ flow:
 								headers: { 'Content-Type': 'application/json' },
 								body: JSON.stringify({ result: result.output })
 							}));
-							console.log('Webhook execution completed:', executionId, result);
+							logger.info('Webhook execution completed', {
+								executionId,
+								ensembleName: ensemble.name,
+								durationMs: result.metrics?.totalDuration
+							});
 						} else {
 							// Mark as failed in DO
 							await stub.fetch(new Request('http://do/fail', {
@@ -130,7 +136,11 @@ flow:
 								headers: { 'Content-Type': 'application/json' },
 								body: JSON.stringify({ error: result.error || 'Execution failed' })
 							}));
-							console.error('Webhook execution failed:', executionId, result.error);
+							logger.error('Webhook execution failed', undefined, {
+								executionId,
+								ensembleName: ensemble.name,
+								error: result.error
+							});
 						}
 					}).catch(async error => {
 						// Mark as failed in DO
@@ -139,7 +149,10 @@ flow:
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })
 						}));
-						console.error('Webhook execution failed:', executionId, error);
+						logger.error('Webhook execution error', error instanceof Error ? error : undefined, {
+							executionId,
+							ensembleName: ensemble.name
+						});
 					})
 				);
 
@@ -243,7 +256,9 @@ flow:
 			mode
 		}, 400);
 	} catch (error) {
-		console.error('Webhook execution error:', error);
+		logger.error('Webhook execution error', error instanceof Error ? error : undefined, {
+			webhookName: c.req.param('name')
+		});
 
 		return c.json({
 			error: 'Webhook execution failed',
@@ -477,10 +492,10 @@ async function authenticateWebhook(
 }
 
 /**
- * Generate unique execution ID
+ * Generate cryptographically secure unique execution ID
  */
 function generateExecutionId(): string {
-	return `exec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+	return `exec-${crypto.randomUUID()}`;
 }
 
 export default app;

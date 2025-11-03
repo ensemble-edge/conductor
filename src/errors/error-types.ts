@@ -61,10 +61,12 @@ export enum ErrorCode {
 export abstract class ConductorError extends Error {
 	abstract readonly code: ErrorCode;
 	abstract readonly isOperational: boolean;
+	readonly details?: Record<string, any>;
 
-	constructor(message: string) {
+	constructor(message: string, details?: Record<string, any>) {
 		super(message);
 		this.name = this.constructor.name;
+		this.details = details;
 
 		// Maintains proper stack trace for where our error was thrown (only available on V8)
 		if ((Error as any).captureStackTrace) {

@@ -16,6 +16,9 @@ import type { MemberConfig } from '../../../runtime/parser';
 import type { ScrapeConfig, ScrapeInput, ScrapeResult } from './types';
 import { detectBotProtection, isContentSuccessful } from './bot-detection';
 import { extractTextFromHTML, extractTitleFromHTML, convertHTMLToMarkdown } from './html-parser';
+import { createLogger } from '../../../observability';
+
+const logger = createLogger({ serviceName: 'scrape-member' });
 
 export class ScrapeMember extends BaseMember {
 	private scrapeConfig: ScrapeConfig;
@@ -49,7 +52,10 @@ export class ScrapeMember extends BaseMember {
 				return this.formatResult(result, 1, Date.now() - startTime);
 			}
 		} catch (error) {
-			console.log('Tier 1 failed, trying Tier 2:', error);
+			logger.debug('Tier 1 fast scrape failed, trying Tier 2', {
+				url: input.url,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			});
 		}
 
 		// If strategy is 'fast', return fallback
@@ -64,7 +70,10 @@ export class ScrapeMember extends BaseMember {
 				return this.formatResult(result, 2, Date.now() - startTime);
 			}
 		} catch (error) {
-			console.log('Tier 2 failed, trying Tier 3:', error);
+			logger.debug('Tier 2 slow scrape failed, trying Tier 3', {
+				url: input.url,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			});
 		}
 
 		// If strategy is 'balanced', return fallback
