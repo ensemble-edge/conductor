@@ -1,8 +1,11 @@
 /**
- * AutoRAG Ingestion Helper
+ * Vectorize RAG Ingestion Helper
  *
- * Helper functions for ingesting documents into Cloudflare Vectorize
- * with automatic chunking and embedding via AutoRAG.
+ * Helper functions for manually ingesting documents into Cloudflare Vectorize
+ * with custom chunking strategies.
+ *
+ * Note: This requires you to generate embeddings yourself. For fully automatic
+ * ingestion with zero configuration, use Cloudflare's AutoRAG service instead.
  */
 
 export interface Document {
@@ -37,7 +40,10 @@ export interface IngestOptions {
 }
 
 /**
- * Ingest documents into Vectorize with AutoRAG
+ * Ingest documents into Vectorize manually
+ *
+ * Note: You need to provide embeddings in the values array.
+ * This is a low-level function for when you need full control.
  */
 export async function ingestDocuments(
 	documents: Document[],
@@ -61,11 +67,12 @@ export async function ingestDocuments(
 		try {
 			// Prepare vectors for insertion
 			const vectors = batch.map(doc => {
-				// For AutoRAG, we pass text in metadata and let Cloudflare generate embeddings
+				// Manual mode: You must generate embeddings yourself
+				// For automatic embedding generation, use AutoRAG instead
 				return {
 					id: doc.id,
-					// Empty values array - AutoRAG will generate embeddings
-					values: [],
+					// TODO: Generate embeddings using Workers AI or your embedding model
+					values: [], // Replace with actual embeddings
 					namespace: doc.namespace,
 					metadata: {
 						text: doc.content,
@@ -74,7 +81,7 @@ export async function ingestDocuments(
 				};
 			});
 
-			// Insert with AutoRAG
+			// Insert vectors
 			await vectorize.upsert(vectors as VectorizeVector[]);
 			successCount += batch.length;
 
