@@ -8,8 +8,8 @@
 import { createLogger, type Logger } from '../observability';
 
 export interface StateConfig {
-	schema?: Record<string, any>;
-	initial?: Record<string, any>;
+	schema?: Record<string, unknown>;
+	initial?: Record<string, unknown>;
 	logger?: Logger;
 }
 
@@ -19,8 +19,8 @@ export interface MemberStateConfig {
 }
 
 export interface StateContext {
-	state: Readonly<Record<string, any>>;
-	setState: (updates: Record<string, any>) => void;
+	state: Readonly<Record<string, unknown>>;
+	setState: (updates: Record<string, unknown>) => void;
 }
 
 export interface AccessLogEntry {
@@ -39,14 +39,14 @@ export interface AccessReport {
  * Immutable StateManager - returns new instances for all mutations
  */
 export class StateManager {
-	private readonly schema: Readonly<Record<string, any>>;
-	private readonly state: Readonly<Record<string, any>>;
+	private readonly schema: Readonly<Record<string, unknown>>;
+	private readonly state: Readonly<Record<string, unknown>>;
 	private readonly accessLog: ReadonlyArray<AccessLogEntry>;
 	private readonly logger: Logger;
 
 	constructor(
 		config: StateConfig,
-		existingState?: Readonly<Record<string, any>>,
+		existingState?: Readonly<Record<string, unknown>>,
 		existingLog?: ReadonlyArray<AccessLogEntry>
 	) {
 		this.schema = Object.freeze(config.schema || {});
@@ -61,12 +61,12 @@ export class StateManager {
 	 */
 	getStateForMember(memberName: string, config: MemberStateConfig): {
 		context: StateContext;
-		getPendingUpdates: () => { updates: Record<string, any>; newLog: AccessLogEntry[] };
+		getPendingUpdates: () => { updates: Record<string, unknown>; newLog: AccessLogEntry[] };
 	} {
 		const { use = [], set = [] } = config;
 
 		// Create read-only state view (only includes declared 'use' keys)
-		const viewState: Record<string, any> = {};
+		const viewState: Record<string, unknown> = {};
 		const newLog: AccessLogEntry[] = [...this.accessLog];
 
 		for (const key of use) {
@@ -82,10 +82,10 @@ export class StateManager {
 		}
 
 		// Track pending updates in closure
-		const pendingUpdates: Record<string, any> = {};
+		const pendingUpdates: Record<string, unknown> = {};
 
 		// Create setState function that accumulates updates
-		const setState = (updates: Record<string, any>) => {
+		const setState = (updates: Record<string, unknown>) => {
 			for (const [key, value] of Object.entries(updates)) {
 				if (set.includes(key)) {
 					pendingUpdates[key] = value;
@@ -119,7 +119,7 @@ export class StateManager {
 	 * This is the preferred method when using getStateForMember with getPendingUpdates
 	 */
 	applyPendingUpdates(
-		updates: Record<string, any>,
+		updates: Record<string, unknown>,
 		newLog: AccessLogEntry[]
 	): StateManager {
 		// If no updates, return this instance (optimization)
@@ -128,7 +128,7 @@ export class StateManager {
 		}
 
 		// Create new state with updates
-		const newState: Record<string, any> = { ...this.state, ...updates };
+		const newState: Record<string, unknown> = { ...this.state, ...updates };
 
 		// Return new StateManager with updated state and log
 		return new StateManager(
@@ -144,13 +144,13 @@ export class StateManager {
 	 */
 	setStateFromMember(
 		memberName: string,
-		updates: Record<string, any>,
+		updates: Record<string, unknown>,
 		config: MemberStateConfig
 	): StateManager {
 		const { set = [] } = config;
 
 		// Create new state object
-		const newState: Record<string, any> = { ...this.state };
+		const newState: Record<string, unknown> = { ...this.state };
 		const newLog: AccessLogEntry[] = [...this.accessLog];
 
 		for (const [key, value] of Object.entries(updates)) {
@@ -182,7 +182,7 @@ export class StateManager {
 	/**
 	 * Get the full current state snapshot
 	 */
-	getState(): Readonly<Record<string, any>> {
+	getState(): Readonly<Record<string, unknown>> {
 		return this.state;
 	}
 
@@ -230,7 +230,7 @@ export class StateManager {
 	/**
 	 * Reset state to initial values (returns new instance)
 	 */
-	reset(initialState?: Record<string, any>): StateManager {
+	reset(initialState?: Record<string, unknown>): StateManager {
 		return new StateManager(
 			{ schema: this.schema, initial: initialState || {}, logger: this.logger },
 			undefined,
@@ -241,7 +241,7 @@ export class StateManager {
 	/**
 	 * Create a new StateManager with merged state
 	 */
-	merge(updates: Record<string, any>): StateManager {
+	merge(updates: Record<string, unknown>): StateManager {
 		const newState = { ...this.state, ...updates };
 		return new StateManager(
 			{ schema: this.schema, initial: {}, logger: this.logger },
