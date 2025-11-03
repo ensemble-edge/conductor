@@ -7,22 +7,44 @@
 
 import type { Memory, SearchOptions } from './types';
 import { createLogger } from '../../observability';
+import type { ConductorEnv } from '../../types/env';
 
 const logger = createLogger({ serviceName: 'semantic-memory' });
+
+/**
+ * Vectorize match result
+ */
+interface VectorizeMatch {
+	id: string;
+	score: number;
+	metadata: {
+		user_id?: string;
+		content: string;
+		timestamp: number;
+		[key: string]: unknown;
+	};
+}
+
+/**
+ * AI embedding result
+ */
+interface AIEmbeddingResult {
+	data: number[][] | number[];
+}
 
 export class SemanticMemory {
 	private readonly embeddingModel = '@cf/baai/bge-base-en-v1.5';
 
 	constructor(
-		private readonly env: Env,
+		private readonly env: ConductorEnv,
 		private readonly userId?: string
 	) {}
 
 	/**
 	 * Add a memory to semantic storage
 	 */
-	async add(content: string, metadata?: Record<string, any>): Promise<string> {
-		if (!this.userId || !(this.env as any).VECTORIZE || !(this.env as any).AI) {
+	async add(content: string, metadata?: Record<string, unknown>): Promise<string> {
+		if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
 			return '';
 		}
 
@@ -30,15 +52,16 @@ export class SemanticMemory {
 		const embedding = await this.generateEmbedding(content);
 
 		// Create unique ID
-		const id = `${this.userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+		const userId = this.userId; // Type narrowed after check
+		const id = `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
 		// Store in Vectorize
-		await (this.env as any).VECTORIZE.upsert([
+		await this.env.VECTORIZE.upsert([
 			{
 				id,
 				values: embedding,
 				metadata: {
-					user_id: this.userId,
+					user_id: userId,
 					content: content,
 					timestamp: Date.now(),
 					...metadata
@@ -52,20 +75,23 @@ export class SemanticMemory {
 	/**
 	 * Add multiple memories
 	 */
-	async addMany(memories: Array<{ content: string; metadata?: Record<string, any> }>): Promise<string[]> {
-		if (!this.userId || !(this.env as any).VECTORIZE || !(this.env as any).AI) {
+	async addMany(memories: Array<{ content: string; metadata?: Record<string, unknown> }>): Promise<string[]> {
+		if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
 			return [];
 		}
 
 		// Generate embeddings for all memories
 		const embeddings = await this.generateEmbeddings(memories.map((m) => m.content));
 
+		// Type narrowed after check
+		const userId = this.userId;
+
 		// Create vectors
 		const vectors = memories.map((memory, i) => ({
-			id: `${this.userId}-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}`,
+			id: `${userId}-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}`,
 			values: embeddings[i],
 			metadata: {
-				user_id: this.userId,
+				user_id: userId,
 				content: memory.content,
 				timestamp: Date.now(),
 				...memory.metadata
@@ -73,7 +99,7 @@ export class SemanticMemory {
 		}));
 
 		// Store in Vectorize
-		await (this.env as any).VECTORIZE.upsert(vectors);
+		await this.env.VECTORIZE.upsert(vectors);
 
 		return vectors.map((v) => v.id);
 	}
@@ -82,7 +108,7 @@ export class SemanticMemory {
 	 * Search for semantically similar memories
 	 */
 	async search(query: string, options?: SearchOptions): Promise<Memory[]> {
-		if (!this.userId || !(this.env as any).VECTORIZE || !(this.env as any).AI) {
+		if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
 			return [];
 		}
 
@@ -90,7 +116,7 @@ export class SemanticMemory {
 		const queryEmbedding = await this.generateEmbedding(query);
 
 		// Search Vectorize
-		const results = await (this.env as any).VECTORIZE.query(queryEmbedding, {
+		const results = await this.env.VECTORIZE.query(queryEmbedding, {
 			topK: options?.topK || 5,
 			filter: { user_id: this.userId, ...options?.filter },
 			returnValues: false,
@@ -98,9 +124,9 @@ export class SemanticMemory {
 		});
 
 		// Convert to Memory objects
-		return results.matches
-			.filter((match: any) => !options?.minScore || match.score >= options.minScore)
-			.map((match: any) => ({
+		return (results.matches as VectorizeMatch[])
+			.filter((match) => !options?.minScore || match.score >= options.minScore)
+			.map((match) => ({
 				id: match.id,
 				content: match.metadata.content,
 				timestamp: match.metadata.timestamp,
@@ -113,7 +139,7 @@ export class SemanticMemory {
 	 * Get a specific memory by ID
 	 */
 	async get(id: string): Promise<Memory | null> {
-		if (!this.userId || !(this.env as any).VECTORIZE) {
+		if (!this.userId || !this.env.VECTORIZE) {
 			return null;
 		}
 
@@ -127,29 +153,29 @@ export class SemanticMemory {
 	 * Delete a memory
 	 */
 	async delete(id: string): Promise<void> {
-		if (!this.userId || !(this.env as any).VECTORIZE) {
+		if (!this.userId || !this.env.VECTORIZE) {
 			return;
 		}
 
-		await (this.env as any).VECTORIZE.deleteByIds([id]);
+		await this.env.VECTORIZE.deleteByIds([id]);
 	}
 
 	/**
 	 * Delete multiple memories
 	 */
 	async deleteMany(ids: string[]): Promise<void> {
-		if (!this.userId || !(this.env as any).VECTORIZE || ids.length === 0) {
+		if (!this.userId || !this.env.VECTORIZE || ids.length === 0) {
 			return;
 		}
 
-		await (this.env as any).VECTORIZE.deleteByIds(ids);
+		await this.env.VECTORIZE.deleteByIds(ids);
 	}
 
 	/**
 	 * Clear all memories for this user
 	 */
 	async clear(): Promise<void> {
-		if (!this.userId || !(this.env as any).VECTORIZE) {
+		if (!this.userId || !this.env.VECTORIZE) {
 			return;
 		}
 
@@ -165,29 +191,29 @@ export class SemanticMemory {
 	 * Generate embedding for a single text
 	 */
 	private async generateEmbedding(text: string): Promise<number[]> {
-		const result = await (this.env as any).AI.run(this.embeddingModel, {
+		const result = await this.env.AI.run(this.embeddingModel, {
 			text: [text]
-		});
+		}) as AIEmbeddingResult;
 
-		return (result as any).data[0];
+		return Array.isArray(result.data[0]) ? result.data[0] : result.data as number[];
 	}
 
 	/**
 	 * Generate embeddings for multiple texts
 	 */
 	private async generateEmbeddings(texts: string[]): Promise<number[][]> {
-		const result = await (this.env as any).AI.run(this.embeddingModel, {
+		const result = await this.env.AI.run(this.embeddingModel, {
 			text: texts
-		});
+		}) as AIEmbeddingResult;
 
-		return (result as any).data;
+		return result.data as number[][];
 	}
 
 	/**
 	 * Calculate similarity between two texts
 	 */
 	async similarity(text1: string, text2: string): Promise<number> {
-		if (!(this.env as any).AI) {
+		if (!this.env.AI) {
 			return 0;
 		}
 
