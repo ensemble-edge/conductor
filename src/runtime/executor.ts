@@ -311,9 +311,10 @@ export class Executor {
 					}
 
 					// Parse evaluator output as ScoringResult
-					const evalData = evalResponse.data as Record<string, any> | number;
+					const evalData = evalResponse.data as Record<string, unknown> | number;
 					const score = typeof evalData === 'number' ? evalData :
-					             (evalData.score ?? evalData.value ?? 0);
+					             (typeof evalData === 'object' && evalData !== null && 'score' in evalData ? (evalData.score as number) :
+					              typeof evalData === 'object' && evalData !== null && 'value' in evalData ? (evalData.value as number) : 0);
 
 					const threshold = scoringConfig.thresholds?.minimum ||
 					                 ensemble.scoring?.defaultThresholds?.minimum || 0.7;
@@ -321,8 +322,9 @@ export class Executor {
 					return {
 						score,
 						passed: score >= threshold,
-						feedback: typeof evalData === 'object' ? (evalData.feedback || evalData.message || '') : '',
-						breakdown: typeof evalData === 'object' ? (evalData.breakdown || {}) : {},
+						feedback: typeof evalData === 'object' && evalData !== null && 'feedback' in evalData ? String(evalData.feedback) :
+						         typeof evalData === 'object' && evalData !== null && 'message' in evalData ? String(evalData.message) : '',
+						breakdown: typeof evalData === 'object' && evalData !== null && 'breakdown' in evalData ? (evalData.breakdown as Record<string, number>) : {},
 						metadata: {
 							attempt,
 							evaluator: scoringConfig.evaluator,
