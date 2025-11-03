@@ -11,6 +11,10 @@ import type {
 	ParallelBlock,
 	BranchBlock,
 	ForEachBlock,
+	TryBlock,
+	SwitchBlock,
+	WhileBlock,
+	MapReduceBlock,
 	ExecutionNode,
 	ExecutionGraph
 } from './graph-types';
@@ -198,7 +202,7 @@ export class GraphExecutor {
 
 			switch (node.type) {
 				case 'step':
-					result = await this.executeStep(node.element as GraphFlowStep, context, results);
+					result = await this.executeStepWithFeatures(node.element as GraphFlowStep, context, results);
 					break;
 
 				case 'parallel':
@@ -211,6 +215,22 @@ export class GraphExecutor {
 
 				case 'foreach':
 					result = await this.executeForEach(node.element as ForEachBlock, context, results);
+					break;
+
+				case 'try':
+					result = await this.executeTry(node.element as TryBlock, context, results);
+					break;
+
+				case 'switch':
+					result = await this.executeSwitch(node.element as SwitchBlock, context, results);
+					break;
+
+				case 'while':
+					result = await this.executeWhile(node.element as WhileBlock, context, results);
+					break;
+
+				case 'map-reduce':
+					result = await this.executeMapReduce(node.element as MapReduceBlock, context, results);
 					break;
 
 				default:
@@ -239,6 +259,117 @@ export class GraphExecutor {
 		// TODO: Implement actual member execution
 		// This is a simplified placeholder
 		return { success: true, member: step.member };
+	}
+
+	/**
+	 * Execute step with retry, timeout, and conditional execution
+	 */
+	private async executeStepWithFeatures(
+		step: GraphFlowStep,
+		context: Record<string, unknown>,
+		results: Map<string, unknown>
+	): Promise<unknown> {
+		// Check "when" condition - skip if false
+		if (step.when) {
+			const shouldExecute = this.evaluateCondition(step.when, context, results);
+			if (!shouldExecute) {
+				return { skipped: true, reason: 'when condition false' };
+			}
+		}
+
+		// Execute with retry logic
+		if (step.retry) {
+			return await this.executeWithRetry(step, context, results);
+		}
+
+		// Execute with timeout
+		if (step.timeout) {
+			return await this.executeWithTimeout(step, context, results);
+		}
+
+		// Regular execution
+		return await this.executeStep(step, context, results);
+	}
+
+	/**
+	 * Execute step with retry logic
+	 */
+	private async executeWithRetry(
+		step: GraphFlowStep,
+		context: Record<string, unknown>,
+		results: Map<string, unknown>
+	): Promise<unknown> {
+		const retry = step.retry!;
+		const maxAttempts = retry.attempts || 3;
+		const initialDelay = retry.initialDelay || 1000;
+		const maxDelay = retry.maxDelay || 30000;
+
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			try {
+				// Execute with optional timeout
+				if (step.timeout) {
+					return await this.executeWithTimeout(step, context, results);
+				}
+				return await this.executeStep(step, context, results);
+
+			} catch (error) {
+				const errorCode = (error as Error & { code?: string }).code;
+
+				// Check if we should retry this error
+				if (retry.retryOn && errorCode && !retry.retryOn.includes(errorCode)) {
+					throw error; // Don't retry this error type
+				}
+
+				// Last attempt - throw error
+				if (attempt === maxAttempts - 1) {
+					throw error;
+				}
+
+				// Calculate backoff delay
+				let delay: number;
+				switch (retry.backoff) {
+					case 'exponential':
+						delay = Math.min(initialDelay * Math.pow(2, attempt), maxDelay);
+						break;
+					case 'linear':
+						delay = Math.min(initialDelay * (attempt + 1), maxDelay);
+						break;
+					case 'fixed':
+					default:
+						delay = initialDelay;
+				}
+
+				// Wait before retry
+				await new Promise(resolve => setTimeout(resolve, delay));
+			}
+		}
+
+		throw new Error('Max retry attempts reached');
+	}
+
+	/**
+	 * Execute step with timeout
+	 */
+	private async executeWithTimeout(
+		step: GraphFlowStep,
+		context: Record<string, unknown>,
+		results: Map<string, unknown>
+	): Promise<unknown> {
+		const timeout = step.timeout!;
+		const onTimeout = step.onTimeout;
+
+		return await Promise.race([
+			this.executeStep(step, context, results),
+			new Promise((_, reject) =>
+				setTimeout(() => {
+					if (onTimeout?.error === false && onTimeout.fallback !== undefined) {
+						// Return fallback instead of error
+						return onTimeout.fallback;
+					}
+					reject(new Error(`Step timeout after ${timeout}ms`));
+				}, timeout)
+			)
+		]) as unknown;
 	}
 
 	/**
@@ -313,6 +444,14 @@ export class GraphExecutor {
 				})
 			);
 			loopResults.push(...batchResults);
+
+			// Check break condition (early exit)
+			if (block.breakWhen) {
+				const shouldBreak = this.evaluateCondition(block.breakWhen, context, results);
+				if (shouldBreak) {
+					break;
+				}
+			}
 		}
 
 		return loopResults;
@@ -334,9 +473,169 @@ export class GraphExecutor {
 					return this.executeBranch(element as BranchBlock, context, results);
 				case 'foreach':
 					return this.executeForEach(element as ForEachBlock, context, results);
+				case 'try':
+					return this.executeTry(element as TryBlock, context, results);
+				case 'switch':
+					return this.executeSwitch(element as SwitchBlock, context, results);
+				case 'while':
+					return this.executeWhile(element as WhileBlock, context, results);
+				case 'map-reduce':
+					return this.executeMapReduce(element as MapReduceBlock, context, results);
 			}
 		}
 		return this.executeStep(element as GraphFlowStep, context, results);
+	}
+
+	/**
+	 * Execute try/catch/finally block
+	 */
+	private async executeTry(
+		block: TryBlock,
+		context: Record<string, unknown>,
+		results: Map<string, unknown>
+	): Promise<unknown> {
+		let tryResult: unknown;
+		let error: Error | null = null;
+
+		try {
+			// Execute try block
+			const tryResults: unknown[] = [];
+			for (const element of block.steps) {
+				const result = await this.executeElement(element, context, results);
+				tryResults.push(result);
+			}
+			tryResult = tryResults;
+
+		} catch (err) {
+			error = err as Error;
+
+			// Execute catch block if present
+			if (block.catch && block.catch.length > 0) {
+				const catchResults: unknown[] = [];
+				const errorContext = { ...context, error };
+				for (const element of block.catch) {
+					const result = await this.executeElement(element, errorContext, results);
+					catchResults.push(result);
+				}
+				tryResult = catchResults;
+			} else {
+				// No catch block - rethrow
+				throw error;
+			}
+		} finally {
+			// Execute finally block if present
+			if (block.finally && block.finally.length > 0) {
+				for (const element of block.finally) {
+					await this.executeElement(element, context, results);
+				}
+			}
+		}
+
+		return tryResult;
+	}
+
+	/**
+	 * Execute switch/case block
+	 */
+	private async executeSwitch(
+		block: SwitchBlock,
+		context: Record<string, unknown>,
+		results: Map<string, unknown>
+	): Promise<unknown> {
+		// Evaluate switch value
+		const value = this.resolveExpression(block.value, context, results);
+		const valueStr = String(value);
+
+		// Find matching case
+		let caseSteps = block.cases[valueStr];
+		if (!caseSteps && block.default) {
+			caseSteps = block.default;
+		}
+
+		if (!caseSteps) {
+			return null; // No matching case and no default
+		}
+
+		// Execute case steps
+		const caseResults: unknown[] = [];
+		for (const element of caseSteps) {
+			const result = await this.executeElement(element, context, results);
+			caseResults.push(result);
+		}
+
+		return caseResults;
+	}
+
+	/**
+	 * Execute while loop
+	 */
+	private async executeWhile(
+		block: WhileBlock,
+		context: Record<string, unknown>,
+		results: Map<string, unknown>
+	): Promise<unknown[]> {
+		const maxIterations = block.maxIterations || 1000; // Safety limit
+		const loopResults: unknown[] = [];
+		let iterations = 0;
+
+		while (iterations < maxIterations) {
+			// Check condition
+			const condition = this.evaluateCondition(block.condition, context, results);
+			if (!condition) {
+				break;
+			}
+
+			// Execute loop steps
+			const iterationResults: unknown[] = [];
+			for (const element of block.steps) {
+				const result = await this.executeElement(element, context, results);
+				iterationResults.push(result);
+			}
+			loopResults.push(iterationResults);
+
+			iterations++;
+		}
+
+		if (iterations >= maxIterations) {
+			throw new Error(`While loop exceeded maximum iterations (${maxIterations})`);
+		}
+
+		return loopResults;
+	}
+
+	/**
+	 * Execute map/reduce pattern
+	 */
+	private async executeMapReduce(
+		block: MapReduceBlock,
+		context: Record<string, unknown>,
+		results: Map<string, unknown>
+	): Promise<unknown> {
+		// Resolve items array
+		const items = this.resolveExpression(block.items, context, results) as unknown[];
+
+		if (!Array.isArray(items)) {
+			throw new Error(`Map-Reduce items must be an array, got: ${typeof items}`);
+		}
+
+		// Map phase: Process items with concurrency control
+		const maxConcurrency = block.maxConcurrency || items.length;
+		const mapResults: unknown[] = [];
+
+		for (let i = 0; i < items.length; i += maxConcurrency) {
+			const batch = items.slice(i, i + maxConcurrency);
+			const batchResults = await Promise.all(
+				batch.map(item => {
+					const itemContext = { ...context, item };
+					return this.executeStep(block.map, itemContext, results);
+				})
+			);
+			mapResults.push(...batchResults);
+		}
+
+		// Reduce phase: Aggregate results
+		const reduceContext = { ...context, results: mapResults };
+		return await this.executeStep(block.reduce, reduceContext, results);
 	}
 
 	/**
