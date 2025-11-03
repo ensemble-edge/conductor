@@ -197,9 +197,7 @@ export class OpenTelemetryLogger implements Logger {
   /**
    * Convert context to OTLP attributes
    */
-  private contextToAttributes(
-    context?: LogContext
-  ): Array<{
+  private contextToAttributes(context?: LogContext): Array<{
     key: string
     value: { stringValue?: string; intValue?: number; doubleValue?: number; boolValue?: boolean }
   }> {
