@@ -473,7 +473,7 @@ export class Executor {
 	 * @param input - Input data for the ensemble
 	 * @returns Result containing execution output or error
 	 */
-	async executeEnsembleV2(
+	async executeEnsemble(
 		ensemble: EnsembleConfig,
 		input: Record<string, any>
 	): AsyncResult<ExecutionOutput, ConductorError> {
@@ -526,42 +526,11 @@ export class Executor {
 		return await this.executeFlow(flowContext, 0);
 	}
 
-	/**
-	 * Execute an ensemble (legacy interface for backwards compatibility)
-	 * New code should use executeEnsembleV2 which returns Result
-	 */
-	async executeEnsemble(
-		ensemble: EnsembleConfig,
-		input: Record<string, any>
-	): Promise<ExecutionResult> {
-		const result = await this.executeEnsembleV2(ensemble, input);
-
-		if (result.success) {
-			return {
-				success: true,
-				output: result.value.output,
-				metrics: result.value.metrics,
-				stateReport: result.value.stateReport
-			};
-		}
-
-		// Convert error to legacy format
-		return {
-			success: false,
-			error: result.error.message,
-			metrics: {
-				ensemble: ensemble.name,
-				totalDuration: 0,
-				members: [],
-				cacheHits: 0
-			}
-		};
-	}
 
 	/**
 	 * Load and execute an ensemble from YAML with Result-based error handling
 	 */
-	async executeFromYAMLV2(
+	async executeFromYAML(
 		yamlContent: string,
 		input: Record<string, any>
 	): AsyncResult<ExecutionOutput, ConductorError> {
@@ -592,37 +561,7 @@ export class Executor {
 		}
 
 		// Execute the ensemble
-		return await this.executeEnsembleV2(ensemble, input);
-	}
-
-	/**
-	 * Load and execute an ensemble from YAML (legacy interface)
-	 */
-	async executeFromYAML(
-		yamlContent: string,
-		input: Record<string, any>
-	): Promise<ExecutionResult> {
-		const result = await this.executeFromYAMLV2(yamlContent, input);
-
-		if (result.success) {
-			return {
-				success: true,
-				output: result.value.output,
-				metrics: result.value.metrics,
-				stateReport: result.value.stateReport
-			};
-		}
-
-		return {
-			success: false,
-			error: result.error.message,
-			metrics: {
-				ensemble: 'unknown',
-				totalDuration: 0,
-				members: [],
-				cacheHits: 0
-			}
-		};
+		return await this.executeEnsemble(ensemble, input);
 	}
 
 	/**
