@@ -5,6 +5,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { OpenAPIGenerator } from '../openapi-generator';
+import { loadConfig } from '../../config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import YAML from 'yaml';
@@ -148,18 +149,13 @@ async function shouldUseAI(projectPath: string, cliOption?: boolean): Promise<bo
 		return cliOption;
 	}
 
-	// Check conductor.config.ts for default
-	try {
-		const configPath = path.join(projectPath, 'conductor.config.ts');
-		const content = await fs.readFile(configPath, 'utf-8');
+	// Load config with proper loader
+	const configResult = await loadConfig(projectPath);
 
-		// Simple check for docs.useAI setting
-		if (content.includes('useAI: true') || content.includes('useAI:true')) {
-			return true;
-		}
-	} catch {
-		// Config file doesn't exist or can't be read
+	if (configResult.success) {
+		return configResult.value.docs?.useAI ?? false;
 	}
 
+	// Default to false if config can't be loaded
 	return false;
 }
