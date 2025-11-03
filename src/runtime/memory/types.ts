@@ -29,33 +29,33 @@ export interface Message {
 	role: 'user' | 'assistant' | 'system';
 	content: string;
 	timestamp: number;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 export interface ConversationHistory {
 	messages: Message[];
 	createdAt: number;
 	updatedAt: number;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 export interface Memory {
 	id: string;
 	content: string;
 	timestamp: number;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 	score?: number;
 }
 
 export interface SearchOptions {
 	topK?: number;
-	filter?: Record<string, any>;
+	filter?: Record<string, unknown>;
 	minScore?: number;
 }
 
 export interface MemorySnapshot {
-	working: Record<string, any>;
+	working: Record<string, unknown>;
 	session?: ConversationHistory;
-	longTerm?: Record<string, any>;
+	longTerm?: Record<string, unknown>;
 	semantic?: Memory[];
 }
