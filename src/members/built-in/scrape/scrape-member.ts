@@ -26,12 +26,14 @@ export class ScrapeMember extends BaseMember {
 	constructor(config: MemberConfig, private readonly env: Env) {
 		super(config);
 
+		const cfg = config.config as ScrapeConfig | undefined;
+
 		this.scrapeConfig = {
-			strategy: config.config?.strategy || 'balanced',
-			returnFormat: config.config?.returnFormat || 'markdown',
-			blockResources: config.config?.blockResources !== false,
-			userAgent: config.config?.userAgent,
-			timeout: config.config?.timeout || 30000
+			strategy: cfg?.strategy || 'balanced',
+			returnFormat: cfg?.returnFormat || 'markdown',
+			blockResources: cfg?.blockResources !== false,
+			userAgent: cfg?.userAgent,
+			timeout: cfg?.timeout || 30000
 		};
 	}
 

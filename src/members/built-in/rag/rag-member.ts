@@ -28,15 +28,17 @@ export class RAGMember extends BaseMember {
 	constructor(config: MemberConfig, private readonly env: Env) {
 		super(config);
 
+		const cfg = config.config as RAGConfig | undefined;
+
 		this.ragConfig = {
-			operation: config.config?.operation || 'search',
-			chunkStrategy: config.config?.chunkStrategy || 'semantic',
-			chunkSize: config.config?.chunkSize || 512,
-			overlap: config.config?.overlap || 50,
-			embeddingModel: config.config?.embeddingModel || '@cf/baai/bge-base-en-v1.5',
-			topK: config.config?.topK || 5,
-			rerank: config.config?.rerank || false,
-			rerankAlgorithm: config.config?.rerankAlgorithm || 'cross-encoder'
+			operation: cfg?.operation || 'search',
+			chunkStrategy: cfg?.chunkStrategy || 'semantic',
+			chunkSize: cfg?.chunkSize || 512,
+			overlap: cfg?.overlap || 50,
+			embeddingModel: cfg?.embeddingModel || '@cf/baai/bge-base-en-v1.5',
+			topK: cfg?.topK || 5,
+			rerank: cfg?.rerank || false,
+			rerankAlgorithm: cfg?.rerankAlgorithm || 'cross-encoder'
 		};
 
 		this.chunker = new Chunker();

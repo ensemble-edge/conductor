@@ -31,11 +31,13 @@ export class HITLMember extends BaseMember {
 	constructor(config: MemberConfig, private readonly env: Env) {
 		super(config);
 
+		const cfg = config.config as HITLConfig | undefined;
+
 		this.hitlConfig = {
-			action: config.config?.action || 'suspend',
-			timeout: config.config?.timeout || 86400000, // 24 hours
-			notificationChannel: config.config?.notificationChannel,
-			notificationConfig: config.config?.notificationConfig
+			action: cfg?.action || 'suspend',
+			timeout: cfg?.timeout || 86400000, // 24 hours
+			notificationChannel: cfg?.notificationChannel,
+			notificationConfig: cfg?.notificationConfig
 		};
 	}
 

@@ -18,8 +18,8 @@ const EnsembleSchema = z.object({
 	name: z.string().min(1, 'Ensemble name is required'),
 	description: z.string().optional(),
 	state: z.object({
-		schema: z.record(z.any()).optional(),
-		initial: z.record(z.any()).optional()
+		schema: z.record(z.unknown()).optional(),
+		initial: z.record(z.unknown()).optional()
 	}).optional(),
 	scoring: z.object({
 		enabled: z.boolean(),
@@ -32,7 +32,7 @@ const EnsembleSchema = z.object({
 		backoffStrategy: z.enum(['linear', 'exponential', 'fixed']).optional(),
 		initialBackoff: z.number().positive().optional(),
 		trackInState: z.boolean().optional(),
-		criteria: z.union([z.record(z.string()), z.array(z.any())]).optional(),
+		criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
 		aggregation: z.enum(['weighted_average', 'minimum', 'geometric_mean']).optional()
 	}).optional(),
 	webhooks: z.array(z.object({
@@ -50,12 +50,12 @@ const EnsembleSchema = z.object({
 		cron: z.string().min(1, 'Cron expression is required'),
 		timezone: z.string().optional(),
 		enabled: z.boolean().optional(),
-		input: z.record(z.any()).optional(),
-		metadata: z.record(z.any()).optional()
+		input: z.record(z.unknown()).optional(),
+		metadata: z.record(z.unknown()).optional()
 	})).optional(),
 	flow: z.array(z.object({
 		member: z.string().min(1, 'Member name is required'),
-		input: z.record(z.any()).optional(),
+		input: z.record(z.unknown()).optional(),
 		state: z.object({
 			use: z.array(z.string()).optional(),
 			set: z.array(z.string()).optional()
@@ -71,15 +71,15 @@ const EnsembleSchema = z.object({
 				target: z.number().min(0).max(1).optional(),
 				excellent: z.number().min(0).max(1).optional()
 			}).optional(),
-			criteria: z.union([z.record(z.string()), z.array(z.any())]).optional(),
+			criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
 			onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
 			retryLimit: z.number().positive().optional(),
 			requireImprovement: z.boolean().optional(),
 			minImprovement: z.number().min(0).max(1).optional()
 		}).optional(),
-		condition: z.any().optional()
+		condition: z.unknown().optional()
 	})),
-	output: z.record(z.any()).optional()
+	output: z.record(z.unknown()).optional()
 });
 
 const MemberSchema = z.object({
@@ -93,10 +93,10 @@ const MemberSchema = z.object({
 		MemberType.Scoring
 	]),
 	description: z.string().optional(),
-	config: z.record(z.any()).optional(),
+	config: z.record(z.unknown()).optional(),
 	schema: z.object({
-		input: z.record(z.any()).optional(),
-		output: z.record(z.any()).optional()
+		input: z.record(z.unknown()).optional(),
+		output: z.record(z.unknown()).optional()
 	}).optional()
 });
 
@@ -158,7 +158,7 @@ export class Parser {
 	 *
 	 * Reduced from 42 lines of nested if/else to 1 line via chain of responsibility
 	 */
-	static resolveInterpolation(template: any, context: ResolutionContext): any {
+	static resolveInterpolation(template: unknown, context: ResolutionContext): unknown {
 		return this.interpolator.resolve(template, context);
 	}
 

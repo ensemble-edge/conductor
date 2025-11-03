@@ -45,12 +45,13 @@ export class APIMember extends BaseMember {
 		super(config);
 
 		// Extract API-specific config
+		const cfg = config.config as APIConfig | undefined;
 		this.apiConfig = {
-			url: config.config?.url,
-			method: config.config?.method || 'GET',
-			headers: config.config?.headers || {},
-			timeout: config.config?.timeout || 30000,
-			retries: config.config?.retries || 0
+			url: cfg?.url,
+			method: cfg?.method || 'GET',
+			headers: cfg?.headers || {},
+			timeout: cfg?.timeout || 30000,
+			retries: cfg?.retries || 0
 		};
 	}
 

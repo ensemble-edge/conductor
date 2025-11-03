@@ -23,14 +23,16 @@ export class ValidateMember extends BaseMember {
 	constructor(config: MemberConfig, private readonly env: Env) {
 		super(config);
 
+		const cfg = config.config as ValidateConfig | undefined;
+
 		this.validateConfig = {
-			evalType: config.config?.evalType || 'rule',
-			threshold: config.config?.threshold !== undefined ? config.config.threshold : 0.7,
-			rules: config.config?.rules,
-			criteria: config.config?.criteria,
-			metrics: config.config?.metrics,
-			reference: config.config?.reference,
-			model: config.config?.model
+			evalType: cfg?.evalType || 'rule',
+			threshold: cfg?.threshold !== undefined ? cfg.threshold : 0.7,
+			rules: cfg?.rules,
+			criteria: cfg?.criteria,
+			metrics: cfg?.metrics,
+			reference: cfg?.reference,
+			model: cfg?.model
 		};
 	}
 

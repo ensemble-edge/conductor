@@ -142,15 +142,17 @@ export class QueriesMember extends BaseMember {
 	constructor(config: MemberConfig, private readonly env: ConductorEnv) {
 		super(config);
 
+		const cfg = config.config as QueriesConfig | undefined;
+
 		// Extract queries-specific config
 		this.queriesConfig = {
-			defaultDatabase: config.config?.defaultDatabase,
-			cacheTTL: config.config?.cacheTTL,
-			maxRows: config.config?.maxRows,
-			timeout: config.config?.timeout,
-			readOnly: config.config?.readOnly !== undefined ? config.config.readOnly : false,
-			transform: config.config?.transform || 'none',
-			includeMetadata: config.config?.includeMetadata !== undefined ? config.config.includeMetadata : true
+			defaultDatabase: cfg?.defaultDatabase,
+			cacheTTL: cfg?.cacheTTL,
+			maxRows: cfg?.maxRows,
+			timeout: cfg?.timeout,
+			readOnly: cfg?.readOnly !== undefined ? cfg.readOnly : false,
+			transform: cfg?.transform || 'none',
+			includeMetadata: cfg?.includeMetadata !== undefined ? cfg.includeMetadata : true
 		};
 	}
 
