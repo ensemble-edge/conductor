@@ -4,69 +4,57 @@
  * Handles custom API endpoints with OpenAI-compatible format.
  */
 
-import { BaseAIProvider } from './base-provider';
-import type {
-	AIProviderConfig,
-	AIProviderRequest,
-	AIProviderResponse
-} from './base-provider';
-import type { ProviderId } from '../../types/branded';
+import { BaseAIProvider } from './base-provider'
+import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider'
+import type { ProviderId } from '../../types/branded'
 
 export class CustomProvider extends BaseAIProvider {
-	readonly id = 'custom' as ProviderId;
-	readonly name = 'Custom API';
+  readonly id = 'custom' as ProviderId
+  readonly name = 'Custom API'
 
-	async execute(request: AIProviderRequest): Promise<AIProviderResponse> {
-		const { messages, config, env } = request;
+  async execute(request: AIProviderRequest): Promise<AIProviderResponse> {
+    const { messages, config, env } = request
 
-		if (!config.apiEndpoint) {
-			throw new Error('Custom provider requires apiEndpoint in config');
-		}
+    if (!config.apiEndpoint) {
+      throw new Error('Custom provider requires apiEndpoint in config')
+    }
 
-		const apiKey = this.getApiKey(config, env, 'AI_API_KEY');
-		const headers: Record<string, string> = {};
+    const apiKey = this.getApiKey(config, env, 'AI_API_KEY')
+    const headers: Record<string, string> = {}
 
-		if (apiKey) {
-			headers['Authorization'] = `Bearer ${apiKey}`;
-		}
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`
+    }
 
-		const data = await this.makeRequest(
-			config.apiEndpoint,
-			headers,
-			{
-				model: config.model,
-				messages,
-				temperature: config.temperature,
-				max_tokens: config.maxTokens
-			}
-		) as {
-			choices?: Array<{ message?: { content?: string } }>;
-			response?: string;
-			content?: string;
-			usage?: { total_tokens?: number };
-			[key: string]: unknown;
-		};
+    const data = (await this.makeRequest(config.apiEndpoint, headers, {
+      model: config.model,
+      messages,
+      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+    })) as {
+      choices?: Array<{ message?: { content?: string } }>
+      response?: string
+      content?: string
+      usage?: { total_tokens?: number }
+      [key: string]: unknown
+    }
 
-		// Try multiple response formats
-		const content =
-			data.choices?.[0]?.message?.content ||
-			data.response ||
-			data.content ||
-			'';
+    // Try multiple response formats
+    const content = data.choices?.[0]?.message?.content || data.response || data.content || ''
 
-		return {
-			content,
-			model: config.model,
-			tokensUsed: data.usage?.total_tokens,
-			provider: this.id,
-			metadata: data as Record<string, unknown>
-		};
-	}
+    return {
+      content,
+      model: config.model,
+      tokensUsed: data.usage?.total_tokens,
+      provider: this.id,
+      metadata: data as Record<string, unknown>,
+    }
+  }
 
-	getConfigError(config: AIProviderConfig, env: Env): string | null {
-		if (!config.apiEndpoint) {
-			return 'Custom provider requires apiEndpoint in config';
-		}
-		return null;
-	}
+  getConfigError(config: AIProviderConfig, env: Env): string | null {
+    if (!config.apiEndpoint) {
+      return 'Custom provider requires apiEndpoint in config'
+    }
+    return null
+  }
 }

@@ -8,167 +8,167 @@
  * Default provider: anthropic
  */
 
-import { BaseMember, type MemberExecutionContext } from './base-member';
-import type { MemberConfig } from '../runtime/parser';
-import { getProviderRegistry, type ProviderRegistry } from './think-providers';
-import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-providers';
-import { AIProvider } from '../types/constants';
-import type { ConductorEnv } from '../types/env';
+import { BaseMember, type MemberExecutionContext } from './base-member'
+import type { MemberConfig } from '../runtime/parser'
+import { getProviderRegistry, type ProviderRegistry } from './think-providers'
+import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-providers'
+import { AIProvider } from '../types/constants'
+import type { ConductorEnv } from '../types/env'
 
 export interface ThinkConfig {
-	model?: string;
-	provider?: AIProvider;
-	temperature?: number;
-	maxTokens?: number;
-	apiKey?: string;
-	apiEndpoint?: string;
-	systemPrompt?: string;
-	prompt?: string; // Reference to versioned prompt (e.g., "company-analysis-prompt@v1.0.0")
+  model?: string
+  provider?: AIProvider
+  temperature?: number
+  maxTokens?: number
+  apiKey?: string
+  apiEndpoint?: string
+  systemPrompt?: string
+  prompt?: string // Reference to versioned prompt (e.g., "company-analysis-prompt@v1.0.0")
 }
 
 export interface ThinkInput {
-	prompt?: string;
-	messages?: Array<{ role: string; content: string }>;
-	[key: string]: unknown;
+  prompt?: string
+  messages?: Array<{ role: string; content: string }>
+  [key: string]: unknown
 }
 
 /**
  * Think Member - Executes AI reasoning via provider system
  */
 export class ThinkMember extends BaseMember {
-	private thinkConfig: ThinkConfig;
-	private providerRegistry: ProviderRegistry;
+  private thinkConfig: ThinkConfig
+  private providerRegistry: ProviderRegistry
 
-	constructor(config: MemberConfig, providerRegistry?: ProviderRegistry) {
-		super(config);
+  constructor(config: MemberConfig, providerRegistry?: ProviderRegistry) {
+    super(config)
 
-		// Use injected registry for testing, or global registry for production
-		this.providerRegistry = providerRegistry || getProviderRegistry();
+    // Use injected registry for testing, or global registry for production
+    this.providerRegistry = providerRegistry || getProviderRegistry()
 
-		const cfg = config.config as ThinkConfig | undefined;
-		this.thinkConfig = {
-			model: cfg?.model || 'claude-3-5-haiku-20241022',
-			provider: cfg?.provider || AIProvider.Anthropic,
-			temperature: cfg?.temperature || 0.7,
-			maxTokens: cfg?.maxTokens || 1000,
-			apiKey: cfg?.apiKey,
-			apiEndpoint: cfg?.apiEndpoint,
-			systemPrompt: cfg?.systemPrompt,
-			prompt: cfg?.prompt
-		};
-	}
+    const cfg = config.config as ThinkConfig | undefined
+    this.thinkConfig = {
+      model: cfg?.model || 'claude-3-5-haiku-20241022',
+      provider: cfg?.provider || AIProvider.Anthropic,
+      temperature: cfg?.temperature || 0.7,
+      maxTokens: cfg?.maxTokens || 1000,
+      apiKey: cfg?.apiKey,
+      apiEndpoint: cfg?.apiEndpoint,
+      systemPrompt: cfg?.systemPrompt,
+      prompt: cfg?.prompt,
+    }
+  }
 
-	/**
-	 * Execute AI reasoning via provider system
-	 */
-	protected async run(context: MemberExecutionContext): Promise<AIProviderResponse> {
-		const { input, env } = context;
+  /**
+   * Execute AI reasoning via provider system
+   */
+  protected async run(context: MemberExecutionContext): Promise<AIProviderResponse> {
+    const { input, env } = context
 
-		// Load versioned prompt if configured
-		await this.resolvePrompt(env);
+    // Load versioned prompt if configured
+    await this.resolvePrompt(env)
 
-		// Get provider from registry
-		const providerId = this.thinkConfig.provider || AIProvider.Anthropic;
-		const provider = this.providerRegistry.get(providerId);
+    // Get provider from registry
+    const providerId = this.thinkConfig.provider || AIProvider.Anthropic
+    const provider = this.providerRegistry.get(providerId)
 
-		if (!provider) {
-			throw new Error(
-				`Unknown AI provider: ${providerId}. ` +
-				`Available providers: ${this.providerRegistry.getProviderIds().join(', ')}`
-			);
-		}
+    if (!provider) {
+      throw new Error(
+        `Unknown AI provider: ${providerId}. ` +
+          `Available providers: ${this.providerRegistry.getProviderIds().join(', ')}`
+      )
+    }
 
-		// Build provider config
-		const providerConfig: AIProviderConfig = {
-			model: this.thinkConfig.model || 'claude-3-5-haiku-20241022',
-			temperature: this.thinkConfig.temperature,
-			maxTokens: this.thinkConfig.maxTokens,
-			apiKey: this.thinkConfig.apiKey,
-			apiEndpoint: this.thinkConfig.apiEndpoint,
-			systemPrompt: this.thinkConfig.systemPrompt
-		};
+    // Build provider config
+    const providerConfig: AIProviderConfig = {
+      model: this.thinkConfig.model || 'claude-3-5-haiku-20241022',
+      temperature: this.thinkConfig.temperature,
+      maxTokens: this.thinkConfig.maxTokens,
+      apiKey: this.thinkConfig.apiKey,
+      apiEndpoint: this.thinkConfig.apiEndpoint,
+      systemPrompt: this.thinkConfig.systemPrompt,
+    }
 
-		// Validate configuration
-		const configError = provider.getConfigError(providerConfig, env);
-		if (configError) {
-			throw new Error(configError);
-		}
+    // Validate configuration
+    const configError = provider.getConfigError(providerConfig, env)
+    if (configError) {
+      throw new Error(configError)
+    }
 
-		// Build messages from input
-		const messages = this.buildMessages(input);
+    // Build messages from input
+    const messages = this.buildMessages(input)
 
-		// Execute via provider
-		return await provider.execute({
-			messages,
-			config: providerConfig,
-			env
-		});
-	}
+    // Execute via provider
+    return await provider.execute({
+      messages,
+      config: providerConfig,
+      env,
+    })
+  }
 
-	/**
-	 * Resolve prompt from Edgit if needed
-	 */
-	private async resolvePrompt(env: ConductorEnv): Promise<void> {
-		if (this.thinkConfig.systemPrompt) return;
+  /**
+   * Resolve prompt from Edgit if needed
+   */
+  private async resolvePrompt(env: ConductorEnv): Promise<void> {
+    if (this.thinkConfig.systemPrompt) return
 
-		if (this.thinkConfig.prompt) {
-			throw new Error(
-				`Cannot load versioned prompt "${this.thinkConfig.prompt}". ` +
-				`Edgit integration not yet available. ` +
-				`Use inline systemPrompt in config for now.`
-			);
-		}
-	}
+    if (this.thinkConfig.prompt) {
+      throw new Error(
+        `Cannot load versioned prompt "${this.thinkConfig.prompt}". ` +
+          `Edgit integration not yet available. ` +
+          `Use inline systemPrompt in config for now.`
+      )
+    }
+  }
 
-	/**
-	 * Build messages array from input
-	 */
-	private buildMessages(input: ThinkInput): AIMessage[] {
-		const messages: AIMessage[] = [];
+  /**
+   * Build messages array from input
+   */
+  private buildMessages(input: ThinkInput): AIMessage[] {
+    const messages: AIMessage[] = []
 
-		// Add system prompt if configured
-		if (this.thinkConfig.systemPrompt) {
-			messages.push({
-				role: 'system',
-				content: this.thinkConfig.systemPrompt
-			});
-		}
+    // Add system prompt if configured
+    if (this.thinkConfig.systemPrompt) {
+      messages.push({
+        role: 'system',
+        content: this.thinkConfig.systemPrompt,
+      })
+    }
 
-		// If input has messages array, use it
-		if (input.messages && Array.isArray(input.messages)) {
-			messages.push(...(input.messages as AIMessage[]));
-		}
-		// Otherwise, build from prompt
-		else if (input.prompt) {
-			messages.push({
-				role: 'user',
-				content: input.prompt
-			});
-		}
-		// Build prompt from input data
-		else {
-			const promptParts: string[] = [];
-			for (const [key, value] of Object.entries(input)) {
-				if (typeof value === 'string') {
-					promptParts.push(`${key}: ${value}`);
-				} else {
-					promptParts.push(`${key}: ${JSON.stringify(value, null, 2)}`);
-				}
-			}
+    // If input has messages array, use it
+    if (input.messages && Array.isArray(input.messages)) {
+      messages.push(...(input.messages as AIMessage[]))
+    }
+    // Otherwise, build from prompt
+    else if (input.prompt) {
+      messages.push({
+        role: 'user',
+        content: input.prompt,
+      })
+    }
+    // Build prompt from input data
+    else {
+      const promptParts: string[] = []
+      for (const [key, value] of Object.entries(input)) {
+        if (typeof value === 'string') {
+          promptParts.push(`${key}: ${value}`)
+        } else {
+          promptParts.push(`${key}: ${JSON.stringify(value, null, 2)}`)
+        }
+      }
 
-			messages.push({
-				role: 'user',
-				content: promptParts.join('\n\n')
-			});
-		}
+      messages.push({
+        role: 'user',
+        content: promptParts.join('\n\n'),
+      })
+    }
 
-		return messages;
-	}
+    return messages
+  }
 
-	/**
-	 * Get Think configuration
-	 */
-	getThinkConfig(): ThinkConfig {
-		return { ...this.thinkConfig };
-	}
+  /**
+   * Get Think configuration
+   */
+  getThinkConfig(): ThinkConfig {
+    return { ...this.thinkConfig }
+  }
 }

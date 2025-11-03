@@ -15,186 +15,184 @@
  * This is the easiest way to do RAG on Cloudflare - just point to an R2 bucket!
  */
 
-import { BaseMember, type MemberExecutionContext } from '../../base-member';
+import { BaseMember, type MemberExecutionContext } from '../../base-member'
 
 export interface AutoRAGConfig {
-	/** AutoRAG instance name (configured in wrangler.toml) */
-	instance: string;
+  /** AutoRAG instance name (configured in wrangler.toml) */
+  instance: string
 
-	/** Return format: 'answer' (AI-generated) or 'results' (raw search results) */
-	mode?: 'answer' | 'results';
+  /** Return format: 'answer' (AI-generated) or 'results' (raw search results) */
+  mode?: 'answer' | 'results'
 
-	/** Number of results to retrieve */
-	topK?: number;
+  /** Number of results to retrieve */
+  topK?: number
 
-	/** Optional query rewriting for better retrieval */
-	rewriteQuery?: boolean;
+  /** Optional query rewriting for better retrieval */
+  rewriteQuery?: boolean
 }
 
 export interface AutoRAGInput {
-	/** Query text */
-	query: string;
+  /** Query text */
+  query: string
 
-	/** Override topK for this query */
-	topK?: number;
+  /** Override topK for this query */
+  topK?: number
 }
 
 export interface AutoRAGAnswerResult {
-	/** AI-generated answer grounded in retrieved documents */
-	answer: string;
+  /** AI-generated answer grounded in retrieved documents */
+  answer: string
 
-	/** Sources used to generate the answer */
-	sources: Array<{
-		/** Document content excerpt */
-		content: string;
+  /** Sources used to generate the answer */
+  sources: Array<{
+    /** Document content excerpt */
+    content: string
 
-		/** Similarity score (0-1) */
-		score: number;
+    /** Similarity score (0-1) */
+    score: number
 
-		/** Document metadata */
-		metadata: Record<string, unknown>;
+    /** Document metadata */
+    metadata: Record<string, unknown>
 
-		/** Document ID */
-		id: string;
-	}>;
+    /** Document ID */
+    id: string
+  }>
 
-	/** Original query */
-	query: string;
+  /** Original query */
+  query: string
 }
 
 export interface AutoRAGSearchResult {
-	/** Retrieved search results without generation */
-	results: Array<{
-		/** Document content */
-		content: string;
+  /** Retrieved search results without generation */
+  results: Array<{
+    /** Document content */
+    content: string
 
-		/** Similarity score (0-1) */
-		score: number;
+    /** Similarity score (0-1) */
+    score: number
 
-		/** Document metadata */
-		metadata: Record<string, unknown>;
+    /** Document metadata */
+    metadata: Record<string, unknown>
 
-		/** Document ID */
-		id: string;
-	}>;
+    /** Document ID */
+    id: string
+  }>
 
-	/** Combined context for LLM */
-	context: string;
+  /** Combined context for LLM */
+  context: string
 
-	/** Number of results */
-	count: number;
+  /** Number of results */
+  count: number
 
-	/** Original query */
-	query: string;
+  /** Original query */
+  query: string
 }
 
 /**
  * AutoRAG Member - Dead simple RAG with zero configuration
  */
 export class AutoRAGMember extends BaseMember {
-	async run(ctx: MemberExecutionContext): Promise<AutoRAGAnswerResult | AutoRAGSearchResult> {
-		const input = ctx.input as AutoRAGInput;
-		const config = this.config.config as unknown as AutoRAGConfig;
+  async run(ctx: MemberExecutionContext): Promise<AutoRAGAnswerResult | AutoRAGSearchResult> {
+    const input = ctx.input as AutoRAGInput
+    const config = this.config.config as unknown as AutoRAGConfig
 
-		// Get AI binding
-		const ai = (ctx.env as unknown as Record<string, unknown>).AI as CloudflareAI | undefined;
+    // Get AI binding
+    const ai = (ctx.env as unknown as Record<string, unknown>).AI as CloudflareAI | undefined
 
-		if (!ai) {
-			throw new Error('AI binding not found in environment. Make sure you have Workers AI configured.');
-		}
+    if (!ai) {
+      throw new Error(
+        'AI binding not found in environment. Make sure you have Workers AI configured.'
+      )
+    }
 
-		// Get AutoRAG instance
-		const autorag = ai.autorag(config.instance);
+    // Get AutoRAG instance
+    const autorag = ai.autorag(config.instance)
 
-		if (!autorag) {
-			throw new Error(`AutoRAG instance '${config.instance}' not found. Check your wrangler.toml configuration.`);
-		}
+    if (!autorag) {
+      throw new Error(
+        `AutoRAG instance '${config.instance}' not found. Check your wrangler.toml configuration.`
+      )
+    }
 
-		const mode = config.mode || 'answer';
-		const topK = input.topK || config.topK;
+    const mode = config.mode || 'answer'
+    const topK = input.topK || config.topK
 
-		if (mode === 'answer') {
-			// Use aiSearch for AI-generated answers
-			const result = await autorag.aiSearch({
-				query: input.query,
-				topK
-			});
+    if (mode === 'answer') {
+      // Use aiSearch for AI-generated answers
+      const result = await autorag.aiSearch({
+        query: input.query,
+        topK,
+      })
 
-			// Transform to our result format
-			return {
-				answer: result.answer,
-				sources: result.sources?.map(source => ({
-					content: source.content,
-					score: source.score,
-					metadata: source.metadata || {},
-					id: source.id
-				})) || [],
-				query: input.query
-			};
+      // Transform to our result format
+      return {
+        answer: result.answer,
+        sources:
+          result.sources?.map((source) => ({
+            content: source.content,
+            score: source.score,
+            metadata: source.metadata || {},
+            id: source.id,
+          })) || [],
+        query: input.query,
+      }
+    } else {
+      // Use search for raw results without generation
+      const result = await autorag.search({
+        query: input.query,
+        topK,
+      })
 
-		} else {
-			// Use search for raw results without generation
-			const result = await autorag.search({
-				query: input.query,
-				topK
-			});
+      // Transform results
+      const searchResults = result.results.map((match) => ({
+        content: match.content,
+        score: match.score,
+        metadata: match.metadata || {},
+        id: match.id,
+      }))
 
-			// Transform results
-			const searchResults = result.results.map(match => ({
-				content: match.content,
-				score: match.score,
-				metadata: match.metadata || {},
-				id: match.id
-			}));
+      // Combine into context string for LLM
+      const contextString = searchResults
+        .map((result, index) => {
+          const source = result.metadata.source || result.id
+          return `[${index + 1}] Source: ${source}\n${result.content}`
+        })
+        .join('\n\n---\n\n')
 
-			// Combine into context string for LLM
-			const contextString = searchResults
-				.map((result, index) => {
-					const source = result.metadata.source || result.id;
-					return `[${index + 1}] Source: ${source}\n${result.content}`;
-				})
-				.join('\n\n---\n\n');
-
-			return {
-				results: searchResults,
-				context: contextString,
-				count: searchResults.length,
-				query: input.query
-			};
-		}
-	}
+      return {
+        results: searchResults,
+        context: contextString,
+        count: searchResults.length,
+        query: input.query,
+      }
+    }
+  }
 }
 
 /**
  * Cloudflare AI interface (from @cloudflare/workers-types)
  */
 interface CloudflareAI {
-	autorag(instance: string): AutoRAGInstance;
+  autorag(instance: string): AutoRAGInstance
 }
 
 interface AutoRAGInstance {
-	aiSearch(options: {
-		query: string;
-		topK?: number;
-	}): Promise<{
-		answer: string;
-		sources?: Array<{
-			content: string;
-			score: number;
-			metadata?: Record<string, unknown>;
-			id: string;
-		}>;
-	}>;
+  aiSearch(options: { query: string; topK?: number }): Promise<{
+    answer: string
+    sources?: Array<{
+      content: string
+      score: number
+      metadata?: Record<string, unknown>
+      id: string
+    }>
+  }>
 
-	search(options: {
-		query: string;
-		topK?: number;
-	}): Promise<{
-		results: Array<{
-			content: string;
-			score: number;
-			metadata?: Record<string, unknown>;
-			id: string;
-		}>;
-	}>;
+  search(options: { query: string; topK?: number }): Promise<{
+    results: Array<{
+      content: string
+      score: number
+      metadata?: Record<string, unknown>
+      id: string
+    }>
+  }>
 }

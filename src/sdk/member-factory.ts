@@ -4,9 +4,9 @@
  * Helpers for creating members with less boilerplate
  */
 
-import type { CreateMemberOptions, MemberHandler } from './types';
-import type { MemberConfig } from '../runtime/parser';
-import { MemberType } from '../types/constants';
+import type { CreateMemberOptions, MemberHandler } from './types'
+import type { MemberConfig } from '../runtime/parser'
+import { MemberType } from '../types/constants'
 
 /**
  * Create a member with simplified syntax
@@ -23,9 +23,9 @@ import { MemberType } from '../types/constants';
  * ```
  */
 export function createMember(options: CreateMemberOptions): MemberHandler {
-	// Return the handler function
-	// The config will be loaded from member.yaml by the loader
-	return options.handler;
+  // Return the handler function
+  // The config will be loaded from member.yaml by the loader
+  return options.handler
 }
 
 /**
@@ -42,7 +42,7 @@ export function createMember(options: CreateMemberOptions): MemberHandler {
  * ```
  */
 export function createThinkMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: MemberType.Think });
+  return createMember({ ...options, type: MemberType.Think })
 }
 
 /**
@@ -58,7 +58,7 @@ export function createThinkMember(options: Omit<CreateMemberOptions, 'type'>): M
  * ```
  */
 export function createFunctionMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: MemberType.Function });
+  return createMember({ ...options, type: MemberType.Function })
 }
 
 /**
@@ -75,7 +75,7 @@ export function createFunctionMember(options: Omit<CreateMemberOptions, 'type'>)
  * ```
  */
 export function createDataMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: MemberType.Data });
+  return createMember({ ...options, type: MemberType.Data })
 }
 
 /**
@@ -92,18 +92,18 @@ export function createDataMember(options: Omit<CreateMemberOptions, 'type'>): Me
  * ```
  */
 export function createAPIMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
-	return createMember({ ...options, type: MemberType.API });
+  return createMember({ ...options, type: MemberType.API })
 }
 
 /**
  * Generate a member config (for programmatic member creation)
  */
 export function generateMemberConfig(options: CreateMemberOptions): MemberConfig {
-	return {
-		name: options.name,
-		type: options.type,
-		description: options.description,
-		config: options.config,
-		schema: options.schema
-	};
+  return {
+    name: options.name,
+    type: options.type,
+    description: options.description,
+    config: options.config,
+    schema: options.schema,
+  }
 }

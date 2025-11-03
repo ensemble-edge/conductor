@@ -9,53 +9,53 @@
  * 5. Analytical - Structured data via Hyperdrive (SQL databases)
  */
 
-import type { AnalyticalMemoryConfig } from './analytical-memory.js';
+import type { AnalyticalMemoryConfig } from './analytical-memory.js'
 
 export interface MemoryConfig {
-	enabled: boolean;
-	layers: {
-		working?: boolean;
-		session?: boolean;
-		longTerm?: boolean;
-		semantic?: boolean;
-		analytical?: boolean;
-	};
-	sessionTTL?: number; // seconds
-	semanticModel?: string;
-	analyticalConfig?: AnalyticalMemoryConfig;
+  enabled: boolean
+  layers: {
+    working?: boolean
+    session?: boolean
+    longTerm?: boolean
+    semantic?: boolean
+    analytical?: boolean
+  }
+  sessionTTL?: number // seconds
+  semanticModel?: string
+  analyticalConfig?: AnalyticalMemoryConfig
 }
 
 export interface Message {
-	role: 'user' | 'assistant' | 'system';
-	content: string;
-	timestamp: number;
-	metadata?: Record<string, unknown>;
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: number
+  metadata?: Record<string, unknown>
 }
 
 export interface ConversationHistory {
-	messages: Message[];
-	createdAt: number;
-	updatedAt: number;
-	metadata?: Record<string, unknown>;
+  messages: Message[]
+  createdAt: number
+  updatedAt: number
+  metadata?: Record<string, unknown>
 }
 
 export interface Memory {
-	id: string;
-	content: string;
-	timestamp: number;
-	metadata?: Record<string, unknown>;
-	score?: number;
+  id: string
+  content: string
+  timestamp: number
+  metadata?: Record<string, unknown>
+  score?: number
 }
 
 export interface SearchOptions {
-	topK?: number;
-	filter?: Record<string, unknown>;
-	minScore?: number;
+  topK?: number
+  filter?: Record<string, unknown>
+  minScore?: number
 }
 
 export interface MemorySnapshot {
-	working: Record<string, unknown>;
-	session?: ConversationHistory;
-	longTerm?: Record<string, unknown>;
-	semantic?: Memory[];
+  working: Record<string, unknown>
+  session?: ConversationHistory
+  longTerm?: Record<string, unknown>
+  semantic?: Memory[]
 }

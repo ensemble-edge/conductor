@@ -5,232 +5,234 @@
  * Data persists indefinitely until explicitly deleted.
  */
 
-import type { ConductorEnv } from '../../types/env';
+import type { ConductorEnv } from '../../types/env'
 
 /**
  * Type for D1 query result row
  */
 interface D1ResultRow {
-	key: string;
-	value: string;
-	updated_at?: number;
+  key: string
+  value: string
+  updated_at?: number
 }
 
 export class LongTermMemory {
-	private readonly tableName = 'long_term_memory';
+  private readonly tableName = 'long_term_memory'
 
-	constructor(
-		private readonly env: ConductorEnv,
-		private readonly userId?: string
-	) {}
+  constructor(
+    private readonly env: ConductorEnv,
+    private readonly userId?: string
+  ) {}
 
-	/**
-	 * Get a value by key
-	 */
-	async get(key: string): Promise<unknown> {
-		if (!this.userId || !this.env.DB) {
-			return null;
-		}
+  /**
+   * Get a value by key
+   */
+  async get(key: string): Promise<unknown> {
+    if (!this.userId || !this.env.DB) {
+      return null
+    }
 
-		const result = await this.env.DB.prepare(
-			`SELECT value, updated_at FROM ${this.tableName} WHERE user_id = ? AND key = ?`
-		)
-			.bind(this.userId, key)
-			.first();
+    const result = await this.env.DB.prepare(
+      `SELECT value, updated_at FROM ${this.tableName} WHERE user_id = ? AND key = ?`
+    )
+      .bind(this.userId, key)
+      .first()
 
-		if (!result) {
-			return null;
-		}
+    if (!result) {
+      return null
+    }
 
-		return JSON.parse(result.value as string);
-	}
+    return JSON.parse(result.value as string)
+  }
 
-	/**
-	 * Set a value
-	 */
-	async set(key: string, value: unknown): Promise<void> {
-		if (!this.userId || !this.env.DB) {
-			return;
-		}
+  /**
+   * Set a value
+   */
+  async set(key: string, value: unknown): Promise<void> {
+    if (!this.userId || !this.env.DB) {
+      return
+    }
 
-		await this.env.DB.prepare(
-			`INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
+    await this.env.DB.prepare(
+      `INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
        VALUES (?, ?, ?, ?)
        ON CONFLICT(user_id, key) DO UPDATE SET
        value = excluded.value,
        updated_at = excluded.updated_at`
-		)
-			.bind(this.userId, key, JSON.stringify(value), Date.now())
-			.run();
-	}
+    )
+      .bind(this.userId, key, JSON.stringify(value), Date.now())
+      .run()
+  }
 
-	/**
-	 * Delete a key
-	 */
-	async delete(key: string): Promise<void> {
-		if (!this.userId || !this.env.DB) {
-			return;
-		}
+  /**
+   * Delete a key
+   */
+  async delete(key: string): Promise<void> {
+    if (!this.userId || !this.env.DB) {
+      return
+    }
 
-		await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ? AND key = ?`)
-			.bind(this.userId, key)
-			.run();
-	}
+    await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ? AND key = ?`)
+      .bind(this.userId, key)
+      .run()
+  }
 
-	/**
-	 * Check if key exists
-	 */
-	async has(key: string): Promise<boolean> {
-		if (!this.userId || !this.env.DB) {
-			return false;
-		}
+  /**
+   * Check if key exists
+   */
+  async has(key: string): Promise<boolean> {
+    if (!this.userId || !this.env.DB) {
+      return false
+    }
 
-		const result = await this.env.DB.prepare(
-			`SELECT 1 FROM ${this.tableName} WHERE user_id = ? AND key = ? LIMIT 1`
-		)
-			.bind(this.userId, key)
-			.first();
+    const result = await this.env.DB.prepare(
+      `SELECT 1 FROM ${this.tableName} WHERE user_id = ? AND key = ? LIMIT 1`
+    )
+      .bind(this.userId, key)
+      .first()
 
-		return !!result;
-	}
+    return !!result
+  }
 
-	/**
-	 * Get all keys for this user
-	 */
-	async keys(): Promise<string[]> {
-		if (!this.userId || !this.env.DB) {
-			return [];
-		}
+  /**
+   * Get all keys for this user
+   */
+  async keys(): Promise<string[]> {
+    if (!this.userId || !this.env.DB) {
+      return []
+    }
 
-		const results = await this.env.DB.prepare(
-			`SELECT key FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
-		)
-			.bind(this.userId)
-			.all();
+    const results = await this.env.DB.prepare(
+      `SELECT key FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
+    )
+      .bind(this.userId)
+      .all()
 
-		return (results.results as unknown as D1ResultRow[]).map(row => row.key);
-	}
+    return (results.results as unknown as D1ResultRow[]).map((row) => row.key)
+  }
 
-	/**
-	 * Get all key-value pairs
-	 */
-	async getAll(): Promise<Record<string, unknown>> {
-		if (!this.userId || !this.env.DB) {
-			return {};
-		}
+  /**
+   * Get all key-value pairs
+   */
+  async getAll(): Promise<Record<string, unknown>> {
+    if (!this.userId || !this.env.DB) {
+      return {}
+    }
 
-		const results = await this.env.DB.prepare(
-			`SELECT key, value FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
-		)
-			.bind(this.userId)
-			.all();
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
+    )
+      .bind(this.userId)
+      .all()
 
-		const data: Record<string, unknown> = {};
-		for (const row of results.results as unknown as D1ResultRow[]) {
-			data[row.key] = JSON.parse(row.value);
-		}
+    const data: Record<string, unknown> = {}
+    for (const row of results.results as unknown as D1ResultRow[]) {
+      data[row.key] = JSON.parse(row.value)
+    }
 
-		return data;
-	}
+    return data
+  }
 
-	/**
-	 * Get multiple values by keys
-	 */
-	async getMany(keys: string[]): Promise<Record<string, unknown>> {
-		if (!this.userId || !this.env.DB || keys.length === 0) {
-			return {};
-		}
+  /**
+   * Get multiple values by keys
+   */
+  async getMany(keys: string[]): Promise<Record<string, unknown>> {
+    if (!this.userId || !this.env.DB || keys.length === 0) {
+      return {}
+    }
 
-		const placeholders = keys.map(() => '?').join(',');
-		const results = await this.env.DB.prepare(
-			`SELECT key, value FROM ${this.tableName} WHERE user_id = ? AND key IN (${placeholders})`
-		)
-			.bind(this.userId, ...keys)
-			.all();
+    const placeholders = keys.map(() => '?').join(',')
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName} WHERE user_id = ? AND key IN (${placeholders})`
+    )
+      .bind(this.userId, ...keys)
+      .all()
 
-		const data: Record<string, unknown> = {};
-		for (const row of results.results as unknown as D1ResultRow[]) {
-			data[row.key] = JSON.parse(row.value);
-		}
+    const data: Record<string, unknown> = {}
+    for (const row of results.results as unknown as D1ResultRow[]) {
+      data[row.key] = JSON.parse(row.value)
+    }
 
-		return data;
-	}
+    return data
+  }
 
-	/**
-	 * Set multiple key-value pairs
-	 */
-	async setMany(data: Record<string, unknown>): Promise<void> {
-		if (!this.userId || !this.env.DB) {
-			return;
-		}
+  /**
+   * Set multiple key-value pairs
+   */
+  async setMany(data: Record<string, unknown>): Promise<void> {
+    if (!this.userId || !this.env.DB) {
+      return
+    }
 
-		const timestamp = Date.now();
-		const batch = this.env.DB.batch(
-			Object.entries(data).map(([key, value]) =>
-				this.env.DB!.prepare(
-					`INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
+    const timestamp = Date.now()
+    const batch = this.env.DB.batch(
+      Object.entries(data).map(([key, value]) =>
+        this.env
+          .DB!.prepare(
+            `INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
            VALUES (?, ?, ?, ?)
            ON CONFLICT(user_id, key) DO UPDATE SET
            value = excluded.value,
            updated_at = excluded.updated_at`
-				).bind(this.userId, key, JSON.stringify(value), timestamp)
-			)
-		);
+          )
+          .bind(this.userId, key, JSON.stringify(value), timestamp)
+      )
+    )
 
-		await batch;
-	}
+    await batch
+  }
 
-	/**
-	 * Clear all data for this user
-	 */
-	async clear(): Promise<void> {
-		if (!this.userId || !this.env.DB) {
-			return;
-		}
+  /**
+   * Clear all data for this user
+   */
+  async clear(): Promise<void> {
+    if (!this.userId || !this.env.DB) {
+      return
+    }
 
-		await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ?`)
-			.bind(this.userId)
-			.run();
-	}
+    await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ?`)
+      .bind(this.userId)
+      .run()
+  }
 
-	/**
-	 * Count entries for this user
-	 */
-	async count(): Promise<number> {
-		if (!this.userId || !this.env.DB) {
-			return 0;
-		}
+  /**
+   * Count entries for this user
+   */
+  async count(): Promise<number> {
+    if (!this.userId || !this.env.DB) {
+      return 0
+    }
 
-		const result = await this.env.DB.prepare(
-			`SELECT COUNT(*) as count FROM ${this.tableName} WHERE user_id = ?`
-		)
-			.bind(this.userId)
-			.first();
+    const result = await this.env.DB.prepare(
+      `SELECT COUNT(*) as count FROM ${this.tableName} WHERE user_id = ?`
+    )
+      .bind(this.userId)
+      .first()
 
-		return (result?.count as number) || 0;
-	}
+    return (result?.count as number) || 0
+  }
 
-	/**
-	 * Search keys by prefix
-	 */
-	async searchByPrefix(prefix: string): Promise<Record<string, unknown>> {
-		if (!this.userId || !this.env.DB) {
-			return {};
-		}
+  /**
+   * Search keys by prefix
+   */
+  async searchByPrefix(prefix: string): Promise<Record<string, unknown>> {
+    if (!this.userId || !this.env.DB) {
+      return {}
+    }
 
-		const results = await this.env.DB.prepare(
-			`SELECT key, value FROM ${this.tableName}
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName}
        WHERE user_id = ? AND key LIKE ?
        ORDER BY updated_at DESC`
-		)
-			.bind(this.userId, `${prefix}%`)
-			.all();
+    )
+      .bind(this.userId, `${prefix}%`)
+      .all()
 
-		const data: Record<string, unknown> = {};
-		for (const row of results.results as unknown as D1ResultRow[]) {
-			data[row.key] = JSON.parse(row.value);
-		}
+    const data: Record<string, unknown> = {}
+    for (const row of results.results as unknown as D1ResultRow[]) {
+      data[row.key] = JSON.parse(row.value)
+    }
 
-		return data;
-	}
+    return data
+  }
 }
