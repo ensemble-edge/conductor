@@ -242,6 +242,34 @@ export class TestConductor {
 	}
 
 	/**
+	 * Add ensemble to catalog programmatically
+	 */
+	addEnsemble(name: string, config: EnsembleConfig): void {
+		this.catalog.ensembles.set(name, config);
+	}
+
+	/**
+	 * Add member to catalog programmatically
+	 */
+	addMember(name: string, config: MemberConfig): void {
+		this.catalog.members.set(name, config);
+	}
+
+	/**
+	 * Get ensemble from catalog
+	 */
+	getEnsemble(name: string): EnsembleConfig | undefined {
+		return this.catalog.ensembles.get(name);
+	}
+
+	/**
+	 * Get member from catalog
+	 */
+	getMember(name: string): MemberConfig | undefined {
+		return this.catalog.members.get(name);
+	}
+
+	/**
 	 * Create project snapshot
 	 */
 	async snapshot(): Promise<ProjectSnapshot> {
@@ -271,9 +299,41 @@ export class TestConductor {
 	 * Load catalog from project directory
 	 */
 	private async loadCatalog(projectPath: string): Promise<void> {
-		// TODO: Implement catalog loading from filesystem
-		// For now, this is a placeholder
-		console.log(`Loading catalog from ${projectPath}`);
+		const fs = await import('fs/promises');
+		const path = await import('path');
+		const YAML = await import('yaml');
+
+		// Load ensembles
+		const ensemblesPath = path.join(projectPath, 'ensembles');
+		try {
+			const ensembleFiles = await fs.readdir(ensemblesPath);
+			for (const file of ensembleFiles) {
+				if (file.endsWith('.yaml') || file.endsWith('.yml')) {
+					const content = await fs.readFile(path.join(ensemblesPath, file), 'utf-8');
+					const config = YAML.parse(content) as EnsembleConfig;
+					const name = file.replace(/\.(yaml|yml)$/, '');
+					this.catalog.ensembles.set(name, config);
+				}
+			}
+		} catch (error) {
+			// Ensembles directory doesn't exist or is empty
+		}
+
+		// Load members
+		const membersPath = path.join(projectPath, 'members');
+		try {
+			const memberFiles = await fs.readdir(membersPath);
+			for (const file of memberFiles) {
+				if (file.endsWith('.yaml') || file.endsWith('.yml')) {
+					const content = await fs.readFile(path.join(membersPath, file), 'utf-8');
+					const config = YAML.parse(content) as MemberConfig;
+					const name = file.replace(/\.(yaml|yml)$/, '');
+					this.catalog.members.set(name, config);
+				}
+			}
+		} catch (error) {
+			// Members directory doesn't exist or is empty
+		}
 	}
 
 	/**
