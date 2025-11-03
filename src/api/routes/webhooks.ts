@@ -122,24 +122,24 @@ flow:
 							await stub.fetch(new Request('http://do/complete', {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({ result: result.output })
+								body: JSON.stringify({ result: result.value.output })
 							}));
 							logger.info('Webhook execution completed', {
 								executionId,
 								ensembleName: ensemble.name,
-								durationMs: result.metrics?.totalDuration
+								durationMs: result.value.metrics?.totalDuration
 							});
 						} else {
 							// Mark as failed in DO
 							await stub.fetch(new Request('http://do/fail', {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({ error: result.error || 'Execution failed' })
+								body: JSON.stringify({ error: result.error.message || 'Execution failed' })
 							}));
 							logger.error('Webhook execution failed', undefined, {
 								executionId,
 								ensembleName: ensemble.name,
-								error: result.error
+								error: result.error.message
 							});
 						}
 					}).catch(async error => {

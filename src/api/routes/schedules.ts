@@ -147,7 +147,7 @@ app.post('/:ensembleName/trigger', async (c) => {
 			return c.json({
 				error: 'Execution failed',
 				ensembleName,
-				message: result.error,
+				message: result.error.message,
 				schedule: {
 					cron: schedule.cron,
 					index: scheduleIndex
@@ -162,8 +162,8 @@ app.post('/:ensembleName/trigger', async (c) => {
 				cron: schedule.cron,
 				index: scheduleIndex
 			},
-			result: result.output,
-			metrics: result.metrics
+			result: result.value.output,
+			metrics: result.value.metrics
 		});
 	} catch (error) {
 		return c.json({

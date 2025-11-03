@@ -107,7 +107,7 @@ export class TestConductor {
 			}
 
 			// Execute ensemble
-			const result = await this.executor.executeEnsembleV2(ensemble, input);
+			const result = await this.executor.executeEnsemble(ensemble, input);
 
 			const testResult: TestExecutionResult = {
 				success: result.success,
