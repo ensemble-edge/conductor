@@ -13,14 +13,14 @@ export interface ClientConfig {
 
 export interface ExecuteOptions {
 	member: string;
-	input: Record<string, any>;
-	config?: Record<string, any>;
+	input: unknown;
+	config?: unknown;
 	userId?: string;
 	sessionId?: string;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
-export interface ExecuteResult<T = any> {
+export interface ExecuteResult<T = unknown> {
 	success: boolean;
 	data?: T;
 	error?: string;
@@ -41,15 +41,15 @@ export interface Member {
 
 export interface MemberDetail extends Member {
 	config?: {
-		schema?: Record<string, any>;
-		defaults?: Record<string, any>;
+		schema?: Record<string, unknown>;
+		defaults?: Record<string, unknown>;
 	};
 	input?: {
-		schema?: Record<string, any>;
-		examples?: any[];
+		schema?: Record<string, unknown>;
+		examples?: unknown[];
 	};
 	output?: {
-		schema?: Record<string, any>;
+		schema?: Record<string, unknown>;
 	};
 }
 
@@ -68,7 +68,7 @@ export class ConductorError extends Error {
 	constructor(
 		public code: string,
 		message: string,
-		public details?: any,
+		public details?: unknown,
 		public requestId?: string
 	) {
 		super(message);
@@ -99,7 +99,7 @@ export class ConductorClient {
 		}
 	}
 
-	async execute<T = any>(options: ExecuteOptions): Promise<ExecuteResult<T>> {
+	async execute<T = unknown>(options: ExecuteOptions): Promise<ExecuteResult<T>> {
 		const response = await this.request<ExecuteResult<T>>('POST', '/api/v1/execute', options);
 		return response;
 	}
@@ -129,7 +129,7 @@ export class ConductorClient {
 		return response.alive;
 	}
 
-	private async request<T>(method: string, path: string, body?: any): Promise<T> {
+	private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
 		const url = `${this.baseUrl}${path}`;
 
 		const controller = new AbortController();
@@ -145,7 +145,7 @@ export class ConductorClient {
 
 			clearTimeout(timeoutId);
 
-			const data = (await response.json()) as any;
+			const data = (await response.json()) as { error?: string; message?: string; details?: unknown; requestId?: string };
 
 			if (!response.ok) {
 				throw new ConductorError(
