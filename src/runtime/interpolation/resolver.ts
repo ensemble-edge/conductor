@@ -9,7 +9,7 @@
  * Resolution context containing available values
  */
 export interface ResolutionContext {
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 /**
@@ -20,12 +20,12 @@ export interface InterpolationResolver {
 	/**
 	 * Check if this resolver can handle the template
 	 */
-	canResolve(template: any): boolean;
+	canResolve(template: unknown): boolean;
 
 	/**
 	 * Resolve the template to its final value
 	 */
-	resolve(template: any, context: ResolutionContext, interpolate: (t: any, c: ResolutionContext) => any): any;
+	resolve(template: unknown, context: ResolutionContext, interpolate: (t: unknown, c: ResolutionContext) => unknown): unknown;
 }
 
 /**
@@ -34,11 +34,11 @@ export interface InterpolationResolver {
 export class StringResolver implements InterpolationResolver {
 	private readonly interpolationPattern = /^\$\{(.+)\}$/;
 
-	canResolve(template: any): boolean {
+	canResolve(template: unknown): boolean {
 		return typeof template === 'string' && this.interpolationPattern.test(template);
 	}
 
-	resolve(template: string, context: ResolutionContext): any {
+	resolve(template: string, context: ResolutionContext): unknown {
 		const match = template.match(this.interpolationPattern);
 		if (!match) return template;
 
@@ -47,10 +47,10 @@ export class StringResolver implements InterpolationResolver {
 		const parts = path.split('.');
 
 		// Traverse context to get value
-		let value: any = context;
+		let value: unknown = context;
 		for (const part of parts) {
 			if (value && typeof value === 'object' && part in value) {
-				value = value[part];
+				value = (value as Record<string, unknown>)[part];
 			} else {
 				return undefined;
 			}
@@ -64,11 +64,11 @@ export class StringResolver implements InterpolationResolver {
  * Resolves arrays by recursively resolving each item
  */
 export class ArrayResolver implements InterpolationResolver {
-	canResolve(template: any): boolean {
+	canResolve(template: unknown): boolean {
 		return Array.isArray(template);
 	}
 
-	resolve(template: any[], context: ResolutionContext, interpolate: (t: any, c: ResolutionContext) => any): any {
+	resolve(template: unknown[], context: ResolutionContext, interpolate: (t: unknown, c: ResolutionContext) => unknown): unknown {
 		return template.map(item => interpolate(item, context));
 	}
 }
@@ -77,12 +77,12 @@ export class ArrayResolver implements InterpolationResolver {
  * Resolves objects by recursively resolving each property
  */
 export class ObjectResolver implements InterpolationResolver {
-	canResolve(template: any): boolean {
+	canResolve(template: unknown): boolean {
 		return typeof template === 'object' && template !== null && !Array.isArray(template);
 	}
 
-	resolve(template: Record<string, any>, context: ResolutionContext, interpolate: (t: any, c: ResolutionContext) => any): any {
-		const resolved: Record<string, any> = {};
+	resolve(template: Record<string, unknown>, context: ResolutionContext, interpolate: (t: unknown, c: ResolutionContext) => unknown): unknown {
+		const resolved: Record<string, unknown> = {};
 		for (const [key, value] of Object.entries(template)) {
 			resolved[key] = interpolate(value, context);
 		}
@@ -94,11 +94,11 @@ export class ObjectResolver implements InterpolationResolver {
  * Passthrough resolver for primitives (numbers, booleans, null)
  */
 export class PassthroughResolver implements InterpolationResolver {
-	canResolve(template: any): boolean {
+	canResolve(template: unknown): boolean {
 		return true; // Handles everything else
 	}
 
-	resolve(template: any): any {
+	resolve(template: unknown): unknown {
 		return template;
 	}
 }
