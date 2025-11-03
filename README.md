@@ -13,6 +13,7 @@
 - 🚀 **Edge-Native** - Runs on Cloudflare Workers for sub-50ms latency globally
 - 📝 **YAML-Driven** - Define workflows as simple, readable YAML files
 - 🎯 **Type-Safe** - Full TypeScript support with strong typing
+- 🧪 **Built-in Testing** - 276 tests passing, comprehensive mocks, custom matchers
 - 🔄 **State Management** - Built-in state sharing across member executions
 - 💾 **Integrated Caching** - KV-based caching for performance and cost optimization
 - 🧩 **Composable Members** - Think (AI), Function (JS), Data (KV/D1/R2), API (HTTP)
@@ -236,12 +237,346 @@ export default {
 export { ExecutionState, HITLState };
 ```
 
+## Testing
+
+Conductor provides **first-class testing support** built into the core package. No separate testing package needed - comprehensive testing utilities are included.
+
+### Test Infrastructure
+
+**276 tests passing** covering:
+- 🧪 **Unit Tests** (205 tests) - Core runtime, members, state management
+- 🔗 **Integration Tests** (71 tests) - End-to-end workflows, catalog loading
+
+**Test Coverage:**
+- Lines: 40%+ | Functions: 40%+ | Branches: 35%+ | Statements: 40%+
+- Comprehensive coverage of critical paths with mock implementations
+
+### Quick Start
+
+```bash
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+
+# Watch mode
+npm run test:watch
+```
+
+### Writing Tests
+
+Import testing utilities from `@ensemble-edge/conductor/testing`:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { TestConductor, registerMatchers } from '@ensemble-edge/conductor/testing';
+
+// Register custom matchers
+registerMatchers();
+
+describe('My Ensemble', () => {
+  it('should execute successfully', async () => {
+    // Create test conductor
+    const conductor = await TestConductor.create({
+      projectPath: '.'
+    });
+
+    // Execute ensemble
+    const result = await conductor.executeEnsemble('hello-world', {
+      name: 'World'
+    });
+
+    // Use custom matchers
+    expect(result).toBeSuccessful();
+    expect(result).toHaveOutput({ message: 'Hello, World!' });
+  });
+});
+```
+
+### Custom Matchers
+
+Conductor provides specialized matchers for testing workflows:
+
+```typescript
+// Success/failure assertions
+expect(result).toBeSuccessful();
+expect(result).toBeFailed();
+
+// Output assertions
+expect(result).toHaveOutput({ key: 'value' });
+expect(result).toHaveOutputContaining({ key: 'value' });
+
+// State assertions
+expect(result).toHaveState({ counter: 5 });
+
+// Member execution
+expect(result).toHaveMemberExecuted('member-name');
+expect(result).toHaveMemberFailed('member-name');
+
+// Timing assertions
+expect(result).toHaveCompletedWithin(1000); // ms
+```
+
+### Mock Providers
+
+Test without external dependencies using built-in mocks:
+
+```typescript
+import {
+  mockAIProvider,
+  mockDatabase,
+  mockHTTP,
+  mockVectorize
+} from '@ensemble-edge/conductor/testing';
+
+describe('Think Member', () => {
+  it('should call AI provider', async () => {
+    const aiMock = mockAIProvider({
+      response: { message: 'AI response' }
+    });
+
+    const conductor = await TestConductor.create({
+      projectPath: '.',
+      mocks: { ai: aiMock }
+    });
+
+    const result = await conductor.executeMember('analyze', {
+      text: 'Sample text'
+    });
+
+    expect(aiMock.calls).toHaveLength(1);
+    expect(result.output.message).toBe('AI response');
+  });
+});
+```
+
+**Available Mocks:**
+- `MockAIProvider` - Mock AI/LLM responses (Think members)
+- `MockDatabase` - Mock KV/D1/R2 operations (Data members)
+- `MockHTTPClient` - Mock HTTP requests (API members)
+- `MockVectorize` - Mock vector search (RAG members)
+- `MockDurableObject` - Mock Durable Object state
+
+### Test Configuration
+
+Configure testing with `vitest.config.mts`:
+
+```typescript
+import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
+
+export default defineWorkersConfig({
+  test: {
+    poolOptions: {
+      workers: {
+        wrangler: { configPath: './wrangler.jsonc' }
+      }
+    },
+    testTimeout: 15000, // 15 seconds for Worker operations
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      thresholds: {
+        lines: 40,
+        functions: 40,
+        branches: 35,
+        statements: 40
+      }
+    }
+  }
+});
+```
+
+### Testing Patterns
+
+#### Unit Testing Members
+
+```typescript
+import { APIMember } from '@ensemble-edge/conductor';
+
+describe('API Member', () => {
+  it('should make HTTP request', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: 'response' })
+    });
+    global.fetch = mockFetch;
+
+    const member = new APIMember({
+      name: 'test-api',
+      type: 'API',
+      config: { url: 'https://api.example.com/data' }
+    });
+
+    const result = await member.execute({
+      input: {},
+      env: {} as any,
+      ctx: {} as ExecutionContext
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/data',
+      expect.any(Object)
+    );
+  });
+});
+```
+
+#### Integration Testing Workflows
+
+```typescript
+describe('Company Intelligence Workflow', () => {
+  it('should fetch and analyze company data', async () => {
+    const conductor = await TestConductor.create({
+      projectPath: '.',
+      mocks: {
+        http: mockHTTP({
+          'https://api.example.com/company': {
+            data: { name: 'Acme Corp' }
+          }
+        }),
+        ai: mockAIProvider({
+          response: { analysis: 'Strong company' }
+        })
+      }
+    });
+
+    const result = await conductor.executeEnsemble('company-intelligence', {
+      domain: 'acme.com'
+    });
+
+    expect(result).toBeSuccessful();
+    expect(result).toHaveOutput({
+      analysis: 'Strong company'
+    });
+    expect(result).toHaveMemberExecuted('fetch-company-data');
+    expect(result).toHaveMemberExecuted('analyze-company');
+  });
+});
+```
+
+#### State Management Testing
+
+```typescript
+describe('StateManager', () => {
+  it('should track state access', () => {
+    const manager = new StateManager({
+      initial: { counter: 0, name: 'test' }
+    });
+
+    const { getPendingUpdates } = manager.getStateForMember('member1', {
+      use: ['counter'],
+      set: ['counter']
+    });
+
+    const { newLog } = getPendingUpdates();
+    const manager2 = manager.applyPendingUpdates({}, newLog);
+
+    const report = manager2.getAccessReport();
+    expect(report.accessPatterns['member1']).toBeDefined();
+    expect(report.unusedKeys).toContain('name');
+  });
+});
+```
+
+### Test Structure
+
+Recommended project test structure:
+
+```
+my-project/
+├── tests/
+│   ├── unit/              # Unit tests for individual members
+│   │   ├── members/
+│   │   │   ├── greet.test.ts
+│   │   │   ├── analyze.test.ts
+│   │   │   └── fetch-data.test.ts
+│   │   └── runtime/
+│   │       ├── parser.test.ts
+│   │       ├── interpolation.test.ts
+│   │       └── state-manager.test.ts
+│   │
+│   └── integration/       # Integration tests for workflows
+│       ├── hello-world.test.ts
+│       ├── company-intel.test.ts
+│       └── approval-workflow.test.ts
+│
+├── vitest.config.mts      # Test configuration
+└── package.json
+```
+
+### Continuous Integration
+
+Add to your CI pipeline:
+
+```yaml
+# .github/workflows/test.yml
+name: Test
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm test
+      - run: npm run test:coverage
+```
+
+### Debugging Tests
+
+```bash
+# Run specific test file
+npx vitest run tests/unit/members/greet.test.ts
+
+# Run tests matching pattern
+npx vitest run -t "should execute"
+
+# Debug mode
+npx vitest --inspect-brk
+
+# UI mode
+npx vitest --ui
+```
+
+### Best Practices
+
+1. **Test at the right level**
+   - Unit tests: Individual members, utilities, parsing
+   - Integration tests: Complete workflows, state flow
+
+2. **Use mocks for external dependencies**
+   - Mock AI providers to avoid API costs
+   - Mock databases to avoid state pollution
+   - Mock HTTP to avoid network flakiness
+
+3. **Test critical paths first**
+   - Member execution
+   - State management
+   - Error handling
+   - Configuration parsing
+
+4. **Keep tests fast**
+   - Use mocks instead of real services
+   - Run in Workers pool for realistic execution
+   - Set appropriate timeouts (15s default)
+
+5. **Maintain test coverage**
+   - Aim for 40%+ coverage on critical code
+   - Focus on business logic, not boilerplate
+   - Use coverage reports to find gaps
+
 ## SDK Usage
 
 ### Member Development
 
 ```typescript
-import { createFunctionMember } from '@ensemble-edge/conductor/sdk';
+import { createFunctionMember} from '@ensemble-edge/conductor/sdk';
 
 export default createFunctionMember({
   async handler({ input }) {
