@@ -16,3 +16,6 @@ export type {
 export { DEFAULT_CONFIG } from './types';
 
 export { loadConfig, loadConfigSync, getConfigValue } from './loader';
+
+// Workers-compatible config loading
+export { createConfig, type ConfigSource } from './loader-workers';

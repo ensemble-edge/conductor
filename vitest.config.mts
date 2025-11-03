@@ -2,6 +2,12 @@ import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineWorkersConfig({
 	test: {
+		// Exclude catalog example tests - they use filesystem which isn't available in Workers pool
+		exclude: [
+			'**/node_modules/**',
+			'**/dist/**',
+			'catalog/**/tests/**',
+		],
 		poolOptions: {
 			workers: {
 				wrangler: { configPath: './wrangler.jsonc' },

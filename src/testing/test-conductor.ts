@@ -316,8 +316,11 @@ export class TestConductor {
 		const path = await import('path');
 		const YAML = await import('yaml');
 
+		// Resolve to absolute path
+		const absoluteProjectPath = path.resolve(process.cwd(), projectPath);
+
 		// Load ensembles
-		const ensemblesPath = path.join(projectPath, 'ensembles');
+		const ensemblesPath = path.join(absoluteProjectPath, 'ensembles');
 		try {
 			const ensembleFiles = await fs.readdir(ensemblesPath);
 			for (const file of ensembleFiles) {
@@ -333,19 +336,40 @@ export class TestConductor {
 		}
 
 		// Load members
-		const membersPath = path.join(projectPath, 'members');
+		const membersPath = path.join(absoluteProjectPath, 'members');
 		try {
-			const memberFiles = await fs.readdir(membersPath);
-			for (const file of memberFiles) {
-				if (file.endsWith('.yaml') || file.endsWith('.yml')) {
-					const content = await fs.readFile(path.join(membersPath, file), 'utf-8');
+			const memberEntries = await fs.readdir(membersPath, { withFileTypes: true });
+			for (const entry of memberEntries) {
+				// Case 1: Direct YAML file (e.g., members/greet.yaml)
+				if (entry.isFile() && (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))) {
+					const content = await fs.readFile(path.join(membersPath, entry.name), 'utf-8');
 					const config = YAML.parse(content) as MemberConfig;
-					const name = file.replace(/\.(yaml|yml)$/, '');
+					const name = entry.name.replace(/\.(yaml|yml)$/, '');
 					this.catalog.members.set(name, config);
+				}
+				// Case 2: Subdirectory with member.yaml (e.g., members/greet/member.yaml)
+				else if (entry.isDirectory()) {
+					const memberFilePath = path.join(membersPath, entry.name, 'member.yaml');
+					try {
+						const content = await fs.readFile(memberFilePath, 'utf-8');
+						const config = YAML.parse(content) as MemberConfig;
+						// Use the member name from the config, not the directory name
+						this.catalog.members.set(config.name, config);
+					} catch {
+						// Try member.yml as fallback
+						try {
+							const memberFilePathYml = path.join(membersPath, entry.name, 'member.yml');
+							const content = await fs.readFile(memberFilePathYml, 'utf-8');
+							const config = YAML.parse(content) as MemberConfig;
+							this.catalog.members.set(config.name, config);
+						} catch {
+							// No member.yaml or member.yml in this directory, skip it
+						}
+					}
 				}
 			}
 		} catch (error) {
-			// Members directory doesn't exist or is empty
+			// Members directory doesn't exist or is empty - silently skip
 		}
 	}
 
