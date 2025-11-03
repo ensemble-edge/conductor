@@ -73,4 +73,24 @@ export class FunctionMember extends BaseMember {
 	getImplementation(): FunctionImplementation {
 		return this.implementation;
 	}
+
+	/**
+	 * Create a FunctionMember from a config with inline handler
+	 * Supports test-style handlers: (input, context?) => result
+	 */
+	static fromConfig(config: MemberConfig): FunctionMember | null {
+		// Check if config has an inline handler function
+		const handler = (config.config as any)?.handler;
+
+		if (typeof handler === 'function') {
+			// Wrap the handler to match FunctionImplementation signature
+			const implementation: FunctionImplementation = async (context: MemberExecutionContext) => {
+				return await handler(context.input, context);
+			};
+
+			return new FunctionMember(config, implementation);
+		}
+
+		return null;
+	}
 }
