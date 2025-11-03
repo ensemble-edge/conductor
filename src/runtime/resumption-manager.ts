@@ -10,6 +10,26 @@ import type { StateManager } from './state-manager';
 import { Result, type AsyncResult } from '../types/result';
 import { Errors, type ConductorError } from '../errors/error-types';
 import { TTL } from '../config/constants';
+import type { MemberMetric } from './executor';
+import type { ScoringState } from './scoring/types';
+
+/**
+ * HITL State response from Durable Object
+ */
+interface HITLStateResponse {
+	status: 'pending' | 'approved' | 'rejected' | 'expired';
+	suspendedState?: SuspendedExecutionState;
+	suspendedAt?: number;
+	expiresAt?: number;
+	rejectionReason?: string;
+}
+
+/**
+ * Error response from Durable Object
+ */
+interface DOErrorResponse {
+	error: string;
+}
 
 /**
  * Suspended execution state
@@ -28,17 +48,17 @@ export interface SuspendedExecutionState {
 	/**
 	 * Current execution context
 	 */
-	executionContext: Record<string, any>;
+	executionContext: Record<string, unknown>;
 
 	/**
 	 * State manager snapshot (if state is enabled)
 	 */
-	stateSnapshot?: any;
+	stateSnapshot?: Record<string, unknown>;
 
 	/**
 	 * Scoring state snapshot (if scoring is enabled)
 	 */
-	scoringSnapshot?: any;
+	scoringSnapshot?: ScoringState;
 
 	/**
 	 * Current flow step index (where to resume from)
@@ -50,7 +70,7 @@ export interface SuspendedExecutionState {
 	 */
 	metrics: {
 		startTime: number;
-		members: any[];
+		members: MemberMetric[];
 		cacheHits: number;
 	};
 
@@ -78,7 +98,7 @@ export interface ResumptionOptions {
 	/**
 	 * Additional metadata to store
 	 */
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 /**
@@ -86,9 +106,9 @@ export interface ResumptionOptions {
  * Handles HITLState Durable Object-based storage for suspended execution state
  */
 export class ResumptionManager {
-	private readonly namespace: any;
+	private readonly namespace: DurableObjectNamespace;
 
-	constructor(namespace: any) {
+	constructor(namespace: DurableObjectNamespace) {
 		this.namespace = namespace;
 	}
 
@@ -106,10 +126,10 @@ export class ResumptionManager {
 	 */
 	async suspend(
 		ensemble: EnsembleConfig,
-		executionContext: Record<string, any>,
+		executionContext: Record<string, unknown>,
 		resumeFromStep: number,
 		suspendedBy: string,
-		metrics: any,
+		metrics: { startTime: number; members: MemberMetric[]; cacheHits: number },
 		options: ResumptionOptions = {}
 	): AsyncResult<string, ConductorError> {
 		try {
@@ -120,8 +140,8 @@ export class ResumptionManager {
 				token,
 				ensemble,
 				executionContext,
-				stateSnapshot: executionContext.state || undefined,
-				scoringSnapshot: executionContext.scoring || undefined,
+				stateSnapshot: executionContext.state as Record<string, unknown> | undefined,
+				scoringSnapshot: executionContext.scoring as ScoringState | undefined,
 				resumeFromStep,
 				metrics: {
 					startTime: metrics.startTime || Date.now(),
@@ -131,7 +151,7 @@ export class ResumptionManager {
 				metadata: {
 					suspendedAt: Date.now(),
 					suspendedBy,
-					reason: options.metadata?.reason,
+					reason: options.metadata?.reason as string | undefined,
 					expiresAt: Date.now() + (ttl * 1000),
 					...options.metadata
 				}
@@ -153,7 +173,7 @@ export class ResumptionManager {
 			}));
 
 			if (!response.ok) {
-				const error = await response.json() as any;
+				const error = await response.json() as DOErrorResponse;
 				return Result.err(
 					Errors.internal(`Failed to suspend execution: ${error.error || 'Unknown error'}`)
 				);
@@ -189,7 +209,7 @@ export class ResumptionManager {
 				);
 			}
 
-			const state = await response.json() as any;
+			const state = await response.json() as HITLStateResponse;
 
 			// Check if already expired
 			if (state.status === 'expired') {
@@ -200,7 +220,12 @@ export class ResumptionManager {
 
 			// Check if already approved (ready to resume)
 			if (state.status === 'approved') {
-				return Result.ok(state.suspendedState);
+				if (!state.suspendedState) {
+				return Result.err(
+					Errors.internal('Suspended state not found in approved HITL request')
+				);
+			}
+			return Result.ok(state.suspendedState);
 			}
 
 			// If still pending, return error
@@ -244,7 +269,7 @@ export class ResumptionManager {
 			}));
 
 			if (!response.ok) {
-				const error = await response.json() as any;
+				const error = await response.json() as DOErrorResponse;
 				return Result.err(
 					Errors.internal(`Failed to cancel resumption token: ${error.error || 'Unknown error'}`)
 				);
@@ -280,7 +305,7 @@ export class ResumptionManager {
 				);
 			}
 
-			const state = await response.json() as any;
+			const state = await response.json() as HITLStateResponse;
 
 			// Return metadata from suspended state
 			if (state.suspendedState) {
@@ -289,9 +314,9 @@ export class ResumptionManager {
 
 			// Construct metadata from HITL state
 			return Result.ok({
-				suspendedAt: state.suspendedAt,
+				suspendedAt: state.suspendedAt || Date.now(),
 				suspendedBy: 'hitl',
-				expiresAt: state.expiresAt
+				expiresAt: state.expiresAt || Date.now()
 			});
 		} catch (error) {
 			return Result.err(
@@ -306,7 +331,7 @@ export class ResumptionManager {
 	 * Approve a HITL request
 	 * Approves the suspended execution and marks it ready for resumption
 	 */
-	async approve(token: string, actor: string, approvalData?: any): AsyncResult<void, ConductorError> {
+	async approve(token: string, actor: string, approvalData?: unknown): AsyncResult<void, ConductorError> {
 		try {
 			// Get HITLState DO stub
 			const id = this.namespace.idFromName(token);
@@ -320,7 +345,7 @@ export class ResumptionManager {
 			}));
 
 			if (!response.ok) {
-				const error = await response.json() as any;
+				const error = await response.json() as DOErrorResponse;
 				return Result.err(
 					Errors.internal(`Failed to approve HITL request: ${error.error || 'Unknown error'}`)
 				);
@@ -354,7 +379,7 @@ export class ResumptionManager {
 			}));
 
 			if (!response.ok) {
-				const error = await response.json() as any;
+				const error = await response.json() as DOErrorResponse;
 				return Result.err(
 					Errors.internal(`Failed to reject HITL request: ${error.error || 'Unknown error'}`)
 				);
