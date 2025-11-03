@@ -12,16 +12,16 @@ import type { Context } from 'hono';
 
 export interface ExecuteRequest {
 	member: string;
-	input: Record<string, any>;
-	config?: Record<string, any>;
+	input: Record<string, unknown>;
+	config?: Record<string, unknown>;
 	userId?: string;
 	sessionId?: string;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 export interface ExecuteResponse {
 	success: boolean;
-	data?: any;
+	data?: unknown;
 	error?: string;
 	metadata: {
 		executionId: string;
@@ -44,7 +44,7 @@ export interface AsyncExecuteResponse {
 
 export interface StreamEvent {
 	type: 'start' | 'data' | 'error' | 'end';
-	data?: any;
+	data?: unknown;
 	error?: string;
 	timestamp: number;
 }
@@ -67,16 +67,16 @@ export interface MemberDetailResponse {
 	description?: string;
 	builtIn: boolean;
 	config?: {
-		schema?: Record<string, any>;
-		defaults?: Record<string, any>;
+		schema?: Record<string, unknown>;
+		defaults?: Record<string, unknown>;
 	};
 	input?: {
-		schema?: Record<string, any>;
-		examples?: any[];
+		schema?: Record<string, unknown>;
+		examples?: unknown[];
 	};
 	output?: {
-		schema?: Record<string, any>;
-		examples?: any[];
+		schema?: Record<string, unknown>;
+		examples?: unknown[];
 	};
 }
 
@@ -95,7 +95,7 @@ export interface ErrorResponse {
 	error: string;
 	message: string;
 	code?: string;
-	details?: any;
+	details?: unknown;
 	timestamp: number;
 	requestId?: string;
 }
