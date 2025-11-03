@@ -18,6 +18,12 @@
 - 🧩 **Composable Members** - Think (AI), Function (JS), Data (KV/D1/R2), API (HTTP)
 - 🛠️ **CLI Tools** - Project scaffolding, member generation, and upgrades
 - 📦 **SDK** - Client library, testing utilities, and member factories
+- 🔁 **Durable Objects** - Stateful workflows with strong consistency (ExecutionState, HITL)
+- ⏰ **Scheduled Execution** - Cron-based ensemble triggers for automated workflows
+- 🪝 **Webhooks** - HTTP triggers for ensemble execution
+- 🤝 **Human-in-the-Loop** - Approval workflows with resumption support
+- 📊 **Async Execution Tracking** - Real-time status tracking for long-running workflows
+- 🎯 **Scoring System** - Quality evaluation with automatic retry logic
 
 ## Getting Started
 
@@ -140,6 +146,24 @@ export default {
     return Response.json(result);
   }
 };
+```
+
+### Using Durable Objects
+
+Export Durable Objects in your worker:
+
+```typescript
+import { Executor, ExecutionState, HITLState } from '@ensemble-edge/conductor';
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const executor = new Executor({ env, ctx });
+    // ... your logic
+  }
+};
+
+// Export Durable Objects
+export { ExecutionState, HITLState };
 ```
 
 ## SDK Usage
@@ -372,6 +396,597 @@ flow:
 
 output:
   analysis: ${analyze-company.output.analysis}
+```
+
+## Scheduled Execution
+
+Schedule ensembles to run automatically using cron expressions. Perfect for periodic data processing, monitoring, reports, and automated workflows.
+
+### Configuration
+
+Add schedules to your ensemble YAML:
+
+```yaml
+name: daily-report
+description: Generate daily analytics report
+
+schedules:
+  - cron: "0 9 * * *"           # Every day at 9 AM UTC
+    timezone: "America/New_York" # Optional: timezone for cron
+    enabled: true
+    input:
+      reportType: "daily"
+      recipients: ["team@example.com"]
+
+  - cron: "0 */4 * * *"          # Every 4 hours
+    enabled: true
+    input:
+      reportType: "hourly"
+
+flow:
+  - member: generate-report
+    input:
+      type: ${input.reportType}
+```
+
+### Cron Expression Format
+
+Standard Unix cron syntax:
+
+```
+┌─────── minute (0 - 59)
+│ ┌────── hour (0 - 23)
+│ │ ┌───── day of month (1 - 31)
+│ │ │ ┌──── month (1 - 12)
+│ │ │ │ ┌─── day of week (0 - 7) (Sunday = 0 or 7)
+│ │ │ │ │
+* * * * *
+```
+
+**Examples:**
+- `"0 9 * * *"` - Daily at 9 AM UTC
+- `"*/15 * * * *"` - Every 15 minutes
+- `"0 0 * * 0"` - Weekly on Sunday at midnight
+- `"0 0 1 * *"` - Monthly on the 1st at midnight
+- `"0 */6 * * *"` - Every 6 hours
+
+### Worker Configuration
+
+Add cron triggers to your `wrangler.toml`:
+
+```toml
+[triggers]
+crons = [
+  "0 9 * * *",      # Daily at 9 AM UTC
+  "0 */4 * * *",    # Every 4 hours
+  "*/15 * * * *"    # Every 15 minutes
+]
+```
+
+**Automatic generation**: Get all cron expressions from your ensembles:
+
+```bash
+curl https://your-worker.dev/api/v1/schedules/crons/list
+```
+
+### Runtime Behavior
+
+When a cron trigger fires:
+
+1. ScheduleManager loads all ensembles with matching cron expressions
+2. Each matching schedule executes with its configured input
+3. Execution includes `_schedule` metadata:
+
+```json
+{
+  "reportType": "daily",
+  "_schedule": {
+    "cron": "0 9 * * *",
+    "timezone": "America/New_York",
+    "scheduledTime": 1699524000000,
+    "triggeredAt": 1699524001234
+  }
+}
+```
+
+### Testing Schedules
+
+Use the API to test schedules without waiting for cron:
+
+```bash
+# Trigger a specific ensemble's schedule manually
+curl -X POST https://your-worker.dev/api/v1/schedules/daily-report/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"scheduleIndex": 0}'
+
+# Test a cron expression
+curl -X POST https://your-worker.dev/api/v1/schedules/test \
+  -H "Content-Type: application/json" \
+  -d '{"cron": "0 9 * * *", "timezone": "America/New_York"}'
+```
+
+## Webhooks
+
+Trigger ensemble execution via HTTP webhooks. Perfect for integrations, event-driven workflows, and external system notifications.
+
+### Configuration
+
+Add webhooks to your ensemble YAML:
+
+```yaml
+name: process-payment
+description: Process payment webhook from Stripe
+
+webhooks:
+  - path: "/stripe-payment"
+    method: POST
+    auth:
+      type: signature
+      secret: ${env.STRIPE_WEBHOOK_SECRET}
+    async: true              # Return immediately, execute in background
+    timeout: 30000          # 30 second timeout
+
+  - path: "/github-push"
+    method: POST
+    auth:
+      type: bearer
+      secret: ${env.GITHUB_TOKEN}
+    mode: trigger           # 'trigger' (default) or 'resume' (HITL)
+
+flow:
+  - member: validate-payment
+    input:
+      paymentData: ${input.data}
+```
+
+### Authentication Types
+
+**Bearer Token:**
+```yaml
+auth:
+  type: bearer
+  secret: ${env.API_SECRET}
+```
+
+Request requires: `Authorization: Bearer <secret>`
+
+**Signature Verification:**
+```yaml
+auth:
+  type: signature
+  secret: ${env.WEBHOOK_SECRET}
+```
+
+Validates `X-Signature` header (Stripe-style HMAC).
+
+**Basic Auth:**
+```yaml
+auth:
+  type: basic
+  secret: ${env.BASIC_AUTH_CREDENTIALS}
+```
+
+Request requires: `Authorization: Basic <base64(username:password)>`
+
+### Webhook Modes
+
+**Trigger Mode** (default): Start new execution
+```yaml
+mode: trigger
+```
+
+**Resume Mode**: Resume HITL workflow
+```yaml
+mode: resume
+```
+
+Used with Human-in-the-Loop workflows to resume after approval.
+
+### Webhook URLs
+
+Webhooks are available at:
+
+```
+https://your-worker.dev/webhooks/{path}
+```
+
+Example:
+```bash
+curl -X POST https://your-worker.dev/webhooks/stripe-payment \
+  -H "Authorization: Bearer your-secret" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 1000, "currency": "usd"}'
+```
+
+### Async Execution
+
+Set `async: true` for long-running workflows:
+
+```yaml
+webhooks:
+  - path: "/long-process"
+    async: true
+```
+
+Returns immediately with execution ID:
+
+```json
+{
+  "status": "accepted",
+  "executionId": "exec_abc123",
+  "statusUrl": "/api/v1/executions/exec_abc123"
+}
+```
+
+## Durable Objects & Stateful Workflows
+
+Conductor uses Cloudflare Durable Objects for strongly consistent, stateful workflow tracking. Two Durable Object types provide different state management patterns.
+
+### ExecutionState
+
+Tracks async execution state with real-time status queries and optional WebSocket streaming.
+
+**Use cases:**
+- Long-running workflow monitoring
+- Real-time progress updates
+- Execution history and metrics
+- Status dashboards
+
+**Configuration:**
+
+```toml
+# wrangler.toml
+[[durable_objects.bindings]]
+name = "EXECUTION_STATE"
+class_name = "ExecutionState"
+script_name = "conductor"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ExecutionState"]
+```
+
+**Usage:**
+
+```typescript
+import { Executor } from '@ensemble-edge/conductor';
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const executor = new Executor({ env, ctx });
+
+    // Start async execution with tracking
+    const executionId = crypto.randomUUID();
+    const result = await executor.executeEnsemble(ensemble, input, {
+      async: true,
+      executionId
+    });
+
+    // Return execution ID for status tracking
+    return Response.json({
+      executionId,
+      statusUrl: `/api/v1/executions/${executionId}`
+    });
+  }
+};
+```
+
+**Query execution status:**
+
+```bash
+# Get current status
+curl https://your-worker.dev/api/v1/executions/exec_abc123
+
+# Stream live updates via WebSocket
+wscat -c wss://your-worker.dev/api/v1/executions/exec_abc123/stream
+```
+
+**Status response:**
+
+```json
+{
+  "executionId": "exec_abc123",
+  "ensembleName": "process-payment",
+  "status": "running",
+  "startedAt": 1699524000000,
+  "currentStep": "validate-payment",
+  "stepIndex": 2,
+  "totalSteps": 5,
+  "outputs": {
+    "fetch-data": { "result": "..." }
+  },
+  "metrics": {
+    "duration": 1234,
+    "stepsCompleted": 2
+  }
+}
+```
+
+### HITLState (Human-in-the-Loop)
+
+Manages approval workflows and human intervention points with resumption support.
+
+**Use cases:**
+- Approval workflows
+- Human review gates
+- Manual intervention points
+- Compliance checkpoints
+
+**Configuration:**
+
+```toml
+# wrangler.toml
+[[durable_objects.bindings]]
+name = "HITL_STATE"
+class_name = "HITLState"
+script_name = "conductor"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ExecutionState", "HITLState"]
+```
+
+**Ensemble configuration:**
+
+```yaml
+name: expense-approval
+description: Expense approval workflow with human review
+
+flow:
+  - member: validate-expense
+    input:
+      expense: ${input.expense}
+
+  - member: request-approval
+    type: HITL
+    input:
+      requester: ${input.userId}
+      amount: ${input.expense.amount}
+      reason: ${input.expense.reason}
+      approvers: ["manager@example.com"]
+      timeout: 86400000  # 24 hours
+
+  - member: process-approved-expense
+    input:
+      expense: ${input.expense}
+```
+
+**HITL workflow:**
+
+1. Execution pauses at HITL step
+2. Approval request sent to designated approvers
+3. Execution waits for approval/rejection
+4. Resume with decision
+
+**Resume execution:**
+
+```bash
+# Approve
+curl -X POST https://your-worker.dev/api/v1/executions/exec_abc123/resume \
+  -H "Content-Type: application/json" \
+  -d '{"approved": true, "comment": "Looks good"}'
+
+# Reject
+curl -X POST https://your-worker.dev/api/v1/executions/exec_abc123/resume \
+  -H "Content-Type: application/json" \
+  -d '{"approved": false, "comment": "Needs more detail"}'
+```
+
+**HITL state:**
+
+```json
+{
+  "executionId": "exec_abc123",
+  "status": "pending_approval",
+  "requestedAt": 1699524000000,
+  "approvers": ["manager@example.com"],
+  "timeout": 86400000,
+  "context": {
+    "amount": 1000,
+    "reason": "Conference travel"
+  }
+}
+```
+
+### Storage Backend
+
+Durable Objects use Cloudflare's strongly consistent storage:
+
+- **Single-threaded execution** - No race conditions
+- **Transactional storage** - Atomic state updates
+- **Global uniqueness** - One instance per execution ID
+- **Automatic failover** - Cloudflare handles migration
+- **Low latency** - Co-located with execution
+
+### Migration from KV
+
+Previous versions used KV for state. Migration to Durable Objects provides:
+
+- ✅ Strong consistency (vs eventual consistency)
+- ✅ Transactional updates (vs atomic operations only)
+- ✅ Real-time queries (vs KV latency)
+- ✅ WebSocket streaming (vs polling)
+- ✅ Automatic cleanup (vs manual TTL)
+
+## API Endpoints
+
+Conductor provides a comprehensive REST API for workflow management.
+
+### Base Configuration
+
+```toml
+# wrangler.toml
+[vars]
+API_KEYS = "key1,key2,key3"        # Optional: API key authentication
+ALLOW_ANONYMOUS = "false"          # Require authentication
+DISABLE_LOGGING = "false"          # Enable request logging
+```
+
+### Execution API
+
+**POST /api/v1/execute**
+
+Execute an ensemble:
+
+```bash
+curl -X POST https://your-worker.dev/api/v1/execute \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "ensemble": "company-intelligence",
+    "input": {
+      "domain": "acme.com"
+    },
+    "async": true
+  }'
+```
+
+Response:
+
+```json
+{
+  "executionId": "exec_abc123",
+  "status": "accepted",
+  "statusUrl": "/api/v1/executions/exec_abc123"
+}
+```
+
+**GET /api/v1/executions/:id**
+
+Get execution status:
+
+```bash
+curl https://your-worker.dev/api/v1/executions/exec_abc123 \
+  -H "X-API-Key: your-api-key"
+```
+
+**POST /api/v1/executions/:id/resume**
+
+Resume HITL execution:
+
+```bash
+curl -X POST https://your-worker.dev/api/v1/executions/exec_abc123/resume \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"approved": true, "comment": "Approved"}'
+```
+
+**DELETE /api/v1/executions/:id**
+
+Cancel execution:
+
+```bash
+curl -X DELETE https://your-worker.dev/api/v1/executions/exec_abc123 \
+  -H "X-API-Key: your-api-key"
+```
+
+### Schedule API
+
+**GET /api/v1/schedules**
+
+List all scheduled ensembles:
+
+```bash
+curl https://your-worker.dev/api/v1/schedules \
+  -H "X-API-Key: your-api-key"
+```
+
+**GET /api/v1/schedules/:ensembleName**
+
+Get schedules for specific ensemble:
+
+```bash
+curl https://your-worker.dev/api/v1/schedules/daily-report \
+  -H "X-API-Key: your-api-key"
+```
+
+**POST /api/v1/schedules/:ensembleName/trigger**
+
+Manually trigger a schedule:
+
+```bash
+curl -X POST https://your-worker.dev/api/v1/schedules/daily-report/trigger \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"scheduleIndex": 0}'
+```
+
+**GET /api/v1/schedules/crons/list**
+
+Get all cron expressions for wrangler.toml:
+
+```bash
+curl https://your-worker.dev/api/v1/schedules/crons/list \
+  -H "X-API-Key: your-api-key"
+```
+
+### Member API
+
+**GET /api/v1/members**
+
+List available members:
+
+```bash
+curl https://your-worker.dev/api/v1/members \
+  -H "X-API-Key: your-api-key"
+```
+
+**GET /api/v1/members/:name**
+
+Get member details:
+
+```bash
+curl https://your-worker.dev/api/v1/members/analyze-company \
+  -H "X-API-Key: your-api-key"
+```
+
+### Stream API
+
+**POST /api/v1/stream**
+
+Stream ensemble execution with Server-Sent Events:
+
+```bash
+curl -N -X POST https://your-worker.dev/api/v1/stream \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "ensemble": "analysis",
+    "input": {"data": "..."}
+  }'
+```
+
+### Health API
+
+**GET /health**
+
+Health check (no authentication required):
+
+```bash
+curl https://your-worker.dev/health
+```
+
+Response:
+
+```json
+{
+  "status": "healthy",
+  "timestamp": 1699524000000,
+  "version": "1.0.0"
+}
+```
+
+### Webhook API
+
+**POST /webhooks/:path**
+
+Trigger webhook (authentication per webhook config):
+
+```bash
+curl -X POST https://your-worker.dev/webhooks/stripe-payment \
+  -H "Authorization: Bearer your-webhook-secret" \
+  -H "Content-Type: application/json" \
+  -d '{"event": "payment.succeeded"}'
 ```
 
 ## Platform Architecture
