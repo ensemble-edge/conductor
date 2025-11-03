@@ -11,7 +11,7 @@
 import { BaseMember, type MemberExecutionContext } from './base-member';
 import type { MemberConfig } from '../runtime/parser';
 import { getProviderRegistry } from './think-providers';
-import type { AIMessage, AIProviderConfig } from './think-providers';
+import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-providers';
 import { AIProvider } from '../types/constants';
 import type { ConductorEnv } from '../types/env';
 
@@ -29,7 +29,7 @@ export interface ThinkConfig {
 export interface ThinkInput {
 	prompt?: string;
 	messages?: Array<{ role: string; content: string }>;
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 /**
@@ -58,7 +58,7 @@ export class ThinkMember extends BaseMember {
 	/**
 	 * Execute AI reasoning via provider system
 	 */
-	protected async run(context: MemberExecutionContext): Promise<any> {
+	protected async run(context: MemberExecutionContext): Promise<AIProviderResponse> {
 		const { input, env } = context;
 
 		// Load versioned prompt if configured

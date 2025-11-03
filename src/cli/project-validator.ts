@@ -30,19 +30,19 @@ export interface MemberConfig {
 	name: string;
 	type: string;
 	description?: string;
-	config?: Record<string, any>;
+	config?: Record<string, unknown>;
 }
 
 export interface EnsembleConfig {
 	name: string;
 	flow: FlowStep[];
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 export interface FlowStep {
 	member: string;
-	input?: Record<string, any>;
-	[key: string]: any;
+	input?: Record<string, unknown>;
+	[key: string]: unknown;
 }
 
 /**
@@ -289,7 +289,7 @@ export class ProjectValidator {
 	 * Check if a member type is valid
 	 */
 	private isValidMemberType(type: string): boolean {
-		const validTypes = [
+		const validTypes: string[] = [
 			MemberType.Function,
 			MemberType.Think,
 			MemberType.Data,
@@ -297,7 +297,7 @@ export class ProjectValidator {
 			MemberType.MCP,
 			MemberType.Scoring
 		];
-		return validTypes.includes(type as any);
+		return validTypes.includes(type);
 	}
 
 	/**

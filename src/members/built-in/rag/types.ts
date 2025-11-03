@@ -20,12 +20,12 @@ export interface RAGIndexInput {
 	content: string;
 	id: string;
 	source?: string;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 export interface RAGSearchInput {
 	query: string;
-	filter?: Record<string, any>;
+	filter?: Record<string, unknown>;
 }
 
 export type RAGInput = RAGIndexInput | RAGSearchInput;
@@ -42,7 +42,7 @@ export interface RAGSearchResult {
 		content: string;
 		score: number;
 		source?: string;
-		metadata?: Record<string, any>;
+		metadata?: Record<string, unknown>;
 	}>;
 	count: number;
 	reranked: boolean;
@@ -53,5 +53,5 @@ export type RAGResult = RAGIndexResult | RAGSearchResult;
 export interface Chunk {
 	text: string;
 	index: number;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }

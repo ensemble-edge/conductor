@@ -5,10 +5,10 @@
  */
 
 import { BaseEvaluator } from './base-evaluator';
-import type { EvaluationScore, Criterion } from '../types';
+import type { EvaluationScore, Criterion, ValidateConfig } from '../types';
 
 export class JudgeEvaluator extends BaseEvaluator {
-	async evaluate(content: string, config: any): Promise<EvaluationScore> {
+	async evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore> {
 		const criteria: Criterion[] = config.criteria || [];
 		const model = config.model || 'claude-3-5-haiku-20241022';
 

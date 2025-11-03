@@ -12,7 +12,7 @@ export interface FetchConfig {
 
 export interface FetchInput {
 	url: string;
-	body?: any;
+	body?: unknown;
 	headers?: Record<string, string>;
 }
 
@@ -20,7 +20,7 @@ export interface FetchResult {
 	status: number;
 	statusText: string;
 	headers: Record<string, string>;
-	body: any;
+	body: unknown;
 	duration: number;
 	attempt: number;
 }

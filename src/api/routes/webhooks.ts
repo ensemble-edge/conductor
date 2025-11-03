@@ -79,7 +79,7 @@ flow:
 			// Note: Hono context doesn't directly expose ExecutionContext
 			// We'll create a minimal context for now
 			const ctx = {
-				waitUntil: (promise: Promise<any>) => {},
+				waitUntil: (promise: Promise<unknown>) => {},
 				passThroughOnException: () => {}
 			} as ExecutionContext;
 
@@ -91,7 +91,7 @@ flow:
 				const executionId = generateExecutionId();
 
 				// Get ExecutionState DO binding
-				const namespace = (env as any).EXECUTION_STATE;
+				const namespace = (env as unknown as Record<string, unknown>).EXECUTION_STATE as DurableObjectNamespace | undefined;
 				if (!namespace) {
 					return c.json({
 						error: 'ExecutionState Durable Object not configured',
@@ -190,7 +190,7 @@ flow:
 			}
 
 			// Get HITLState DO namespace for resumption state
-			const namespace = (env as any).HITL_STATE;
+			const namespace = (env as unknown as Record<string, unknown>).HITL_STATE as DurableObjectNamespace | undefined;
 			if (!namespace) {
 				return c.json({
 					error: 'HITLState Durable Object not configured',
@@ -215,7 +215,7 @@ flow:
 
 			// Create execution context
 			const ctx = {
-				waitUntil: (promise: Promise<any>) => {},
+				waitUntil: (promise: Promise<unknown>) => {},
 				passThroughOnException: () => {}
 			} as ExecutionContext;
 
@@ -283,7 +283,7 @@ app.post('/resume/:token', async (c) => {
 		const resumeData = await c.req.json().catch(() => ({}));
 
 		// Get HITLState DO namespace
-		const namespace = (env as any).HITL_STATE as DurableObjectNamespace;
+		const namespace = (env as unknown as Record<string, unknown>).HITL_STATE as DurableObjectNamespace | undefined;
 		if (!namespace) {
 			return c.json({
 				error: 'HITLState Durable Object not configured',
@@ -308,7 +308,7 @@ app.post('/resume/:token', async (c) => {
 
 		// Create execution context
 		const ctx = {
-			waitUntil: (promise: Promise<any>) => {},
+			waitUntil: (promise: Promise<unknown>) => {},
 			passThroughOnException: () => {}
 		} as ExecutionContext;
 
@@ -354,7 +354,7 @@ app.get('/resume/:token', async (c) => {
 
 	try {
 		// Get HITLState DO namespace
-		const namespace = (env as any).HITL_STATE as DurableObjectNamespace;
+		const namespace = (env as unknown as Record<string, unknown>).HITL_STATE as DurableObjectNamespace | undefined;
 		if (!namespace) {
 			return c.json({
 				error: 'HITLState Durable Object not configured',
@@ -438,12 +438,13 @@ app.get('/', async (c) => {
  * Authenticate webhook request
  */
 async function authenticateWebhook(
-	c: any,
+	c: unknown,
 	auth: { type: 'bearer' | 'signature' | 'basic'; secret: string }
 ): Promise<{ success: boolean; error?: string }> {
+	const ctx = c as { req: { header: (name: string) => string | undefined } };
 	switch (auth.type) {
 		case 'bearer': {
-			const authHeader = c.req.header('Authorization');
+			const authHeader = ctx.req.header('Authorization');
 			if (!authHeader || !authHeader.startsWith('Bearer ')) {
 				return { success: false, error: 'Missing or invalid Authorization header' };
 			}
@@ -458,7 +459,7 @@ async function authenticateWebhook(
 
 		case 'signature': {
 			// Verify HMAC signature (e.g., GitHub/Stripe style)
-			const signature = c.req.header('X-Webhook-Signature');
+			const signature = ctx.req.header('X-Webhook-Signature');
 			if (!signature) {
 				return { success: false, error: 'Missing X-Webhook-Signature header' };
 			}
@@ -473,7 +474,7 @@ async function authenticateWebhook(
 		}
 
 		case 'basic': {
-			const authHeader = c.req.header('Authorization');
+			const authHeader = ctx.req.header('Authorization');
 			if (!authHeader || !authHeader.startsWith('Basic ')) {
 				return { success: false, error: 'Missing or invalid Authorization header' };
 			}

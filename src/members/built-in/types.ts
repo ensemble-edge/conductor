@@ -17,16 +17,16 @@ export interface BuiltInMemberMetadata {
 	version: string;
 	description: string;
 	type: MemberType;
-	configSchema?: Record<string, any>;
-	inputSchema?: Record<string, any>;
-	outputSchema?: Record<string, any>;
+	configSchema?: Record<string, unknown>;
+	inputSchema?: Record<string, unknown>;
+	outputSchema?: Record<string, unknown>;
 	tags?: string[];
 	examples?: Array<{
 		name: string;
 		description: string;
-		input: Record<string, any>;
-		config?: Record<string, any>;
-		output?: Record<string, any>;
+		input: Record<string, unknown>;
+		config?: Record<string, unknown>;
+		output?: Record<string, unknown>;
 	}>;
 	documentation?: string;
 }

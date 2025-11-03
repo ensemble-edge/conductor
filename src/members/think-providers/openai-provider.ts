@@ -37,7 +37,7 @@ export class OpenAIProvider extends BaseAIProvider {
 				temperature: config.temperature,
 				max_tokens: config.maxTokens
 			}
-		);
+		) as { choices: Array<{ message?: { content?: string }; finish_reason?: string }>; usage?: { total_tokens?: number; prompt_tokens?: number; completion_tokens?: number } };
 
 		return {
 			content: data.choices[0]?.message?.content || '',

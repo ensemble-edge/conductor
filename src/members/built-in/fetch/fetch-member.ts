@@ -88,7 +88,7 @@ export class FetchMember extends BaseMember {
 					headers['Content-Type'] = 'application/json';
 				}
 			} else {
-				options.body = input.body;
+				options.body = input.body as string;
 			}
 		}
 
@@ -97,7 +97,7 @@ export class FetchMember extends BaseMember {
 
 		// Parse response body
 		const contentType = response.headers.get('content-type') || '';
-		let body: any;
+		let body: unknown;
 
 		if (contentType.includes('application/json')) {
 			body = await response.json();

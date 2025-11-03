@@ -120,7 +120,7 @@ export class D1Repository<T> implements Repository<T, string> {
 			const now = new Date().toISOString();
 
 			let query: string;
-			let params: any[];
+			let params: unknown[];
 
 			if (this.expirationColumn && (options?.ttl || options?.expiration)) {
 				const expiration = options.expiration
@@ -187,7 +187,7 @@ export class D1Repository<T> implements Repository<T, string> {
 	async list(options?: ListOptions): Promise<Result<T[], ConductorError>> {
 		try {
 			let query = `SELECT ${this.valueColumn} FROM ${this.tableName}`;
-			const params: any[] = [];
+			const params: unknown[] = [];
 
 			// Add WHERE clause for prefix if needed
 			if (options?.prefix) {

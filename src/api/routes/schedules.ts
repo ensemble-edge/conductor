@@ -121,7 +121,7 @@ app.post('/:ensembleName/trigger', async (c) => {
 
 		// Create execution context
 		const ctx = {
-			waitUntil: (promise: Promise<any>) => {},
+			waitUntil: (promise: Promise<unknown>) => {},
 			passThroughOnException: () => {}
 		} as ExecutionContext;
 
@@ -204,7 +204,7 @@ app.post('/test', async (c) => {
 
 		// Create execution context
 		const ctx = {
-			waitUntil: (promise: Promise<any>) => {},
+			waitUntil: (promise: Promise<unknown>) => {},
 			passThroughOnException: () => {}
 		} as ExecutionContext;
 

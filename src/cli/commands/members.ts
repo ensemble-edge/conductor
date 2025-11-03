@@ -20,14 +20,14 @@ export function createMembersCommand(): Command {
 		.option('--api-url <url>', 'API URL (default: from CONDUCTOR_API_URL env)')
 		.option('--api-key <key>', 'API key (default: from CONDUCTOR_API_KEY env)')
 		.option('--output <format>', 'Output format: json, table, or simple (default: table)', 'table')
-		.action(async (options: any) => {
+		.action(async (options: Record<string, unknown>) => {
 			try {
-				let membersList: any[];
+				let membersList: Array<Record<string, unknown>>;
 
-				if (options.remote) {
+				if (options.remote as boolean) {
 					// Get from API
-					const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;
-					const apiKey = options.apiKey || process.env.CONDUCTOR_API_KEY;
+					const apiUrl = (options.apiUrl as string) || process.env.CONDUCTOR_API_URL;
+					const apiKey = (options.apiKey as string | undefined) || process.env.CONDUCTOR_API_KEY;
 
 					if (!apiUrl) {
 						console.error(
@@ -37,7 +37,7 @@ export function createMembersCommand(): Command {
 					}
 
 					const client = createClient({ baseUrl: apiUrl, apiKey });
-					membersList = await client.listMembers();
+					membersList = (await client.listMembers()) as unknown as Array<Record<string, unknown>>;
 				} else {
 					// Get from local registry
 					const registry = getBuiltInRegistry();
@@ -55,7 +55,7 @@ export function createMembersCommand(): Command {
 				if (options.output === 'json') {
 					console.log(JSON.stringify(membersList, null, 2));
 				} else if (options.output === 'simple') {
-					membersList.forEach((m) => console.log(m.name));
+					membersList.forEach((m) => console.log(m.name as string));
 				} else {
 					// Table output
 					console.log('');
@@ -63,7 +63,7 @@ export function createMembersCommand(): Command {
 					console.log('');
 					membersList.forEach((m) => {
 						console.log(
-							`${chalk.cyan(m.name.padEnd(15))} ${chalk.dim(m.type.padEnd(10))} ${m.description || ''}`
+							`${chalk.cyan((m.name as string).padEnd(15))} ${chalk.dim((m.type as string).padEnd(10))} ${(m.description as string | undefined) || ''}`
 						);
 					});
 					console.log('');
@@ -84,14 +84,14 @@ export function createMembersCommand(): Command {
 		.option('--api-url <url>', 'API URL (default: from CONDUCTOR_API_URL env)')
 		.option('--api-key <key>', 'API key (default: from CONDUCTOR_API_KEY env)')
 		.option('--output <format>', 'Output format: json or pretty (default: pretty)', 'pretty')
-		.action(async (memberName: string, options: any) => {
+		.action(async (memberName: string, options: Record<string, unknown>) => {
 			try {
-				let memberInfo: any;
+				let memberInfo: Record<string, unknown>;
 
-				if (options.remote) {
+				if (options.remote as boolean) {
 					// Get from API
-					const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;
-					const apiKey = options.apiKey || process.env.CONDUCTOR_API_KEY;
+					const apiUrl = (options.apiUrl as string) || process.env.CONDUCTOR_API_URL;
+					const apiKey = (options.apiKey as string | undefined) || process.env.CONDUCTOR_API_KEY;
 
 					if (!apiUrl) {
 						console.error(
@@ -101,7 +101,7 @@ export function createMembersCommand(): Command {
 					}
 
 					const client = createClient({ baseUrl: apiUrl, apiKey });
-					memberInfo = await client.getMember(memberName);
+					memberInfo = (await client.getMember(memberName)) as unknown as Record<string, unknown>;
 				} else {
 					// Get from local registry
 					const registry = getBuiltInRegistry();
@@ -140,43 +140,47 @@ export function createMembersCommand(): Command {
 				} else {
 					// Pretty output
 					console.log('');
-					console.log(chalk.bold.cyan(memberInfo.name));
-					console.log(chalk.dim(`Version: ${memberInfo.version}`));
+					console.log(chalk.bold.cyan(memberInfo.name as string));
+					console.log(chalk.dim(`Version: ${memberInfo.version as string}`));
 					console.log('');
 					console.log(chalk.bold('Description:'));
-					console.log(memberInfo.description || 'No description');
+					console.log((memberInfo.description as string | undefined) || 'No description');
 					console.log('');
 
-					if (memberInfo.tags && memberInfo.tags.length > 0) {
+					const tags = memberInfo.tags as string[] | undefined;
+					if (tags && tags.length > 0) {
 						console.log(chalk.bold('Tags:'));
-						console.log(memberInfo.tags.join(', '));
+						console.log(tags.join(', '));
 						console.log('');
 					}
 
-					if (memberInfo.input?.schema) {
+					const input = memberInfo.input as Record<string, unknown> | undefined;
+					if (input?.schema) {
 						console.log(chalk.bold('Input Schema:'));
-						console.log(JSON.stringify(memberInfo.input.schema, null, 2));
+						console.log(JSON.stringify(input.schema, null, 2));
 						console.log('');
 					}
 
-					if (memberInfo.input?.examples && memberInfo.input.examples.length > 0) {
+					const examples = input?.examples as unknown[] | undefined;
+					if (examples && examples.length > 0) {
 						console.log(chalk.bold('Examples:'));
-						memberInfo.input.examples.forEach((example: any, i: number) => {
+						examples.forEach((example: unknown, i: number) => {
 							console.log(chalk.dim(`Example ${i + 1}:`));
 							console.log(JSON.stringify(example, null, 2));
 						});
 						console.log('');
 					}
 
-					if (memberInfo.config?.schema) {
+					const config = memberInfo.config as Record<string, unknown> | undefined;
+					if (config?.schema) {
 						console.log(chalk.bold('Config Schema:'));
-						console.log(JSON.stringify(memberInfo.config.schema, null, 2));
+						console.log(JSON.stringify(config.schema, null, 2));
 						console.log('');
 					}
 
 					if (memberInfo.documentation) {
 						console.log(chalk.bold('Documentation:'));
-						console.log(memberInfo.documentation);
+						console.log(memberInfo.documentation as string);
 						console.log('');
 					}
 				}

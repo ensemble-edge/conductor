@@ -154,7 +154,7 @@ export class KVRepository<T> implements Repository<T, string> {
 	/**
 	 * Get value with metadata
 	 */
-	async getWithMetadata(key: string): Promise<Result<{ value: T; metadata?: any }, ConductorError>> {
+	async getWithMetadata(key: string): Promise<Result<{ value: T; metadata?: unknown }, ConductorError>> {
 		try {
 			const result = await this.binding.getWithMetadata(key);
 

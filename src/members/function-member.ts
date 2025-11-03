@@ -8,7 +8,7 @@
 import { BaseMember, type MemberExecutionContext } from './base-member';
 import type { MemberConfig } from '../runtime/parser';
 
-export type FunctionImplementation = (context: MemberExecutionContext) => Promise<any> | any;
+export type FunctionImplementation = (context: MemberExecutionContext) => Promise<unknown> | unknown;
 
 /**
  * Function Member executes user-provided JavaScript functions
@@ -51,7 +51,7 @@ export class FunctionMember extends BaseMember {
 	/**
 	 * Execute the user-provided function
 	 */
-	protected async run(context: MemberExecutionContext): Promise<any> {
+	protected async run(context: MemberExecutionContext): Promise<unknown> {
 		try {
 			// Execute the user's function with full context
 			const result = await this.implementation(context);

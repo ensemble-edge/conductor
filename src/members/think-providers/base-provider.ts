@@ -44,7 +44,7 @@ export interface AIProviderResponse {
 	model: string;
 	tokensUsed?: number;
 	provider: string;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 /**
@@ -102,7 +102,7 @@ export abstract class BaseAIProvider implements AIProvider {
 	 * Helper to get API key from config or env
 	 */
 	protected getApiKey(config: AIProviderConfig, env: Env, envVarName: string): string | null {
-		return config.apiKey || (env as any)[envVarName] || null;
+		return config.apiKey || (env as unknown as Record<string, unknown>)[envVarName] as string | undefined || null;
 	}
 
 	/**
@@ -111,8 +111,8 @@ export abstract class BaseAIProvider implements AIProvider {
 	protected async makeRequest(
 		endpoint: string,
 		headers: Record<string, string>,
-		body: any
-	): Promise<any> {
+		body: unknown
+	): Promise<unknown> {
 		const response = await fetch(endpoint, {
 			method: 'POST',
 			headers: {

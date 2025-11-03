@@ -10,8 +10,8 @@ export interface PromptVariable {
 	type: 'string' | 'number' | 'boolean' | 'array' | 'object';
 	description?: string;
 	required?: boolean;
-	default?: any;
-	examples?: any[];
+	default?: unknown;
+	examples?: unknown[];
 }
 
 export interface PromptMetadata {
@@ -48,7 +48,7 @@ export interface PromptValidationResult {
  */
 export function validatePromptVariables(
 	template: PromptTemplate,
-	variables: Record<string, any>
+	variables: Record<string, unknown>
 ): PromptValidationResult {
 	const errors: PromptValidationError[] = [];
 
@@ -95,8 +95,8 @@ export function validatePromptVariables(
  */
 export function applyDefaultVariables(
 	template: PromptTemplate,
-	variables: Record<string, any>
-): Record<string, any> {
+	variables: Record<string, unknown>
+): Record<string, unknown> {
 	if (!template.variables) {
 		return variables;
 	}

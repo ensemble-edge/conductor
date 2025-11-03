@@ -12,7 +12,7 @@ export { MemberType };
 /**
  * Member handler function signature
  */
-export type MemberHandler<TInput = any, TOutput = any> = (
+export type MemberHandler<TInput = unknown, TOutput = unknown> = (
 	context: MemberExecutionContext
 ) => Promise<TOutput> | TOutput;
 
@@ -23,10 +23,10 @@ export interface CreateMemberOptions {
 	name: string;
 	type: MemberType.Function | MemberType.Think | MemberType.Data | MemberType.API;
 	description?: string;
-	config?: Record<string, any>;
+	config?: Record<string, unknown>;
 	schema?: {
-		input?: Record<string, any>;
-		output?: Record<string, any>;
+		input?: Record<string, unknown>;
+		output?: Record<string, unknown>;
 	};
 	handler: MemberHandler;
 }
@@ -46,7 +46,7 @@ export interface ClientOptions {
  */
 export interface ExecutionResult {
 	success: boolean;
-	output?: any;
+	output?: unknown;
 	error?: string;
 	metrics: {
 		ensemble: string;
@@ -66,7 +66,7 @@ export interface ExecutionResult {
  */
 export interface MemberResult {
 	success: boolean;
-	data?: any;
+	data?: unknown;
 	error?: string;
 	timestamp: string;
 	cached: boolean;

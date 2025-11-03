@@ -17,14 +17,14 @@ export interface ValidateConfig {
 export interface ValidateInput {
 	content: string;
 	reference?: string;
-	expected?: any;
+	expected?: unknown;
 }
 
 export interface ValidationResult {
 	passed: boolean;
 	score: number;
 	scores: Record<string, number>;
-	details: Record<string, any>;
+	details: Record<string, unknown>;
 	evalType: EvalType;
 }
 
@@ -44,5 +44,5 @@ export interface Criterion {
 export interface EvaluationScore {
 	average: number;
 	breakdown: Record<string, number>;
-	details?: Record<string, any>;
+	details?: Record<string, unknown>;
 }

@@ -5,10 +5,10 @@
  */
 
 import { BaseEvaluator } from './base-evaluator';
-import type { EvaluationScore, Rule } from '../types';
+import type { EvaluationScore, Rule, ValidateConfig } from '../types';
 
 export class RuleEvaluator extends BaseEvaluator {
-	async evaluate(content: string, config: any): Promise<EvaluationScore> {
+	async evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore> {
 		const rules: Rule[] = config.rules || [];
 
 		if (rules.length === 0) {
@@ -17,7 +17,7 @@ export class RuleEvaluator extends BaseEvaluator {
 
 		const breakdown: Record<string, number> = {};
 		const weights: Record<string, number> = {};
-		const details: Record<string, any> = {};
+		const details: Record<string, unknown> = {};
 
 		for (const rule of rules) {
 			try {
@@ -62,7 +62,7 @@ export class RuleEvaluator extends BaseEvaluator {
 	/**
 	 * Safely evaluate a rule expression
 	 */
-	private evaluateRule(expression: string, context: any): boolean {
+	private evaluateRule(expression: string, context: { content: string; length: number; wordCount: number; lineCount: number }): boolean {
 		// Simple expression evaluation
 		// Replace content references with actual values
 		let evalExpression = expression;
