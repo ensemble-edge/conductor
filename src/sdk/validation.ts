@@ -16,118 +16,124 @@
  * ```
  */
 export function validateInput(input: unknown, schema: Record<string, string>): void {
-	if (typeof input !== 'object' || input === null) {
-		throw new Error('Input must be an object');
-	}
+  if (typeof input !== 'object' || input === null) {
+    throw new Error('Input must be an object')
+  }
 
-	const inputObj = input as Record<string, unknown>;
-	for (const [key, type] of Object.entries(schema)) {
-		const optional = type.endsWith('?');
-		const actualType = optional ? type.slice(0, -1) : type;
-		const value = inputObj[key];
+  const inputObj = input as Record<string, unknown>
+  for (const [key, type] of Object.entries(schema)) {
+    const optional = type.endsWith('?')
+    const actualType = optional ? type.slice(0, -1) : type
+    const value = inputObj[key]
 
-		// Check required fields
-		if (!optional && value === undefined) {
-			throw new Error(`Missing required field: ${key}`);
-		}
+    // Check required fields
+    if (!optional && value === undefined) {
+      throw new Error(`Missing required field: ${key}`)
+    }
 
-		// Skip validation for optional missing fields
-		if (optional && value === undefined) {
-			continue;
-		}
+    // Skip validation for optional missing fields
+    if (optional && value === undefined) {
+      continue
+    }
 
-		// Type checking
-		const jsType = typeof value;
+    // Type checking
+    const jsType = typeof value
 
-		if (actualType === 'string' && jsType !== 'string') {
-			throw new Error(`Field ${key} must be a string, got ${jsType}`);
-		}
+    if (actualType === 'string' && jsType !== 'string') {
+      throw new Error(`Field ${key} must be a string, got ${jsType}`)
+    }
 
-		if (actualType === 'number' && jsType !== 'number') {
-			throw new Error(`Field ${key} must be a number, got ${jsType}`);
-		}
+    if (actualType === 'number' && jsType !== 'number') {
+      throw new Error(`Field ${key} must be a number, got ${jsType}`)
+    }
 
-		if (actualType === 'boolean' && jsType !== 'boolean') {
-			throw new Error(`Field ${key} must be a boolean, got ${jsType}`);
-		}
+    if (actualType === 'boolean' && jsType !== 'boolean') {
+      throw new Error(`Field ${key} must be a boolean, got ${jsType}`)
+    }
 
-		if (actualType === 'object' && (jsType !== 'object' || value === null || Array.isArray(value))) {
-			throw new Error(`Field ${key} must be an object, got ${jsType}`);
-		}
+    if (
+      actualType === 'object' &&
+      (jsType !== 'object' || value === null || Array.isArray(value))
+    ) {
+      throw new Error(`Field ${key} must be an object, got ${jsType}`)
+    }
 
-		if (actualType === 'array' && !Array.isArray(value)) {
-			throw new Error(`Field ${key} must be an array, got ${jsType}`);
-		}
-	}
+    if (actualType === 'array' && !Array.isArray(value)) {
+      throw new Error(`Field ${key} must be an array, got ${jsType}`)
+    }
+  }
 }
 
 /**
  * Validate output against a schema
  */
 export function validateOutput(output: unknown, schema: Record<string, string>): void {
-	validateInput(output, schema); // Same logic
+  validateInput(output, schema) // Same logic
 }
 
 /**
  * Assert that a condition is true
  */
 export function assert(condition: boolean, message: string): asserts condition {
-	if (!condition) {
-		throw new Error(`Assertion failed: ${message}`);
-	}
+  if (!condition) {
+    throw new Error(`Assertion failed: ${message}`)
+  }
 }
 
 /**
  * Validate that a value is not null or undefined
  */
 export function assertExists<T>(value: T | null | undefined, name: string): asserts value is T {
-	if (value === null || value === undefined) {
-		throw new Error(`${name} must exist, got ${value}`);
-	}
+  if (value === null || value === undefined) {
+    throw new Error(`${name} must exist, got ${value}`)
+  }
 }
 
 /**
  * Coerce input to expected types
  */
-export function coerceInput(input: unknown, schema: Record<string, string>): Record<string, unknown> {
-	if (typeof input !== 'object' || input === null) {
-		throw new Error('Input must be an object');
-	}
+export function coerceInput(
+  input: unknown,
+  schema: Record<string, string>
+): Record<string, unknown> {
+  if (typeof input !== 'object' || input === null) {
+    throw new Error('Input must be an object')
+  }
 
-	const inputObj = input as Record<string, unknown>;
-	const coerced: Record<string, unknown> = {};
+  const inputObj = input as Record<string, unknown>
+  const coerced: Record<string, unknown> = {}
 
-	for (const [key, type] of Object.entries(schema)) {
-		const optional = type.endsWith('?');
-		const actualType = optional ? type.slice(0, -1) : type;
-		const value = inputObj[key];
+  for (const [key, type] of Object.entries(schema)) {
+    const optional = type.endsWith('?')
+    const actualType = optional ? type.slice(0, -1) : type
+    const value = inputObj[key]
 
-		if (value === undefined) {
-			if (!optional) {
-				throw new Error(`Missing required field: ${key}`);
-			}
-			continue;
-		}
+    if (value === undefined) {
+      if (!optional) {
+        throw new Error(`Missing required field: ${key}`)
+      }
+      continue
+    }
 
-		// Type coercion
-		switch (actualType) {
-			case 'string':
-				coerced[key] = String(value);
-				break;
-			case 'number':
-				const numValue = Number(value);
-				if (isNaN(numValue)) {
-					throw new Error(`Cannot coerce ${key} to number`);
-				}
-				coerced[key] = numValue;
-				break;
-			case 'boolean':
-				coerced[key] = Boolean(value);
-				break;
-			default:
-				coerced[key] = value;
-		}
-	}
+    // Type coercion
+    switch (actualType) {
+      case 'string':
+        coerced[key] = String(value)
+        break
+      case 'number':
+        const numValue = Number(value)
+        if (isNaN(numValue)) {
+          throw new Error(`Cannot coerce ${key} to number`)
+        }
+        coerced[key] = numValue
+        break
+      case 'boolean':
+        coerced[key] = Boolean(value)
+        break
+      default:
+        coerced[key] = value
+    }
+  }
 
-	return coerced;
+  return coerced
 }

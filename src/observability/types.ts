@@ -9,10 +9,10 @@
  * Log levels following standard severity hierarchy
  */
 export enum LogLevel {
-	DEBUG = 'debug',
-	INFO = 'info',
-	WARN = 'warn',
-	ERROR = 'error',
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARN = 'warn',
+  ERROR = 'error',
 }
 
 /**
@@ -22,25 +22,25 @@ export enum LogLevel {
  * so rich context enables powerful queries in the dashboard.
  */
 export interface LogContext {
-	// Request tracking
-	requestId?: string;
-	executionId?: string;
+  // Request tracking
+  requestId?: string
+  executionId?: string
 
-	// Execution context
-	ensembleName?: string;
-	memberName?: string;
-	stepIndex?: number;
-	attemptNumber?: number;
+  // Execution context
+  ensembleName?: string
+  memberName?: string
+  stepIndex?: number
+  attemptNumber?: number
 
-	// Performance
-	durationMs?: number;
+  // Performance
+  durationMs?: number
 
-	// User/session
-	userId?: string;
-	sessionId?: string;
+  // User/session
+  userId?: string
+  sessionId?: string
 
-	// Additional metadata
-	[key: string]: unknown;
+  // Additional metadata
+  [key: string]: unknown
 }
 
 /**
@@ -49,58 +49,58 @@ export interface LogContext {
  * This format is automatically parsed and indexed by Cloudflare Workers Logs
  */
 export interface LogEntry {
-	timestamp: string;
-	level: LogLevel;
-	message: string;
-	context?: LogContext;
-	error?: {
-		name: string;
-		message: string;
-		stack?: string;
-		code?: string;
-		details?: unknown;
-	};
+  timestamp: string
+  level: LogLevel
+  message: string
+  context?: LogContext
+  error?: {
+    name: string
+    message: string
+    stack?: string
+    code?: string
+    details?: unknown
+  }
 }
 
 /**
  * Logger configuration
  */
 export interface LoggerConfig {
-	/**
-	 * Minimum log level to output
-	 * @default LogLevel.INFO in production, LogLevel.DEBUG in development
-	 */
-	level?: LogLevel;
+  /**
+   * Minimum log level to output
+   * @default LogLevel.INFO in production, LogLevel.DEBUG in development
+   */
+  level?: LogLevel
 
-	/**
-	 * Service name for log identification
-	 * @default 'conductor'
-	 */
-	serviceName?: string;
+  /**
+   * Service name for log identification
+   * @default 'conductor'
+   */
+  serviceName?: string
 
-	/**
-	 * Environment name
-	 * @default 'production'
-	 */
-	environment?: string;
+  /**
+   * Environment name
+   * @default 'production'
+   */
+  environment?: string
 
-	/**
-	 * Enable debug mode (outputs all logs including DEBUG level)
-	 * Can be controlled via DEBUG env variable
-	 * @default false
-	 */
-	debug?: boolean;
+  /**
+   * Enable debug mode (outputs all logs including DEBUG level)
+   * Can be controlled via DEBUG env variable
+   * @default false
+   */
+  debug?: boolean
 
-	/**
-	 * Enable Analytics Engine integration for metrics
-	 * @default true
-	 */
-	enableAnalytics?: boolean;
+  /**
+   * Enable Analytics Engine integration for metrics
+   * @default true
+   */
+  enableAnalytics?: boolean
 
-	/**
-	 * Base context to include in all logs
-	 */
-	baseContext?: LogContext;
+  /**
+   * Base context to include in all logs
+   */
+  baseContext?: LogContext
 }
 
 /**
@@ -109,42 +109,42 @@ export interface LoggerConfig {
  * High-cardinality metrics for querying with SQL API
  */
 export interface MetricDataPoint {
-	/**
-	 * String values (up to 20)
-	 */
-	blobs?: string[];
+  /**
+   * String values (up to 20)
+   */
+  blobs?: string[]
 
-	/**
-	 * Numeric values (up to 20)
-	 */
-	doubles?: number[];
+  /**
+   * Numeric values (up to 20)
+   */
+  doubles?: number[]
 
-	/**
-	 * Index keys for querying (up to 20)
-	 */
-	indexes?: string[];
+  /**
+   * Index keys for querying (up to 20)
+   */
+  indexes?: string[]
 }
 
 /**
  * Trace span for distributed tracing
  */
 export interface TraceSpan {
-	name: string;
-	startTime: number;
-	endTime?: number;
-	attributes: Record<string, unknown>;
-	events: TraceEvent[];
-	status: 'ok' | 'error';
-	error?: Error;
+  name: string
+  startTime: number
+  endTime?: number
+  attributes: Record<string, unknown>
+  events: TraceEvent[]
+  status: 'ok' | 'error'
+  error?: Error
 }
 
 /**
  * Trace event within a span
  */
 export interface TraceEvent {
-	timestamp: number;
-	name: string;
-	attributes: Record<string, unknown>;
+  timestamp: number
+  name: string
+  attributes: Record<string, unknown>
 }
 
 /**
@@ -154,58 +154,58 @@ export interface TraceEvent {
  * consistent structure and integration with Cloudflare observability.
  */
 export interface Logger {
-	/**
-	 * Log debug information (development/troubleshooting)
-	 */
-	debug(message: string, context?: LogContext): void;
+  /**
+   * Log debug information (development/troubleshooting)
+   */
+  debug(message: string, context?: LogContext): void
 
-	/**
-	 * Log informational message
-	 */
-	info(message: string, context?: LogContext): void;
+  /**
+   * Log informational message
+   */
+  info(message: string, context?: LogContext): void
 
-	/**
-	 * Log warning
-	 */
-	warn(message: string, context?: LogContext): void;
+  /**
+   * Log warning
+   */
+  warn(message: string, context?: LogContext): void
 
-	/**
-	 * Log error
-	 */
-	error(message: string, error?: Error, context?: LogContext): void;
+  /**
+   * Log error
+   */
+  error(message: string, error?: Error, context?: LogContext): void
 
-	/**
-	 * Create child logger with additional context
-	 */
-	child(context: LogContext): Logger;
+  /**
+   * Create child logger with additional context
+   */
+  child(context: LogContext): Logger
 
-	/**
-	 * Record metric to Analytics Engine
-	 */
-	metric(name: string, data: MetricDataPoint): void;
+  /**
+   * Record metric to Analytics Engine
+   */
+  metric(name: string, data: MetricDataPoint): void
 }
 
 /**
  * Observability provider interface for extensibility
  */
 export interface ObservabilityProvider {
-	/**
-	 * Log a message
-	 */
-	log(entry: LogEntry): void;
+  /**
+   * Log a message
+   */
+  log(entry: LogEntry): void
 
-	/**
-	 * Record a metric
-	 */
-	recordMetric(name: string, data: MetricDataPoint): void;
+  /**
+   * Record a metric
+   */
+  recordMetric(name: string, data: MetricDataPoint): void
 
-	/**
-	 * Start a trace span
-	 */
-	startSpan(name: string, attributes: Record<string, unknown>): TraceSpan;
+  /**
+   * Start a trace span
+   */
+  startSpan(name: string, attributes: Record<string, unknown>): TraceSpan
 
-	/**
-	 * End a trace span
-	 */
-	endSpan(span: TraceSpan): void;
+  /**
+   * End a trace span
+   */
+  endSpan(span: TraceSpan): void
 }

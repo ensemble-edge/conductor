@@ -1,0 +1,44 @@
+/**
+ * @ensemble-edge/conductor
+ *
+ * Edge-native orchestration for AI members
+ * Built on Cloudflare Workers
+ */
+// Core Runtime
+export { Executor } from './runtime/executor';
+export { Parser } from './runtime/parser';
+export { StateManager } from './runtime/state-manager';
+// Durable Objects
+export { ExecutionState } from './durable-objects/execution-state';
+export { HITLState } from './durable-objects/hitl-state';
+// Member Types
+export { BaseMember } from './members/base-member';
+export { FunctionMember } from './members/function-member';
+export { ThinkMember } from './members/think-member';
+export { DataMember } from './members/data-member';
+export { APIMember } from './members/api-member';
+// Utilities
+export { MemberLoader, createLoader } from './utils/loader';
+/**
+ * Create a Cloudflare Worker handler with Conductor
+ *
+ * @example
+ * ```typescript
+ * import { createConductorHandler } from '@ensemble-edge/conductor';
+ *
+ * export default createConductorHandler({
+ *   membersDir: './members',
+ *   ensemblesDir: './ensembles'
+ * });
+ * ```
+ */
+export function createConductorHandler(config) {
+    return {
+        async fetch(request, env, ctx) {
+            // This will be implemented after we build the router and loader
+            return new Response('Conductor initialized - handler implementation coming soon', {
+                headers: { 'content-type': 'text/plain' },
+            });
+        },
+    };
+}

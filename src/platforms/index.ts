@@ -5,10 +5,10 @@
  */
 
 // Base platform types and interfaces
-export * from './base';
+export * from './base'
 
 // Platform adapters
-export { CloudflarePlatform, createCloudfarePlatform } from './cloudflare';
+export { CloudflarePlatform, createCloudfarePlatform } from './cloudflare'
 
 // Note: createCloudfarePlatform requires modelsData and capabilitiesData parameters
 // CLI commands load these from the platforms/ directory in the npm package

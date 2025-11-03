@@ -4,130 +4,126 @@
  * Provides a Repository interface over Cloudflare D1 (SQL database).
  */
 
-import { Result } from '../types/result';
-import { Errors, type ConductorError } from '../errors/error-types';
-import type { Repository, PutOptions, ListOptions, Serializer } from './repository';
-import { JSONSerializer } from './repository';
+import { Result } from '../types/result'
+import { Errors, type ConductorError } from '../errors/error-types'
+import type { Repository, PutOptions, ListOptions, Serializer } from './repository'
+import { JSONSerializer } from './repository'
 
 /**
  * Configuration for D1 repository
  */
 export interface D1RepositoryConfig {
-	/**
-	 * Table name
-	 */
-	tableName: string;
+  /**
+   * Table name
+   */
+  tableName: string
 
-	/**
-	 * ID column name (default: 'id')
-	 */
-	idColumn?: string;
+  /**
+   * ID column name (default: 'id')
+   */
+  idColumn?: string
 
-	/**
-	 * Value column name (default: 'value')
-	 */
-	valueColumn?: string;
+  /**
+   * Value column name (default: 'value')
+   */
+  valueColumn?: string
 
-	/**
-	 * Created at column name (default: 'created_at')
-	 */
-	createdAtColumn?: string;
+  /**
+   * Created at column name (default: 'created_at')
+   */
+  createdAtColumn?: string
 
-	/**
-	 * Updated at column name (default: 'updated_at')
-	 */
-	updatedAtColumn?: string;
+  /**
+   * Updated at column name (default: 'updated_at')
+   */
+  updatedAtColumn?: string
 
-	/**
-	 * Expiration column name (optional)
-	 */
-	expirationColumn?: string;
+  /**
+   * Expiration column name (optional)
+   */
+  expirationColumn?: string
 }
 
 /**
  * Repository implementation for Cloudflare D1
  */
 export class D1Repository<T> implements Repository<T, string> {
-	private readonly tableName: string;
-	private readonly idColumn: string;
-	private readonly valueColumn: string;
-	private readonly createdAtColumn: string;
-	private readonly updatedAtColumn: string;
-	private readonly expirationColumn?: string;
+  private readonly tableName: string
+  private readonly idColumn: string
+  private readonly valueColumn: string
+  private readonly createdAtColumn: string
+  private readonly updatedAtColumn: string
+  private readonly expirationColumn?: string
 
-	constructor(
-		private readonly binding: D1Database,
-		config: D1RepositoryConfig,
-		private readonly serializer: Serializer<T> = new JSONSerializer<T>()
-	) {
-		this.tableName = config.tableName;
-		this.idColumn = config.idColumn || 'id';
-		this.valueColumn = config.valueColumn || 'value';
-		this.createdAtColumn = config.createdAtColumn || 'created_at';
-		this.updatedAtColumn = config.updatedAtColumn || 'updated_at';
-		this.expirationColumn = config.expirationColumn;
-	}
+  constructor(
+    private readonly binding: D1Database,
+    config: D1RepositoryConfig,
+    private readonly serializer: Serializer<T> = new JSONSerializer<T>()
+  ) {
+    this.tableName = config.tableName
+    this.idColumn = config.idColumn || 'id'
+    this.valueColumn = config.valueColumn || 'value'
+    this.createdAtColumn = config.createdAtColumn || 'created_at'
+    this.updatedAtColumn = config.updatedAtColumn || 'updated_at'
+    this.expirationColumn = config.expirationColumn
+  }
 
-	/**
-	 * Get a value from D1
-	 */
-	async get(id: string): Promise<Result<T, ConductorError>> {
-		try {
-			const query = `
+  /**
+   * Get a value from D1
+   */
+  async get(id: string): Promise<Result<T, ConductorError>> {
+    try {
+      const query = `
 				SELECT ${this.valueColumn}, ${this.expirationColumn || 'NULL as expiration'}
 				FROM ${this.tableName}
 				WHERE ${this.idColumn} = ?
-			`;
+			`
 
-			const result = await this.binding.prepare(query).bind(id).first();
+      const result = await this.binding.prepare(query).bind(id).first()
 
-			if (!result) {
-				return Result.err(
-					Errors.storageNotFound(id, 'D1')
-				);
-			}
+      if (!result) {
+        return Result.err(Errors.storageNotFound(id, 'D1'))
+      }
 
-			// Check expiration if column exists
-			if (this.expirationColumn && result.expiration) {
-				const expiration = new Date(result.expiration as string).getTime();
-				if (expiration < Date.now()) {
-					// Expired - delete and return not found
-					await this.delete(id);
-					return Result.err(
-						Errors.storageNotFound(id, 'D1')
-					);
-				}
-			}
+      // Check expiration if column exists
+      if (this.expirationColumn && result.expiration) {
+        const expiration = new Date(result.expiration as string).getTime()
+        if (expiration < Date.now()) {
+          // Expired - delete and return not found
+          await this.delete(id)
+          return Result.err(Errors.storageNotFound(id, 'D1'))
+        }
+      }
 
-			const value = this.serializer.deserialize(result[this.valueColumn] as string);
-			return Result.ok(value);
-		} catch (error) {
-			return Result.err(
-				Errors.internal(
-					`D1 get operation failed for id "${id}"`,
-					error instanceof Error ? error : undefined
-				)
-			);
-		}
-	}
+      const value = this.serializer.deserialize(result[this.valueColumn] as string)
+      return Result.ok(value)
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 get operation failed for id "${id}"`,
+          error instanceof Error ? error : undefined
+        )
+      )
+    }
+  }
 
-	/**
-	 * Store a value in D1
-	 */
-	async put(id: string, value: T, options?: PutOptions): Promise<Result<void, ConductorError>> {
-		try {
-			const serialized = this.serializer.serialize(value);
-			const now = new Date().toISOString();
+  /**
+   * Store a value in D1
+   */
+  async put(id: string, value: T, options?: PutOptions): Promise<Result<void, ConductorError>> {
+    try {
+      const serialized = this.serializer.serialize(value)
+      const now = new Date().toISOString()
 
-			let query: string;
-			let params: unknown[];
+      let query: string
+      let params: unknown[]
 
-			if (this.expirationColumn && (options?.ttl || options?.expiration)) {
-				const expiration = options.expiration
-					? new Date(options.expiration * 1000).toISOString()
-					: new Date(Date.now() + (options.ttl! * 1000)).toISOString();
+      if (this.expirationColumn && (options?.ttl || options?.expiration)) {
+        const expiration = options.expiration
+          ? new Date(options.expiration * 1000).toISOString()
+          : new Date(Date.now() + options.ttl! * 1000).toISOString()
 
-				query = `
+        query = `
 					INSERT INTO ${this.tableName}
 					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn}, ${this.expirationColumn})
 					VALUES (?, ?, ?, ?, ?)
@@ -136,10 +132,10 @@ export class D1Repository<T> implements Repository<T, string> {
 						${this.valueColumn} = excluded.${this.valueColumn},
 						${this.updatedAtColumn} = excluded.${this.updatedAtColumn},
 						${this.expirationColumn} = excluded.${this.expirationColumn}
-				`;
-				params = [id, serialized, now, now, expiration];
-			} else {
-				query = `
+				`
+        params = [id, serialized, now, now, expiration]
+      } else {
+        query = `
 					INSERT INTO ${this.tableName}
 					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn})
 					VALUES (?, ?, ?, ?)
@@ -147,128 +143,131 @@ export class D1Repository<T> implements Repository<T, string> {
 					DO UPDATE SET
 						${this.valueColumn} = excluded.${this.valueColumn},
 						${this.updatedAtColumn} = excluded.${this.updatedAtColumn}
-				`;
-				params = [id, serialized, now, now];
-			}
+				`
+        params = [id, serialized, now, now]
+      }
 
-			await this.binding.prepare(query).bind(...params).run();
-			return Result.ok(undefined);
-		} catch (error) {
-			return Result.err(
-				Errors.internal(
-					`D1 put operation failed for id "${id}"`,
-					error instanceof Error ? error : undefined
-				)
-			);
-		}
-	}
+      await this.binding
+        .prepare(query)
+        .bind(...params)
+        .run()
+      return Result.ok(undefined)
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 put operation failed for id "${id}"`,
+          error instanceof Error ? error : undefined
+        )
+      )
+    }
+  }
 
-	/**
-	 * Delete a value from D1
-	 */
-	async delete(id: string): Promise<Result<void, ConductorError>> {
-		try {
-			const query = `DELETE FROM ${this.tableName} WHERE ${this.idColumn} = ?`;
-			await this.binding.prepare(query).bind(id).run();
-			return Result.ok(undefined);
-		} catch (error) {
-			return Result.err(
-				Errors.internal(
-					`D1 delete operation failed for id "${id}"`,
-					error instanceof Error ? error : undefined
-				)
-			);
-		}
-	}
+  /**
+   * Delete a value from D1
+   */
+  async delete(id: string): Promise<Result<void, ConductorError>> {
+    try {
+      const query = `DELETE FROM ${this.tableName} WHERE ${this.idColumn} = ?`
+      await this.binding.prepare(query).bind(id).run()
+      return Result.ok(undefined)
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 delete operation failed for id "${id}"`,
+          error instanceof Error ? error : undefined
+        )
+      )
+    }
+  }
 
-	/**
-	 * List values from D1
-	 */
-	async list(options?: ListOptions): Promise<Result<T[], ConductorError>> {
-		try {
-			let query = `SELECT ${this.valueColumn} FROM ${this.tableName}`;
-			const params: unknown[] = [];
+  /**
+   * List values from D1
+   */
+  async list(options?: ListOptions): Promise<Result<T[], ConductorError>> {
+    try {
+      let query = `SELECT ${this.valueColumn} FROM ${this.tableName}`
+      const params: unknown[] = []
 
-			// Add WHERE clause for prefix if needed
-			if (options?.prefix) {
-				query += ` WHERE ${this.idColumn} LIKE ?`;
-				params.push(`${options.prefix}%`);
-			}
+      // Add WHERE clause for prefix if needed
+      if (options?.prefix) {
+        query += ` WHERE ${this.idColumn} LIKE ?`
+        params.push(`${options.prefix}%`)
+      }
 
-			// Add expiration check
-			if (this.expirationColumn) {
-				const whereOrAnd = options?.prefix ? 'AND' : 'WHERE';
-				query += ` ${whereOrAnd} (${this.expirationColumn} IS NULL OR ${this.expirationColumn} > datetime('now'))`;
-			}
+      // Add expiration check
+      if (this.expirationColumn) {
+        const whereOrAnd = options?.prefix ? 'AND' : 'WHERE'
+        query += ` ${whereOrAnd} (${this.expirationColumn} IS NULL OR ${this.expirationColumn} > datetime('now'))`
+      }
 
-			// Add ORDER BY
-			query += ` ORDER BY ${this.createdAtColumn} DESC`;
+      // Add ORDER BY
+      query += ` ORDER BY ${this.createdAtColumn} DESC`
 
-			// Add LIMIT
-			if (options?.limit) {
-				query += ` LIMIT ?`;
-				params.push(options.limit);
-			}
+      // Add LIMIT
+      if (options?.limit) {
+        query += ` LIMIT ?`
+        params.push(options.limit)
+      }
 
-			const result = await this.binding.prepare(query).bind(...params).all();
+      const result = await this.binding
+        .prepare(query)
+        .bind(...params)
+        .all()
 
-			const values: T[] = result.results.map(row =>
-				this.serializer.deserialize(row[this.valueColumn] as string)
-			);
+      const values: T[] = result.results.map((row) =>
+        this.serializer.deserialize(row[this.valueColumn] as string)
+      )
 
-			return Result.ok(values);
-		} catch (error) {
-			return Result.err(
-				Errors.internal(
-					'D1 list operation failed',
-					error instanceof Error ? error : undefined
-				)
-			);
-		}
-	}
+      return Result.ok(values)
+    } catch (error) {
+      return Result.err(
+        Errors.internal('D1 list operation failed', error instanceof Error ? error : undefined)
+      )
+    }
+  }
 
-	/**
-	 * Check if an ID exists in D1
-	 */
-	async has(id: string): Promise<Result<boolean, ConductorError>> {
-		try {
-			const query = `SELECT 1 FROM ${this.tableName} WHERE ${this.idColumn} = ? LIMIT 1`;
-			const result = await this.binding.prepare(query).bind(id).first();
-			return Result.ok(result !== null);
-		} catch (error) {
-			return Result.err(
-				Errors.internal(
-					`D1 has operation failed for id "${id}"`,
-					error instanceof Error ? error : undefined
-				)
-			);
-		}
-	}
+  /**
+   * Check if an ID exists in D1
+   */
+  async has(id: string): Promise<Result<boolean, ConductorError>> {
+    try {
+      const query = `SELECT 1 FROM ${this.tableName} WHERE ${this.idColumn} = ? LIMIT 1`
+      const result = await this.binding.prepare(query).bind(id).first()
+      return Result.ok(result !== null)
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 has operation failed for id "${id}"`,
+          error instanceof Error ? error : undefined
+        )
+      )
+    }
+  }
 
-	/**
-	 * Clean up expired entries
-	 */
-	async cleanExpired(): Promise<Result<number, ConductorError>> {
-		if (!this.expirationColumn) {
-			return Result.ok(0);
-		}
+  /**
+   * Clean up expired entries
+   */
+  async cleanExpired(): Promise<Result<number, ConductorError>> {
+    if (!this.expirationColumn) {
+      return Result.ok(0)
+    }
 
-		try {
-			const query = `
+    try {
+      const query = `
 				DELETE FROM ${this.tableName}
 				WHERE ${this.expirationColumn} IS NOT NULL
 				AND ${this.expirationColumn} <= datetime('now')
-			`;
+			`
 
-			const result = await this.binding.prepare(query).run();
-			return Result.ok(result.meta.changes || 0);
-		} catch (error) {
-			return Result.err(
-				Errors.internal(
-					'D1 cleanExpired operation failed',
-					error instanceof Error ? error : undefined
-				)
-			);
-		}
-	}
+      const result = await this.binding.prepare(query).run()
+      return Result.ok(result.meta.changes || 0)
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          'D1 cleanExpired operation failed',
+          error instanceof Error ? error : undefined
+        )
+      )
+    }
+  }
 }

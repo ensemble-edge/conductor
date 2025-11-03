@@ -576,7 +576,7 @@ npx vitest --ui
 ### Member Development
 
 ```typescript
-import { createFunctionMember} from '@ensemble-edge/conductor/sdk';
+import { createFunctionMember } from '@ensemble-edge/conductor/sdk';
 
 export default createFunctionMember({
   async handler({ input }) {
@@ -611,34 +611,50 @@ for await (const chunk of client.streamEnsemble('analysis', input)) {
 
 ### Testing Utilities
 
+See the [Testing](#testing) section above for comprehensive testing examples using TestConductor, custom matchers, and mock providers.
+
 ```typescript
-import { mockContext } from '@ensemble-edge/conductor/sdk';
+import { TestConductor } from '@ensemble-edge/conductor/testing';
 
-test('greet member', async () => {
-  const context = mockContext({
-    input: { name: 'World' }
+describe('greet member', () => {
+  it('should greet user', async () => {
+    const conductor = await TestConductor.create({ projectPath: '.' });
+
+    const result = await conductor.executeMember('greet', {
+      name: 'World'
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.output.message).toBe('Hello, World!');
   });
-
-  const result = await greet(context);
-  expect(result.message).toBe('Hello, World!');
 });
 ```
 
-### Validation Helpers
+### Schema Validation
 
-```typescript
-import { validateInput } from '@ensemble-edge/conductor/sdk';
+Use JSON Schema in your member.yaml for input/output validation:
 
-export default async function myMember({ input }) {
-  // Runtime validation
-  validateInput(input, {
-    domain: 'string',
-    required: 'boolean?'  // Optional field
-  });
-
-  // Your logic here
-}
+```yaml
+# members/my-member/member.yaml
+name: my-member
+type: Function
+schema:
+  input:
+    type: object
+    properties:
+      domain:
+        type: string
+      required:
+        type: boolean
+    required: [domain]
+  output:
+    type: object
+    properties:
+      result:
+        type: string
 ```
+
+Conductor automatically validates inputs/outputs against your schema at runtime.
 
 ## CLI Commands
 
@@ -1761,18 +1777,24 @@ config:
 
 **Use when**: Configuration is simple and doesn't change often.
 
-#### Pattern 2: Edgit Reference (Production)
+#### Pattern 2: Edgit Reference (Planned)
 
-Member loads versioned prompt from Edgit.
+> **Note**: Edgit runtime integration is planned for a future release. The API below shows the intended interface.
+
+Member loads versioned prompt from Edgit:
 
 ```typescript
 // members/company-analysis/index.ts
-import { createThinkMember, loadComponent } from '@ensemble-edge/conductor/sdk';
+import { createThinkMember } from '@ensemble-edge/conductor/sdk';
+// import { loadComponent } from '@ensemble-edge/edgit'; // Future
 
 export default createThinkMember({
   async handler({ input, env }) {
-    // Load versioned prompt from Edgit
-    const prompt = await loadComponent('company-analysis-prompt@v1.2.0', env);
+    // Future: Load versioned prompt from Edgit
+    // const prompt = await loadComponent('company-analysis-prompt@v1.2.0', env);
+
+    // For now: Load from local file or inline
+    const prompt = "You are an expert at analyzing companies...";
 
     // Use with AI
     const response = await callAI(prompt, input);
@@ -1783,36 +1805,43 @@ export default createThinkMember({
 
 **Use when**: Prompts need versioning, testing, and independent deployment.
 
-#### Pattern 3: Co-located Development (Development to Production)
+#### Pattern 3: Co-located Development (Current Approach)
 
-During development, keep prompt with member. When ready for production, register with Edgit.
+During development, keep prompts with members or in shared prompts directory.
 
 ```bash
-# 1. Create member with prompt
+# 1. Create member with prompt file
 conductor add member analyze-company --type Think --with-prompt
 
 # 2. Develop and test locally
 # Edit members/analyze-company/prompt.md
 # Edit members/analyze-company/index.ts
 
-# 3. When ready, register prompt with Edgit
-edgit component publish members/analyze-company/prompt.md
+# 3. Load prompt in your member implementation
+# Read prompt.md from filesystem or include inline in member config
 
-# 4. Update code to load from Edgit
-# Change implementation to use loadComponent('analyze-company-prompt@v1.0.0', env)
+# 4. Future: When Edgit integration is complete
+# Register prompt: edgit component publish prompts/analyze-company.md
+# Load at runtime: loadComponent('analyze-company-prompt@v1.0.0', env)
 ```
 
-**Use when**: Starting new Think members - evolve from local to versioned.
+**Use when**: Starting new Think members - currently the recommended approach until Edgit runtime integration is complete.
 
-### Example: Think Member with Edgit
+### Example: Think Member with Edgit (Planned)
+
+> **Note**: Full Edgit runtime integration coming soon. Currently use inline prompts or load from local files.
 
 ```typescript
-import { createThinkMember, loadComponent } from '@ensemble-edge/conductor/sdk';
+import { createThinkMember } from '@ensemble-edge/conductor/sdk';
+// import { loadComponent } from '@ensemble-edge/edgit'; // Future
 
 export default createThinkMember({
   async handler({ input, state, env }) {
-    // Load versioned prompt from Edgit
-    const systemPrompt = await loadComponent('analysis-system-prompt@v2.1.0', env);
+    // Future: Load versioned prompt from Edgit
+    // const systemPrompt = await loadComponent('analysis-system-prompt@v2.1.0', env);
+
+    // Current: Inline prompt or load from member config
+    const systemPrompt = "You are an expert analyst...";
 
     // Combine with dynamic context
     const messages = [
@@ -1827,8 +1856,7 @@ export default createThinkMember({
     });
 
     return {
-      content: response.result,
-      version: 'v2.1.0'  // Track which prompt version was used
+      content: response.result
     };
   }
 });

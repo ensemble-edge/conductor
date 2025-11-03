@@ -5,87 +5,87 @@
  * Makes it trivial to add new providers without modifying existing code.
  */
 
-import type { AIProvider } from './base-provider';
-import type { ProviderId } from '../../types/branded';
-import { OpenAIProvider } from './openai-provider';
-import { AnthropicProvider } from './anthropic-provider';
-import { CloudflareProvider } from './cloudflare-provider';
-import { CustomProvider } from './custom-provider';
+import type { AIProvider } from './base-provider'
+import type { ProviderId } from '../../types/branded'
+import { OpenAIProvider } from './openai-provider'
+import { AnthropicProvider } from './anthropic-provider'
+import { CloudflareProvider } from './cloudflare-provider'
+import { CustomProvider } from './custom-provider'
 
 /**
  * Provider Registry - manages all AI providers
  */
 export class ProviderRegistry {
-	private providers = new Map<string, AIProvider>();
+  private providers = new Map<string, AIProvider>()
 
-	constructor() {
-		this.registerDefaultProviders();
-	}
+  constructor() {
+    this.registerDefaultProviders()
+  }
 
-	/**
-	 * Register default providers
-	 */
-	private registerDefaultProviders(): void {
-		this.register(new OpenAIProvider());
-		this.register(new AnthropicProvider());
-		this.register(new CloudflareProvider());
-		this.register(new CustomProvider());
-	}
+  /**
+   * Register default providers
+   */
+  private registerDefaultProviders(): void {
+    this.register(new OpenAIProvider())
+    this.register(new AnthropicProvider())
+    this.register(new CloudflareProvider())
+    this.register(new CustomProvider())
+  }
 
-	/**
-	 * Register a provider
-	 */
-	register(provider: AIProvider): void {
-		this.providers.set(provider.id, provider);
-	}
+  /**
+   * Register a provider
+   */
+  register(provider: AIProvider): void {
+    this.providers.set(provider.id, provider)
+  }
 
-	/**
-	 * Get provider by ID
-	 */
-	get(providerId: string): AIProvider | null {
-		return this.providers.get(providerId) || null;
-	}
+  /**
+   * Get provider by ID
+   */
+  get(providerId: string): AIProvider | null {
+    return this.providers.get(providerId) || null
+  }
 
-	/**
-	 * Check if provider exists
-	 */
-	has(providerId: string): boolean {
-		return this.providers.has(providerId);
-	}
+  /**
+   * Check if provider exists
+   */
+  has(providerId: string): boolean {
+    return this.providers.has(providerId)
+  }
 
-	/**
-	 * Get all registered provider IDs
-	 */
-	getProviderIds(): string[] {
-		return Array.from(this.providers.keys());
-	}
+  /**
+   * Get all registered provider IDs
+   */
+  getProviderIds(): string[] {
+    return Array.from(this.providers.keys())
+  }
 
-	/**
-	 * Get all registered providers
-	 */
-	getAllProviders(): AIProvider[] {
-		return Array.from(this.providers.values());
-	}
+  /**
+   * Get all registered providers
+   */
+  getAllProviders(): AIProvider[] {
+    return Array.from(this.providers.values())
+  }
 }
 
 /**
  * Singleton instance for global use
  */
-let globalRegistry: ProviderRegistry | null = null;
+let globalRegistry: ProviderRegistry | null = null
 
 /**
  * Get global provider registry
  */
 export function getProviderRegistry(): ProviderRegistry {
-	if (!globalRegistry) {
-		globalRegistry = new ProviderRegistry();
-	}
-	return globalRegistry;
+  if (!globalRegistry) {
+    globalRegistry = new ProviderRegistry()
+  }
+  return globalRegistry
 }
 
 /**
  * Reset global registry (useful for testing)
  */
 export function resetProviderRegistry(): void {
-	globalRegistry = null;
+  globalRegistry = null
 }

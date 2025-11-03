@@ -4,249 +4,256 @@
  * Asynchronous execution with status polling and webhooks.
  */
 
-import { Hono } from 'hono';
-import type { ConductorContext, AsyncExecuteRequest, AsyncExecuteResponse } from '../types';
-import { getBuiltInRegistry } from '../../members/built-in/registry';
-import type { MemberExecutionContext } from '../../members/base-member';
-import { createLogger } from '../../observability';
+import { Hono } from 'hono'
+import type { ConductorContext, AsyncExecuteRequest, AsyncExecuteResponse } from '../types'
+import { getBuiltInRegistry } from '../../members/built-in/registry'
+import type { MemberExecutionContext } from '../../members/base-member'
+import { createLogger } from '../../observability'
 
-const async = new Hono<{ Bindings: Env }>();
-const logger = createLogger({ serviceName: 'api-async' });
+const async = new Hono<{ Bindings: Env }>()
+const logger = createLogger({ serviceName: 'api-async' })
 
 // In-memory execution tracking (in production, use Durable Objects or D1)
 const executions = new Map<
-	string,
-	{
-		status: 'queued' | 'running' | 'completed' | 'failed';
-		result?: unknown;
-		error?: string;
-		startedAt?: number;
-		completedAt?: number;
-		request: AsyncExecuteRequest;
-	}
->();
+  string,
+  {
+    status: 'queued' | 'running' | 'completed' | 'failed'
+    result?: unknown
+    error?: string
+    startedAt?: number
+    completedAt?: number
+    request: AsyncExecuteRequest
+  }
+>()
 
 /**
  * POST /async - Execute a member asynchronously
  */
 async.post('/', async (c: ConductorContext) => {
-	const body = await c.req.json<AsyncExecuteRequest>();
-	const requestId = c.get('requestId') || generateExecutionId();
+  const body = await c.req.json<AsyncExecuteRequest>()
+  const requestId = c.get('requestId') || generateExecutionId()
 
-	// Validate request
-	if (!body.member || !body.input) {
-		return c.json(
-			{
-				error: 'ValidationError',
-				message: 'Member name and input are required',
-				timestamp: Date.now()
-			},
-			400
-		);
-	}
+  // Validate request
+  if (!body.member || !body.input) {
+    return c.json(
+      {
+        error: 'ValidationError',
+        message: 'Member name and input are required',
+        timestamp: Date.now(),
+      },
+      400
+    )
+  }
 
-	// Store execution request
-	executions.set(requestId, {
-		status: 'queued',
-		request: body
-	});
+  // Store execution request
+  executions.set(requestId, {
+    status: 'queued',
+    request: body,
+  })
 
-	// Queue execution (in background)
-	c.executionCtx.waitUntil(executeAsync(requestId, body, c.env));
+  // Queue execution (in background)
+  c.executionCtx.waitUntil(executeAsync(requestId, body, c.env))
 
-	// Return execution ID
-	const response: AsyncExecuteResponse = {
-		executionId: requestId,
-		status: 'queued',
-		queuePosition: 0,
-		estimatedTime: 5000 // 5 seconds estimate
-	};
+  // Return execution ID
+  const response: AsyncExecuteResponse = {
+    executionId: requestId,
+    status: 'queued',
+    queuePosition: 0,
+    estimatedTime: 5000, // 5 seconds estimate
+  }
 
-	return c.json(response, 202);
-});
+  return c.json(response, 202)
+})
 
 /**
  * GET /async/:executionId - Get execution status
  */
 async.get('/:executionId', (c: ConductorContext) => {
-	const executionId = c.req.param('executionId');
-	const execution = executions.get(executionId);
+  const executionId = c.req.param('executionId')
+  const execution = executions.get(executionId)
 
-	if (!execution) {
-		return c.json(
-			{
-				error: 'NotFound',
-				message: `Execution not found: ${executionId}`,
-				timestamp: Date.now()
-			},
-			404
-		);
-	}
+  if (!execution) {
+    return c.json(
+      {
+        error: 'NotFound',
+        message: `Execution not found: ${executionId}`,
+        timestamp: Date.now(),
+      },
+      404
+    )
+  }
 
-	// Return status
-	return c.json({
-		executionId,
-		status: execution.status,
-		result: execution.status === 'completed' ? execution.result : undefined,
-		error: execution.status === 'failed' ? execution.error : undefined,
-		startedAt: execution.startedAt,
-		completedAt: execution.completedAt,
-		duration: execution.completedAt && execution.startedAt ? execution.completedAt - execution.startedAt : undefined
-	});
-});
+  // Return status
+  return c.json({
+    executionId,
+    status: execution.status,
+    result: execution.status === 'completed' ? execution.result : undefined,
+    error: execution.status === 'failed' ? execution.error : undefined,
+    startedAt: execution.startedAt,
+    completedAt: execution.completedAt,
+    duration:
+      execution.completedAt && execution.startedAt
+        ? execution.completedAt - execution.startedAt
+        : undefined,
+  })
+})
 
 /**
  * DELETE /async/:executionId - Cancel execution
  */
 async.delete('/:executionId', (c: ConductorContext) => {
-	const executionId = c.req.param('executionId');
-	const execution = executions.get(executionId);
+  const executionId = c.req.param('executionId')
+  const execution = executions.get(executionId)
 
-	if (!execution) {
-		return c.json(
-			{
-				error: 'NotFound',
-				message: `Execution not found: ${executionId}`,
-				timestamp: Date.now()
-			},
-			404
-		);
-	}
+  if (!execution) {
+    return c.json(
+      {
+        error: 'NotFound',
+        message: `Execution not found: ${executionId}`,
+        timestamp: Date.now(),
+      },
+      404
+    )
+  }
 
-	// Can only cancel queued or running executions
-	if (execution.status !== 'queued' && execution.status !== 'running') {
-		return c.json(
-			{
-				error: 'InvalidState',
-				message: `Cannot cancel execution in state: ${execution.status}`,
-				timestamp: Date.now()
-			},
-			400
-		);
-	}
+  // Can only cancel queued or running executions
+  if (execution.status !== 'queued' && execution.status !== 'running') {
+    return c.json(
+      {
+        error: 'InvalidState',
+        message: `Cannot cancel execution in state: ${execution.status}`,
+        timestamp: Date.now(),
+      },
+      400
+    )
+  }
 
-	// Update status to failed (cancellation)
-	execution.status = 'failed';
-	execution.error = 'Execution cancelled by user';
-	execution.completedAt = Date.now();
+  // Update status to failed (cancellation)
+  execution.status = 'failed'
+  execution.error = 'Execution cancelled by user'
+  execution.completedAt = Date.now()
 
-	return c.json({
-		executionId,
-		status: 'cancelled',
-		message: 'Execution cancelled successfully'
-	});
-});
+  return c.json({
+    executionId,
+    status: 'cancelled',
+    message: 'Execution cancelled successfully',
+  })
+})
 
 /**
  * Execute asynchronously in background
  */
-async function executeAsync(executionId: string, request: AsyncExecuteRequest, env: Env): Promise<void> {
-	const execution = executions.get(executionId);
-	if (!execution) return;
+async function executeAsync(
+  executionId: string,
+  request: AsyncExecuteRequest,
+  env: Env
+): Promise<void> {
+  const execution = executions.get(executionId)
+  if (!execution) return
 
-	try {
-		// Update status
-		execution.status = 'running';
-		execution.startedAt = Date.now();
+  try {
+    // Update status
+    execution.status = 'running'
+    execution.startedAt = Date.now()
 
-		// Get built-in registry
-		const builtInRegistry = getBuiltInRegistry();
+    // Get built-in registry
+    const builtInRegistry = getBuiltInRegistry()
 
-		// Check if member exists
-		if (!builtInRegistry.isBuiltIn(request.member)) {
-			throw new Error(`Member not found: ${request.member}`);
-		}
+    // Check if member exists
+    if (!builtInRegistry.isBuiltIn(request.member)) {
+      throw new Error(`Member not found: ${request.member}`)
+    }
 
-		// Get member metadata
-		const metadata = builtInRegistry.getMetadata(request.member);
-		if (!metadata) {
-			throw new Error(`Member metadata not found: ${request.member}`);
-		}
+    // Get member metadata
+    const metadata = builtInRegistry.getMetadata(request.member)
+    if (!metadata) {
+      throw new Error(`Member metadata not found: ${request.member}`)
+    }
 
-		// Create member instance
-		const memberConfig = {
-			name: request.member,
-			type: metadata.type,
-			config: request.config || {}
-		};
+    // Create member instance
+    const memberConfig = {
+      name: request.member,
+      type: metadata.type,
+      config: request.config || {},
+    }
 
-		const member = builtInRegistry.create(request.member, memberConfig, env);
+    const member = builtInRegistry.create(request.member, memberConfig, env)
 
-		// Create execution context (simplified - no real ctx available)
-		const memberContext: MemberExecutionContext = {
-			input: request.input,
-			env: env,
-			ctx: {
-				waitUntil: () => {},
-				passThroughOnException: () => {}
-			} as unknown as ExecutionContext
-		};
+    // Create execution context (simplified - no real ctx available)
+    const memberContext: MemberExecutionContext = {
+      input: request.input,
+      env: env,
+      ctx: {
+        waitUntil: () => {},
+        passThroughOnException: () => {},
+      } as unknown as ExecutionContext,
+    }
 
-		// Execute member
-		const result = await member.execute(memberContext);
+    // Execute member
+    const result = await member.execute(memberContext)
 
-		// Update status
-		if (result.success) {
-			execution.status = 'completed';
-			execution.result = result.data;
-		} else {
-			execution.status = 'failed';
-			execution.error = result.error || 'Execution failed';
-		}
-		execution.completedAt = Date.now();
+    // Update status
+    if (result.success) {
+      execution.status = 'completed'
+      execution.result = result.data
+    } else {
+      execution.status = 'failed'
+      execution.error = result.error || 'Execution failed'
+    }
+    execution.completedAt = Date.now()
 
-		// Send webhook if configured
-		if (request.callbackUrl) {
-			await sendWebhook(request.callbackUrl, {
-				executionId,
-				status: execution.status,
-				result: execution.result,
-				error: execution.error,
-				duration: execution.completedAt - (execution.startedAt || 0)
-			});
-		}
-	} catch (error) {
-		// Update status on error
-		execution.status = 'failed';
-		execution.error = (error as Error).message || 'Execution failed';
-		execution.completedAt = Date.now();
+    // Send webhook if configured
+    if (request.callbackUrl) {
+      await sendWebhook(request.callbackUrl, {
+        executionId,
+        status: execution.status,
+        result: execution.result,
+        error: execution.error,
+        duration: execution.completedAt - (execution.startedAt || 0),
+      })
+    }
+  } catch (error) {
+    // Update status on error
+    execution.status = 'failed'
+    execution.error = (error as Error).message || 'Execution failed'
+    execution.completedAt = Date.now()
 
-		// Send webhook on error
-		if (request.callbackUrl) {
-			await sendWebhook(request.callbackUrl, {
-				executionId,
-				status: 'failed',
-				error: execution.error
-			});
-		}
-	}
+    // Send webhook on error
+    if (request.callbackUrl) {
+      await sendWebhook(request.callbackUrl, {
+        executionId,
+        status: 'failed',
+        error: execution.error,
+      })
+    }
+  }
 }
 
 /**
  * Send webhook notification
  */
 async function sendWebhook(url: string, data: unknown): Promise<void> {
-	try {
-		await fetch(url, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'User-Agent': 'Conductor/1.0'
-			},
-			body: JSON.stringify(data)
-		});
-	} catch (error) {
-		logger.error('Webhook notification failed', error instanceof Error ? error : undefined, {
-			url
-		});
-	}
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Conductor/1.0',
+      },
+      body: JSON.stringify(data),
+    })
+  } catch (error) {
+    logger.error('Webhook notification failed', error instanceof Error ? error : undefined, {
+      url,
+    })
+  }
 }
 
 /**
  * Generate cryptographically secure execution ID
  */
 function generateExecutionId(): string {
-	return `exec_${crypto.randomUUID()}`;
+  return `exec_${crypto.randomUUID()}`
 }
 
-export default async;
+export default async

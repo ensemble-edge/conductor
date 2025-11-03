@@ -4,141 +4,141 @@
  * Endpoints for executing members synchronously and asynchronously.
  */
 
-import { Hono } from 'hono';
-import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types';
-import { getBuiltInRegistry } from '../../members/built-in/registry';
-import { MemberType } from '../../types/constants';
-import type { MemberExecutionContext } from '../../members/base-member';
-import { createLogger } from '../../observability';
+import { Hono } from 'hono'
+import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types'
+import { getBuiltInRegistry } from '../../members/built-in/registry'
+import { MemberType } from '../../types/constants'
+import type { MemberExecutionContext } from '../../members/base-member'
+import { createLogger } from '../../observability'
 
-const execute = new Hono<{ Bindings: Env }>();
-const logger = createLogger({ serviceName: 'api-execute' });
+const execute = new Hono<{ Bindings: Env }>()
+const logger = createLogger({ serviceName: 'api-execute' })
 
 /**
  * POST /execute - Execute a member synchronously
  */
 execute.post('/', async (c: ConductorContext) => {
-	const startTime = Date.now();
-	const auth = c.get('auth');
-	const requestId = c.get('requestId');
+  const startTime = Date.now()
+  const auth = c.get('auth')
+  const requestId = c.get('requestId')
 
-	// Parse request body
-	const body = await c.req.json<ExecuteRequest>();
+  // Parse request body
+  const body = await c.req.json<ExecuteRequest>()
 
-	// Validate request
-	if (!body.member) {
-		return c.json(
-			{
-				error: 'ValidationError',
-				message: 'Member name is required',
-				timestamp: Date.now()
-			},
-			400
-		);
-	}
+  // Validate request
+  if (!body.member) {
+    return c.json(
+      {
+        error: 'ValidationError',
+        message: 'Member name is required',
+        timestamp: Date.now(),
+      },
+      400
+    )
+  }
 
-	if (!body.input) {
-		return c.json(
-			{
-				error: 'ValidationError',
-				message: 'Input is required',
-				timestamp: Date.now()
-			},
-			400
-		);
-	}
+  if (!body.input) {
+    return c.json(
+      {
+        error: 'ValidationError',
+        message: 'Input is required',
+        timestamp: Date.now(),
+      },
+      400
+    )
+  }
 
-	try {
-		// Get built-in registry
-		const builtInRegistry = getBuiltInRegistry();
+  try {
+    // Get built-in registry
+    const builtInRegistry = getBuiltInRegistry()
 
-		// Check if member exists
-		if (!builtInRegistry.isBuiltIn(body.member)) {
-			return c.json(
-				{
-					error: 'MemberNotFound',
-					message: `Member not found: ${body.member}`,
-					timestamp: Date.now(),
-					requestId
-				},
-				404
-			);
-		}
+    // Check if member exists
+    if (!builtInRegistry.isBuiltIn(body.member)) {
+      return c.json(
+        {
+          error: 'MemberNotFound',
+          message: `Member not found: ${body.member}`,
+          timestamp: Date.now(),
+          requestId,
+        },
+        404
+      )
+    }
 
-		// Get member metadata
-		const metadata = builtInRegistry.getMetadata(body.member);
-		if (!metadata) {
-			return c.json(
-				{
-					error: 'MemberNotFound',
-					message: `Member metadata not found: ${body.member}`,
-					timestamp: Date.now(),
-					requestId
-				},
-				404
-			);
-		}
+    // Get member metadata
+    const metadata = builtInRegistry.getMetadata(body.member)
+    if (!metadata) {
+      return c.json(
+        {
+          error: 'MemberNotFound',
+          message: `Member metadata not found: ${body.member}`,
+          timestamp: Date.now(),
+          requestId,
+        },
+        404
+      )
+    }
 
-		// Create member instance
-		const memberConfig = {
-			name: body.member,
-			type: metadata.type,
-			config: body.config || {}
-		};
+    // Create member instance
+    const memberConfig = {
+      name: body.member,
+      type: metadata.type,
+      config: body.config || {},
+    }
 
-		const member = builtInRegistry.create(body.member, memberConfig, c.env);
+    const member = builtInRegistry.create(body.member, memberConfig, c.env)
 
-		// Create execution context
-		const memberContext: MemberExecutionContext = {
-			input: body.input,
-			env: c.env,
-			ctx: c.executionCtx
-		};
+    // Create execution context
+    const memberContext: MemberExecutionContext = {
+      input: body.input,
+      env: c.env,
+      ctx: c.executionCtx,
+    }
 
-		// Execute member
-		const result = await member.execute(memberContext);
+    // Execute member
+    const result = await member.execute(memberContext)
 
-		// Check if execution was successful
-		if (!result.success) {
-			return c.json(
-				{
-					error: 'ExecutionError',
-					message: result.error || 'Execution failed',
-					timestamp: Date.now(),
-					requestId
-				},
-				500
-			);
-		}
+    // Check if execution was successful
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'ExecutionError',
+          message: result.error || 'Execution failed',
+          timestamp: Date.now(),
+          requestId,
+        },
+        500
+      )
+    }
 
-		// Return success response
-		const response: ExecuteResponse = {
-			success: true,
-			data: result.data,
-			metadata: {
-				executionId: requestId || 'unknown',
-				duration: Date.now() - startTime,
-				timestamp: Date.now()
-			}
-		};
+    // Return success response
+    const response: ExecuteResponse = {
+      success: true,
+      data: result.data,
+      metadata: {
+        executionId: requestId || 'unknown',
+        duration: Date.now() - startTime,
+        timestamp: Date.now(),
+      },
+    }
 
-		return c.json(response);
-	} catch (error) {
-		logger.error('Member execution failed', error instanceof Error ? error : undefined, {
-			requestId,
-			memberName: body?.member || 'unknown'
-		});
+    return c.json(response)
+  } catch (error) {
+    logger.error('Member execution failed', error instanceof Error ? error : undefined, {
+      requestId,
+      memberName: body?.member || 'unknown',
+    })
 
-		return c.json(
-			{
-				error: 'ExecutionError',
-				message: (error as Error).message || 'Execution failed',
-				timestamp: Date.now(),
-				requestId
-			},
-			500
-		);
-	}
-});
+    return c.json(
+      {
+        error: 'ExecutionError',
+        message: (error as Error).message || 'Execution failed',
+        timestamp: Date.now(),
+        requestId,
+      },
+      500
+    )
+  }
+})
 
-export default execute;
+export default execute

@@ -35,24 +35,19 @@
  * @see https://developers.cloudflare.com/workers/observability/
  */
 
-export { LogLevel } from './types';
+export { LogLevel } from './types'
 export type {
-	Logger,
-	LoggerConfig,
-	LogContext,
-	LogEntry,
-	MetricDataPoint,
-	ObservabilityProvider,
-	TraceSpan,
-	TraceEvent,
-} from './types';
+  Logger,
+  LoggerConfig,
+  LogContext,
+  LogEntry,
+  MetricDataPoint,
+  ObservabilityProvider,
+  TraceSpan,
+  TraceEvent,
+} from './types'
 
-export {
-	ConductorLogger,
-	createLogger,
-	setGlobalLogger,
-	getGlobalLogger,
-} from './logger';
+export { ConductorLogger, createLogger, setGlobalLogger, getGlobalLogger } from './logger'
 
-export type { OpenTelemetryConfig } from './opentelemetry';
-export { OpenTelemetryLogger, createOpenTelemetryLogger } from './opentelemetry';
+export type { OpenTelemetryConfig } from './opentelemetry'
+export { OpenTelemetryLogger, createOpenTelemetryLogger } from './opentelemetry'

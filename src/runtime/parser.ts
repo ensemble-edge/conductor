@@ -5,204 +5,242 @@
  * Reduced resolveInterpolation from 42 lines to 1 line via chain of responsibility.
  */
 
-import * as YAML from 'yaml';
-import { z } from 'zod';
-import { getInterpolator } from './interpolation';
-import type { ResolutionContext } from './interpolation';
-import { MemberType } from '../types/constants';
+import * as YAML from 'yaml'
+import { z } from 'zod'
+import { getInterpolator } from './interpolation'
+import type { ResolutionContext } from './interpolation'
+import { MemberType } from '../types/constants'
 
 /**
  * Schema for validating ensemble configuration
  */
 const EnsembleSchema = z.object({
-	name: z.string().min(1, 'Ensemble name is required'),
-	description: z.string().optional(),
-	state: z.object({
-		schema: z.record(z.unknown()).optional(),
-		initial: z.record(z.unknown()).optional()
-	}).optional(),
-	scoring: z.object({
-		enabled: z.boolean(),
-		defaultThresholds: z.object({
-			minimum: z.number().min(0).max(1),
-			target: z.number().min(0).max(1).optional(),
-			excellent: z.number().min(0).max(1).optional()
-		}),
-		maxRetries: z.number().positive().optional(),
-		backoffStrategy: z.enum(['linear', 'exponential', 'fixed']).optional(),
-		initialBackoff: z.number().positive().optional(),
-		trackInState: z.boolean().optional(),
-		criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
-		aggregation: z.enum(['weighted_average', 'minimum', 'geometric_mean']).optional()
-	}).optional(),
-	webhooks: z.array(z.object({
-		path: z.string().min(1),
-		method: z.enum(['POST', 'GET']).optional(),
-		auth: z.object({
-			type: z.enum(['bearer', 'signature', 'basic']),
-			secret: z.string()
-		}).optional(),
-		mode: z.enum(['trigger', 'resume']).optional(),
-		async: z.boolean().optional(),
-		timeout: z.number().positive().optional()
-	})).optional(),
-	schedules: z.array(z.object({
-		cron: z.string().min(1, 'Cron expression is required'),
-		timezone: z.string().optional(),
-		enabled: z.boolean().optional(),
-		input: z.record(z.unknown()).optional(),
-		metadata: z.record(z.unknown()).optional()
-	})).optional(),
-	flow: z.array(z.object({
-		member: z.string().min(1, 'Member name is required'),
-		input: z.record(z.unknown()).optional(),
-		state: z.object({
-			use: z.array(z.string()).optional(),
-			set: z.array(z.string()).optional()
-		}).optional(),
-		cache: z.object({
-			ttl: z.number().positive().optional(),
-			bypass: z.boolean().optional()
-		}).optional(),
-		scoring: z.object({
-			evaluator: z.string().min(1),
-			thresholds: z.object({
-				minimum: z.number().min(0).max(1).optional(),
-				target: z.number().min(0).max(1).optional(),
-				excellent: z.number().min(0).max(1).optional()
-			}).optional(),
-			criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
-			onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
-			retryLimit: z.number().positive().optional(),
-			requireImprovement: z.boolean().optional(),
-			minImprovement: z.number().min(0).max(1).optional()
-		}).optional(),
-		condition: z.unknown().optional()
-	})),
-	output: z.record(z.unknown()).optional()
-});
+  name: z.string().min(1, 'Ensemble name is required'),
+  description: z.string().optional(),
+  state: z
+    .object({
+      schema: z.record(z.unknown()).optional(),
+      initial: z.record(z.unknown()).optional(),
+    })
+    .optional(),
+  scoring: z
+    .object({
+      enabled: z.boolean(),
+      defaultThresholds: z.object({
+        minimum: z.number().min(0).max(1),
+        target: z.number().min(0).max(1).optional(),
+        excellent: z.number().min(0).max(1).optional(),
+      }),
+      maxRetries: z.number().positive().optional(),
+      backoffStrategy: z.enum(['linear', 'exponential', 'fixed']).optional(),
+      initialBackoff: z.number().positive().optional(),
+      trackInState: z.boolean().optional(),
+      criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
+      aggregation: z.enum(['weighted_average', 'minimum', 'geometric_mean']).optional(),
+    })
+    .optional(),
+  webhooks: z
+    .array(
+      z.object({
+        path: z.string().min(1),
+        method: z.enum(['POST', 'GET']).optional(),
+        auth: z
+          .object({
+            type: z.enum(['bearer', 'signature', 'basic']),
+            secret: z.string(),
+          })
+          .optional(),
+        mode: z.enum(['trigger', 'resume']).optional(),
+        async: z.boolean().optional(),
+        timeout: z.number().positive().optional(),
+      })
+    )
+    .optional(),
+  schedules: z
+    .array(
+      z.object({
+        cron: z.string().min(1, 'Cron expression is required'),
+        timezone: z.string().optional(),
+        enabled: z.boolean().optional(),
+        input: z.record(z.unknown()).optional(),
+        metadata: z.record(z.unknown()).optional(),
+      })
+    )
+    .optional(),
+  flow: z.array(
+    z.object({
+      member: z.string().min(1, 'Member name is required'),
+      input: z.record(z.unknown()).optional(),
+      state: z
+        .object({
+          use: z.array(z.string()).optional(),
+          set: z.array(z.string()).optional(),
+        })
+        .optional(),
+      cache: z
+        .object({
+          ttl: z.number().positive().optional(),
+          bypass: z.boolean().optional(),
+        })
+        .optional(),
+      scoring: z
+        .object({
+          evaluator: z.string().min(1),
+          thresholds: z
+            .object({
+              minimum: z.number().min(0).max(1).optional(),
+              target: z.number().min(0).max(1).optional(),
+              excellent: z.number().min(0).max(1).optional(),
+            })
+            .optional(),
+          criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
+          onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
+          retryLimit: z.number().positive().optional(),
+          requireImprovement: z.boolean().optional(),
+          minImprovement: z.number().min(0).max(1).optional(),
+        })
+        .optional(),
+      condition: z.unknown().optional(),
+    })
+  ),
+  output: z.record(z.unknown()).optional(),
+})
 
 const MemberSchema = z.object({
-	name: z.string().min(1, 'Member name is required'),
-	type: z.enum([
-		MemberType.Think,
-		MemberType.Function,
-		MemberType.Data,
-		MemberType.API,
-		MemberType.MCP,
-		MemberType.Scoring
-	]),
-	description: z.string().optional(),
-	config: z.record(z.unknown()).optional(),
-	schema: z.object({
-		input: z.record(z.unknown()).optional(),
-		output: z.record(z.unknown()).optional()
-	}).optional()
-});
+  name: z.string().min(1, 'Member name is required'),
+  type: z.enum([
+    MemberType.Think,
+    MemberType.Function,
+    MemberType.Data,
+    MemberType.API,
+    MemberType.MCP,
+    MemberType.Scoring,
+  ]),
+  description: z.string().optional(),
+  config: z.record(z.unknown()).optional(),
+  schema: z
+    .object({
+      input: z.record(z.unknown()).optional(),
+      output: z.record(z.unknown()).optional(),
+    })
+    .optional(),
+})
 
-export type EnsembleConfig = z.infer<typeof EnsembleSchema>;
-export type MemberConfig = z.infer<typeof MemberSchema>;
-export type FlowStep = EnsembleConfig['flow'][number];
-export type WebhookConfig = NonNullable<EnsembleConfig['webhooks']>[number];
-export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number];
+export type EnsembleConfig = z.infer<typeof EnsembleSchema>
+export type MemberConfig = z.infer<typeof MemberSchema>
+export type FlowStep = EnsembleConfig['flow'][number]
+export type WebhookConfig = NonNullable<EnsembleConfig['webhooks']>[number]
+export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number]
 
 export class Parser {
-	private static interpolator = getInterpolator();
+  private static interpolator = getInterpolator()
 
-	/**
-	 * Parse and validate an ensemble YAML file
-	 */
-	static parseEnsemble(yamlContent: string): EnsembleConfig {
-		try {
-			const parsed = YAML.parse(yamlContent);
+  /**
+   * Parse and validate an ensemble YAML file
+   */
+  static parseEnsemble(yamlContent: string): EnsembleConfig {
+    try {
+      const parsed = YAML.parse(yamlContent)
 
-			if (!parsed) {
-				throw new Error('Empty or invalid YAML content');
-			}
+      if (!parsed) {
+        throw new Error('Empty or invalid YAML content')
+      }
 
-			const validated = EnsembleSchema.parse(parsed);
-			return validated;
-		} catch (error) {
-			if (error instanceof z.ZodError) {
-				throw new Error(`Ensemble validation failed: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
-			}
-			throw new Error(`Failed to parse ensemble YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
-		}
-	}
+      const validated = EnsembleSchema.parse(parsed)
+      return validated
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(
+          `Ensemble validation failed: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+        )
+      }
+      throw new Error(
+        `Failed to parse ensemble YAML: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
+  }
 
-	/**
-	 * Parse and validate a member YAML file
-	 */
-	static parseMember(yamlContent: string): MemberConfig {
-		try {
-			const parsed = YAML.parse(yamlContent);
+  /**
+   * Parse and validate a member YAML file
+   */
+  static parseMember(yamlContent: string): MemberConfig {
+    try {
+      const parsed = YAML.parse(yamlContent)
 
-			if (!parsed) {
-				throw new Error('Empty or invalid YAML content');
-			}
+      if (!parsed) {
+        throw new Error('Empty or invalid YAML content')
+      }
 
-			const validated = MemberSchema.parse(parsed);
-			return validated;
-		} catch (error) {
-			if (error instanceof z.ZodError) {
-				throw new Error(`Member validation failed: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
-			}
-			throw new Error(`Failed to parse member YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
-		}
-	}
+      const validated = MemberSchema.parse(parsed)
+      return validated
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(
+          `Member validation failed: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+        )
+      }
+      throw new Error(
+        `Failed to parse member YAML: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
+  }
 
-	/**
-	 * Resolve input interpolations using composition-based resolver chain
-	 *
-	 * Supports: ${input.x}, ${state.y}, ${member.output.z}
-	 *
-	 * Reduced from 42 lines of nested if/else to 1 line via chain of responsibility
-	 */
-	static resolveInterpolation(template: unknown, context: ResolutionContext): unknown {
-		return this.interpolator.resolve(template, context);
-	}
+  /**
+   * Resolve input interpolations using composition-based resolver chain
+   *
+   * Supports: ${input.x}, ${state.y}, ${member.output.z}
+   *
+   * Reduced from 42 lines of nested if/else to 1 line via chain of responsibility
+   */
+  static resolveInterpolation(template: unknown, context: ResolutionContext): unknown {
+    return this.interpolator.resolve(template, context)
+  }
 
-	/**
-	 * Parse a member reference that may include version
-	 * Supports formats:
-	 * - "member-name" (no version)
-	 * - "member-name@v1.0.0" (semver version)
-	 * - "member-name@production" (deployment tag)
-	 * - "member-name@latest" (latest tag)
-	 */
-	static parseMemberReference(memberRef: string): { name: string; version?: string } {
-		const parts = memberRef.split('@');
+  /**
+   * Parse a member reference that may include version
+   * Supports formats:
+   * - "member-name" (no version)
+   * - "member-name@v1.0.0" (semver version)
+   * - "member-name@production" (deployment tag)
+   * - "member-name@latest" (latest tag)
+   */
+  static parseMemberReference(memberRef: string): { name: string; version?: string } {
+    const parts = memberRef.split('@')
 
-		if (parts.length === 1) {
-			return { name: parts[0] };
-		}
+    if (parts.length === 1) {
+      return { name: parts[0] }
+    }
 
-		if (parts.length === 2) {
-			return {
-				name: parts[0],
-				version: parts[1]
-			};
-		}
+    if (parts.length === 2) {
+      return {
+        name: parts[0],
+        version: parts[1],
+      }
+    }
 
-		throw new Error(`Invalid member reference format: ${memberRef}. Expected "name" or "name@version"`);
-	}
+    throw new Error(
+      `Invalid member reference format: ${memberRef}. Expected "name" or "name@version"`
+    )
+  }
 
-	/**
-	 * Validate that all required members exist
-	 */
-	static validateMemberReferences(ensemble: EnsembleConfig, availableMembers: Set<string>): void {
-		const missingMembers: string[] = [];
+  /**
+   * Validate that all required members exist
+   */
+  static validateMemberReferences(ensemble: EnsembleConfig, availableMembers: Set<string>): void {
+    const missingMembers: string[] = []
 
-		for (const step of ensemble.flow) {
-			const { name } = this.parseMemberReference(step.member);
+    for (const step of ensemble.flow) {
+      const { name } = this.parseMemberReference(step.member)
 
-			if (!availableMembers.has(name)) {
-				missingMembers.push(step.member);
-			}
-		}
+      if (!availableMembers.has(name)) {
+        missingMembers.push(step.member)
+      }
+    }
 
-		if (missingMembers.length > 0) {
-			throw new Error(`Ensemble "${ensemble.name}" references missing members: ${missingMembers.join(', ')}`);
-		}
-	}
+    if (missingMembers.length > 0) {
+      throw new Error(
+        `Ensemble "${ensemble.name}" references missing members: ${missingMembers.join(', ')}`
+      )
+    }
+  }
 }

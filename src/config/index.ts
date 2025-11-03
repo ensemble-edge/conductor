@@ -5,17 +5,17 @@
  */
 
 export type {
-	ConductorConfig,
-	DocsConfig,
-	TestingConfig,
-	ObservabilityConfig,
-	ExecutionConfig,
-	StorageConfig
-} from './types';
+  ConductorConfig,
+  DocsConfig,
+  TestingConfig,
+  ObservabilityConfig,
+  ExecutionConfig,
+  StorageConfig,
+} from './types'
 
-export { DEFAULT_CONFIG } from './types';
+export { DEFAULT_CONFIG } from './types'
 
-export { loadConfig, loadConfigSync, getConfigValue } from './loader';
+export { loadConfig, loadConfigSync, getConfigValue } from './loader'
 
 // Workers-compatible config loading
-export { createConfig, type ConfigSource } from './loader-workers';
+export { createConfig, type ConfigSource } from './loader-workers'

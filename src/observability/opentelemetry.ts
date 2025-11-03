@@ -13,42 +13,42 @@
  * deployments, use the standard Logger which integrates with Workers Logs.
  */
 
-import type { Logger, LoggerConfig, LogContext, MetricDataPoint } from './types';
-import { LogLevel } from './types';
-import type { ConductorError } from '../errors/error-types';
+import type { Logger, LoggerConfig, LogContext, MetricDataPoint } from './types'
+import { LogLevel } from './types'
+import type { ConductorError } from '../errors/error-types'
 
 /**
  * OpenTelemetry configuration
  */
 export interface OpenTelemetryConfig {
-	/**
-	 * OTLP exporter endpoint
-	 * @example 'https://api.honeycomb.io'
-	 */
-	exporterUrl: string;
+  /**
+   * OTLP exporter endpoint
+   * @example 'https://api.honeycomb.io'
+   */
+  exporterUrl: string
 
-	/**
-	 * Service name for traces
-	 */
-	serviceName: string;
+  /**
+   * Service name for traces
+   */
+  serviceName: string
 
-	/**
-	 * Sampling rate (0.0 to 1.0)
-	 * @default 1.0 (sample everything)
-	 */
-	samplingRate?: number;
+  /**
+   * Sampling rate (0.0 to 1.0)
+   * @default 1.0 (sample everything)
+   */
+  samplingRate?: number
 
-	/**
-	 * Custom headers for authentication
-	 * @example { 'x-honeycomb-team': 'YOUR_API_KEY' }
-	 */
-	headers?: Record<string, string>;
+  /**
+   * Custom headers for authentication
+   * @example { 'x-honeycomb-team': 'YOUR_API_KEY' }
+   */
+  headers?: Record<string, string>
 
-	/**
-	 * Enable console logging alongside OTLP export
-	 * @default true
-	 */
-	enableConsoleLogging?: boolean;
+  /**
+   * Enable console logging alongside OTLP export
+   * @default true
+   */
+  enableConsoleLogging?: boolean
 }
 
 /**
@@ -61,252 +61,266 @@ export interface OpenTelemetryConfig {
  * Note: This adds ~50-100ms latency to requests due to external calls.
  */
 export class OpenTelemetryLogger implements Logger {
-	private readonly config: Required<OpenTelemetryConfig>;
-	private readonly loggerConfig: LoggerConfig;
-	private readonly baseContext: Readonly<LogContext>;
+  private readonly config: Required<OpenTelemetryConfig>
+  private readonly loggerConfig: LoggerConfig
+  private readonly baseContext: Readonly<LogContext>
 
-	constructor(
-		config: OpenTelemetryConfig,
-		loggerConfig: LoggerConfig = {},
-		baseContext: LogContext = {}
-	) {
-		this.config = {
-			exporterUrl: config.exporterUrl,
-			serviceName: config.serviceName,
-			samplingRate: config.samplingRate ?? 1.0,
-			headers: config.headers ?? {},
-			enableConsoleLogging: config.enableConsoleLogging ?? true,
-		};
+  constructor(
+    config: OpenTelemetryConfig,
+    loggerConfig: LoggerConfig = {},
+    baseContext: LogContext = {}
+  ) {
+    this.config = {
+      exporterUrl: config.exporterUrl,
+      serviceName: config.serviceName,
+      samplingRate: config.samplingRate ?? 1.0,
+      headers: config.headers ?? {},
+      enableConsoleLogging: config.enableConsoleLogging ?? true,
+    }
 
-		this.loggerConfig = {
-			level: loggerConfig.level ?? LogLevel.INFO,
-			serviceName: loggerConfig.serviceName ?? 'conductor',
-			environment: loggerConfig.environment ?? 'production',
-			debug: loggerConfig.debug ?? false,
-			enableAnalytics: loggerConfig.enableAnalytics ?? false,
-		};
+    this.loggerConfig = {
+      level: loggerConfig.level ?? LogLevel.INFO,
+      serviceName: loggerConfig.serviceName ?? 'conductor',
+      environment: loggerConfig.environment ?? 'production',
+      debug: loggerConfig.debug ?? false,
+      enableAnalytics: loggerConfig.enableAnalytics ?? false,
+    }
 
-		this.baseContext = Object.freeze(baseContext);
-	}
+    this.baseContext = Object.freeze(baseContext)
+  }
 
-	/**
-	 * Send log/trace to OTLP endpoint
-	 */
-	private async sendToOTLP(
-		level: LogLevel,
-		message: string,
-		context?: LogContext,
-		error?: Error
-	): Promise<void> {
-		// Apply sampling
-		if (Math.random() > this.config.samplingRate) {
-			return;
-		}
+  /**
+   * Send log/trace to OTLP endpoint
+   */
+  private async sendToOTLP(
+    level: LogLevel,
+    message: string,
+    context?: LogContext,
+    error?: Error
+  ): Promise<void> {
+    // Apply sampling
+    if (Math.random() > this.config.samplingRate) {
+      return
+    }
 
-		const payload = {
-			resourceLogs: [
-				{
-					resource: {
-						attributes: [
-							{ key: 'service.name', value: { stringValue: this.config.serviceName } },
-							{
-								key: 'service.environment',
-								value: { stringValue: this.loggerConfig.environment },
-							},
-						],
-					},
-					scopeLogs: [
-						{
-							scope: {
-								name: this.loggerConfig.serviceName,
-								version: '1.0.0',
-							},
-							logRecords: [
-								{
-									timeUnixNano: String(Date.now() * 1_000_000),
-									severityText: level.toUpperCase(),
-									severityNumber: this.getSeverityNumber(level),
-									body: {
-										stringValue: message,
-									},
-									attributes: [
-										...this.contextToAttributes({ ...this.baseContext, ...context }),
-										...(error
-											? [
-													{ key: 'error.name', value: { stringValue: error.name } },
-													{ key: 'error.message', value: { stringValue: error.message } },
-													...(error.stack
-														? [{ key: 'error.stack', value: { stringValue: error.stack } }]
-														: []),
-													...(this.isConductorError(error)
-														? [
-																{ key: 'error.code', value: { stringValue: error.code } },
-																{
-																	key: 'error.details',
-																	value: { stringValue: JSON.stringify(error.details) },
-																},
-															]
-														: []),
-												]
-											: []),
-									],
-								},
-							],
-						},
-					],
-				},
-			],
-		};
+    const payload = {
+      resourceLogs: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: this.config.serviceName } },
+              {
+                key: 'service.environment',
+                value: { stringValue: this.loggerConfig.environment },
+              },
+            ],
+          },
+          scopeLogs: [
+            {
+              scope: {
+                name: this.loggerConfig.serviceName,
+                version: '1.0.0',
+              },
+              logRecords: [
+                {
+                  timeUnixNano: String(Date.now() * 1_000_000),
+                  severityText: level.toUpperCase(),
+                  severityNumber: this.getSeverityNumber(level),
+                  body: {
+                    stringValue: message,
+                  },
+                  attributes: [
+                    ...this.contextToAttributes({ ...this.baseContext, ...context }),
+                    ...(error
+                      ? [
+                          { key: 'error.name', value: { stringValue: error.name } },
+                          { key: 'error.message', value: { stringValue: error.message } },
+                          ...(error.stack
+                            ? [{ key: 'error.stack', value: { stringValue: error.stack } }]
+                            : []),
+                          ...(this.isConductorError(error)
+                            ? [
+                                { key: 'error.code', value: { stringValue: error.code } },
+                                {
+                                  key: 'error.details',
+                                  value: { stringValue: JSON.stringify(error.details) },
+                                },
+                              ]
+                            : []),
+                        ]
+                      : []),
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
 
-		try {
-			await fetch(`${this.config.exporterUrl}/v1/logs`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...this.config.headers,
-				},
-				body: JSON.stringify(payload),
-			});
-		} catch (err) {
-			// Don't let OTLP failures crash the application
-			// Fall back to console logging
-			if (this.config.enableConsoleLogging) {
-				console.error('Failed to send logs to OTLP endpoint:', err);
-			}
-		}
-	}
+    try {
+      await fetch(`${this.config.exporterUrl}/v1/logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.config.headers,
+        },
+        body: JSON.stringify(payload),
+      })
+    } catch (err) {
+      // Don't let OTLP failures crash the application
+      // Fall back to console logging
+      if (this.config.enableConsoleLogging) {
+        console.error('Failed to send logs to OTLP endpoint:', err)
+      }
+    }
+  }
 
-	/**
-	 * Convert LogLevel to OTLP severity number
-	 */
-	private getSeverityNumber(level: LogLevel): number {
-		switch (level) {
-			case LogLevel.DEBUG:
-				return 5; // DEBUG
-			case LogLevel.INFO:
-				return 9; // INFO
-			case LogLevel.WARN:
-				return 13; // WARN
-			case LogLevel.ERROR:
-				return 17; // ERROR
-			default:
-				return 0; // UNSPECIFIED
-		}
-	}
+  /**
+   * Convert LogLevel to OTLP severity number
+   */
+  private getSeverityNumber(level: LogLevel): number {
+    switch (level) {
+      case LogLevel.DEBUG:
+        return 5 // DEBUG
+      case LogLevel.INFO:
+        return 9 // INFO
+      case LogLevel.WARN:
+        return 13 // WARN
+      case LogLevel.ERROR:
+        return 17 // ERROR
+      default:
+        return 0 // UNSPECIFIED
+    }
+  }
 
-	/**
-	 * Convert context to OTLP attributes
-	 */
-	private contextToAttributes(context?: LogContext): Array<{ key: string; value: { stringValue?: string; intValue?: number; doubleValue?: number; boolValue?: boolean } }> {
-		if (!context) return [];
+  /**
+   * Convert context to OTLP attributes
+   */
+  private contextToAttributes(
+    context?: LogContext
+  ): Array<{
+    key: string
+    value: { stringValue?: string; intValue?: number; doubleValue?: number; boolValue?: boolean }
+  }> {
+    if (!context) return []
 
-		return Object.entries(context).map(([key, value]) => ({
-			key,
-			value: this.valueToOTLP(value),
-		}));
-	}
+    return Object.entries(context).map(([key, value]) => ({
+      key,
+      value: this.valueToOTLP(value),
+    }))
+  }
 
-	/**
-	 * Convert value to OTLP format
-	 */
-	private valueToOTLP(value: unknown): { stringValue?: string; intValue?: number; doubleValue?: number; boolValue?: boolean } {
-		if (typeof value === 'string') {
-			return { stringValue: value };
-		} else if (typeof value === 'number') {
-			return Number.isInteger(value) ? { intValue: value } : { doubleValue: value };
-		} else if (typeof value === 'boolean') {
-			return { boolValue: value };
-		} else {
-			return { stringValue: JSON.stringify(value) };
-		}
-	}
+  /**
+   * Convert value to OTLP format
+   */
+  private valueToOTLP(value: unknown): {
+    stringValue?: string
+    intValue?: number
+    doubleValue?: number
+    boolValue?: boolean
+  } {
+    if (typeof value === 'string') {
+      return { stringValue: value }
+    } else if (typeof value === 'number') {
+      return Number.isInteger(value) ? { intValue: value } : { doubleValue: value }
+    } else if (typeof value === 'boolean') {
+      return { boolValue: value }
+    } else {
+      return { stringValue: JSON.stringify(value) }
+    }
+  }
 
-	/**
-	 * Type guard for ConductorError
-	 */
-	private isConductorError(error: Error): error is ConductorError {
-		return 'code' in error && 'toJSON' in error;
-	}
+  /**
+   * Type guard for ConductorError
+   */
+  private isConductorError(error: Error): error is ConductorError {
+    return 'code' in error && 'toJSON' in error
+  }
 
-	/**
-	 * Log to console (fallback/parallel logging)
-	 */
-	private logToConsole(level: LogLevel, message: string, context?: LogContext, error?: Error): void {
-		if (!this.config.enableConsoleLogging) {
-			return;
-		}
+  /**
+   * Log to console (fallback/parallel logging)
+   */
+  private logToConsole(
+    level: LogLevel,
+    message: string,
+    context?: LogContext,
+    error?: Error
+  ): void {
+    if (!this.config.enableConsoleLogging) {
+      return
+    }
 
-		const logData = {
-			timestamp: new Date().toISOString(),
-			level,
-			message,
-			...(context && { context: { ...this.baseContext, ...context } }),
-			...(error && {
-				error: {
-					name: error.name,
-					message: error.message,
-					stack: error.stack,
-				},
-			}),
-		};
+    const logData = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ...(context && { context: { ...this.baseContext, ...context } }),
+      ...(error && {
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        },
+      }),
+    }
 
-		const logOutput = JSON.stringify(logData);
+    const logOutput = JSON.stringify(logData)
 
-		switch (level) {
-			case LogLevel.DEBUG:
-				console.debug(logOutput);
-				break;
-			case LogLevel.INFO:
-				console.info(logOutput);
-				break;
-			case LogLevel.WARN:
-				console.warn(logOutput);
-				break;
-			case LogLevel.ERROR:
-				console.error(logOutput);
-				break;
-		}
-	}
+    switch (level) {
+      case LogLevel.DEBUG:
+        console.debug(logOutput)
+        break
+      case LogLevel.INFO:
+        console.info(logOutput)
+        break
+      case LogLevel.WARN:
+        console.warn(logOutput)
+        break
+      case LogLevel.ERROR:
+        console.error(logOutput)
+        break
+    }
+  }
 
-	debug(message: string, context?: LogContext): void {
-		this.logToConsole(LogLevel.DEBUG, message, context);
-		void this.sendToOTLP(LogLevel.DEBUG, message, context);
-	}
+  debug(message: string, context?: LogContext): void {
+    this.logToConsole(LogLevel.DEBUG, message, context)
+    void this.sendToOTLP(LogLevel.DEBUG, message, context)
+  }
 
-	info(message: string, context?: LogContext): void {
-		this.logToConsole(LogLevel.INFO, message, context);
-		void this.sendToOTLP(LogLevel.INFO, message, context);
-	}
+  info(message: string, context?: LogContext): void {
+    this.logToConsole(LogLevel.INFO, message, context)
+    void this.sendToOTLP(LogLevel.INFO, message, context)
+  }
 
-	warn(message: string, context?: LogContext): void {
-		this.logToConsole(LogLevel.WARN, message, context);
-		void this.sendToOTLP(LogLevel.WARN, message, context);
-	}
+  warn(message: string, context?: LogContext): void {
+    this.logToConsole(LogLevel.WARN, message, context)
+    void this.sendToOTLP(LogLevel.WARN, message, context)
+  }
 
-	error(message: string, error?: Error, context?: LogContext): void {
-		this.logToConsole(LogLevel.ERROR, message, context, error);
-		void this.sendToOTLP(LogLevel.ERROR, message, context, error);
-	}
+  error(message: string, error?: Error, context?: LogContext): void {
+    this.logToConsole(LogLevel.ERROR, message, context, error)
+    void this.sendToOTLP(LogLevel.ERROR, message, context, error)
+  }
 
-	child(context: LogContext): Logger {
-		return new OpenTelemetryLogger(
-			this.config,
-			this.loggerConfig,
-			{ ...this.baseContext, ...context }
-		);
-	}
+  child(context: LogContext): Logger {
+    return new OpenTelemetryLogger(this.config, this.loggerConfig, {
+      ...this.baseContext,
+      ...context,
+    })
+  }
 
-	/**
-	 * Metrics not supported in this lightweight implementation
-	 * Consider using @opentelemetry/api-metrics for full support
-	 */
-	metric(name: string, data: MetricDataPoint): void {
-		// Not implemented in lightweight version
-		// Use Cloudflare Analytics Engine or full OpenTelemetry SDK
-		this.warn('Metrics not supported in lightweight OpenTelemetry implementation', {
-			metricName: name,
-		});
-	}
+  /**
+   * Metrics not supported in this lightweight implementation
+   * Consider using @opentelemetry/api-metrics for full support
+   */
+  metric(name: string, data: MetricDataPoint): void {
+    // Not implemented in lightweight version
+    // Use Cloudflare Analytics Engine or full OpenTelemetry SDK
+    this.warn('Metrics not supported in lightweight OpenTelemetry implementation', {
+      metricName: name,
+    })
+  }
 }
 
 /**
@@ -322,8 +336,8 @@ export class OpenTelemetryLogger implements Logger {
  * });
  */
 export function createOpenTelemetryLogger(
-	config: OpenTelemetryConfig,
-	loggerConfig?: LoggerConfig
+  config: OpenTelemetryConfig,
+  loggerConfig?: LoggerConfig
 ): Logger {
-	return new OpenTelemetryLogger(config, loggerConfig);
+  return new OpenTelemetryLogger(config, loggerConfig)
 }
