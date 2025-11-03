@@ -13,6 +13,7 @@ import type { MemberConfig } from '../runtime/parser';
 import { getProviderRegistry } from './think-providers';
 import type { AIMessage, AIProviderConfig } from './think-providers';
 import { AIProvider } from '../types/constants';
+import type { ConductorEnv } from '../types/env';
 
 export interface ThinkConfig {
 	model?: string;
@@ -103,7 +104,7 @@ export class ThinkMember extends BaseMember {
 	/**
 	 * Resolve prompt from Edgit if needed
 	 */
-	private async resolvePrompt(env: Env): Promise<void> {
+	private async resolvePrompt(env: ConductorEnv): Promise<void> {
 		if (this.thinkConfig.systemPrompt) return;
 
 		if (this.thinkConfig.prompt) {
