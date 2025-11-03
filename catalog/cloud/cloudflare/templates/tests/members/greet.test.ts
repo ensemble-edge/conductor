@@ -16,7 +16,7 @@ describe('Greet Member', () => {
 	beforeEach(async () => {
 		// Create test conductor with mocked AI responses
 		conductor = await TestConductor.create({
-			projectPath: '.',
+			projectPath: './catalog/cloud/cloudflare/templates',
 			mocks: {
 				ai: {
 					greet: {

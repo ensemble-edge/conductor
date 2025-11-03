@@ -489,7 +489,8 @@ describe('Interpolation System', () => {
 				.join('.');
 			let obj: any = { value: 'found' };
 
-			for (let i = 0; i < 49; i++) {
+			// Create 50 levels of nesting to match the 50 'nested' parts in the path
+			for (let i = 0; i < 50; i++) {
 				obj = { nested: obj };
 			}
 

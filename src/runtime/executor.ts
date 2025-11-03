@@ -71,12 +71,29 @@ export interface MemberMetric {
 }
 
 /**
+ * Structure stored in execution context for each member
+ */
+interface MemberExecutionResult {
+	output: unknown;
+	[key: string]: unknown; // Allow additional metadata
+}
+
+/**
+ * Execution context type with proper member result typing
+ */
+interface ExecutionContextMap {
+	input?: unknown;
+	state?: unknown;
+	[memberName: string]: unknown | MemberExecutionResult;
+}
+
+/**
  * Internal context for flow execution
  * Encapsulates shared state during ensemble execution
  */
 interface FlowExecutionContext {
 	ensemble: EnsembleConfig;
-	executionContext: Record<string, unknown>;
+	executionContext: ExecutionContextMap;
 	metrics: ExecutionMetrics;
 	stateManager: StateManager | null;
 	scoringState: ScoringState | null;
@@ -240,7 +257,8 @@ export class Executor {
 		} else if (stepIndex > 0) {
 			// Default to previous member's output for chaining
 			const previousMemberName = ensemble.flow[stepIndex - 1].member;
-			resolvedInput = executionContext[previousMemberName]?.output || {};
+			const previousResult = executionContext[previousMemberName] as MemberExecutionResult | undefined;
+			resolvedInput = previousResult?.output || {};
 		} else {
 			// First step with no input - use original ensemble input
 			resolvedInput = executionContext.input || {};
@@ -459,7 +477,8 @@ export class Executor {
 		} else if (ensemble.flow.length > 0) {
 			// Default to last member's output
 			const lastMemberName = ensemble.flow[ensemble.flow.length - 1].member;
-			finalOutput = executionContext[lastMemberName]?.output;
+			const lastResult = executionContext[lastMemberName] as MemberExecutionResult | undefined;
+			finalOutput = lastResult?.output;
 		} else {
 			// No flow steps - return empty
 			finalOutput = {};
@@ -523,7 +542,7 @@ export class Executor {
 		}
 
 		// Context for resolving interpolations
-		const executionContext: Record<string, unknown> = {
+		const executionContext: ExecutionContextMap = {
 			input,
 			state: stateManager ? stateManager.getState() : {},
 			scoring: scoringState || {}
