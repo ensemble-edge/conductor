@@ -7,8 +7,22 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getBuiltInRegistry } from '../../members/built-in/registry.js';
-import { createClient } from '../../sdk/client.js';
+import { createClient, type ExecuteResult } from '../../sdk/client.js';
 import type { MemberExecutionContext } from '../../members/base-member.js';
+import type { ConductorEnv } from '../../types/env.js';
+
+/**
+ * CLI execution options
+ */
+interface ExecOptions {
+	input?: string;
+	config?: string;
+	file?: string;
+	remote?: boolean;
+	apiUrl?: string;
+	apiKey?: string;
+	output?: 'json' | 'pretty' | 'raw';
+}
 
 export function createExecCommand(): Command {
 	const exec = new Command('exec')
@@ -21,10 +35,10 @@ export function createExecCommand(): Command {
 		.option('--api-url <url>', 'API URL (default: from CONDUCTOR_API_URL env)')
 		.option('--api-key <key>', 'API key (default: from CONDUCTOR_API_KEY env)')
 		.option('--output <format>', 'Output format: json, pretty, or raw (default: pretty)', 'pretty')
-		.action(async (memberName: string, options: any) => {
+		.action(async (memberName: string, options: ExecOptions) => {
 			try {
 				// Parse input
-				let input: Record<string, any> = {};
+				let input: Record<string, unknown> = {};
 				if (options.input) {
 					input = JSON.parse(options.input);
 				} else if (options.file) {
@@ -34,7 +48,7 @@ export function createExecCommand(): Command {
 				}
 
 				// Parse config
-				let config: Record<string, any> = {};
+				let config: Record<string, unknown> = {};
 				if (options.config) {
 					config = JSON.parse(options.config);
 				}
@@ -43,7 +57,7 @@ export function createExecCommand(): Command {
 				const forceRemote = options.remote;
 				const canExecuteLocally = !forceRemote && canExecuteLocal();
 
-				let result: any;
+				let result: ExecuteResult;
 				let executionMode: 'local' | 'remote';
 
 				if (canExecuteLocally) {
@@ -124,9 +138,9 @@ function canExecuteLocal(): boolean {
  */
 async function executeLocal(
 	memberName: string,
-	input: Record<string, any>,
-	config: Record<string, any>
-): Promise<any> {
+	input: Record<string, unknown>,
+	config: Record<string, unknown>
+): Promise<ExecuteResult> {
 	const startTime = Date.now();
 
 	// Get built-in registry
@@ -151,7 +165,7 @@ async function executeLocal(
 	};
 
 	// Create mock env (no real bindings in CLI)
-	const mockEnv = {} as any;
+	const mockEnv = {} as unknown as ConductorEnv;
 
 	const member = registry.create(memberName, memberConfig, mockEnv);
 
@@ -162,7 +176,7 @@ async function executeLocal(
 		ctx: {
 			waitUntil: () => {},
 			passThroughOnException: () => {}
-		} as any
+		} as unknown as ExecutionContext
 	};
 
 	// Execute member
@@ -173,6 +187,7 @@ async function executeLocal(
 		data: result.data,
 		error: result.error,
 		metadata: {
+			executionId: `local-${Date.now()}`,
 			duration: Date.now() - startTime,
 			timestamp: Date.now()
 		}
@@ -184,11 +199,11 @@ async function executeLocal(
  */
 async function executeRemote(
 	memberName: string,
-	input: Record<string, any>,
-	config: Record<string, any>,
+	input: Record<string, unknown>,
+	config: Record<string, unknown>,
 	apiUrl: string,
 	apiKey?: string
-): Promise<any> {
+): Promise<ExecuteResult> {
 	const client = createClient({
 		baseUrl: apiUrl,
 		apiKey
