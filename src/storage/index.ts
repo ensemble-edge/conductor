@@ -32,3 +32,9 @@ export {
 	type TableMetadata,
 	type HyperdriveTransaction
 } from './hyperdrive-repository';
+
+export {
+	QueryCache,
+	type QueryCacheConfig,
+	type CacheStats
+} from './query-cache';

@@ -6,6 +6,7 @@
  */
 
 import { HyperdriveRepository, type DatabaseType, type QueryResult } from '../../storage/hyperdrive-repository.js';
+import { QueryCache } from '../../storage/query-cache.js';
 import type { ConductorError } from '../../errors/error-types.js';
 import { Result } from '../../types/result.js';
 import { Errors } from '../../errors/error-types.js';
@@ -60,9 +61,19 @@ export interface AnalyticalMemoryConfig {
 	defaultDatabase?: string;
 
 	/**
+	 * Enable query result caching
+	 */
+	enableCache?: boolean;
+
+	/**
 	 * Cache TTL for query results (seconds)
 	 */
 	cacheTTL?: number;
+
+	/**
+	 * KV namespace for caching (required if enableCache is true)
+	 */
+	cacheKV?: KVNamespace;
 }
 
 /**
@@ -93,6 +104,7 @@ export interface FederatedQuery {
 export class AnalyticalMemory {
 	private repositories: Map<string, HyperdriveRepository>;
 	private defaultDatabase?: string;
+	private cache?: QueryCache;
 
 	constructor(
 		private readonly env: Env,
@@ -100,6 +112,16 @@ export class AnalyticalMemory {
 	) {
 		this.repositories = new Map();
 		this.defaultDatabase = config.defaultDatabase;
+
+		// Initialize cache if enabled
+		if (config.enableCache && config.cacheKV) {
+			this.cache = new QueryCache({
+				kv: config.cacheKV,
+				defaultTTL: config.cacheTTL || 300,
+				keyPrefix: 'analytical:',
+				enableStats: true
+			});
+		}
 
 		// Initialize repositories for each database
 		for (const [alias, dbConfig] of Object.entries(config.databases)) {
@@ -132,10 +154,25 @@ export class AnalyticalMemory {
 			throw new Error(`Database not found: ${dbAlias}`);
 		}
 
+		// Try cache first if enabled
+		if (this.cache && QueryCache.shouldCache(sql)) {
+			const cachedResult = await this.cache.get<T>(sql, params, dbAlias);
+			if (cachedResult.success && cachedResult.value) {
+				return cachedResult.value.rows;
+			}
+		}
+
+		// Execute query
 		const result = await repository.query<T>(sql, params);
 
 		if (!result.success) {
 			throw new Error(`Query failed: ${result.error.message}`);
+		}
+
+		// Cache the result if caching is enabled
+		if (this.cache && QueryCache.shouldCache(sql)) {
+			const ttl = QueryCache.getRecommendedTTL(sql);
+			await this.cache.set(sql, result.value, params, dbAlias, ttl);
 		}
 
 		return result.value.rows;
@@ -349,5 +386,43 @@ export class AnalyticalMemory {
 			throw new Error(`Database not found: ${alias}`);
 		}
 		this.defaultDatabase = alias;
+	}
+
+	/**
+	 * Get cache statistics (if caching is enabled)
+	 */
+	getCacheStats() {
+		return this.cache?.getStats();
+	}
+
+	/**
+	 * Clear cache for a specific database
+	 */
+	async clearCache(database?: string): Promise<number> {
+		if (!this.cache) {
+			return 0;
+		}
+
+		if (database) {
+			const result = await this.cache.clearDatabase(database);
+			return result.success ? result.value : 0;
+		} else {
+			const result = await this.cache.clearAll();
+			return result.success ? result.value : 0;
+		}
+	}
+
+	/**
+	 * Reset cache statistics
+	 */
+	resetCacheStats(): void {
+		this.cache?.resetStats();
+	}
+
+	/**
+	 * Check if caching is enabled
+	 */
+	isCacheEnabled(): boolean {
+		return this.cache !== undefined;
 	}
 }
