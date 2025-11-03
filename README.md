@@ -48,6 +48,65 @@ The `conductor init` command:
 - ✅ Initializes git repository
 - ✅ Ready to run immediately
 
+### Your Project Structure
+
+After running `conductor init`, here's what you'll have:
+
+```
+my-project/
+├── src/
+│   └── index.ts                 # 🔧 Worker entry point
+│                                 #    Choose: Built-in API or custom endpoints
+│                                 #    Must export ExecutionState & HITLState
+│
+├── members/                      # 👈 YOUR CODE - Add your members here
+│   └── greet/                    #    Each member is a folder with:
+│       ├── member.yaml           #    - member.yaml (configuration)
+│       ├── index.ts              #    - index.ts (implementation)
+│       └── prompt.md             #    - prompt.md (optional, for Think members)
+│
+├── ensembles/                    # 👈 YOUR WORKFLOWS - Add ensemble YAML files here
+│   └── hello-world.yaml          #    Define:
+│                                 #    - flow (member execution steps)
+│                                 #    - schedules (cron triggers) [optional]
+│                                 #    - webhooks (HTTP triggers) [optional]
+│                                 #    - state (shared data) [optional]
+│
+├── wrangler.toml                 # 🔧 Cloudflare configuration
+│                                 #    Configure:
+│                                 #    - Durable Objects bindings
+│                                 #    - KV/D1/R2/Vectorize bindings
+│                                 #    - Cron triggers (from ensembles)
+│                                 #    - Environment variables
+│
+├── package.json                  # 📦 Dependencies
+│   dependencies:
+│     @ensemble-edge/conductor   # Runtime + CLI + SDK
+│
+├── tsconfig.json                 # TypeScript config
+└── README.md                     # Project documentation
+```
+
+**Where to add your components:**
+
+| Component | Location | Created With | Purpose |
+|-----------|----------|--------------|---------|
+| **Members** | `members/<name>/` | `conductor add member <name>` | Your reusable logic: AI, functions, API calls, data ops |
+| **Ensembles** | `ensembles/<name>.yaml` | Create YAML file manually | Your workflows: orchestrate members, define schedules/webhooks |
+| **Schedules** | Inside ensemble YAML | Add `schedules:` array | Cron-based automation (daily reports, monitoring, etc.) |
+| **Webhooks** | Inside ensemble YAML | Add `webhooks:` array | HTTP triggers (Stripe, GitHub, external events) |
+| **Prompts** | `members/<name>/prompt.md` | `conductor add member <name> --with-prompt` | Versioned prompts for Think members (Edgit) |
+| **API Config** | `src/index.ts` | Edit file | Choose built-in API or custom endpoints |
+| **Cron Triggers** | `wrangler.toml` | Copy from ensemble schedules | Register cron expressions with Cloudflare |
+| **Environment Vars** | `wrangler.toml` | Edit `[vars]` section | API keys, settings, feature flags |
+
+**Key Concepts:**
+
+1. **Members are sacred** - Conductor never modifies your `members/` or `ensembles/` folders during upgrades
+2. **Ensembles = Configuration** - YAML files that define how members work together
+3. **Members = Implementation** - Your code that Conductor orchestrates
+4. **src/index.ts = Entry point** - Choose API style (built-in or custom)
+
 ### Add to Existing Project
 
 Already have a Cloudflare Worker? Add Conductor to it:
@@ -97,30 +156,10 @@ Conductor is a single npm package with three parts:
 
 ```
 @ensemble-edge/conductor
-├── Runtime      - Core orchestration engine
-├── CLI          - Project management tools
-└── SDK          - Development utilities
+├── Runtime      - Core orchestration engine (Executor, Parser, StateManager, Durable Objects)
+├── CLI          - Project management tools (init, add member, validate, upgrade)
+└── SDK          - Development utilities (client, testing, member factories)
 ```
-
-### Your Project Structure
-
-```
-my-project/
-├── src/
-│   └── index.ts           # Worker entry point
-├── members/               # Your members (sacred space)
-│   └── greet/
-│       ├── member.yaml    # Member config
-│       └── index.ts       # Implementation
-├── ensembles/             # Your workflows (sacred space)
-│   └── hello-world.yaml
-├── wrangler.toml          # Cloudflare config
-└── package.json
-     dependencies:
-       "@ensemble-edge/conductor": "^0.0.1"
-```
-
-**Key Concept**: When you upgrade Conductor, your members and ensembles remain untouched. Clean separation.
 
 ## Runtime API
 
