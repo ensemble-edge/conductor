@@ -46,6 +46,13 @@ const EnsembleSchema = z.object({
 		async: z.boolean().optional(),
 		timeout: z.number().positive().optional()
 	})).optional(),
+	schedules: z.array(z.object({
+		cron: z.string().min(1, 'Cron expression is required'),
+		timezone: z.string().optional(),
+		enabled: z.boolean().optional(),
+		input: z.record(z.any()).optional(),
+		metadata: z.record(z.any()).optional()
+	})).optional(),
 	flow: z.array(z.object({
 		member: z.string().min(1, 'Member name is required'),
 		input: z.record(z.any()).optional(),
@@ -96,6 +103,8 @@ const MemberSchema = z.object({
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>;
 export type MemberConfig = z.infer<typeof MemberSchema>;
 export type FlowStep = EnsembleConfig['flow'][number];
+export type WebhookConfig = NonNullable<EnsembleConfig['webhooks']>[number];
+export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number];
 
 export class Parser {
 	private static interpolator = getInterpolator();

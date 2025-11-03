@@ -1,8 +1,16 @@
 # Durable Objects Implementation Plan
 
-## Status: Not Implemented
+## Status: ✅ HIGH PRIORITY ITEMS COMPLETED
 
-Durable Objects are **not currently implemented** in Conductor. This document outlines where Durable Objects would provide significant benefits over our current storage solutions (KV, D1, R2).
+Durable Objects are **now implemented** in Conductor! This document outlines the implementation of ExecutionState and HITLState Durable Objects, which provide significant benefits over KV storage for async execution tracking and HITL resumption.
+
+### ✅ Completed (High Priority)
+- ExecutionState Durable Object for async execution tracking
+- HITLState Durable Object for HITL resumption with alarm-based TTL
+- Execution status API endpoints
+- Webhook async mode integration with ExecutionState DO
+- ResumptionManager migration to use HITLState DO
+- Wrangler.toml configuration with DO bindings
 
 ---
 
