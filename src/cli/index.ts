@@ -8,6 +8,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { createExecCommand } from './commands/exec.js';
 import { createMembersCommand } from './commands/members.js';
+import { createDocsCommand } from './commands/docs.js';
 
 const program = new Command();
 
@@ -19,6 +20,7 @@ program
 // Add commands
 program.addCommand(createExecCommand());
 program.addCommand(createMembersCommand());
+program.addCommand(createDocsCommand());
 
 // Health check command
 program
