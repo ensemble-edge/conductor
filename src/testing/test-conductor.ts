@@ -6,6 +6,7 @@ import type { ConductorEnv } from '../types/env';
 import type { EnsembleConfig, MemberConfig } from '../runtime/parser';
 import { Executor } from '../runtime/executor';
 import { Parser } from '../runtime/parser';
+import { FunctionMember } from '../members/function-member';
 import type {
 	TestConductorOptions,
 	TestExecutionResult,
@@ -92,7 +93,7 @@ export class TestConductor {
 		name: string,
 		input: Record<string, unknown>
 	): Promise<TestExecutionResult> {
-		const startTime = Date.now();
+		const startTime = performance.now();
 		const stepsExecuted: ExecutedStep[] = [];
 		const stateHistory: StateSnapshot[] = [];
 		const aiCalls: AICall[] = [];
@@ -109,11 +110,13 @@ export class TestConductor {
 			// Execute ensemble
 			const result = await this.executor.executeEnsemble(ensemble, input);
 
+			const executionTime = Math.max(0.001, performance.now() - startTime);
+
 			const testResult: TestExecutionResult = {
 				success: result.success,
 				output: result.success ? result.value.output : undefined,
 				error: result.success ? undefined : result.error as Error,
-				executionTime: Date.now() - startTime,
+				executionTime,
 				stepsExecuted,
 				stateHistory,
 				aiCalls,
@@ -131,10 +134,12 @@ export class TestConductor {
 
 			return testResult;
 		} catch (error) {
+			const executionTime = Math.max(0.001, performance.now() - startTime);
+
 			const testResult: TestExecutionResult = {
 				success: false,
 				error: error as Error,
-				executionTime: Date.now() - startTime,
+				executionTime,
 				stepsExecuted,
 				stateHistory,
 				aiCalls,
@@ -253,6 +258,14 @@ export class TestConductor {
 	 */
 	addMember(name: string, config: MemberConfig): void {
 		this.catalog.members.set(name, config);
+
+		// If it's a Function member with an inline handler, register it with the executor
+		if (config.type === 'Function') {
+			const functionMember = FunctionMember.fromConfig(config);
+			if (functionMember) {
+				this.executor.registerMember(functionMember);
+			}
+		}
 	}
 
 	/**

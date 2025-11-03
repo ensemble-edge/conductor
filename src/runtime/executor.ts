@@ -226,15 +226,25 @@ export class Executor {
 	 */
 	private async executeStep(
 		step: FlowStep,
-		flowContext: FlowExecutionContext
+		flowContext: FlowExecutionContext,
+		stepIndex: number
 	): AsyncResult<void, ConductorError> {
 		const { ensemble, executionContext, metrics, stateManager, scoringState, ensembleScorer, scoringExecutor } = flowContext;
 		const memberStartTime = Date.now();
 
 		// Resolve input interpolations
-		const resolvedInput = step.input
-			? Parser.resolveInterpolation(step.input, executionContext)
-			: {};
+		let resolvedInput: unknown;
+		if (step.input) {
+			// User specified explicit input mapping
+			resolvedInput = Parser.resolveInterpolation(step.input, executionContext);
+		} else if (stepIndex > 0) {
+			// Default to previous member's output for chaining
+			const previousMemberName = ensemble.flow[stepIndex - 1].member;
+			resolvedInput = executionContext[previousMemberName]?.output || {};
+		} else {
+			// First step with no input - use original ensemble input
+			resolvedInput = executionContext.input || {};
+		}
 
 		// Resolve member - error handling is explicit
 		const memberResult = await this.resolveMember(step.member);
@@ -428,7 +438,7 @@ export class Executor {
 		// Execute flow steps sequentially from startStep
 		for (let i = startStep; i < ensemble.flow.length; i++) {
 			const step = ensemble.flow[i];
-			const stepResult = await this.executeStep(step, flowContext);
+			const stepResult = await this.executeStep(step, flowContext, i);
 
 			if (!stepResult.success) {
 				return Result.err(stepResult.error);
@@ -442,9 +452,18 @@ export class Executor {
 		}
 
 		// Resolve final output
-		const finalOutput = ensemble.output
-			? Parser.resolveInterpolation(ensemble.output, executionContext)
-			: executionContext;
+		let finalOutput: unknown;
+		if (ensemble.output) {
+			// User specified output interpolation
+			finalOutput = Parser.resolveInterpolation(ensemble.output, executionContext);
+		} else if (ensemble.flow.length > 0) {
+			// Default to last member's output
+			const lastMemberName = ensemble.flow[ensemble.flow.length - 1].member;
+			finalOutput = executionContext[lastMemberName]?.output;
+		} else {
+			// No flow steps - return empty
+			finalOutput = {};
+		}
 
 		// Calculate total duration
 		metrics.totalDuration = Date.now() - startTime;
