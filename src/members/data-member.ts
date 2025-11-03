@@ -24,7 +24,7 @@ export interface DataConfig {
 
 export interface DataInput {
 	key?: string;
-	value?: any;
+	value?: unknown;
 	prefix?: string;
 	limit?: number;
 	cursor?: string;
@@ -45,7 +45,7 @@ export class DataMember extends BaseMember {
 
 	constructor(
 		config: MemberConfig,
-		private readonly repository?: Repository<any, string>
+		private readonly repository?: Repository<unknown, string>
 	) {
 		super(config);
 
@@ -70,7 +70,7 @@ export class DataMember extends BaseMember {
 	/**
 	 * Execute data operation via repository
 	 */
-	protected async run(context: MemberExecutionContext): Promise<any> {
+	protected async run(context: MemberExecutionContext): Promise<unknown> {
 		const { input, env } = context;
 
 		// Get or create repository
@@ -97,7 +97,7 @@ export class DataMember extends BaseMember {
 	/**
 	 * Execute GET operation
 	 */
-	private async executeGet(repo: Repository<any, string>, input: DataInput): Promise<any> {
+	private async executeGet(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
 		if (!input.key) {
 			throw new Error('GET operation requires "key" in input');
 		}
@@ -123,7 +123,7 @@ export class DataMember extends BaseMember {
 	/**
 	 * Execute PUT operation
 	 */
-	private async executePut(repo: Repository<any, string>, input: DataInput): Promise<any> {
+	private async executePut(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
 		if (!input.key || input.value === undefined) {
 			throw new Error('PUT operation requires "key" and "value" in input');
 		}
@@ -149,7 +149,7 @@ export class DataMember extends BaseMember {
 	/**
 	 * Execute DELETE operation
 	 */
-	private async executeDelete(repo: Repository<any, string>, input: DataInput): Promise<any> {
+	private async executeDelete(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
 		if (!input.key) {
 			throw new Error('DELETE operation requires "key" in input');
 		}
@@ -173,7 +173,7 @@ export class DataMember extends BaseMember {
 	/**
 	 * Execute LIST operation
 	 */
-	private async executeList(repo: Repository<any, string>, input: DataInput): Promise<any> {
+	private async executeList(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
 		const result = await repo.list({
 			prefix: input.prefix,
 			limit: input.limit,
@@ -198,7 +198,7 @@ export class DataMember extends BaseMember {
 	 * Create repository from environment bindings
 	 * Falls back to original behavior if no repository injected
 	 */
-	private createRepository(env: ConductorEnv): Repository<any, string> {
+	private createRepository(env: ConductorEnv): Repository<unknown, string> {
 		const bindingName = this.getBindingName();
 		const binding = env[bindingName as keyof ConductorEnv];
 
