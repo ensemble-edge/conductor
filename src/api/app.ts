@@ -9,7 +9,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import type { ConductorContext } from './types';
 import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware';
-import { execute, members, health, stream, async } from './routes';
+import { execute, members, health, stream, async, webhooks } from './routes';
 import { openapi } from './openapi';
 
 export interface APIConfig {
@@ -81,6 +81,9 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 	app.route('/api/v1/members', members);
 	app.route('/api/v1/stream', stream);
 	app.route('/api/v1/async', async);
+
+	// Webhook routes (public by default, auth configured per-webhook)
+	app.route('/webhooks', webhooks);
 
 	// Root endpoint
 	app.get('/', (c) => {

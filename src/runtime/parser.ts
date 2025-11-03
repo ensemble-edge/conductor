@@ -21,6 +21,31 @@ const EnsembleSchema = z.object({
 		schema: z.record(z.any()).optional(),
 		initial: z.record(z.any()).optional()
 	}).optional(),
+	scoring: z.object({
+		enabled: z.boolean(),
+		defaultThresholds: z.object({
+			minimum: z.number().min(0).max(1),
+			target: z.number().min(0).max(1).optional(),
+			excellent: z.number().min(0).max(1).optional()
+		}),
+		maxRetries: z.number().positive().optional(),
+		backoffStrategy: z.enum(['linear', 'exponential', 'fixed']).optional(),
+		initialBackoff: z.number().positive().optional(),
+		trackInState: z.boolean().optional(),
+		criteria: z.union([z.record(z.string()), z.array(z.any())]).optional(),
+		aggregation: z.enum(['weighted_average', 'minimum', 'geometric_mean']).optional()
+	}).optional(),
+	webhooks: z.array(z.object({
+		path: z.string().min(1),
+		method: z.enum(['POST', 'GET']).optional(),
+		auth: z.object({
+			type: z.enum(['bearer', 'signature', 'basic']),
+			secret: z.string()
+		}).optional(),
+		mode: z.enum(['trigger', 'resume']).optional(),
+		async: z.boolean().optional(),
+		timeout: z.number().positive().optional()
+	})).optional(),
 	flow: z.array(z.object({
 		member: z.string().min(1, 'Member name is required'),
 		input: z.record(z.any()).optional(),
@@ -31,6 +56,19 @@ const EnsembleSchema = z.object({
 		cache: z.object({
 			ttl: z.number().positive().optional(),
 			bypass: z.boolean().optional()
+		}).optional(),
+		scoring: z.object({
+			evaluator: z.string().min(1),
+			thresholds: z.object({
+				minimum: z.number().min(0).max(1).optional(),
+				target: z.number().min(0).max(1).optional(),
+				excellent: z.number().min(0).max(1).optional()
+			}).optional(),
+			criteria: z.union([z.record(z.string()), z.array(z.any())]).optional(),
+			onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
+			retryLimit: z.number().positive().optional(),
+			requireImprovement: z.boolean().optional(),
+			minImprovement: z.number().min(0).max(1).optional()
 		}).optional(),
 		condition: z.any().optional()
 	})),
