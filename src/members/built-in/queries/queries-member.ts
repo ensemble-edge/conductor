@@ -7,6 +7,7 @@
 
 import { BaseMember, type MemberExecutionContext } from '../../base-member.js';
 import type { MemberConfig } from '../../../runtime/parser.js';
+import type { ConductorEnv } from '../../../types/env.js';
 
 /**
  * Query input - either from catalog or inline SQL
@@ -25,7 +26,7 @@ export interface QueriesInput {
 	/**
 	 * Query parameters (named or positional)
 	 */
-	input?: Record<string, any> | any[];
+	input?: Record<string, unknown> | unknown[];
 
 	/**
 	 * Database alias (overrides default)
@@ -80,7 +81,7 @@ export interface QueriesOutput {
 	/**
 	 * Query results
 	 */
-	rows: any[];
+	rows: unknown[];
 
 	/**
 	 * Row count
@@ -126,7 +127,7 @@ interface CatalogQuery {
 	sql: string;
 	description?: string;
 	database?: string;
-	params?: Record<string, any>;
+	params?: Record<string, unknown>;
 }
 
 /**
@@ -138,7 +139,7 @@ interface CatalogQuery {
 export class QueriesMember extends BaseMember {
 	private queriesConfig: QueriesConfig;
 
-	constructor(config: MemberConfig, private readonly env: Env) {
+	constructor(config: MemberConfig, private readonly env: ConductorEnv) {
 		super(config);
 
 		// Extract queries-specific config
@@ -177,7 +178,7 @@ export class QueriesMember extends BaseMember {
 		}
 
 		// 4. Get Hyperdrive binding (it's actually a D1Database)
-		const hyperdrive = (this.env as any)[database] as D1Database;
+		const hyperdrive = (this.env as unknown as Record<string, unknown>)[database] as D1Database;
 		if (!hyperdrive) {
 			throw new Error(`Hyperdrive binding not found: ${database}`);
 		}
@@ -238,14 +239,14 @@ export class QueriesMember extends BaseMember {
 	/**
 	 * Prepare query with parameters
 	 */
-	private prepareQuery(sql: string, input: Record<string, any> | any[]): { sql: string; params: any[] } {
+	private prepareQuery(sql: string, input: Record<string, unknown> | unknown[]): { sql: string; params: unknown[] } {
 		// If input is an array, assume positional parameters
 		if (Array.isArray(input)) {
 			return { sql, params: input };
 		}
 
 		// Convert named parameters to positional
-		const params: any[] = [];
+		const params: unknown[] = [];
 		let paramIndex = 1;
 
 		const convertedSql = sql.replace(/:(\w+)/g, (match, paramName) => {
@@ -266,8 +267,8 @@ export class QueriesMember extends BaseMember {
 	private async executeQuery(
 		hyperdrive: D1Database,
 		sql: string,
-		params: any[]
-	): Promise<{ rows: any[]; columns?: string[] }> {
+		params: unknown[]
+	): Promise<{ rows: unknown[]; columns?: string[] }> {
 		// Prepare statement
 		let stmt = hyperdrive.prepare(sql);
 		if (params.length > 0) {
@@ -289,7 +290,7 @@ export class QueriesMember extends BaseMember {
 		const columns = result.results.length > 0
 			? Object.keys(result.results[0])
 			: result.meta?.columns
-				? (result.meta.columns as any[]).map((c: any) => c.name)
+				? (result.meta.columns as Array<{ name: string }>).map((c) => c.name)
 				: [];
 
 		return {
@@ -309,10 +310,10 @@ export class QueriesMember extends BaseMember {
 	/**
 	 * Transform object keys to camelCase
 	 */
-	private toCamelCase(rows: any[]): any[] {
+	private toCamelCase(rows: unknown[]): unknown[] {
 		return rows.map((row) => {
-			const transformed: any = {};
-			for (const [key, value] of Object.entries(row)) {
+			const transformed: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
 				const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 				transformed[camelKey] = value;
 			}
@@ -323,10 +324,10 @@ export class QueriesMember extends BaseMember {
 	/**
 	 * Transform object keys to snake_case
 	 */
-	private toSnakeCase(rows: any[]): any[] {
+	private toSnakeCase(rows: unknown[]): unknown[] {
 		return rows.map((row) => {
-			const transformed: any = {};
-			for (const [key, value] of Object.entries(row)) {
+			const transformed: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
 				const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 				transformed[snakeKey] = value;
 			}
