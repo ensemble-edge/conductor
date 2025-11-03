@@ -43,10 +43,10 @@ export function mockEnv(overrides?: Partial<Env>): Env {
  * Create a mock ExecutionContext
  */
 export function mockExecutionContext(): ExecutionContext {
-	const waitUntilPromises: Promise<any>[] = [];
+	const waitUntilPromises: Promise<unknown>[] = [];
 
 	return {
-		waitUntil(promise: Promise<any>) {
+		waitUntil(promise: Promise<unknown>) {
 			waitUntilPromises.push(promise);
 		},
 		passThroughOnException() {
@@ -75,7 +75,7 @@ export function mockKV(): KVNamespace {
 			list_complete: true,
 			cacheStatus: null
 		})
-	} as any;
+	} as unknown as KVNamespace;
 }
 
 /**
@@ -83,25 +83,25 @@ export function mockKV(): KVNamespace {
  */
 export function mockAI(): Ai {
 	return {
-		run: async (model: string, options: any) => {
+		run: async (model: string, options: unknown) => {
 			// Return mock AI response
 			return {
 				response: 'Mock AI response',
 				result: { response: 'Mock AI response' }
 			};
 		}
-	} as any;
+	} as unknown as Ai;
 }
 
 /**
  * Create a mock D1 database
  */
 export function mockD1(): D1Database {
-	const data: any[] = [];
+	const data: unknown[] = [];
 
 	return {
 		prepare: (sql: string) => ({
-			bind: (...params: any[]) => ({
+			bind: (...params: unknown[]) => ({
 				all: async () => ({
 					results: data,
 					success: true,
@@ -120,7 +120,7 @@ export function mockD1(): D1Database {
 			count: 0,
 			duration: 0
 		})
-	} as any;
+	} as unknown as D1Database;
 }
 
 /**
@@ -144,9 +144,9 @@ export function mockR2(): R2Bucket {
 				json: async () => JSON.parse(value),
 				arrayBuffer: async () => new TextEncoder().encode(value).buffer,
 				blob: async () => new Blob([value])
-			} as any;
+			} as unknown as R2ObjectBody;
 		},
-		put: async (key: string, value: any) => {
+		put: async (key: string, value: unknown) => {
 			store.set(key, typeof value === 'string' ? value : JSON.stringify(value));
 		},
 		delete: async (key: string) => {
@@ -161,19 +161,19 @@ export function mockR2(): R2Bucket {
 			truncated: false,
 			delimitedPrefixes: []
 		})
-	} as any;
+	} as unknown as R2Bucket;
 }
 
 /**
  * Spy on a function (simple implementation)
  */
-export function spy<T extends (...args: any[]) => any>(fn: T): T & { calls: any[][] } {
-	const calls: any[][] = [];
+export function spy<T extends (...args: unknown[]) => unknown>(fn: T): T & { calls: unknown[][] } {
+	const calls: unknown[][] = [];
 
-	const spied = ((...args: any[]) => {
+	const spied = ((...args: unknown[]) => {
 		calls.push(args);
 		return fn(...args);
-	}) as T & { calls: any[][] };
+	}) as T & { calls: unknown[][] };
 
 	spied.calls = calls;
 
