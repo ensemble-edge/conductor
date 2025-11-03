@@ -9,6 +9,7 @@ import type { EnsembleConfig } from './parser';
 import type { StateManager } from './state-manager';
 import { Result, type AsyncResult } from '../types/result';
 import { Errors, type ConductorError } from '../errors/error-types';
+import { TTL } from '../config/constants';
 
 /**
  * Suspended execution state
@@ -113,7 +114,7 @@ export class ResumptionManager {
 	): AsyncResult<string, ConductorError> {
 		try {
 			const token = ResumptionManager.generateToken();
-			const ttl = options.ttl || 86400; // 24 hours default
+			const ttl = options.ttl || TTL.RESUMPTION_TOKEN;
 
 			const suspendedState: SuspendedExecutionState = {
 				token,
