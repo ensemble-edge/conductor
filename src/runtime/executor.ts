@@ -22,6 +22,8 @@ import {
 	ConfigurationError
 } from '../errors/error-types';
 import { MemberType } from '../types/constants';
+import { ScoringExecutor, EnsembleScorer, type ScoringState, type ScoringResult, type MemberScoringConfig } from './scoring/index.js';
+import { ResumptionManager, type SuspendedExecutionState } from './resumption-manager.js';
 
 export interface ExecutorConfig {
 	env: Env;
@@ -218,10 +220,26 @@ export class Executor {
 		// Initialize state manager if configured
 		let stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
 
+		// Initialize scoring if enabled
+		let scoringState: ScoringState | null = null;
+		let ensembleScorer: EnsembleScorer | null = null;
+		const scoringExecutor = new ScoringExecutor();
+
+		if (ensemble.scoring?.enabled) {
+			ensembleScorer = new EnsembleScorer(ensemble.scoring);
+			scoringState = {
+				scoreHistory: [],
+				retryCount: {},
+				qualityMetrics: undefined,
+				finalScore: undefined
+			};
+		}
+
 		// Context for resolving interpolations
 		const executionContext: Record<string, any> = {
 			input,
-			state: stateManager ? stateManager.getState() : {}
+			state: stateManager ? stateManager.getState() : {},
+			scoring: scoringState || {}
 		};
 
 		// Execute flow steps sequentially
@@ -259,13 +277,108 @@ export class Executor {
 				getPendingUpdates = getUpdates;
 			}
 
-			// Execute member
-			const response = await member.execute(memberContext);
+			// Execute member (with scoring if configured)
+			let response: MemberResponse;
+			let scoringResult: ScoringResult | undefined;
 
-			// Apply pending state updates (immutable pattern - returns new StateManager)
-			if (stateManager && getPendingUpdates) {
-				const { updates, newLog } = getPendingUpdates();
-				stateManager = stateManager.applyPendingUpdates(updates, newLog);
+			if (step.scoring && scoringState && ensembleScorer) {
+				// Execute with scoring and retry logic
+				const scoringConfig = step.scoring as any as MemberScoringConfig;
+				const scoredResult = await scoringExecutor.executeWithScoring(
+					// Member execution function
+					async () => {
+						const resp = await member.execute(memberContext);
+						// Apply state updates after each attempt
+						if (stateManager && getPendingUpdates) {
+							const { updates, newLog } = getPendingUpdates();
+							stateManager = stateManager.applyPendingUpdates(updates, newLog);
+						}
+						return resp;
+					},
+					// Evaluator function
+					async (output, attempt, previousScore) => {
+						// Resolve the evaluator member
+						const evaluatorResult = await this.resolveMember(scoringConfig.evaluator);
+						if (!evaluatorResult.success) {
+							throw new Error(`Failed to resolve evaluator member: ${evaluatorResult.error.message}`);
+						}
+
+						const evaluator = evaluatorResult.value;
+
+						// Create evaluation context with the output to score
+						const evalContext: MemberExecutionContext = {
+							input: {
+								output: output.success ? output.data : null,
+								attempt,
+								previousScore,
+								criteria: scoringConfig.criteria || ensemble.scoring?.criteria
+							},
+							env: this.env,
+							ctx: this.ctx,
+							previousOutputs: executionContext
+						};
+
+						// Execute evaluator
+						const evalResponse = await evaluator.execute(evalContext);
+
+						if (!evalResponse.success) {
+							throw new Error(`Evaluator failed: ${evalResponse.error || 'Unknown error'}`);
+						}
+
+						// Parse evaluator output as ScoringResult
+						const evalData = evalResponse.data;
+						const score = typeof evalData === 'number' ? evalData :
+						             (evalData.score ?? evalData.value ?? 0);
+
+						const threshold = scoringConfig.thresholds?.minimum ||
+						                 ensemble.scoring?.defaultThresholds?.minimum || 0.7;
+
+						return {
+							score,
+							passed: score >= threshold,
+							feedback: evalData.feedback || evalData.message || '',
+							breakdown: evalData.breakdown || {},
+							metadata: {
+								attempt,
+								evaluator: scoringConfig.evaluator,
+								timestamp: Date.now()
+							}
+						};
+					},
+					scoringConfig
+				);
+
+				// Extract response and scoring result
+				response = scoredResult.output;
+				scoringResult = scoredResult.score;
+
+				// Update scoring state
+				scoringState.scoreHistory.push({
+					member: step.member,
+					score: scoringResult.score,
+					passed: scoringResult.passed,
+					feedback: scoringResult.feedback,
+					breakdown: scoringResult.breakdown,
+					timestamp: Date.now(),
+					attempt: scoredResult.attempts
+				});
+
+				// Track retry count
+				scoringState.retryCount[step.member] = scoredResult.attempts - 1;
+
+				// Handle scoring status
+				if (scoredResult.status === 'max_retries_exceeded') {
+					console.warn(`Member ${step.member} exceeded max retries with score ${scoringResult.score}`);
+				}
+			} else {
+				// Normal execution without scoring
+				response = await member.execute(memberContext);
+
+				// Apply pending state updates
+				if (stateManager && getPendingUpdates) {
+					const { updates, newLog } = getPendingUpdates();
+					stateManager = stateManager.applyPendingUpdates(updates, newLog);
+				}
 			}
 
 			// Track metrics
@@ -301,6 +414,18 @@ export class Executor {
 			if (stateManager) {
 				executionContext.state = stateManager.getState();
 			}
+
+			// Update scoring context for interpolations
+			if (scoringState) {
+				executionContext.scoring = scoringState;
+			}
+		}
+
+		// Calculate final ensemble score if scoring was enabled
+		if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
+			// TODO: Add weights to ensemble scoring config if needed
+			scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
+			scoringState.qualityMetrics = ensembleScorer.calculateQualityMetrics(scoringState.scoreHistory);
 		}
 
 		// Resolve final output
@@ -314,11 +439,19 @@ export class Executor {
 		// Get state report if available
 		const stateReport = stateManager?.getAccessReport();
 
-		return Result.ok({
+		// Build execution output with scoring data
+		const executionOutput: ExecutionOutput = {
 			output: finalOutput,
 			metrics,
 			stateReport
-		});
+		};
+
+		// Add scoring data if available
+		if (scoringState) {
+			(executionOutput as any).scoring = scoringState;
+		}
+
+		return Result.ok(executionOutput);
 	}
 
 	/**
@@ -447,5 +580,263 @@ export class Executor {
 	getBuiltInMembers() {
 		const builtInRegistry = getBuiltInRegistry();
 		return builtInRegistry.list();
+	}
+
+	/**
+	 * Resume execution from suspended state
+	 * Used for HITL approval workflows and webhook resumption
+	 */
+	async resumeExecution(
+		suspendedState: SuspendedExecutionState,
+		resumeInput?: Record<string, any>
+	): AsyncResult<ExecutionOutput, ConductorError> {
+		const ensemble = suspendedState.ensemble;
+		const executionContext = suspendedState.executionContext;
+
+		// Merge resume input if provided (e.g., HITL approval data)
+		if (resumeInput) {
+			executionContext.resumeInput = resumeInput;
+		}
+
+		// Restore state manager if it existed
+		let stateManager: StateManager | null = null;
+		if (suspendedState.stateSnapshot) {
+			// Create state manager from snapshot
+			if (ensemble.state) {
+				stateManager = new StateManager(ensemble.state);
+				// TODO: Restore state from snapshot
+				// This requires StateManager to support state restoration
+			}
+		}
+
+		// Restore scoring state if it existed
+		let scoringState: ScoringState | null = null;
+		let ensembleScorer: EnsembleScorer | null = null;
+		const scoringExecutor = new ScoringExecutor();
+
+		if (suspendedState.scoringSnapshot) {
+			scoringState = suspendedState.scoringSnapshot as ScoringState;
+			if (ensemble.scoring?.enabled) {
+				ensembleScorer = new EnsembleScorer(ensemble.scoring);
+			}
+		}
+
+		// Restore metrics
+		const metrics: ExecutionMetrics = {
+			ensemble: ensemble.name,
+			totalDuration: 0,
+			members: suspendedState.metrics.members || [],
+			cacheHits: suspendedState.metrics.cacheHits || 0
+		};
+
+		const startTime = suspendedState.metrics.startTime || Date.now();
+
+		// Update execution context with restored state
+		if (stateManager) {
+			executionContext.state = stateManager.getState();
+		}
+		if (scoringState) {
+			executionContext.scoring = scoringState;
+		}
+
+		// Resume from the specified step
+		const resumeFromStep = suspendedState.resumeFromStep;
+
+		// Execute remaining flow steps
+		for (let i = resumeFromStep; i < ensemble.flow.length; i++) {
+			const step = ensemble.flow[i];
+			const memberStartTime = Date.now();
+
+			// Resolve input interpolations
+			const resolvedInput = step.input
+				? Parser.resolveInterpolation(step.input, executionContext)
+				: {};
+
+			// Resolve member
+			const memberResult = await this.resolveMember(step.member);
+			if (!memberResult.success) {
+				return Result.err(
+					new EnsembleExecutionError(ensemble.name, step.member, memberResult.error)
+				);
+			}
+			const member = memberResult.value;
+
+			// Create member execution context
+			const memberContext: MemberExecutionContext = {
+				input: resolvedInput,
+				env: this.env,
+				ctx: this.ctx,
+				previousOutputs: executionContext
+			};
+
+			// Add state context if available
+			let getPendingUpdates: (() => { updates: Record<string, any>; newLog: any[] }) | null = null;
+			if (stateManager && step.state) {
+				const { context, getPendingUpdates: getUpdates } = stateManager.getStateForMember(step.member, step.state);
+				memberContext.state = context.state;
+				memberContext.setState = context.setState;
+				getPendingUpdates = getUpdates;
+			}
+
+			// Execute member (with scoring if configured)
+			let response: MemberResponse;
+			let scoringResult: ScoringResult | undefined;
+
+			if (step.scoring && scoringState && ensembleScorer) {
+				// Execute with scoring (same as normal execution)
+				const scoringConfig = step.scoring as any as MemberScoringConfig;
+				const scoredResult = await scoringExecutor.executeWithScoring(
+					async () => {
+						const resp = await member.execute(memberContext);
+						if (stateManager && getPendingUpdates) {
+							const { updates, newLog } = getPendingUpdates();
+							stateManager = stateManager.applyPendingUpdates(updates, newLog);
+						}
+						return resp;
+					},
+					async (output, attempt, previousScore) => {
+						const evaluatorResult = await this.resolveMember(scoringConfig.evaluator);
+						if (!evaluatorResult.success) {
+							throw new Error(`Failed to resolve evaluator: ${evaluatorResult.error.message}`);
+						}
+
+						const evaluator = evaluatorResult.value;
+						const evalContext: MemberExecutionContext = {
+							input: {
+								output: output.success ? output.data : null,
+								attempt,
+								previousScore,
+								criteria: scoringConfig.criteria || ensemble.scoring?.criteria
+							},
+							env: this.env,
+							ctx: this.ctx,
+							previousOutputs: executionContext
+						};
+
+						const evalResponse = await evaluator.execute(evalContext);
+						if (!evalResponse.success) {
+							throw new Error(`Evaluator failed: ${evalResponse.error || 'Unknown error'}`);
+						}
+
+						const evalData = evalResponse.data;
+						const score = typeof evalData === 'number' ? evalData :
+						             (evalData.score ?? evalData.value ?? 0);
+
+						const threshold = scoringConfig.thresholds?.minimum ||
+						                 ensemble.scoring?.defaultThresholds?.minimum || 0.7;
+
+						return {
+							score,
+							passed: score >= threshold,
+							feedback: evalData.feedback || evalData.message || '',
+							breakdown: evalData.breakdown || {},
+							metadata: {
+								attempt,
+								evaluator: scoringConfig.evaluator,
+								timestamp: Date.now()
+							}
+						};
+					},
+					scoringConfig
+				);
+
+				response = scoredResult.output;
+				scoringResult = scoredResult.score;
+
+				scoringState.scoreHistory.push({
+					member: step.member,
+					score: scoringResult.score,
+					passed: scoringResult.passed,
+					feedback: scoringResult.feedback,
+					breakdown: scoringResult.breakdown,
+					timestamp: Date.now(),
+					attempt: scoredResult.attempts
+				});
+
+				scoringState.retryCount[step.member] = scoredResult.attempts - 1;
+
+				if (scoredResult.status === 'max_retries_exceeded') {
+					console.warn(`Member ${step.member} exceeded max retries with score ${scoringResult.score}`);
+				}
+			} else {
+				// Normal execution without scoring
+				response = await member.execute(memberContext);
+
+				if (stateManager && getPendingUpdates) {
+					const { updates, newLog } = getPendingUpdates();
+					stateManager = stateManager.applyPendingUpdates(updates, newLog);
+				}
+			}
+
+			// Track metrics
+			const memberDuration = Date.now() - memberStartTime;
+			metrics.members.push({
+				name: step.member,
+				duration: memberDuration,
+				cached: response.cached,
+				success: response.success
+			});
+
+			if (response.cached) {
+				metrics.cacheHits++;
+			}
+
+			// Handle errors
+			if (!response.success) {
+				return Result.err(
+					new MemberExecutionError(
+						step.member,
+						response.error || 'Unknown error',
+						undefined
+					)
+				);
+			}
+
+			// Store output
+			executionContext[step.member] = {
+				output: response.data
+			};
+
+			// Update state context
+			if (stateManager) {
+				executionContext.state = stateManager.getState();
+			}
+
+			// Update scoring context
+			if (scoringState) {
+				executionContext.scoring = scoringState;
+			}
+		}
+
+		// Calculate final scores if scoring enabled
+		if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
+			scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
+			scoringState.qualityMetrics = ensembleScorer.calculateQualityMetrics(scoringState.scoreHistory);
+		}
+
+		// Resolve final output
+		const finalOutput = ensemble.output
+			? Parser.resolveInterpolation(ensemble.output, executionContext)
+			: executionContext;
+
+		// Calculate total duration
+		metrics.totalDuration = Date.now() - startTime;
+
+		// Get state report
+		const stateReport = stateManager?.getAccessReport();
+
+		// Build execution output
+		const executionOutput: ExecutionOutput = {
+			output: finalOutput,
+			metrics,
+			stateReport
+		};
+
+		// Add scoring data if available
+		if (scoringState) {
+			(executionOutput as any).scoring = scoringState;
+		}
+
+		return Result.ok(executionOutput);
 	}
 }
