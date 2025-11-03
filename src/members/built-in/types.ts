@@ -7,6 +7,7 @@
 import type { BaseMember } from '../base-member';
 import type { MemberConfig } from '../../runtime/parser';
 import { MemberType } from '../../types/constants';
+import type { ConductorEnv } from '../../types/env';
 
 /**
  * Metadata for a built-in member
@@ -33,7 +34,7 @@ export interface BuiltInMemberMetadata {
 /**
  * Factory function to create a built-in member instance
  */
-export type BuiltInMemberFactory = (config: MemberConfig, env: Env) => BaseMember;
+export type BuiltInMemberFactory = (config: MemberConfig, env: ConductorEnv) => BaseMember;
 
 /**
  * Built-in member registration entry

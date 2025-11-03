@@ -8,6 +8,7 @@
 import type { EnsembleConfig } from './parser';
 import { Parser } from './parser';
 import { createLogger, type Logger } from '../observability';
+import type { ConductorEnv } from '../types/env';
 
 /**
  * Catalog Loader
@@ -19,35 +20,31 @@ export class CatalogLoader {
 	/**
 	 * Load all ensembles with schedules from available storage
 	 */
-	static async loadScheduledEnsembles(env: Env): Promise<EnsembleConfig[]> {
+	static async loadScheduledEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]> {
 		// Try loading from different storage types in priority order
 
 		// Option 1: Load from dedicated CATALOG_KV namespace
-		const catalogKv = (env as any).CATALOG_KV as KVNamespace | undefined;
-		if (catalogKv) {
+		if (env.CATALOG_KV) {
 			this.logger.info('Loading scheduled ensembles from CATALOG_KV');
-			return this.loadFromKV(catalogKv, 'ensemble:');
+			return this.loadFromKV(env.CATALOG_KV, 'ensemble:');
 		}
 
 		// Option 2: Load from general KV namespace
-		const kv = (env as any).KV as KVNamespace | undefined;
-		if (kv) {
+		if (env.KV) {
 			this.logger.info('Loading scheduled ensembles from KV');
-			return this.loadFromKV(kv, 'ensemble:');
+			return this.loadFromKV(env.KV, 'ensemble:');
 		}
 
 		// Option 3: Load from D1 database
-		const db = (env as any).DB;
-		if (db) {
+		if (env.DB) {
 			this.logger.info('Loading scheduled ensembles from D1');
-			return this.loadFromD1(db);
+			return this.loadFromD1(env.DB);
 		}
 
 		// Option 4: Load from R2 bucket
-		const r2 = (env as any).CATALOG as R2Bucket | undefined;
-		if (r2) {
+		if (env.CATALOG) {
 			this.logger.info('Loading scheduled ensembles from R2');
-			return this.loadFromR2(r2);
+			return this.loadFromR2(env.CATALOG);
 		}
 
 		this.logger.warn('No storage backend configured, returning empty catalog');
@@ -57,27 +54,23 @@ export class CatalogLoader {
 	/**
 	 * Load all ensembles from storage (scheduled and non-scheduled)
 	 */
-	static async loadAllEnsembles(env: Env): Promise<EnsembleConfig[]> {
+	static async loadAllEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]> {
 		// Same priority order as scheduled ensembles
 
-		const catalogKv = (env as any).CATALOG_KV as KVNamespace | undefined;
-		if (catalogKv) {
-			return this.loadFromKV(catalogKv, 'ensemble:', false);
+		if (env.CATALOG_KV) {
+			return this.loadFromKV(env.CATALOG_KV, 'ensemble:', false);
 		}
 
-		const kv = (env as any).KV as KVNamespace | undefined;
-		if (kv) {
-			return this.loadFromKV(kv, 'ensemble:', false);
+		if (env.KV) {
+			return this.loadFromKV(env.KV, 'ensemble:', false);
 		}
 
-		const db = (env as any).DB;
-		if (db) {
-			return this.loadFromD1(db, false);
+		if (env.DB) {
+			return this.loadFromD1(env.DB, false);
 		}
 
-		const r2 = (env as any).CATALOG as R2Bucket | undefined;
-		if (r2) {
-			return this.loadFromR2(r2, false);
+		if (env.CATALOG) {
+			return this.loadFromR2(env.CATALOG, false);
 		}
 
 		return [];
@@ -86,40 +79,36 @@ export class CatalogLoader {
 	/**
 	 * Load single ensemble by name
 	 */
-	static async loadEnsemble(env: Env, ensembleName: string): Promise<EnsembleConfig | null> {
+	static async loadEnsemble(env: ConductorEnv, ensembleName: string): Promise<EnsembleConfig | null> {
 		// Try each storage backend
 
-		const catalogKv = (env as any).CATALOG_KV as KVNamespace | undefined;
-		if (catalogKv) {
-			const yaml = await catalogKv.get(`ensemble:${ensembleName}`, 'text');
+		if (env.CATALOG_KV) {
+			const yaml = await env.CATALOG_KV.get(`ensemble:${ensembleName}`, 'text');
 			if (yaml) {
 				return Parser.parseEnsemble(yaml);
 			}
 		}
 
-		const kv = (env as any).KV as KVNamespace | undefined;
-		if (kv) {
-			const yaml = await kv.get(`ensemble:${ensembleName}`, 'text');
+		if (env.KV) {
+			const yaml = await env.KV.get(`ensemble:${ensembleName}`, 'text');
 			if (yaml) {
 				return Parser.parseEnsemble(yaml);
 			}
 		}
 
-		const db = (env as any).DB;
-		if (db) {
-			const result = await db
+		if (env.DB) {
+			const result = await env.DB
 				.prepare('SELECT yaml FROM ensembles WHERE name = ?')
 				.bind(ensembleName)
-				.first();
+				.first() as { yaml: string } | null;
 
 			if (result) {
 				return Parser.parseEnsemble(result.yaml);
 			}
 		}
 
-		const r2 = (env as any).CATALOG as R2Bucket | undefined;
-		if (r2) {
-			const file = await r2.get(`ensembles/${ensembleName}.yaml`);
+		if (env.CATALOG) {
+			const file = await env.CATALOG.get(`ensembles/${ensembleName}.yaml`);
 			if (file) {
 				const yaml = await file.text();
 				return Parser.parseEnsemble(yaml);
@@ -179,7 +168,7 @@ export class CatalogLoader {
 	/**
 	 * Load from D1 database
 	 */
-	private static async loadFromD1(db: any, scheduledOnly: boolean = true): Promise<EnsembleConfig[]> {
+	private static async loadFromD1(db: D1Database, scheduledOnly: boolean = true): Promise<EnsembleConfig[]> {
 		const ensembles: EnsembleConfig[] = [];
 
 		try {
@@ -188,7 +177,7 @@ export class CatalogLoader {
 				? 'SELECT yaml FROM ensembles WHERE schedules IS NOT NULL AND json_array_length(schedules) > 0'
 				: 'SELECT yaml FROM ensembles';
 
-			const result = await db.prepare(query).all();
+			const result = await db.prepare(query).all() as { results: Array<{ yaml: string }> };
 
 			for (const row of result.results) {
 				try {
@@ -266,33 +255,29 @@ export class CatalogLoader {
 	/**
 	 * Store ensemble in catalog (for testing/development)
 	 */
-	static async storeEnsemble(env: Env, ensemble: EnsembleConfig, yaml: string): Promise<void> {
+	static async storeEnsemble(env: ConductorEnv, ensemble: EnsembleConfig, yaml: string): Promise<void> {
 		// Store in available backend
 
-		const catalogKv = (env as any).CATALOG_KV as KVNamespace | undefined;
-		if (catalogKv) {
-			await catalogKv.put(`ensemble:${ensemble.name}`, yaml);
+		if (env.CATALOG_KV) {
+			await env.CATALOG_KV.put(`ensemble:${ensemble.name}`, yaml);
 			return;
 		}
 
-		const kv = (env as any).KV as KVNamespace | undefined;
-		if (kv) {
-			await kv.put(`ensemble:${ensemble.name}`, yaml);
+		if (env.KV) {
+			await env.KV.put(`ensemble:${ensemble.name}`, yaml);
 			return;
 		}
 
-		const db = (env as any).DB;
-		if (db) {
-			await db
+		if (env.DB) {
+			await env.DB
 				.prepare('INSERT OR REPLACE INTO ensembles (name, yaml, schedules) VALUES (?, ?, ?)')
 				.bind(ensemble.name, yaml, JSON.stringify(ensemble.schedules || []))
 				.run();
 			return;
 		}
 
-		const r2 = (env as any).CATALOG as R2Bucket | undefined;
-		if (r2) {
-			await r2.put(`ensembles/${ensemble.name}.yaml`, yaml);
+		if (env.CATALOG) {
+			await env.CATALOG.put(`ensembles/${ensemble.name}.yaml`, yaml);
 			return;
 		}
 

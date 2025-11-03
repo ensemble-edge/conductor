@@ -18,6 +18,7 @@ import type {
 	BuiltInMemberEntry
 } from './types';
 import { MemberType } from '../../types/constants';
+import type { ConductorEnv } from '../../types/env';
 
 export class BuiltInMemberRegistry {
 	private members = new Map<string, BuiltInMemberEntry>();
@@ -43,7 +44,7 @@ export class BuiltInMemberRegistry {
 	/**
 	 * Get a built-in member instance (lazy loading)
 	 */
-	create(name: string, config: MemberConfig, env: Env): BaseMember {
+	create(name: string, config: MemberConfig, env: ConductorEnv): BaseMember {
 		const entry = this.members.get(name);
 
 		if (!entry) {

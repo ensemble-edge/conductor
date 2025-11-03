@@ -12,6 +12,7 @@ import type { MemberConfig } from '../runtime/parser';
 import type { Repository } from '../storage';
 import { KVRepository, D1Repository, R2Repository, JSONSerializer } from '../storage';
 import { StorageType } from '../types/constants';
+import type { ConductorEnv } from '../types/env';
 
 export interface DataConfig {
 	storage: StorageType;
@@ -196,9 +197,9 @@ export class DataMember extends BaseMember {
 	 * Create repository from environment bindings
 	 * Falls back to original behavior if no repository injected
 	 */
-	private createRepository(env: Env): Repository<any, string> {
+	private createRepository(env: ConductorEnv): Repository<any, string> {
 		const bindingName = this.getBindingName();
-		const binding = (env as any)[bindingName];
+		const binding = env[bindingName as keyof ConductorEnv];
 
 		if (!binding) {
 			throw new Error(

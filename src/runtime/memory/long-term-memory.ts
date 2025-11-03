@@ -5,23 +5,34 @@
  * Data persists indefinitely until explicitly deleted.
  */
 
+import type { ConductorEnv } from '../../types/env';
+
+/**
+ * Type for D1 query result row
+ */
+interface D1ResultRow {
+	key: string;
+	value: string;
+	updated_at?: number;
+}
+
 export class LongTermMemory {
 	private readonly tableName = 'long_term_memory';
 
 	constructor(
-		private readonly env: Env,
+		private readonly env: ConductorEnv,
 		private readonly userId?: string
 	) {}
 
 	/**
 	 * Get a value by key
 	 */
-	async get(key: string): Promise<any> {
-		if (!this.userId || !(this.env as any).DB) {
+	async get(key: string): Promise<unknown> {
+		if (!this.userId || !this.env.DB) {
 			return null;
 		}
 
-		const result = await (this.env as any).DB.prepare(
+		const result = await this.env.DB.prepare(
 			`SELECT value, updated_at FROM ${this.tableName} WHERE user_id = ? AND key = ?`
 		)
 			.bind(this.userId, key)
@@ -37,12 +48,12 @@ export class LongTermMemory {
 	/**
 	 * Set a value
 	 */
-	async set(key: string, value: any): Promise<void> {
-		if (!this.userId || !(this.env as any).DB) {
+	async set(key: string, value: unknown): Promise<void> {
+		if (!this.userId || !this.env.DB) {
 			return;
 		}
 
-		await (this.env as any).DB.prepare(
+		await this.env.DB.prepare(
 			`INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
        VALUES (?, ?, ?, ?)
        ON CONFLICT(user_id, key) DO UPDATE SET
@@ -57,11 +68,11 @@ export class LongTermMemory {
 	 * Delete a key
 	 */
 	async delete(key: string): Promise<void> {
-		if (!this.userId || !(this.env as any).DB) {
+		if (!this.userId || !this.env.DB) {
 			return;
 		}
 
-		await (this.env as any).DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ? AND key = ?`)
+		await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ? AND key = ?`)
 			.bind(this.userId, key)
 			.run();
 	}
@@ -70,11 +81,11 @@ export class LongTermMemory {
 	 * Check if key exists
 	 */
 	async has(key: string): Promise<boolean> {
-		if (!this.userId || !(this.env as any).DB) {
+		if (!this.userId || !this.env.DB) {
 			return false;
 		}
 
-		const result = await (this.env as any).DB.prepare(
+		const result = await this.env.DB.prepare(
 			`SELECT 1 FROM ${this.tableName} WHERE user_id = ? AND key = ? LIMIT 1`
 		)
 			.bind(this.userId, key)
@@ -87,36 +98,36 @@ export class LongTermMemory {
 	 * Get all keys for this user
 	 */
 	async keys(): Promise<string[]> {
-		if (!this.userId || !(this.env as any).DB) {
+		if (!this.userId || !this.env.DB) {
 			return [];
 		}
 
-		const results = await (this.env as any).DB.prepare(
+		const results = await this.env.DB.prepare(
 			`SELECT key FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
 		)
 			.bind(this.userId)
 			.all();
 
-		return results.results.map((row: any) => row.key);
+		return (results.results as unknown as D1ResultRow[]).map(row => row.key);
 	}
 
 	/**
 	 * Get all key-value pairs
 	 */
-	async getAll(): Promise<Record<string, any>> {
-		if (!this.userId || !(this.env as any).DB) {
+	async getAll(): Promise<Record<string, unknown>> {
+		if (!this.userId || !this.env.DB) {
 			return {};
 		}
 
-		const results = await (this.env as any).DB.prepare(
+		const results = await this.env.DB.prepare(
 			`SELECT key, value FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
 		)
 			.bind(this.userId)
 			.all();
 
-		const data: Record<string, any> = {};
-		for (const row of results.results) {
-			data[(row as any).key] = JSON.parse((row as any).value);
+		const data: Record<string, unknown> = {};
+		for (const row of results.results as unknown as D1ResultRow[]) {
+			data[row.key] = JSON.parse(row.value);
 		}
 
 		return data;
@@ -125,21 +136,21 @@ export class LongTermMemory {
 	/**
 	 * Get multiple values by keys
 	 */
-	async getMany(keys: string[]): Promise<Record<string, any>> {
-		if (!this.userId || !(this.env as any).DB || keys.length === 0) {
+	async getMany(keys: string[]): Promise<Record<string, unknown>> {
+		if (!this.userId || !this.env.DB || keys.length === 0) {
 			return {};
 		}
 
 		const placeholders = keys.map(() => '?').join(',');
-		const results = await (this.env as any).DB.prepare(
+		const results = await this.env.DB.prepare(
 			`SELECT key, value FROM ${this.tableName} WHERE user_id = ? AND key IN (${placeholders})`
 		)
 			.bind(this.userId, ...keys)
 			.all();
 
-		const data: Record<string, any> = {};
-		for (const row of results.results) {
-			data[(row as any).key] = JSON.parse((row as any).value);
+		const data: Record<string, unknown> = {};
+		for (const row of results.results as unknown as D1ResultRow[]) {
+			data[row.key] = JSON.parse(row.value);
 		}
 
 		return data;
@@ -148,15 +159,15 @@ export class LongTermMemory {
 	/**
 	 * Set multiple key-value pairs
 	 */
-	async setMany(data: Record<string, any>): Promise<void> {
-		if (!this.userId || !(this.env as any).DB) {
+	async setMany(data: Record<string, unknown>): Promise<void> {
+		if (!this.userId || !this.env.DB) {
 			return;
 		}
 
 		const timestamp = Date.now();
-		const batch = (this.env as any).DB.batch(
+		const batch = this.env.DB.batch(
 			Object.entries(data).map(([key, value]) =>
-				(this.env as any).DB!.prepare(
+				this.env.DB!.prepare(
 					`INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
            VALUES (?, ?, ?, ?)
            ON CONFLICT(user_id, key) DO UPDATE SET
@@ -173,11 +184,11 @@ export class LongTermMemory {
 	 * Clear all data for this user
 	 */
 	async clear(): Promise<void> {
-		if (!this.userId || !(this.env as any).DB) {
+		if (!this.userId || !this.env.DB) {
 			return;
 		}
 
-		await (this.env as any).DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ?`)
+		await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ?`)
 			.bind(this.userId)
 			.run();
 	}
@@ -186,11 +197,11 @@ export class LongTermMemory {
 	 * Count entries for this user
 	 */
 	async count(): Promise<number> {
-		if (!this.userId || !(this.env as any).DB) {
+		if (!this.userId || !this.env.DB) {
 			return 0;
 		}
 
-		const result = await (this.env as any).DB.prepare(
+		const result = await this.env.DB.prepare(
 			`SELECT COUNT(*) as count FROM ${this.tableName} WHERE user_id = ?`
 		)
 			.bind(this.userId)
@@ -202,12 +213,12 @@ export class LongTermMemory {
 	/**
 	 * Search keys by prefix
 	 */
-	async searchByPrefix(prefix: string): Promise<Record<string, any>> {
-		if (!this.userId || !(this.env as any).DB) {
+	async searchByPrefix(prefix: string): Promise<Record<string, unknown>> {
+		if (!this.userId || !this.env.DB) {
 			return {};
 		}
 
-		const results = await (this.env as any).DB.prepare(
+		const results = await this.env.DB.prepare(
 			`SELECT key, value FROM ${this.tableName}
        WHERE user_id = ? AND key LIKE ?
        ORDER BY updated_at DESC`
@@ -215,9 +226,9 @@ export class LongTermMemory {
 			.bind(this.userId, `${prefix}%`)
 			.all();
 
-		const data: Record<string, any> = {};
-		for (const row of results.results) {
-			data[(row as any).key] = JSON.parse((row as any).value);
+		const data: Record<string, unknown> = {};
+		for (const row of results.results as unknown as D1ResultRow[]) {
+			data[row.key] = JSON.parse(row.value);
 		}
 
 		return data;

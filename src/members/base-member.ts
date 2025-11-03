@@ -7,12 +7,13 @@
 
 import type { MemberConfig } from '../runtime/parser';
 import type { StateContext } from '../runtime/state-manager';
+import type { ConductorEnv } from '../types/env';
 
 export interface MemberExecutionContext {
 	input: Record<string, any>;
 	state?: Record<string, any>;
 	setState?: (updates: Record<string, any>) => void;
-	env: Env;
+	env: ConductorEnv;
 	ctx: ExecutionContext;
 	previousOutputs?: Record<string, any>;
 }

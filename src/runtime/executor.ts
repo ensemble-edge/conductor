@@ -6,8 +6,9 @@
  */
 
 import { Parser, type EnsembleConfig, type FlowStep, type MemberConfig } from './parser';
-import { StateManager } from './state-manager';
+import { StateManager, type AccessReport, type AccessLogEntry } from './state-manager';
 import type { BaseMember, MemberExecutionContext, MemberResponse } from '../members/base-member';
+import type { ConductorEnv } from '../types/env';
 import { FunctionMember } from '../members/function-member';
 import { ThinkMember } from '../members/think-member';
 import { DataMember } from '../members/data-member';
@@ -27,7 +28,7 @@ import { ResumptionManager, type SuspendedExecutionState } from './resumption-ma
 import { createLogger, type Logger } from '../observability';
 
 export interface ExecutorConfig {
-	env: Env;
+	env: ConductorEnv;
 	ctx: ExecutionContext;
 	logger?: Logger;
 }
@@ -36,9 +37,10 @@ export interface ExecutorConfig {
  * Successful execution output
  */
 export interface ExecutionOutput {
-	output: any;
+	output: unknown;
 	metrics: ExecutionMetrics;
-	stateReport?: any;
+	stateReport?: AccessReport;
+	scoring?: ScoringState;
 }
 
 /**
@@ -47,10 +49,10 @@ export interface ExecutionOutput {
  */
 export interface ExecutionResult {
 	success: boolean;
-	output?: any;
+	output?: unknown;
 	error?: string;
 	metrics: ExecutionMetrics;
-	stateReport?: any;
+	stateReport?: AccessReport;
 }
 
 export interface ExecutionMetrics {
@@ -58,7 +60,7 @@ export interface ExecutionMetrics {
 	totalDuration: number;
 	members: MemberMetric[];
 	cacheHits: number;
-	stateAccess?: any;
+	stateAccess?: AccessReport;
 }
 
 export interface MemberMetric {
@@ -87,7 +89,7 @@ interface FlowExecutionContext {
  * Core execution engine for ensembles with Result-based error handling
  */
 export class Executor {
-	private env: Env;
+	private env: ConductorEnv;
 	private ctx: ExecutionContext;
 	private memberRegistry: Map<string, BaseMember>;
 	private logger: Logger;
@@ -96,7 +98,7 @@ export class Executor {
 		this.env = config.env;
 		this.ctx = config.ctx;
 		this.memberRegistry = new Map();
-		this.logger = config.logger || createLogger({ serviceName: 'executor' }, (this.env as any).ANALYTICS);
+		this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS);
 	}
 
 	/**
@@ -252,7 +254,7 @@ export class Executor {
 		};
 
 		// Add state context if available and track updates
-		let getPendingUpdates: (() => { updates: Record<string, any>; newLog: any[] }) | null = null;
+		let getPendingUpdates: (() => { updates: Record<string, any>; newLog: AccessLogEntry[] }) | null = null;
 		if (stateManager && step.state) {
 			const { context, getPendingUpdates: getUpdates } = stateManager.getStateForMember(step.member, step.state);
 			memberContext.state = context.state;
@@ -266,7 +268,7 @@ export class Executor {
 
 		if (step.scoring && scoringState && ensembleScorer) {
 			// Execute with scoring and retry logic
-			const scoringConfig = step.scoring as any as MemberScoringConfig;
+			const scoringConfig = step.scoring as MemberScoringConfig;
 			const scoredResult = await scoringExecutor.executeWithScoring(
 				// Member execution function
 				async () => {
@@ -457,7 +459,7 @@ export class Executor {
 
 		// Add scoring data if available
 		if (scoringState) {
-			(executionOutput as any).scoring = scoringState;
+			executionOutput.scoring = scoringState;
 		}
 
 		return Result.ok(executionOutput);
