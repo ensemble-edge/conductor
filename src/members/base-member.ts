@@ -20,12 +20,12 @@ export interface MemberExecutionContext {
 
 export interface MemberResponse {
 	success: boolean;
-	data?: any;
+	data?: unknown;
 	error?: string;
 	timestamp: string;
 	cached: boolean;
 	executionTime: number;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 /**
@@ -77,7 +77,7 @@ export abstract class BaseMember {
 	 * @param cached - Whether result was cached
 	 * @returns Wrapped response
 	 */
-	protected wrapSuccess(data: any, executionTime: number, cached: boolean = false): MemberResponse {
+	protected wrapSuccess(data: unknown, executionTime: number, cached: boolean = false): MemberResponse {
 		return {
 			success: true,
 			data,
@@ -132,7 +132,7 @@ export abstract class BaseMember {
 	 * @param obj - Object to sort
 	 * @returns Sorted object
 	 */
-	private sortObjectKeys(obj: any): any {
+	private sortObjectKeys(obj: unknown): unknown {
 		if (typeof obj !== 'object' || obj === null) {
 			return obj;
 		}
@@ -141,11 +141,11 @@ export abstract class BaseMember {
 			return obj.map(item => this.sortObjectKeys(item));
 		}
 
-		const sorted: Record<string, any> = {};
+		const sorted: Record<string, unknown> = {};
 		const keys = Object.keys(obj).sort();
 
 		for (const key of keys) {
-			sorted[key] = this.sortObjectKeys(obj[key]);
+			sorted[key] = this.sortObjectKeys((obj as Record<string, unknown>)[key]);
 		}
 
 		return sorted;
