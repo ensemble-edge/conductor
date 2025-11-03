@@ -30,7 +30,7 @@ export class PromptParser {
 	/**
 	 * Parse and substitute variables in template
 	 */
-	parse(template: string, variables: Record<string, any>, options?: ParserOptions): string {
+	parse(template: string, variables: Record<string, unknown>, options?: ParserOptions): string {
 		const opts: Required<ParserOptions> = {
 			...this.defaultOptions,
 			...this.options,
@@ -53,7 +53,7 @@ export class PromptParser {
 	/**
 	 * Parse simple variable substitution: {{name}}
 	 */
-	private parseVariables(template: string, variables: Record<string, any>, options: Required<ParserOptions>): string {
+	private parseVariables(template: string, variables: Record<string, unknown>, options: Required<ParserOptions>): string {
 		const regex = /\{\{([^#/][^}]*)\}\}/g;
 
 		return template.replace(regex, (match, varPath) => {
@@ -77,7 +77,7 @@ export class PromptParser {
 	 */
 	private parseConditionals(
 		template: string,
-		variables: Record<string, any>,
+		variables: Record<string, unknown>,
 		options: Required<ParserOptions>
 	): string {
 		const regex = /\{\{#if\s+([^}]+)\}\}([\s\S]*?)\{\{\/if\}\}/g;
@@ -93,7 +93,7 @@ export class PromptParser {
 	/**
 	 * Parse loop blocks: {{#each items}}...{{/each}}
 	 */
-	private parseLoops(template: string, variables: Record<string, any>, options: Required<ParserOptions>): string {
+	private parseLoops(template: string, variables: Record<string, unknown>, options: Required<ParserOptions>): string {
 		const regex = /\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g;
 
 		return template.replace(regex, (match, arrayPath, content) => {
@@ -127,7 +127,7 @@ export class PromptParser {
 	/**
 	 * Resolve variable path (supports nested properties and array access)
 	 */
-	private resolveVariable(path: string, variables: Record<string, any>): any {
+	private resolveVariable(path: string, variables: Record<string, unknown>): unknown {
 		// Handle 'this' keyword
 		if (path === 'this') {
 			return variables.this;
@@ -136,18 +136,25 @@ export class PromptParser {
 		// Split path by dots and brackets
 		const parts = path.split(/[.\[\]]+/).filter((p) => p.length > 0);
 
-		let value: any = variables;
+		let value: unknown = variables;
 		for (const part of parts) {
 			if (value === undefined || value === null) {
 				return undefined;
 			}
 
+			// Type guard: value must be an object or array to access properties
+			if (typeof value !== 'object') {
+				return undefined;
+			}
+
 			// Handle numeric indices
 			const index = parseInt(part, 10);
-			if (!isNaN(index)) {
+			if (!isNaN(index) && Array.isArray(value)) {
 				value = value[index];
+			} else if (typeof value === 'object' && value !== null) {
+				value = (value as Record<string, unknown>)[part];
 			} else {
-				value = value[part];
+				return undefined;
 			}
 		}
 
@@ -157,7 +164,7 @@ export class PromptParser {
 	/**
 	 * Check if value is truthy
 	 */
-	private isTruthy(value: any): boolean {
+	private isTruthy(value: unknown): boolean {
 		if (value === undefined || value === null) {
 			return false;
 		}
@@ -223,7 +230,7 @@ export class PromptParser {
 /**
  * Convenience function to parse a template
  */
-export function parseTemplate(template: string, variables: Record<string, any>, options?: ParserOptions): string {
+export function parseTemplate(template: string, variables: Record<string, unknown>, options?: ParserOptions): string {
 	const parser = new PromptParser(options);
 	return parser.parse(template, variables);
 }
