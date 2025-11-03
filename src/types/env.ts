@@ -19,6 +19,11 @@ export interface ConductorEnv extends Env {
 	KV?: KVNamespace;
 
 	/**
+	 * KV Namespace for session storage
+	 */
+	SESSIONS?: KVNamespace;
+
+	/**
 	 * Dedicated KV Namespace for catalog storage
 	 */
 	CATALOG_KV?: KVNamespace;

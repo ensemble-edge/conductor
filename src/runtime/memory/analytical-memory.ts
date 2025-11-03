@@ -93,7 +93,7 @@ export interface FederatedQuery {
 	/**
 	 * Query parameters
 	 */
-	params?: any[];
+	params?: unknown[];
 }
 
 /**
@@ -142,7 +142,7 @@ export class AnalyticalMemory {
 	/**
 	 * Query a specific database
 	 */
-	async query<T = any>(sql: string, params?: any[], database?: string): Promise<T[]> {
+	async query<T = unknown>(sql: string, params?: unknown[], database?: string): Promise<T[]> {
 		const dbAlias = database || this.defaultDatabase;
 
 		if (!dbAlias) {
@@ -181,7 +181,7 @@ export class AnalyticalMemory {
 	/**
 	 * Query with named parameters
 	 */
-	async queryNamed<T = any>(sql: string, params: Record<string, any>, database?: string): Promise<T[]> {
+	async queryNamed<T = unknown>(sql: string, params: Record<string, unknown>, database?: string): Promise<T[]> {
 		const dbAlias = database || this.defaultDatabase;
 
 		if (!dbAlias) {
@@ -205,9 +205,9 @@ export class AnalyticalMemory {
 	/**
 	 * Query with full result metadata
 	 */
-	async queryWithMetadata<T = any>(
+	async queryWithMetadata<T = unknown>(
 		sql: string,
-		params?: any[],
+		params?: unknown[],
 		database?: string
 	): Promise<Result<QueryResult<T>, ConductorError>> {
 		const dbAlias = database || this.defaultDatabase;
@@ -227,7 +227,7 @@ export class AnalyticalMemory {
 	/**
 	 * Execute a write query (INSERT, UPDATE, DELETE)
 	 */
-	async execute(sql: string, params?: any[], database?: string): Promise<number> {
+	async execute(sql: string, params?: unknown[], database?: string): Promise<number> {
 		const dbAlias = database || this.defaultDatabase;
 
 		if (!dbAlias) {
@@ -255,8 +255,8 @@ export class AnalyticalMemory {
 	/**
 	 * Execute queries across multiple databases (federated query)
 	 */
-	async queryMultiple(queries: FederatedQuery[]): Promise<Map<string, any[]>> {
-		const results = new Map<string, any[]>();
+	async queryMultiple(queries: FederatedQuery[]): Promise<Map<string, unknown[]>> {
+		const results = new Map<string, unknown[]>();
 
 		// Execute queries in parallel
 		const promises = queries.map(async (query) => {
