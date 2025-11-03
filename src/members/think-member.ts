@@ -42,15 +42,16 @@ export class ThinkMember extends BaseMember {
 	constructor(config: MemberConfig) {
 		super(config);
 
+		const cfg = config.config as ThinkConfig | undefined;
 		this.thinkConfig = {
-			model: config.config?.model || 'claude-3-5-haiku-20241022',
-			provider: config.config?.provider || AIProvider.Anthropic,
-			temperature: config.config?.temperature || 0.7,
-			maxTokens: config.config?.maxTokens || 1000,
-			apiKey: config.config?.apiKey,
-			apiEndpoint: config.config?.apiEndpoint,
-			systemPrompt: config.config?.systemPrompt,
-			prompt: config.config?.prompt
+			model: cfg?.model || 'claude-3-5-haiku-20241022',
+			provider: cfg?.provider || AIProvider.Anthropic,
+			temperature: cfg?.temperature || 0.7,
+			maxTokens: cfg?.maxTokens || 1000,
+			apiKey: cfg?.apiKey,
+			apiEndpoint: cfg?.apiEndpoint,
+			systemPrompt: cfg?.systemPrompt,
+			prompt: cfg?.prompt
 		};
 	}
 

@@ -49,11 +49,12 @@ export class DataMember extends BaseMember {
 	) {
 		super(config);
 
+		const cfg = config.config as DataConfig | undefined;
 		this.dataConfig = {
-			storage: config.config?.storage,
-			operation: config.config?.operation,
-			binding: config.config?.binding,
-			ttl: config.config?.ttl
+			storage: cfg?.storage as StorageType,
+			operation: cfg?.operation as 'get' | 'put' | 'delete' | 'list',
+			binding: cfg?.binding,
+			ttl: cfg?.ttl
 		};
 
 		// Validate config

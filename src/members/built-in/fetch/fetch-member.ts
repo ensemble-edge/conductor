@@ -18,12 +18,13 @@ export class FetchMember extends BaseMember {
 	constructor(config: MemberConfig, private readonly env: Env) {
 		super(config);
 
+		const cfg = config.config as FetchConfig | undefined;
 		this.fetchConfig = {
-			method: config.config?.method || 'GET',
-			headers: config.config?.headers || {},
-			retry: config.config?.retry !== undefined ? config.config.retry : 3,
-			timeout: config.config?.timeout || 30000,
-			retryDelay: config.config?.retryDelay || 1000
+			method: cfg?.method || 'GET',
+			headers: cfg?.headers || {},
+			retry: cfg?.retry !== undefined ? cfg.retry : 3,
+			timeout: cfg?.timeout || 30000,
+			retryDelay: cfg?.retryDelay || 1000
 		};
 	}
 

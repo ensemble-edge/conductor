@@ -23,7 +23,7 @@ import {
 	ConfigurationError
 } from '../errors/error-types';
 import { MemberType } from '../types/constants';
-import { ScoringExecutor, EnsembleScorer, type ScoringState, type ScoringResult, type MemberScoringConfig } from './scoring/index.js';
+import { ScoringExecutor, EnsembleScorer, type ScoringState, type ScoringResult, type MemberScoringConfig, type EnsembleScoringConfig } from './scoring/index.js';
 import { ResumptionManager, type SuspendedExecutionState } from './resumption-manager.js';
 import { createLogger, type Logger } from '../observability';
 
@@ -247,7 +247,7 @@ export class Executor {
 
 		// Create member execution context
 		const memberContext: MemberExecutionContext = {
-			input: resolvedInput,
+			input: resolvedInput as Record<string, any>,
 			env: this.env,
 			ctx: this.ctx,
 			previousOutputs: executionContext
@@ -492,7 +492,7 @@ export class Executor {
 		const scoringExecutor = new ScoringExecutor();
 
 		if (ensemble.scoring?.enabled) {
-			ensembleScorer = new EnsembleScorer(ensemble.scoring);
+			ensembleScorer = new EnsembleScorer(ensemble.scoring as EnsembleScoringConfig);
 			scoringState = {
 				scoreHistory: [],
 				retryCount: {},
@@ -687,7 +687,7 @@ export class Executor {
 		if (suspendedState.scoringSnapshot) {
 			scoringState = suspendedState.scoringSnapshot as ScoringState;
 			if (ensemble.scoring?.enabled) {
-				ensembleScorer = new EnsembleScorer(ensemble.scoring);
+				ensembleScorer = new EnsembleScorer(ensemble.scoring as EnsembleScoringConfig);
 			}
 		}
 
