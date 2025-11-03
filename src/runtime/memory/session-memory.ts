@@ -6,12 +6,13 @@
  */
 
 import type { ConversationHistory, Message } from './types';
+import type { ConductorEnv } from '../../types/env';
 
 export class SessionMemory {
 	private readonly defaultTTL = 3600; // 1 hour in seconds
 
 	constructor(
-		private readonly env: Env,
+		private readonly env: ConductorEnv,
 		private readonly sessionId?: string,
 		private readonly ttl: number = 3600
 	) {}
@@ -35,7 +36,7 @@ export class SessionMemory {
 		}
 
 		const key = this.getKey();
-		const data = await (this.env as any).SESSIONS?.get(key);
+		const data = await this.env.SESSIONS?.get(key);
 
 		if (!data) {
 			return { messages: [], createdAt: Date.now(), updatedAt: Date.now() };
@@ -57,7 +58,7 @@ export class SessionMemory {
 		history.updatedAt = Date.now();
 
 		const key = this.getKey();
-		await (this.env as any).SESSIONS?.put(key, JSON.stringify(history), {
+		await this.env.SESSIONS?.put(key, JSON.stringify(history), {
 			expirationTtl: this.ttl
 		});
 	}
@@ -75,7 +76,7 @@ export class SessionMemory {
 		history.updatedAt = Date.now();
 
 		const key = this.getKey();
-		await (this.env as any).SESSIONS?.put(key, JSON.stringify(history), {
+		await this.env.SESSIONS?.put(key, JSON.stringify(history), {
 			expirationTtl: this.ttl
 		});
 	}
@@ -91,7 +92,7 @@ export class SessionMemory {
 		history.updatedAt = Date.now();
 
 		const key = this.getKey();
-		await (this.env as any).SESSIONS?.put(key, JSON.stringify(history), {
+		await this.env.SESSIONS?.put(key, JSON.stringify(history), {
 			expirationTtl: this.ttl
 		});
 	}
@@ -105,7 +106,7 @@ export class SessionMemory {
 		}
 
 		const key = this.getKey();
-		await (this.env as any).SESSIONS?.delete(key);
+		await this.env.SESSIONS?.delete(key);
 	}
 
 	/**
@@ -163,7 +164,7 @@ export class SessionMemory {
 		history.updatedAt = Date.now();
 
 		const key = this.getKey();
-		await (this.env as any).SESSIONS?.put(key, JSON.stringify(history), {
+		await this.env.SESSIONS?.put(key, JSON.stringify(history), {
 			expirationTtl: this.ttl
 		});
 	}
@@ -178,7 +179,7 @@ export class SessionMemory {
 
 		const history = await this.get();
 		const key = this.getKey();
-		await (this.env as any).SESSIONS?.put(key, JSON.stringify(history), {
+		await this.env.SESSIONS?.put(key, JSON.stringify(history), {
 			expirationTtl: this.ttl
 		});
 	}

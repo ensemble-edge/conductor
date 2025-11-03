@@ -11,14 +11,14 @@ export class WorkingMemory {
 	/**
 	 * Set a value in working memory
 	 */
-	set(key: string, value: any): void {
+	set(key: string, value: unknown): void {
 		this.memory.set(key, value);
 	}
 
 	/**
 	 * Get a value from working memory
 	 */
-	get(key: string): any {
+	get(key: string): unknown {
 		return this.memory.get(key);
 	}
 
