@@ -9,6 +9,11 @@ import chalk from 'chalk';
 import { createExecCommand } from './commands/exec.js';
 import { createMembersCommand } from './commands/members.js';
 import { createDocsCommand } from './commands/docs.js';
+import { createTestCommand } from './commands/test.js';
+import { createLogsCommand } from './commands/logs.js';
+import { createStateCommand } from './commands/state.js';
+import { createReplayCommand } from './commands/replay.js';
+import { createHistoryCommand } from './commands/history.js';
 
 const program = new Command();
 
@@ -21,6 +26,13 @@ program
 program.addCommand(createExecCommand());
 program.addCommand(createMembersCommand());
 program.addCommand(createDocsCommand());
+
+// Testing & Debugging commands
+program.addCommand(createTestCommand());
+program.addCommand(createHistoryCommand());
+program.addCommand(createLogsCommand());
+program.addCommand(createStateCommand());
+program.addCommand(createReplayCommand());
 
 // Health check command
 program
