@@ -1,0 +1,2 @@
+- narrow most console logging to debug state (what is that?)
+- add .github/workflows to test and prepare conductor releases (like edgit)
