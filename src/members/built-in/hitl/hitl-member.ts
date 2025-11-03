@@ -172,7 +172,7 @@ export class HITLMember extends BaseMember {
 	/**
 	 * Send notification to configured channel
 	 */
-	private async sendNotification(executionId: string, approvalData: Record<string, any>): Promise<void> {
+	private async sendNotification(executionId: string, approvalData: Record<string, unknown>): Promise<void> {
 		const channel = this.hitlConfig.notificationChannel;
 		const config = this.hitlConfig.notificationConfig || {};
 
@@ -194,12 +194,12 @@ export class HITLMember extends BaseMember {
 	 */
 	private async sendSlackNotification(
 		executionId: string,
-		approvalData: Record<string, any>,
-		config: Record<string, any>
+		approvalData: Record<string, unknown>,
+		config: Record<string, unknown>
 	): Promise<void> {
 		const webhookUrl = config.webhookUrl;
 
-		if (!webhookUrl) {
+		if (!webhookUrl || typeof webhookUrl !== 'string') {
 			throw new Error('Slack notification requires webhookUrl in notificationConfig');
 		}
 
@@ -258,8 +258,8 @@ export class HITLMember extends BaseMember {
 	 */
 	private async sendEmailNotification(
 		executionId: string,
-		approvalData: Record<string, any>,
-		config: Record<string, any>
+		approvalData: Record<string, unknown>,
+		config: Record<string, unknown>
 	): Promise<void> {
 		// TODO: Implement email notification via Cloudflare Email Workers
 		logger.debug('Email notification not yet implemented', {
@@ -272,12 +272,12 @@ export class HITLMember extends BaseMember {
 	 */
 	private async sendWebhookNotification(
 		executionId: string,
-		approvalData: Record<string, any>,
-		config: Record<string, any>
+		approvalData: Record<string, unknown>,
+		config: Record<string, unknown>
 	): Promise<void> {
 		const webhookUrl = config.webhookUrl;
 
-		if (!webhookUrl) {
+		if (!webhookUrl || typeof webhookUrl !== 'string') {
 			throw new Error('Webhook notification requires webhookUrl in notificationConfig');
 		}
 
@@ -303,7 +303,7 @@ export class HITLMember extends BaseMember {
 	/**
 	 * Get Durable Object for approval state
 	 */
-	private getApprovalDO(executionId: string): any {
+	private getApprovalDO(executionId: string): unknown {
 		// TODO: Integrate with Durable Objects
 		// const doId = this.env.APPROVAL_MANAGER.idFromName(executionId);
 		// return this.env.APPROVAL_MANAGER.get(doId);
