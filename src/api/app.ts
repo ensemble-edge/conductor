@@ -9,8 +9,10 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import type { ConductorContext } from './types';
 import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware';
-import { execute, members, health, stream, async, webhooks } from './routes';
+import { execute, members, health, stream, async, webhooks, executions, schedules } from './routes';
 import { openapi } from './openapi';
+import { ScheduleManager, type ScheduledEvent } from '../runtime/schedule-manager';
+import { CatalogLoader } from '../runtime/catalog-loader';
 
 export interface APIConfig {
 	auth?: {
@@ -81,6 +83,8 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 	app.route('/api/v1/members', members);
 	app.route('/api/v1/stream', stream);
 	app.route('/api/v1/async', async);
+	app.route('/api/v1/executions', executions);
+	app.route('/api/v1/schedules', schedules);
 
 	// Webhook routes (public by default, auth configured per-webhook)
 	app.route('/webhooks', webhooks);
@@ -131,6 +135,30 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 }
 
 /**
+ * Initialize schedule manager with ensembles from catalog
+ */
+async function initializeScheduleManager(env: Env): Promise<ScheduleManager> {
+	const manager = new ScheduleManager();
+
+	try {
+		// Load all ensembles with schedules from catalog
+		const ensembles = await CatalogLoader.loadScheduledEnsembles(env);
+
+		// Register all scheduled ensembles
+		manager.registerAll(ensembles);
+
+		console.log('[SCHEDULE] Initialized:', {
+			totalEnsembles: ensembles.length,
+			crons: manager.getAllCronExpressions()
+		});
+	} catch (error) {
+		console.error('[SCHEDULE] Failed to initialize:', error);
+	}
+
+	return manager;
+}
+
+/**
  * Default export for Cloudflare Workers
  */
 export default {
@@ -147,5 +175,36 @@ export default {
 		const app = createConductorAPI(config);
 
 		return app.fetch(request, env, ctx);
+	},
+
+	/**
+	 * Handle scheduled cron triggers
+	 */
+	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+		console.log('[SCHEDULE] Triggered:', {
+			cron: event.cron,
+			scheduledTime: event.scheduledTime,
+			timestamp: new Date(event.scheduledTime).toISOString()
+		});
+
+		try {
+			// Initialize schedule manager
+			const manager = await initializeScheduleManager(env);
+
+			// Handle the scheduled event
+			const results = await manager.handleScheduled(event, env, ctx);
+
+			console.log('[SCHEDULE] Completed:', {
+				cron: event.cron,
+				results: results.length,
+				successful: results.filter(r => r.success).length,
+				failed: results.filter(r => !r.success).length
+			});
+		} catch (error) {
+			console.error('[SCHEDULE] Handler error:', {
+				cron: event.cron,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			});
+		}
 	}
 };

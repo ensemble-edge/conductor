@@ -1,0 +1,82 @@
+name = "conductor"
+main = "src/index.ts"
+compatibility_date = "2025-10-29"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "EXECUTION_STATE"
+class_name = "ExecutionState"
+script_name = "conductor"
+
+[[durable_objects.bindings]]
+name = "HITL_STATE"
+class_name = "HITLState"
+script_name = "conductor"
+
+# KV Namespaces
+[[kv_namespaces]]
+binding = "CACHE"
+id = "your-cache-kv-namespace-id"
+preview_id = "your-cache-preview-kv-id"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-id"
+
+# D1 database for long-term storage
+[[d1_databases]]
+binding = "DB"
+database_name = "conductor-db"
+database_id = "your-d1-database-id"
+
+# R2 storage for artifacts
+[[r2_buckets]]
+binding = "ARTIFACTS"
+bucket_name = "conductor-artifacts"
+preview_bucket_name = "conductor-artifacts-preview"
+
+# Analytics Engine for telemetry
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+
+# Vectorize for semantic memory (RAG)
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "conductor-embeddings"
+
+# Hyperdrive bindings for external databases
+[[hyperdrive]]
+binding = "PRODUCTION_DB"
+id = "your-hyperdrive-id-production"
+
+[[hyperdrive]]
+binding = "ANALYTICS_DB"
+id = "your-hyperdrive-id-analytics"
+
+# AI binding for Think members
+[ai]
+binding = "AI"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "development"
+LOG_LEVEL = "info"
+DISABLE_LOGGING = "false"
+ALLOW_ANONYMOUS = "true"
+
+# Durable Object migrations
+[[migrations]]
+tag = "v1"
+new_classes = ["ExecutionState", "HITLState"]
+
+# Scheduled triggers (cron)
+# Add cron expressions from your ensemble schedules here
+# To generate this list automatically: GET /api/v1/schedules/crons/list
+[triggers]
+crons = [
+	# Example schedules (configure based on your ensembles)
+	# "0 9 * * *",      # Daily at 9 AM UTC
+	# "0 */4 * * *",    # Every 4 hours
+	# "*/15 * * * *"    # Every 15 minutes
+]

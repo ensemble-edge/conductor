@@ -10,6 +10,10 @@ export { Executor } from './runtime/executor';
 export { Parser } from './runtime/parser';
 export { StateManager } from './runtime/state-manager';
 
+// Durable Objects
+export { ExecutionState } from './durable-objects/execution-state';
+export { HITLState } from './durable-objects/hitl-state';
+
 // Member Types
 export { BaseMember } from './members/base-member';
 export { FunctionMember } from './members/function-member';
@@ -31,7 +35,9 @@ export { MemberLoader, createLoader } from './utils/loader';
 export type {
 	EnsembleConfig,
 	MemberConfig,
-	FlowStep
+	FlowStep,
+	WebhookConfig,
+	ScheduleConfig
 } from './runtime/parser';
 
 export type {
@@ -51,6 +57,20 @@ export type {
 	ExecutionResult,
 	ExecutionMetrics
 } from './runtime/executor';
+
+export type {
+	ExecutionStatus,
+	StoredExecutionState,
+	ExecutionProgressEvent,
+	ExecutionCompletionEvent,
+	ExecutionEvent
+} from './durable-objects/execution-state';
+
+export type {
+	HITLStatus,
+	StoredHITLState,
+	HITLEvent
+} from './durable-objects/hitl-state';
 
 /**
  * Create a Cloudflare Worker handler with Conductor

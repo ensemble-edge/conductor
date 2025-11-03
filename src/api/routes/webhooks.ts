@@ -86,22 +86,69 @@ flow:
 
 			if (isAsync) {
 				// Return immediately, execute in background
-				// TODO: Store execution ID in KV/DO for tracking
 				const executionId = generateExecutionId();
 
+				// Get ExecutionState DO binding
+				const namespace = (env as any).EXECUTION_STATE;
+				if (!namespace) {
+					return c.json({
+						error: 'ExecutionState Durable Object not configured',
+						message: 'Missing EXECUTION_STATE binding in wrangler.toml'
+					}, 500);
+				}
+
+				// Initialize execution state in DO
+				const id = namespace.idFromName(executionId);
+				const stub = namespace.get(id);
+
+				// Start execution tracking
+				await stub.fetch(new Request('http://do/start', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						executionId,
+						ensembleName: ensemble.name,
+						totalSteps: ensemble.flow?.length || 0
+					})
+				}));
+
 				// Execute in background (no await)
-				executor.executeEnsemble(ensemble, webhookData).then(result => {
-					// Store result for retrieval
-					// TODO: Implement result storage
-					console.log('Webhook execution completed:', executionId, result);
-				}).catch(error => {
-					console.error('Webhook execution failed:', executionId, error);
-				});
+				ctx.waitUntil(
+					executor.executeEnsemble(ensemble, webhookData).then(async result => {
+						if (result.success) {
+							// Mark as completed in DO
+							await stub.fetch(new Request('http://do/complete', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ result: result.output })
+							}));
+							console.log('Webhook execution completed:', executionId, result);
+						} else {
+							// Mark as failed in DO
+							await stub.fetch(new Request('http://do/fail', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ error: result.error || 'Execution failed' })
+							}));
+							console.error('Webhook execution failed:', executionId, result.error);
+						}
+					}).catch(async error => {
+						// Mark as failed in DO
+						await stub.fetch(new Request('http://do/fail', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })
+						}));
+						console.error('Webhook execution failed:', executionId, error);
+					})
+				);
 
 				return c.json({
 					status: 'accepted',
 					executionId,
-					message: 'Ensemble execution started'
+					message: 'Ensemble execution started',
+					statusUrl: `/api/v1/executions/${executionId}/status`,
+					streamUrl: `/api/v1/executions/${executionId}/stream`
 				}, 202);
 			} else {
 				// Wait for completion
@@ -129,17 +176,17 @@ flow:
 				}, 400);
 			}
 
-			// Get KV namespace for resumption state
-			const kv = (env as any).KV as KVNamespace;
-			if (!kv) {
+			// Get HITLState DO namespace for resumption state
+			const namespace = (env as any).HITL_STATE;
+			if (!namespace) {
 				return c.json({
-					error: 'KV namespace not configured',
-					message: 'Resumption requires KV binding named "KV"'
+					error: 'HITLState Durable Object not configured',
+					message: 'Resumption requires HITL_STATE binding in wrangler.toml'
 				}, 500);
 			}
 
 			// Create resumption manager
-			const resumptionManager = new ResumptionManager(kv);
+			const resumptionManager = new ResumptionManager(namespace);
 
 			// Load suspended state
 			const stateResult = await resumptionManager.resume(resumptionToken);
@@ -220,17 +267,17 @@ app.post('/resume/:token', async (c) => {
 		// Get resume data from body
 		const resumeData = await c.req.json().catch(() => ({}));
 
-		// Get KV namespace
-		const kv = (env as any).KV as KVNamespace;
-		if (!kv) {
+		// Get HITLState DO namespace
+		const namespace = (env as any).HITL_STATE as DurableObjectNamespace;
+		if (!namespace) {
 			return c.json({
-				error: 'KV namespace not configured',
-				message: 'Resumption requires KV binding named "KV"'
+				error: 'HITLState Durable Object not configured',
+				message: 'Resumption requires HITL_STATE binding in wrangler.toml'
 			}, 500);
 		}
 
 		// Create resumption manager
-		const resumptionManager = new ResumptionManager(kv);
+		const resumptionManager = new ResumptionManager(namespace);
 
 		// Load suspended state
 		const stateResult = await resumptionManager.resume(token);
@@ -291,16 +338,17 @@ app.get('/resume/:token', async (c) => {
 	const env = c.env;
 
 	try {
-		// Get KV namespace
-		const kv = (env as any).KV as KVNamespace;
-		if (!kv) {
+		// Get HITLState DO namespace
+		const namespace = (env as any).HITL_STATE as DurableObjectNamespace;
+		if (!namespace) {
 			return c.json({
-				error: 'KV namespace not configured'
+				error: 'HITLState Durable Object not configured',
+				message: 'Resumption requires HITL_STATE binding in wrangler.toml'
 			}, 500);
 		}
 
 		// Create resumption manager
-		const resumptionManager = new ResumptionManager(kv);
+		const resumptionManager = new ResumptionManager(namespace);
 
 		// Get metadata
 		const metadataResult = await resumptionManager.getMetadata(token);

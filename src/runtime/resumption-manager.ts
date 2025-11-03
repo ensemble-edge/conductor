@@ -2,7 +2,7 @@
  * Resumption Manager
  *
  * Handles storing and retrieving suspended execution state for workflow resumption.
- * Uses KV with TTL for ephemeral resumption tokens (similar to webhook concept).
+ * Uses HITLState Durable Object with alarm-based TTL for strong consistency.
  */
 
 import type { EnsembleConfig } from './parser';
@@ -82,15 +82,13 @@ export interface ResumptionOptions {
 
 /**
  * Resumption Manager
- * Handles KV-based storage for suspended execution state
+ * Handles HITLState Durable Object-based storage for suspended execution state
  */
 export class ResumptionManager {
-	private readonly kv: KVNamespace;
-	private readonly keyPrefix: string;
+	private readonly namespace: any;
 
-	constructor(kv: KVNamespace, keyPrefix: string = 'resumption:') {
-		this.kv = kv;
-		this.keyPrefix = keyPrefix;
+	constructor(namespace: any) {
+		this.namespace = namespace;
 	}
 
 	/**
@@ -104,7 +102,7 @@ export class ResumptionManager {
 	}
 
 	/**
-	 * Suspend execution and store state in KV
+	 * Suspend execution and store state in HITLState DO
 	 */
 	async suspend(
 		ensemble: EnsembleConfig,
@@ -117,9 +115,8 @@ export class ResumptionManager {
 		try {
 			const token = ResumptionManager.generateToken();
 			const ttl = options.ttl || 86400; // 24 hours default
-			const expiresAt = Date.now() + (ttl * 1000);
 
-			const state: SuspendedExecutionState = {
+			const suspendedState: SuspendedExecutionState = {
 				token,
 				ensemble,
 				executionContext,
@@ -135,16 +132,32 @@ export class ResumptionManager {
 					suspendedAt: Date.now(),
 					suspendedBy,
 					reason: options.metadata?.reason,
-					expiresAt,
+					expiresAt: Date.now() + (ttl * 1000),
 					...options.metadata
 				}
 			};
 
-			// Store in KV with TTL
-			const key = this.getKey(token);
-			await this.kv.put(key, JSON.stringify(state), {
-				expirationTtl: ttl
-			});
+			// Get HITLState DO stub
+			const id = this.namespace.idFromName(token);
+			const stub = this.namespace.get(id);
+
+			// Suspend execution in DO
+			const response = await stub.fetch(new Request('http://do/suspend', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					token,
+					suspendedState,
+					ttl
+				})
+			}));
+
+			if (!response.ok) {
+				const error = await response.json() as any;
+				return Result.err(
+					Errors.internal(`Failed to suspend execution: ${error.error || 'Unknown error'}`)
+				);
+			}
 
 			return Result.ok(token);
 		} catch (error) {
@@ -157,31 +170,56 @@ export class ResumptionManager {
 	}
 
 	/**
-	 * Resume execution by loading state from KV
+	 * Resume execution by loading state from HITLState DO
 	 */
 	async resume(token: string): AsyncResult<SuspendedExecutionState, ConductorError> {
 		try {
-			const key = this.getKey(token);
-			const stateJson = await this.kv.get(key, 'text');
+			// Get HITLState DO stub
+			const id = this.namespace.idFromName(token);
+			const stub = this.namespace.get(id);
 
-			if (!stateJson) {
+			// Get status from DO
+			const response = await stub.fetch(new Request('http://do/status', {
+				method: 'GET'
+			}));
+
+			if (!response.ok) {
 				return Result.err(
-					Errors.storageNotFound(token, 'resumption-kv')
+					Errors.storageNotFound(token, 'hitl-state-do')
 				);
 			}
 
-			const state = JSON.parse(stateJson) as SuspendedExecutionState;
+			const state = await response.json() as any;
 
-			// Check if expired (shouldn't happen due to KV TTL, but extra safety)
-			if (state.metadata.expiresAt < Date.now()) {
-				// Clean up expired token
-				await this.kv.delete(key);
+			// Check if already expired
+			if (state.status === 'expired') {
 				return Result.err(
-					Errors.storageNotFound(token, 'resumption-kv (expired)')
+					Errors.storageNotFound(token, 'hitl-state-do (expired)')
 				);
 			}
 
-			return Result.ok(state);
+			// Check if already approved (ready to resume)
+			if (state.status === 'approved') {
+				return Result.ok(state.suspendedState);
+			}
+
+			// If still pending, return error
+			if (state.status === 'pending') {
+				return Result.err(
+					Errors.internal('Execution still pending approval')
+				);
+			}
+
+			// If rejected, return error
+			if (state.status === 'rejected') {
+				return Result.err(
+					Errors.internal(`Execution rejected: ${state.rejectionReason || 'No reason provided'}`)
+				);
+			}
+
+			return Result.err(
+				Errors.internal(`Invalid HITL state: ${state.status}`)
+			);
 		} catch (error) {
 			return Result.err(
 				Errors.internal(
@@ -192,12 +230,26 @@ export class ResumptionManager {
 	}
 
 	/**
-	 * Cancel a resumption token (delete from KV)
+	 * Cancel a resumption token (delete from HITLState DO)
 	 */
 	async cancel(token: string): AsyncResult<void, ConductorError> {
 		try {
-			const key = this.getKey(token);
-			await this.kv.delete(key);
+			// Get HITLState DO stub
+			const id = this.namespace.idFromName(token);
+			const stub = this.namespace.get(id);
+
+			// Delete DO state
+			const response = await stub.fetch(new Request('http://do/', {
+				method: 'DELETE'
+			}));
+
+			if (!response.ok) {
+				const error = await response.json() as any;
+				return Result.err(
+					Errors.internal(`Failed to cancel resumption token: ${error.error || 'Unknown error'}`)
+				);
+			}
+
 			return Result.ok(undefined);
 		} catch (error) {
 			return Result.err(
@@ -213,17 +265,34 @@ export class ResumptionManager {
 	 */
 	async getMetadata(token: string): AsyncResult<SuspendedExecutionState['metadata'], ConductorError> {
 		try {
-			const key = this.getKey(token);
-			const stateJson = await this.kv.get(key, 'text');
+			// Get HITLState DO stub
+			const id = this.namespace.idFromName(token);
+			const stub = this.namespace.get(id);
 
-			if (!stateJson) {
+			// Get status from DO
+			const response = await stub.fetch(new Request('http://do/status', {
+				method: 'GET'
+			}));
+
+			if (!response.ok) {
 				return Result.err(
-					Errors.storageNotFound(token, 'resumption-kv')
+					Errors.storageNotFound(token, 'hitl-state-do')
 				);
 			}
 
-			const state = JSON.parse(stateJson) as SuspendedExecutionState;
-			return Result.ok(state.metadata);
+			const state = await response.json() as any;
+
+			// Return metadata from suspended state
+			if (state.suspendedState) {
+				return Result.ok(state.suspendedState.metadata);
+			}
+
+			// Construct metadata from HITL state
+			return Result.ok({
+				suspendedAt: state.suspendedAt,
+				suspendedBy: 'hitl',
+				expiresAt: state.expiresAt
+			});
 		} catch (error) {
 			return Result.err(
 				Errors.internal(
@@ -234,46 +303,70 @@ export class ResumptionManager {
 	}
 
 	/**
-	 * List all active resumption tokens for an ensemble
-	 * Note: This is expensive - scans KV with prefix. Use sparingly.
+	 * Approve a HITL request
+	 * Approves the suspended execution and marks it ready for resumption
 	 */
-	async listActiveTokens(ensembleName?: string): AsyncResult<string[], ConductorError> {
+	async approve(token: string, actor: string, approvalData?: any): AsyncResult<void, ConductorError> {
 		try {
-			// KV list with prefix
-			const list = await this.kv.list({ prefix: this.keyPrefix });
+			// Get HITLState DO stub
+			const id = this.namespace.idFromName(token);
+			const stub = this.namespace.get(id);
 
-			const tokens: string[] = [];
-			for (const key of list.keys) {
-				const token = key.name.replace(this.keyPrefix, '');
+			// Send approve request
+			const response = await stub.fetch(new Request('http://do/approve', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor, approvalData })
+			}));
 
-				// If filtering by ensemble, load and check
-				if (ensembleName) {
-					const stateJson = await this.kv.get(key.name, 'text');
-					if (stateJson) {
-						const state = JSON.parse(stateJson) as SuspendedExecutionState;
-						if (state.ensemble.name === ensembleName) {
-							tokens.push(token);
-						}
-					}
-				} else {
-					tokens.push(token);
-				}
+			if (!response.ok) {
+				const error = await response.json() as any;
+				return Result.err(
+					Errors.internal(`Failed to approve HITL request: ${error.error || 'Unknown error'}`)
+				);
 			}
 
-			return Result.ok(tokens);
+			return Result.ok(undefined);
 		} catch (error) {
 			return Result.err(
 				Errors.internal(
-					`Failed to list resumption tokens: ${error instanceof Error ? error.message : 'Unknown error'}`
+					`Failed to approve HITL request: ${error instanceof Error ? error.message : 'Unknown error'}`
 				)
 			);
 		}
 	}
 
 	/**
-	 * Get full KV key for a token
+	 * Reject a HITL request
+	 * Rejects the suspended execution and cancels it
 	 */
-	private getKey(token: string): string {
-		return `${this.keyPrefix}${token}`;
+	async reject(token: string, actor: string, reason?: string): AsyncResult<void, ConductorError> {
+		try {
+			// Get HITLState DO stub
+			const id = this.namespace.idFromName(token);
+			const stub = this.namespace.get(id);
+
+			// Send reject request
+			const response = await stub.fetch(new Request('http://do/reject', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ actor, reason })
+			}));
+
+			if (!response.ok) {
+				const error = await response.json() as any;
+				return Result.err(
+					Errors.internal(`Failed to reject HITL request: ${error.error || 'Unknown error'}`)
+				);
+			}
+
+			return Result.ok(undefined);
+		} catch (error) {
+			return Result.err(
+				Errors.internal(
+					`Failed to reject HITL request: ${error instanceof Error ? error.message : 'Unknown error'}`
+				)
+			);
+		}
 	}
 }
