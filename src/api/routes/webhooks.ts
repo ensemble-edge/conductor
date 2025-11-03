@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import { Parser } from '../../runtime/parser.js';
 import { Executor } from '../../runtime/executor.js';
+import { ResumptionManager } from '../../runtime/resumption-manager.js';
 import { Errors } from '../../errors/error-types.js';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -119,23 +120,75 @@ flow:
 			}
 		} else if (mode === 'resume') {
 			// Resume suspended execution (HITL-style)
-			const executionId = webhookData.executionId || c.req.query('executionId');
+			const resumptionToken = webhookData.token || c.req.query('token');
 
-			if (!executionId) {
+			if (!resumptionToken) {
 				return c.json({
-					error: 'executionId required for resume mode'
+					error: 'Resumption token required for resume mode',
+					hint: 'Provide token in request body or query parameter'
 				}, 400);
 			}
 
-			// TODO: Implement resumption logic
-			// Load suspended state from Durable Object
-			// Resume execution from suspension point
+			// Get KV namespace for resumption state
+			const kv = (env as any).KV as KVNamespace;
+			if (!kv) {
+				return c.json({
+					error: 'KV namespace not configured',
+					message: 'Resumption requires KV binding named "KV"'
+				}, 500);
+			}
 
-			return c.json({
-				status: 'resumed',
-				executionId,
-				message: 'Execution resumed (not yet implemented)'
-			}, 501);
+			// Create resumption manager
+			const resumptionManager = new ResumptionManager(kv);
+
+			// Load suspended state
+			const stateResult = await resumptionManager.resume(resumptionToken);
+			if (!stateResult.success) {
+				return c.json({
+					error: 'Failed to load resumption state',
+					message: stateResult.error.message,
+					token: resumptionToken
+				}, 404);
+			}
+
+			const suspendedState = stateResult.value;
+
+			// Create execution context
+			const ctx = {
+				waitUntil: (promise: Promise<any>) => {},
+				passThroughOnException: () => {}
+			} as ExecutionContext;
+
+			// Create executor
+			const executor = new Executor({ env, ctx });
+
+			try {
+				// Resume execution with webhook data as resume input
+				const result = await executor.resumeExecution(suspendedState, webhookData);
+
+				if (!result.success) {
+					return c.json({
+						error: 'Execution failed after resumption',
+						message: result.error.message,
+						token: resumptionToken
+					}, 500);
+				}
+
+				// Delete the resumption token (one-time use)
+				await resumptionManager.cancel(resumptionToken);
+
+				return c.json({
+					status: 'completed',
+					token: resumptionToken,
+					result: result.value
+				});
+			} catch (error) {
+				return c.json({
+					error: 'Execution error',
+					message: error instanceof Error ? error.message : 'Unknown error',
+					token: resumptionToken
+				}, 500);
+			}
 		}
 
 		return c.json({
@@ -147,6 +200,126 @@ flow:
 
 		return c.json({
 			error: 'Webhook execution failed',
+			message: error instanceof Error ? error.message : 'Unknown error'
+		}, 500);
+	}
+});
+
+/**
+ * Resume suspended execution
+ * POST /webhooks/resume/:token
+ *
+ * Simpler endpoint for resuming suspended workflows.
+ * Alternative to using resume mode on the main webhook endpoint.
+ */
+app.post('/resume/:token', async (c) => {
+	const token = c.req.param('token');
+	const env = c.env;
+
+	try {
+		// Get resume data from body
+		const resumeData = await c.req.json().catch(() => ({}));
+
+		// Get KV namespace
+		const kv = (env as any).KV as KVNamespace;
+		if (!kv) {
+			return c.json({
+				error: 'KV namespace not configured',
+				message: 'Resumption requires KV binding named "KV"'
+			}, 500);
+		}
+
+		// Create resumption manager
+		const resumptionManager = new ResumptionManager(kv);
+
+		// Load suspended state
+		const stateResult = await resumptionManager.resume(token);
+		if (!stateResult.success) {
+			return c.json({
+				error: 'Failed to load resumption state',
+				message: stateResult.error.message,
+				token
+			}, 404);
+		}
+
+		const suspendedState = stateResult.value;
+
+		// Create execution context
+		const ctx = {
+			waitUntil: (promise: Promise<any>) => {},
+			passThroughOnException: () => {}
+		} as ExecutionContext;
+
+		// Create executor
+		const executor = new Executor({ env, ctx });
+
+		// Resume execution
+		const result = await executor.resumeExecution(suspendedState, resumeData);
+
+		if (!result.success) {
+			return c.json({
+				error: 'Execution failed after resumption',
+				message: result.error.message,
+				token
+			}, 500);
+		}
+
+		// Delete the resumption token (one-time use)
+		await resumptionManager.cancel(token);
+
+		return c.json({
+			status: 'completed',
+			token,
+			result: result.value,
+			message: 'Execution resumed and completed successfully'
+		});
+	} catch (error) {
+		return c.json({
+			error: 'Resumption failed',
+			message: error instanceof Error ? error.message : 'Unknown error',
+			token
+		}, 500);
+	}
+});
+
+/**
+ * Get resumption token metadata
+ * GET /webhooks/resume/:token
+ */
+app.get('/resume/:token', async (c) => {
+	const token = c.req.param('token');
+	const env = c.env;
+
+	try {
+		// Get KV namespace
+		const kv = (env as any).KV as KVNamespace;
+		if (!kv) {
+			return c.json({
+				error: 'KV namespace not configured'
+			}, 500);
+		}
+
+		// Create resumption manager
+		const resumptionManager = new ResumptionManager(kv);
+
+		// Get metadata
+		const metadataResult = await resumptionManager.getMetadata(token);
+		if (!metadataResult.success) {
+			return c.json({
+				error: 'Token not found',
+				message: metadataResult.error.message,
+				token
+			}, 404);
+		}
+
+		return c.json({
+			token,
+			metadata: metadataResult.value,
+			status: 'suspended'
+		});
+	} catch (error) {
+		return c.json({
+			error: 'Failed to get token metadata',
 			message: error instanceof Error ? error.message : 'Unknown error'
 		}, 500);
 	}
