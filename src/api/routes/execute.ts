@@ -9,8 +9,10 @@ import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types
 import { getBuiltInRegistry } from '../../members/built-in/registry';
 import { MemberType } from '../../types/constants';
 import type { MemberExecutionContext } from '../../members/base-member';
+import { createLogger } from '../../observability';
 
 const execute = new Hono<{ Bindings: Env }>();
+const logger = createLogger({ serviceName: 'api-execute' });
 
 /**
  * POST /execute - Execute a member synchronously
@@ -122,7 +124,10 @@ execute.post('/', async (c: ConductorContext) => {
 
 		return c.json(response);
 	} catch (error) {
-		console.error('Execute error:', error);
+		logger.error('Member execution failed', error instanceof Error ? error : undefined, {
+			requestId,
+			memberName: body?.member || 'unknown'
+		});
 
 		return c.json(
 			{

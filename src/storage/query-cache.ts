@@ -109,7 +109,7 @@ export class QueryCache {
 		database?: string
 	): Promise<Result<QueryResult<T> | null, ConductorError>> {
 		try {
-			const key = this.generateKey(sql, params, database);
+			const key = await this.generateKey(sql, params, database);
 			const cached = await this.kv.get<CacheEntry<T>>(key, 'json');
 
 			if (!cached) {
@@ -147,7 +147,7 @@ export class QueryCache {
 		ttl?: number
 	): Promise<Result<void, ConductorError>> {
 		try {
-			const key = this.generateKey(sql, params, database);
+			const key = await this.generateKey(sql, params, database);
 			const cacheTTL = ttl || this.defaultTTL;
 
 			const entry: CacheEntry<T> = {
@@ -181,7 +181,7 @@ export class QueryCache {
 	 */
 	async delete(sql: string, params?: any[], database?: string): Promise<Result<void, ConductorError>> {
 		try {
-			const key = this.generateKey(sql, params, database);
+			const key = await this.generateKey(sql, params, database);
 			await this.kv.delete(key);
 
 			if (this.enableStats) this.stats.deletes++;
@@ -269,7 +269,7 @@ export class QueryCache {
 	/**
 	 * Generate cache key from query, params, and database
 	 */
-	private generateKey(sql: string, params?: any[], database?: string): string {
+	private async generateKey(sql: string, params?: any[], database?: string): Promise<string> {
 		// Normalize SQL (remove extra whitespace, lowercase)
 		const normalizedSQL = sql.trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -283,20 +283,29 @@ export class QueryCache {
 		}
 
 		// Hash the components for a shorter key
-		const hash = this.simpleHash(components.join('|'));
+		const hash = await this.sha256Hash(components.join('|'));
 
 		return `${this.keyPrefix}${hash}`;
 	}
 
 	/**
-	 * Simple string hash function (DJB2)
+	 * Cryptographically secure SHA-256 hash function
+	 * Uses Web Crypto API for secure, collision-resistant hashing
 	 */
-	private simpleHash(str: string): string {
-		let hash = 5381;
-		for (let i = 0; i < str.length; i++) {
-			hash = (hash * 33) ^ str.charCodeAt(i);
-		}
-		return (hash >>> 0).toString(36);
+	private async sha256Hash(str: string): Promise<string> {
+		// Encode string to Uint8Array
+		const encoder = new TextEncoder();
+		const data = encoder.encode(str);
+
+		// Calculate SHA-256 hash
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+		// Convert to hex string
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+		// Return first 16 chars (64 bits) for reasonable key length while maintaining security
+		return hashHex.substring(0, 16);
 	}
 
 	/**

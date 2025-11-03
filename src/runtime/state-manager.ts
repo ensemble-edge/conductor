@@ -5,9 +5,12 @@
  * Follows functional programming principles for predictability.
  */
 
+import { createLogger, type Logger } from '../observability';
+
 export interface StateConfig {
 	schema?: Record<string, any>;
 	initial?: Record<string, any>;
+	logger?: Logger;
 }
 
 export interface MemberStateConfig {
@@ -39,6 +42,7 @@ export class StateManager {
 	private readonly schema: Readonly<Record<string, any>>;
 	private readonly state: Readonly<Record<string, any>>;
 	private readonly accessLog: ReadonlyArray<AccessLogEntry>;
+	private readonly logger: Logger;
 
 	constructor(
 		config: StateConfig,
@@ -48,6 +52,7 @@ export class StateManager {
 		this.schema = Object.freeze(config.schema || {});
 		this.state = Object.freeze(existingState || { ...(config.initial || {}) });
 		this.accessLog = existingLog || [];
+		this.logger = config.logger || createLogger({ serviceName: 'state-manager' });
 	}
 
 	/**
@@ -91,7 +96,11 @@ export class StateManager {
 						timestamp: Date.now()
 					});
 				} else {
-					console.warn(`Member "${memberName}" attempted to set undeclared state key: "${key}"`);
+					this.logger.warn('Member attempted to set undeclared state key', {
+						memberName,
+						key,
+						declaredKeys: set
+					});
 				}
 			}
 		};
@@ -123,7 +132,7 @@ export class StateManager {
 
 		// Return new StateManager with updated state and log
 		return new StateManager(
-			{ schema: this.schema, initial: {} },
+			{ schema: this.schema, initial: {}, logger: this.logger },
 			newState,
 			newLog
 		);
@@ -154,13 +163,17 @@ export class StateManager {
 					timestamp: Date.now()
 				});
 			} else {
-				console.warn(`Member "${memberName}" attempted to set undeclared state key: "${key}"`);
+				this.logger.warn('Member attempted to set undeclared state key', {
+					memberName,
+					key,
+					declaredKeys: set
+				});
 			}
 		}
 
 		// Return new StateManager with updated state
 		return new StateManager(
-			{ schema: this.schema, initial: {} },
+			{ schema: this.schema, initial: {}, logger: this.logger },
 			newState,
 			newLog
 		);
@@ -208,7 +221,7 @@ export class StateManager {
 	 */
 	clearAccessLog(): StateManager {
 		return new StateManager(
-			{ schema: this.schema, initial: {} },
+			{ schema: this.schema, initial: {}, logger: this.logger },
 			this.state,
 			[]
 		);
@@ -219,7 +232,7 @@ export class StateManager {
 	 */
 	reset(initialState?: Record<string, any>): StateManager {
 		return new StateManager(
-			{ schema: this.schema, initial: initialState || {} },
+			{ schema: this.schema, initial: initialState || {}, logger: this.logger },
 			undefined,
 			[]
 		);
@@ -231,7 +244,7 @@ export class StateManager {
 	merge(updates: Record<string, any>): StateManager {
 		const newState = { ...this.state, ...updates };
 		return new StateManager(
-			{ schema: this.schema, initial: {} },
+			{ schema: this.schema, initial: {}, logger: this.logger },
 			newState,
 			this.accessLog
 		);

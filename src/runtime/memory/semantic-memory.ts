@@ -6,6 +6,9 @@
  */
 
 import type { Memory, SearchOptions } from './types';
+import { createLogger } from '../../observability';
+
+const logger = createLogger({ serviceName: 'semantic-memory' });
 
 export class SemanticMemory {
 	private readonly embeddingModel = '@cf/baai/bge-base-en-v1.5';
@@ -153,7 +156,9 @@ export class SemanticMemory {
 		// Delete by filter (requires Vectorize to support metadata filtering in delete)
 		// This is a placeholder - Vectorize may not support this yet
 		// In production, you may need to track IDs separately
-		console.warn('Semantic memory clear not fully implemented - requires ID tracking');
+		logger.warn('Semantic memory clear not fully implemented - requires ID tracking', {
+			userId: this.userId
+		});
 	}
 
 	/**

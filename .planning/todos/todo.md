@@ -1,2 +1,3 @@
 - narrow most console logging to debug state (what is that?)
 - add .github/workflows to test and prepare conductor releases (like edgit)
+- add baseline testin info in conductor init to seed new projets w testing, incl an example in hello-world member.

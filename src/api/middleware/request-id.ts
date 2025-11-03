@@ -28,10 +28,9 @@ export function requestId(): MiddlewareHandler {
 }
 
 /**
- * Generate unique request ID
+ * Generate cryptographically secure unique request ID
  */
 function generateRequestId(): string {
-	const timestamp = Date.now().toString(36);
-	const random = Math.random().toString(36).substring(2, 9);
-	return `req_${timestamp}${random}`;
+	// Use crypto.randomUUID() for secure, unpredictable request IDs
+	return `req_${crypto.randomUUID()}`;
 }

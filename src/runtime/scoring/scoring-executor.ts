@@ -12,6 +12,9 @@ import type {
 	ScoreBreakdown
 } from './types.js';
 import { Errors } from '../../errors/error-types.js';
+import { createLogger } from '../../observability';
+
+const logger = createLogger({ serviceName: 'scoring-executor' });
 
 export class ScoringExecutor {
 	/**
@@ -83,9 +86,11 @@ export class ScoringExecutor {
 
 					case 'continue':
 						// Log warning but continue execution
-						console.warn(
-							`Score ${score.score} below threshold for member, continuing anyway`
-						);
+						logger.warn('Score below threshold, continuing anyway', {
+							score: score.score,
+							threshold: config.thresholds?.minimum,
+							attempts
+						});
 						return {
 							output,
 							score,

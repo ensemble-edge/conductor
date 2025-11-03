@@ -13,6 +13,9 @@ import { execute, members, health, stream, async, webhooks, executions, schedule
 import { openapi } from './openapi';
 import { ScheduleManager, type ScheduledEvent } from '../runtime/schedule-manager';
 import { CatalogLoader } from '../runtime/catalog-loader';
+import { createLogger } from '../observability';
+
+const appLogger = createLogger({ serviceName: 'api-app' });
 
 export interface APIConfig {
 	auth?: {
@@ -119,7 +122,7 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 
 	// Error handler (catch-all)
 	app.onError((err, c) => {
-		console.error('Unhandled error:', err);
+		appLogger.error('Unhandled API error', err instanceof Error ? err : undefined);
 
 		return c.json(
 			{
@@ -147,12 +150,12 @@ async function initializeScheduleManager(env: Env): Promise<ScheduleManager> {
 		// Register all scheduled ensembles
 		manager.registerAll(ensembles);
 
-		console.log('[SCHEDULE] Initialized:', {
+		appLogger.info('Schedule manager initialized', {
 			totalEnsembles: ensembles.length,
 			crons: manager.getAllCronExpressions()
 		});
 	} catch (error) {
-		console.error('[SCHEDULE] Failed to initialize:', error);
+		appLogger.error('Failed to initialize schedule manager', error instanceof Error ? error : undefined);
 	}
 
 	return manager;
@@ -181,7 +184,7 @@ export default {
 	 * Handle scheduled cron triggers
 	 */
 	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-		console.log('[SCHEDULE] Triggered:', {
+		appLogger.info('Scheduled cron triggered', {
 			cron: event.cron,
 			scheduledTime: event.scheduledTime,
 			timestamp: new Date(event.scheduledTime).toISOString()
@@ -194,16 +197,15 @@ export default {
 			// Handle the scheduled event
 			const results = await manager.handleScheduled(event, env, ctx);
 
-			console.log('[SCHEDULE] Completed:', {
+			appLogger.info('Scheduled cron completed', {
 				cron: event.cron,
 				results: results.length,
 				successful: results.filter(r => r.success).length,
 				failed: results.filter(r => !r.success).length
 			});
 		} catch (error) {
-			console.error('[SCHEDULE] Handler error:', {
-				cron: event.cron,
-				error: error instanceof Error ? error.message : 'Unknown error'
+			appLogger.error('Scheduled cron handler error', error instanceof Error ? error : undefined, {
+				cron: event.cron
 			});
 		}
 	}

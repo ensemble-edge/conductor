@@ -11,6 +11,7 @@
 
 import { BaseMember, type MemberExecutionContext } from '../../base-member';
 import type { MemberConfig } from '../../../runtime/parser';
+import { createLogger } from '../../../observability';
 import type {
 	HITLConfig,
 	HITLInput,
@@ -21,6 +22,8 @@ import type {
 	HITLResumeResult,
 	ApprovalState
 } from './types';
+
+const logger = createLogger({ serviceName: 'hitl-member' });
 
 export class HITLMember extends BaseMember {
 	private hitlConfig: HITLConfig;
@@ -257,7 +260,9 @@ export class HITLMember extends BaseMember {
 		config: Record<string, any>
 	): Promise<void> {
 		// TODO: Implement email notification via Cloudflare Email Workers
-		console.log('Email notification not yet implemented');
+		logger.debug('Email notification not yet implemented', {
+			executionId
+		});
 	}
 
 	/**
@@ -287,10 +292,10 @@ export class HITLMember extends BaseMember {
 	}
 
 	/**
-	 * Generate a unique execution ID
+	 * Generate a cryptographically secure unique execution ID
 	 */
 	private generateExecutionId(): string {
-		return `exec_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+		return `exec_${crypto.randomUUID()}`;
 	}
 
 	/**

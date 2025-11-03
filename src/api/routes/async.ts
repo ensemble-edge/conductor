@@ -8,8 +8,10 @@ import { Hono } from 'hono';
 import type { ConductorContext, AsyncExecuteRequest, AsyncExecuteResponse } from '../types';
 import { getBuiltInRegistry } from '../../members/built-in/registry';
 import type { MemberExecutionContext } from '../../members/base-member';
+import { createLogger } from '../../observability';
 
 const async = new Hono<{ Bindings: Env }>();
+const logger = createLogger({ serviceName: 'api-async' });
 
 // In-memory execution tracking (in production, use Durable Objects or D1)
 const executions = new Map<
@@ -234,17 +236,17 @@ async function sendWebhook(url: string, data: any): Promise<void> {
 			body: JSON.stringify(data)
 		});
 	} catch (error) {
-		console.error('Webhook error:', error);
+		logger.error('Webhook notification failed', error instanceof Error ? error : undefined, {
+			url
+		});
 	}
 }
 
 /**
- * Generate execution ID
+ * Generate cryptographically secure execution ID
  */
 function generateExecutionId(): string {
-	const timestamp = Date.now().toString(36);
-	const random = Math.random().toString(36).substring(2, 9);
-	return `exec_${timestamp}${random}`;
+	return `exec_${crypto.randomUUID()}`;
 }
 
 export default async;

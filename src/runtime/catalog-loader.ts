@@ -7,6 +7,7 @@
 
 import type { EnsembleConfig } from './parser';
 import { Parser } from './parser';
+import { createLogger, type Logger } from '../observability';
 
 /**
  * Catalog Loader
@@ -14,6 +15,7 @@ import { Parser } from './parser';
  * Static utility for loading ensembles from different storage types.
  */
 export class CatalogLoader {
+	private static logger: Logger = createLogger({ serviceName: 'catalog-loader' });
 	/**
 	 * Load all ensembles with schedules from available storage
 	 */
@@ -23,32 +25,32 @@ export class CatalogLoader {
 		// Option 1: Load from dedicated CATALOG_KV namespace
 		const catalogKv = (env as any).CATALOG_KV as KVNamespace | undefined;
 		if (catalogKv) {
-			console.log('[CATALOG] Loading from CATALOG_KV');
+			this.logger.info('Loading scheduled ensembles from CATALOG_KV');
 			return this.loadFromKV(catalogKv, 'ensemble:');
 		}
 
 		// Option 2: Load from general KV namespace
 		const kv = (env as any).KV as KVNamespace | undefined;
 		if (kv) {
-			console.log('[CATALOG] Loading from KV');
+			this.logger.info('Loading scheduled ensembles from KV');
 			return this.loadFromKV(kv, 'ensemble:');
 		}
 
 		// Option 3: Load from D1 database
 		const db = (env as any).DB;
 		if (db) {
-			console.log('[CATALOG] Loading from D1');
+			this.logger.info('Loading scheduled ensembles from D1');
 			return this.loadFromD1(db);
 		}
 
 		// Option 4: Load from R2 bucket
 		const r2 = (env as any).CATALOG as R2Bucket | undefined;
 		if (r2) {
-			console.log('[CATALOG] Loading from R2');
+			this.logger.info('Loading scheduled ensembles from R2');
 			return this.loadFromR2(r2);
 		}
 
-		console.warn('[CATALOG] No storage backend configured, returning empty catalog');
+		this.logger.warn('No storage backend configured, returning empty catalog');
 		return [];
 	}
 
@@ -156,16 +158,19 @@ export class CatalogLoader {
 						}
 					}
 				} catch (error) {
-					console.error('[CATALOG] Failed to parse ensemble:', key.name, error);
+					this.logger.error('Failed to parse ensemble from KV', error instanceof Error ? error : undefined, {
+						key: key.name
+					});
 				}
 			}
 
-			console.log('[CATALOG] Loaded from KV:', {
+			this.logger.info('Loaded ensembles from KV', {
 				total: list.keys.length,
-				scheduled: ensembles.length
+				loaded: ensembles.length,
+				scheduledOnly
 			});
 		} catch (error) {
-			console.error('[CATALOG] Failed to load from KV:', error);
+			this.logger.error('Failed to load from KV', error instanceof Error ? error : undefined);
 		}
 
 		return ensembles;
@@ -198,16 +203,17 @@ export class CatalogLoader {
 						ensembles.push(ensemble);
 					}
 				} catch (error) {
-					console.error('[CATALOG] Failed to parse ensemble from D1:', error);
+					this.logger.error('Failed to parse ensemble from D1', error instanceof Error ? error : undefined);
 				}
 			}
 
-			console.log('[CATALOG] Loaded from D1:', {
+			this.logger.info('Loaded ensembles from D1', {
 				total: result.results.length,
-				scheduled: ensembles.length
+				loaded: ensembles.length,
+				scheduledOnly
 			});
 		} catch (error) {
-			console.error('[CATALOG] Failed to load from D1:', error);
+			this.logger.error('Failed to load from D1', error instanceof Error ? error : undefined);
 		}
 
 		return ensembles;
@@ -239,16 +245,19 @@ export class CatalogLoader {
 						}
 					}
 				} catch (error) {
-					console.error('[CATALOG] Failed to parse ensemble from R2:', object.key, error);
+					this.logger.error('Failed to parse ensemble from R2', error instanceof Error ? error : undefined, {
+						key: object.key
+					});
 				}
 			}
 
-			console.log('[CATALOG] Loaded from R2:', {
+			this.logger.info('Loaded ensembles from R2', {
 				total: list.objects.length,
-				scheduled: ensembles.length
+				loaded: ensembles.length,
+				scheduledOnly
 			});
 		} catch (error) {
-			console.error('[CATALOG] Failed to load from R2:', error);
+			this.logger.error('Failed to load from R2', error instanceof Error ? error : undefined);
 		}
 
 		return ensembles;
