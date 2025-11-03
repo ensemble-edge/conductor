@@ -2,7 +2,24 @@ name = "my-conductor-project"
 main = "src/index.ts"
 compatibility_date = "2025-10-29"
 
-# Cloudflare bindings
+# ==================== Durable Objects ====================
+# Required for stateful workflows, async execution tracking, and HITL
+[[durable_objects.bindings]]
+name = "EXECUTION_STATE"
+class_name = "ExecutionState"
+script_name = "my-conductor-project"
+
+[[durable_objects.bindings]]
+name = "HITL_STATE"
+class_name = "HITLState"
+script_name = "my-conductor-project"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ExecutionState", "HITLState"]
+
+# ==================== Cloudflare Bindings ====================
+# KV for caching and fast lookups
 kv_namespaces = [
   { binding = "CACHE", id = "your-kv-namespace-id", preview_id = "your-preview-kv-id" }
 ]
@@ -39,6 +56,21 @@ id = "your-hyperdrive-id-warehouse"
 [ai]
 binding = "AI"
 
-# Environment variables
+# ==================== Environment Variables ====================
 [vars]
 ENVIRONMENT = "development"
+# Optional: API key authentication (comma-separated)
+# API_KEYS = "key1,key2,key3"
+# ALLOW_ANONYMOUS = "false"
+# DISABLE_LOGGING = "false"
+
+# ==================== Scheduled Triggers (Cron) ====================
+# Add cron expressions from your ensemble schedules here
+# To get all cron expressions: GET /api/v1/schedules/crons/list
+[triggers]
+crons = [
+  # Example schedules (configure based on your ensembles)
+  # "0 9 * * *",      # Daily at 9 AM UTC
+  # "0 */4 * * *",    # Every 4 hours
+  # "*/15 * * * *"    # Every 15 minutes
+]
