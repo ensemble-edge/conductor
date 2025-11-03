@@ -76,7 +76,7 @@ export interface MemberMetric {
  */
 interface FlowExecutionContext {
 	ensemble: EnsembleConfig;
-	executionContext: Record<string, any>;
+	executionContext: Record<string, unknown>;
 	metrics: ExecutionMetrics;
 	stateManager: StateManager | null;
 	scoringState: ScoringState | null;
@@ -254,7 +254,7 @@ export class Executor {
 		};
 
 		// Add state context if available and track updates
-		let getPendingUpdates: (() => { updates: Record<string, any>; newLog: AccessLogEntry[] }) | null = null;
+		let getPendingUpdates: (() => { updates: Record<string, unknown>; newLog: AccessLogEntry[] }) | null = null;
 		if (stateManager && step.state) {
 			const { context, getPendingUpdates: getUpdates } = stateManager.getStateForMember(step.member, step.state);
 			memberContext.state = context.state;
@@ -502,7 +502,7 @@ export class Executor {
 		}
 
 		// Context for resolving interpolations
-		const executionContext: Record<string, any> = {
+		const executionContext: Record<string, unknown> = {
 			input,
 			state: stateManager ? stateManager.getState() : {},
 			scoring: scoringState || {}
