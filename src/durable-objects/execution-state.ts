@@ -27,7 +27,7 @@ export interface ExecutionProgressEvent {
 	step: string;
 	stepIndex: number;
 	totalSteps: number;
-	output?: any;
+	output?: unknown;
 	timestamp: number;
 }
 
@@ -37,7 +37,7 @@ export interface ExecutionProgressEvent {
 export interface ExecutionCompletionEvent {
 	type: 'completed' | 'failed' | 'cancelled';
 	executionId: string;
-	result?: any;
+	result?: unknown;
 	error?: string;
 	timestamp: number;
 }
@@ -59,9 +59,9 @@ export interface StoredExecutionState {
 	currentStep?: string;
 	stepIndex?: number;
 	totalSteps?: number;
-	outputs: Record<string, any>;
+	outputs: Record<string, unknown>;
 	metrics: ExecutionMetrics;
-	result?: any;
+	result?: unknown;
 	error?: string;
 	events: ExecutionEvent[];
 }
@@ -112,7 +112,7 @@ export class ExecutionState extends DurableObject {
 				const body = await request.json() as {
 					step: string;
 					stepIndex: number;
-					output?: any;
+					output?: unknown;
 				};
 				return this.handleProgress(body);
 			}
@@ -120,7 +120,7 @@ export class ExecutionState extends DurableObject {
 			// POST /complete - Mark execution as completed
 			if (request.method === 'POST' && path === '/complete') {
 				const body = await request.json() as {
-					result: any;
+					result: unknown;
 				};
 				return this.handleComplete(body);
 			}
@@ -242,7 +242,7 @@ export class ExecutionState extends DurableObject {
 	private async handleProgress(body: {
 		step: string;
 		stepIndex: number;
-		output?: any;
+		output?: unknown;
 	}): Promise<Response> {
 		if (!this.state) {
 			return new Response(
@@ -284,7 +284,7 @@ export class ExecutionState extends DurableObject {
 	/**
 	 * Mark execution as completed
 	 */
-	private async handleComplete(body: { result: any }): Promise<Response> {
+	private async handleComplete(body: { result: unknown }): Promise<Response> {
 		if (!this.state) {
 			return new Response(
 				JSON.stringify({ error: 'Execution not started' }),
@@ -414,7 +414,7 @@ export class ExecutionState extends DurableObject {
 	/**
 	 * Broadcast event to all connected WebSocket clients
 	 */
-	private broadcast(message: any): void {
+	private broadcast(message: unknown): void {
 		const payload = JSON.stringify(message);
 
 		for (const ws of this.connections) {
