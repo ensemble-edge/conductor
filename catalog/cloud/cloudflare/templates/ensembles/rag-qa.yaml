@@ -1,0 +1,41 @@
+name: rag-qa
+description: |
+  Question answering with Retrieval Augmented Generation (RAG).
+
+  Uses Cloudflare AutoRAG for automatic document retrieval and
+  combines it with AI to generate accurate, context-aware answers.
+
+flow:
+  # Step 1: Retrieve relevant documents using AutoRAG
+  - member: autorag
+    input:
+      query: ${input.question}
+      namespace: ${input.namespace || "default"}
+      topK: 5
+
+  # Step 2: Generate answer using retrieved context
+  - member: answer-generator
+    type: think
+    input:
+      prompt: |
+        Answer the question using ONLY the provided context.
+        If the context doesn't contain enough information, say so.
+
+        Context:
+        ${autorag.output.context}
+
+        Question: ${input.question}
+
+        Instructions:
+        - Be concise and accurate
+        - Cite sources when possible
+        - If information is missing, acknowledge it
+        - Use a helpful, professional tone
+
+output:
+  answer: ${answer-generator.output.message}
+  sources: ${autorag.output.results}
+  confidence: ${autorag.output.results[0].score}
+  metadata:
+    retrievedDocs: ${autorag.output.count}
+    query: ${autorag.output.query}
