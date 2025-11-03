@@ -17,6 +17,7 @@ import { LongTermMemory } from './long-term-memory.js';
 import { SemanticMemory } from './semantic-memory.js';
 import { AnalyticalMemory } from './analytical-memory.js';
 import type { MemoryConfig, Message, Memory, SearchOptions, MemorySnapshot } from './types.js';
+import type { ConductorEnv } from '../../types/env';
 
 export class MemoryManager {
 	private workingMemory: WorkingMemory;
@@ -26,7 +27,7 @@ export class MemoryManager {
 	private analyticalMemory: AnalyticalMemory | null = null;
 
 	constructor(
-		private readonly env: Env,
+		private readonly env: ConductorEnv,
 		private readonly config: MemoryConfig,
 		private readonly userId?: string,
 		private readonly sessionId?: string
@@ -57,21 +58,21 @@ export class MemoryManager {
 	/**
 	 * Set a value in working memory
 	 */
-	setWorking(key: string, value: any): void {
+	setWorking(key: string, value: unknown): void {
 		this.workingMemory.set(key, value);
 	}
 
 	/**
 	 * Get a value from working memory
 	 */
-	getWorking(key: string): any {
+	getWorking(key: string): unknown {
 		return this.workingMemory.get(key);
 	}
 
 	/**
 	 * Get all working memory
 	 */
-	getWorkingAll(): Record<string, any> {
+	getWorkingAll(): Record<string, unknown> {
 		return this.workingMemory.getAll();
 	}
 
@@ -140,7 +141,7 @@ export class MemoryManager {
 	/**
 	 * Set a value in long-term memory
 	 */
-	async setLongTerm(key: string, value: any): Promise<void> {
+	async setLongTerm(key: string, value: unknown): Promise<void> {
 		if (!this.longTermMemory) {
 			return;
 		}
@@ -150,7 +151,7 @@ export class MemoryManager {
 	/**
 	 * Get a value from long-term memory
 	 */
-	async getLongTerm(key: string): Promise<any> {
+	async getLongTerm(key: string): Promise<unknown> {
 		if (!this.longTermMemory) {
 			return null;
 		}
@@ -160,7 +161,7 @@ export class MemoryManager {
 	/**
 	 * Get all long-term memory
 	 */
-	async getLongTermAll(): Promise<Record<string, any>> {
+	async getLongTermAll(): Promise<Record<string, unknown>> {
 		if (!this.longTermMemory) {
 			return {};
 		}
@@ -192,7 +193,7 @@ export class MemoryManager {
 	/**
 	 * Add a memory to semantic storage
 	 */
-	async addSemantic(content: string, metadata?: Record<string, any>): Promise<string> {
+	async addSemantic(content: string, metadata?: Record<string, unknown>): Promise<string> {
 		if (!this.semanticMemory) {
 			return '';
 		}
@@ -274,8 +275,15 @@ export class MemoryManager {
 		session?: { messageCount: number };
 		longTerm?: { keyCount: number };
 		semantic?: { note: string };
+		analytical?: { databases: string[]; databaseCount: number };
 	}> {
-		const stats: any = {
+		const stats: {
+			working: { size: number };
+			session?: { messageCount: number };
+			longTerm?: { keyCount: number };
+			semantic?: { note: string };
+			analytical?: { databases: string[]; databaseCount: number };
+		} = {
 			working: { size: this.workingMemory.size() }
 		};
 
@@ -332,7 +340,7 @@ export class MemoryManager {
 	/**
 	 * Query analytical database
 	 */
-	async queryAnalytical<T = any>(sql: string, params?: any[], database?: string): Promise<T[]> {
+	async queryAnalytical<T = unknown>(sql: string, params?: unknown[], database?: string): Promise<T[]> {
 		if (!this.analyticalMemory) {
 			return [];
 		}
@@ -342,9 +350,9 @@ export class MemoryManager {
 	/**
 	 * Query analytical database with named parameters
 	 */
-	async queryAnalyticalNamed<T = any>(
+	async queryAnalyticalNamed<T = unknown>(
 		sql: string,
-		params: Record<string, any>,
+		params: Record<string, unknown>,
 		database?: string
 	): Promise<T[]> {
 		if (!this.analyticalMemory) {
@@ -356,7 +364,7 @@ export class MemoryManager {
 	/**
 	 * Execute write query on analytical database
 	 */
-	async executeAnalytical(sql: string, params?: any[], database?: string): Promise<number> {
+	async executeAnalytical(sql: string, params?: unknown[], database?: string): Promise<number> {
 		if (!this.analyticalMemory) {
 			return 0;
 		}
@@ -366,7 +374,7 @@ export class MemoryManager {
 	/**
 	 * Execute federated query across multiple databases
 	 */
-	async queryMultiple(queries: Array<{ database: string; sql: string; params?: any[] }>): Promise<Map<string, any[]>> {
+	async queryMultiple(queries: Array<{ database: string; sql: string; params?: unknown[] }>): Promise<Map<string, unknown[]>> {
 		if (!this.analyticalMemory) {
 			return new Map();
 		}
