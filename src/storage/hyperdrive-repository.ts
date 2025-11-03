@@ -78,7 +78,7 @@ export interface QueryMetadata {
 /**
  * Query result with metadata
  */
-export interface QueryResult<T = any> {
+export interface QueryResult<T = unknown> {
 	/**
 	 * Result rows
 	 */
@@ -136,7 +136,7 @@ export interface HyperdriveTransaction {
 	/**
 	 * Execute a query in the transaction
 	 */
-	query<T = any>(sql: string, params?: any[]): Promise<Result<QueryResult<T>, ConductorError>>;
+	query<T = unknown>(sql: string, params?: unknown[]): Promise<Result<QueryResult<T>, ConductorError>>;
 
 	/**
 	 * Commit the transaction
@@ -173,7 +173,7 @@ export class HyperdriveRepository {
 	/**
 	 * Execute a raw SQL query
 	 */
-	async query<T = any>(sql: string, params?: any[]): Promise<Result<QueryResult<T>, ConductorError>> {
+	async query<T = unknown>(sql: string, params?: unknown[]): Promise<Result<QueryResult<T>, ConductorError>> {
 		try {
 			// Validate if read-only
 			if (this.readOnly && this.isWriteQuery(sql)) {
@@ -200,9 +200,9 @@ export class HyperdriveRepository {
 
 			// Extract column names from first row
 			const columns = rows.length > 0
-				? Object.keys(rows[0] as any)
+				? Object.keys(rows[0] as Record<string, unknown>)
 				: result.meta?.columns
-					? (result.meta.columns as any[]).map((c: any) => c.name)
+					? (result.meta.columns as Array<{ name: string }>).map((c) => c.name)
 					: [];
 
 			return Result.ok({
@@ -225,9 +225,9 @@ export class HyperdriveRepository {
 	 * Execute a query with named parameters
 	 * Converts named parameters (:name) to positional parameters based on database type
 	 */
-	async queryNamed<T = any>(
+	async queryNamed<T = unknown>(
 		sql: string,
-		params: Record<string, any>
+		params: Record<string, unknown>
 	): Promise<Result<QueryResult<T>, ConductorError>> {
 		const { convertedSql, orderedParams } = this.convertNamedParams(sql, params);
 		return this.query<T>(convertedSql, orderedParams);
@@ -236,7 +236,7 @@ export class HyperdriveRepository {
 	/**
 	 * Execute a write query (INSERT, UPDATE, DELETE)
 	 */
-	async execute(sql: string, params?: any[]): Promise<Result<{ rowsAffected: number }, ConductorError>> {
+	async execute(sql: string, params?: unknown[]): Promise<Result<{ rowsAffected: number }, ConductorError>> {
 		if (this.readOnly) {
 			return Result.err(Errors.internal('Write operations not allowed in read-only mode'));
 		}
@@ -275,7 +275,7 @@ export class HyperdriveRepository {
 		}
 
 		const tx: HyperdriveTransaction = {
-			query: async <U = any>(sql: string, params?: any[]) => this.query<U>(sql, params),
+			query: async <U = unknown>(sql: string, params?: unknown[]) => this.query<U>(sql, params),
 			commit: async () => {
 				const result = await this.execute('COMMIT');
 				return result.success ? Result.ok(undefined) : Result.err(result.error);
@@ -338,7 +338,12 @@ export class HyperdriveRepository {
 			}
 
 			const params = this.schema ? [tableName, this.schema] : [tableName];
-			const result = await this.query<any>(sql, params);
+			const result = await this.query<{
+			name: string;
+			type: string;
+			nullable: boolean;
+			default_value?: string;
+		}>(sql, params);
 
 			if (!result.success) {
 				return Result.err(result.error);
@@ -347,7 +352,7 @@ export class HyperdriveRepository {
 			return Result.ok({
 				name: tableName,
 				schema: this.schema,
-				columns: result.value.rows.map((row: any) => ({
+				columns: result.value.rows.map((row) => ({
 					name: row.name,
 					type: row.type,
 					nullable: row.nullable,
@@ -396,7 +401,7 @@ export class HyperdriveRepository {
 				return Result.err(result.error);
 			}
 
-			return Result.ok(result.value.rows.map((row: any) => row.table_name));
+			return Result.ok(result.value.rows.map((row) => row.table_name));
 		} catch (error) {
 			return Result.err(Errors.internal('Failed to list tables', error instanceof Error ? error : undefined));
 		}
@@ -415,9 +420,9 @@ export class HyperdriveRepository {
 	 */
 	private convertNamedParams(
 		sql: string,
-		params: Record<string, any>
-	): { convertedSql: string; orderedParams: any[] } {
-		const orderedParams: any[] = [];
+		params: Record<string, unknown>
+	): { convertedSql: string; orderedParams: unknown[] } {
+		const orderedParams: unknown[] = [];
 		let paramIndex = 1;
 
 		// Replace :paramName with $1, $2, etc. (Postgres style) or ? (MySQL style)
