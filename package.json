@@ -1,6 +1,7 @@
 {
 	"name": "@ensemble-edge/conductor",
 	"version": "0.0.1",
+	"type": "module",
 	"description": "Edge-native orchestration for AI members. Built on Cloudflare Workers.",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
@@ -28,7 +29,9 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"build": "tsc",
+		"build": "tsc && node scripts/build-cli.js",
+		"build:types": "tsc",
+		"build:cli": "node scripts/build-cli.js",
 		"dev": "wrangler dev",
 		"test": "vitest",
 		"cf-typegen": "wrangler types",
@@ -38,6 +41,7 @@
 		"chalk": "^4.1.2",
 		"commander": "^12.1.0",
 		"glob": "^10.3.10",
+		"hono": "^4.6.0",
 		"yaml": "^2.4.0",
 		"zod": "^3.22.4"
 	},
@@ -45,6 +49,7 @@
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
 		"@cloudflare/workers-types": "^4.20241127.0",
 		"@types/node": "^20.11.0",
+		"esbuild": "^0.25.12",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
 		"wrangler": "^4.45.2"

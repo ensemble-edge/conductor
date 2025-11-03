@@ -1,0 +1,75 @@
+# Active Users Query Example
+#
+# A simple query demonstrating basic SQL execution via catalog
+
+name: active-users
+version: 1.0.0
+description: Get list of recently active users
+
+# Input schema
+input:
+  days:
+    type: number
+    required: false
+    default: 30
+    description: Number of days to look back
+    example: 7
+
+  limit:
+    type: number
+    required: false
+    default: 100
+    description: Max number of users to return
+    example: 50
+
+# SQL query
+query: |
+  SELECT
+    id,
+    email,
+    name,
+    last_active_at,
+    login_count,
+    plan_type
+  FROM users
+  WHERE last_active_at >= CURRENT_DATE - INTERVAL ':days days'
+  ORDER BY last_active_at DESC
+  LIMIT :limit
+
+# Configuration
+config:
+  database: production
+  readOnly: true
+  transform: camelCase
+  maxRows: 1000
+
+# Tags
+tags:
+  - users
+  - active
+  - production
+
+# Examples
+examples:
+  - name: Last week active users
+    input:
+      days: 7
+      limit: 50
+
+  - name: Last month active users
+    input:
+      days: 30
+      limit: 100
+
+# Documentation
+documentation: |
+  ## Active Users Query
+
+  Returns users who have been active within the specified time period.
+
+  ### Usage
+
+  ```typescript
+  // Get users active in last 7 days
+  const users = await members.queryCatalog('active-users', { days: 7 });
+  ```

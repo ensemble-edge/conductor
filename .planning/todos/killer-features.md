@@ -1,0 +1,1 @@
+we should be able to give a create agent or create ensemble endpoing or wizard endpoint context or even code and have it reccomend a yaml and code to build out an agent or ensemble. almost like a claude code built in kindof thing. maybe this is part of the cli?

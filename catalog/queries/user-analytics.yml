@@ -1,0 +1,116 @@
+# User Analytics Query Example
+#
+# This query demonstrates how SQL queries are stored in the catalog
+# like prompts - versioned, parameterized, and reusable.
+
+name: user-analytics
+version: 1.0.0
+description: Get user signup analytics aggregated by date range
+
+# Input schema - defines required and optional parameters
+input:
+  startDate:
+    type: string
+    required: true
+    description: Start date (ISO format YYYY-MM-DD)
+    example: '2024-01-01'
+
+  endDate:
+    type: string
+    required: true
+    description: End date (ISO format YYYY-MM-DD)
+    example: '2024-01-31'
+
+  planType:
+    type: string
+    required: false
+    description: Filter by plan type (free, pro, enterprise)
+    example: 'pro'
+
+# SQL query with named parameters
+query: |
+  SELECT
+    DATE(created_at) as signup_date,
+    COUNT(*) as total_signups,
+    COUNT(CASE WHEN verified = true THEN 1 END) as verified_users,
+    COUNT(CASE WHEN plan_type = :planType THEN 1 END) as plan_users,
+    AVG(CASE WHEN verified = true THEN 1 ELSE 0 END) as verification_rate
+  FROM users
+  WHERE created_at BETWEEN :startDate AND :endDate
+    AND (:planType IS NULL OR plan_type = :planType)
+  GROUP BY DATE(created_at)
+  ORDER BY signup_date DESC
+  LIMIT 365
+
+# Configuration
+config:
+  database: analytics
+  cacheTTL: 3600
+  maxRows: 1000
+  readOnly: true
+  transform: camelCase
+
+# Tags for discovery
+tags:
+  - analytics
+  - users
+  - reporting
+  - metrics
+
+# Example usages
+examples:
+  - name: Weekly signups
+    input:
+      startDate: '2024-01-01'
+      endDate: '2024-01-07'
+    expected_columns: ['signup_date', 'total_signups', 'verified_users', 'verification_rate']
+
+  - name: Monthly pro plan signups
+    input:
+      startDate: '2024-01-01'
+      endDate: '2024-01-31'
+      planType: 'pro'
+    expected_columns: ['signup_date', 'total_signups', 'plan_users']
+
+# Documentation
+documentation: |
+  ## User Analytics Query
+
+  This query provides day-by-day signup analytics including:
+  - Total signups
+  - Verified user count
+  - Plan-specific signups (optional)
+  - Verification rate
+
+  ### Usage in Agents
+
+  ```yaml
+  - name: get-metrics
+    member: queries
+    input:
+      queryName: user-analytics
+      input:
+        startDate: "{{ context.startDate }}"
+        endDate: "{{ context.endDate }}"
+  ```
+
+  ### Usage in SDK
+
+  ```typescript
+  const result = await members.queryCatalog(
+    'user-analytics',
+    { startDate: '2024-01-01', endDate: '2024-01-31' }
+  );
+  ```
+
+  ### Performance Notes
+
+  - Cached for 1 hour (3600s)
+  - Read-only mode prevents accidental writes
+  - Limited to 365 rows (one year of daily data)
+  - Column names transformed to camelCase
+
+# Metadata
+author: Conductor Team
+created: 2024-11-03
+updated: 2024-11-03

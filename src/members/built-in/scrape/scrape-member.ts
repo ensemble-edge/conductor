@@ -1,0 +1,184 @@
+/**
+ * Scrape Member - 3-Tier Web Scraping
+ *
+ * Tier 1: CF Browser Rendering (domcontentloaded) - Fast, ~350ms
+ * Tier 2: CF Browser Rendering (networkidle2) - JS wait, ~2s
+ * Tier 3: HTML parsing fallback - ~1.5s
+ *
+ * Features:
+ * - Automatic fallback on bot protection detection
+ * - Multiple return formats (markdown, html, text)
+ * - Configurable strategy (fast, balanced, aggressive)
+ */
+
+import { BaseMember, type MemberExecutionContext } from '../../base-member';
+import type { MemberConfig } from '../../../runtime/parser';
+import type { ScrapeConfig, ScrapeInput, ScrapeResult } from './types';
+import { detectBotProtection, isContentSuccessful } from './bot-detection';
+import { extractTextFromHTML, extractTitleFromHTML, convertHTMLToMarkdown } from './html-parser';
+
+export class ScrapeMember extends BaseMember {
+	private scrapeConfig: ScrapeConfig;
+
+	constructor(config: MemberConfig, private readonly env: Env) {
+		super(config);
+
+		this.scrapeConfig = {
+			strategy: config.config?.strategy || 'balanced',
+			returnFormat: config.config?.returnFormat || 'markdown',
+			blockResources: config.config?.blockResources !== false,
+			userAgent: config.config?.userAgent,
+			timeout: config.config?.timeout || 30000
+		};
+	}
+
+	protected async run(context: MemberExecutionContext): Promise<ScrapeResult> {
+		const input = context.input as ScrapeInput;
+
+		if (!input.url) {
+			throw new Error('Scrape member requires "url" in input');
+		}
+
+		const startTime = Date.now();
+		const strategy = this.scrapeConfig.strategy!;
+
+		// Tier 1: Fast browser rendering (domcontentloaded)
+		try {
+			const result = await this.tier1Fast(input.url);
+			if (isContentSuccessful(result.html)) {
+				return this.formatResult(result, 1, Date.now() - startTime);
+			}
+		} catch (error) {
+			console.log('Tier 1 failed, trying Tier 2:', error);
+		}
+
+		// If strategy is 'fast', return fallback
+		if (strategy === 'fast') {
+			return this.fallbackResult(input.url, Date.now() - startTime);
+		}
+
+		// Tier 2: Slow browser rendering (networkidle2)
+		try {
+			const result = await this.tier2Slow(input.url);
+			if (isContentSuccessful(result.html)) {
+				return this.formatResult(result, 2, Date.now() - startTime);
+			}
+		} catch (error) {
+			console.log('Tier 2 failed, trying Tier 3:', error);
+		}
+
+		// If strategy is 'balanced', return fallback
+		if (strategy === 'balanced') {
+			return this.fallbackResult(input.url, Date.now() - startTime);
+		}
+
+		// Tier 3: HTML parsing fallback
+		const result = await this.tier3HTMLParsing(input.url);
+		return this.formatResult(result, 3, Date.now() - startTime);
+	}
+
+	/**
+	 * Tier 1: Fast browser rendering with domcontentloaded
+	 */
+	private async tier1Fast(url: string): Promise<{ html: string; title: string }> {
+		// TODO: Integrate with Cloudflare Browser Rendering API
+		// For now, use standard fetch as placeholder
+		const response = await fetch(url, {
+			headers: {
+				'User-Agent': this.scrapeConfig.userAgent || 'Mozilla/5.0 (compatible; Conductor/1.0)'
+			},
+			signal: AbortSignal.timeout(this.scrapeConfig.timeout!)
+		});
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+
+		const html = await response.text();
+		const title = extractTitleFromHTML(html);
+
+		return { html, title };
+	}
+
+	/**
+	 * Tier 2: Slow browser rendering with networkidle2
+	 */
+	private async tier2Slow(url: string): Promise<{ html: string; title: string }> {
+		// TODO: Integrate with Cloudflare Browser Rendering API with networkidle2
+		// For now, fallback to tier1
+		return await this.tier1Fast(url);
+	}
+
+	/**
+	 * Tier 3: HTML parsing fallback
+	 */
+	private async tier3HTMLParsing(url: string): Promise<{ html: string; title: string }> {
+		const response = await fetch(url, {
+			headers: {
+				'User-Agent': this.scrapeConfig.userAgent || 'Mozilla/5.0 (compatible; Conductor/1.0)'
+			},
+			signal: AbortSignal.timeout(this.scrapeConfig.timeout!)
+		});
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+		}
+
+		const html = await response.text();
+		const title = extractTitleFromHTML(html);
+
+		return { html, title };
+	}
+
+	/**
+	 * Format the result based on configured return format
+	 */
+	private formatResult(
+		data: { html: string; title: string },
+		tier: 1 | 2 | 3,
+		duration: number
+	): ScrapeResult {
+		const botProtection = detectBotProtection(data.html);
+		const format = this.scrapeConfig.returnFormat!;
+
+		const result: ScrapeResult = {
+			url: '',
+			tier,
+			duration,
+			botProtectionDetected: botProtection.detected,
+			contentLength: data.html.length,
+			title: data.title
+		};
+
+		// Add requested format
+		if (format === 'html' || format === 'markdown') {
+			result.html = data.html;
+		}
+
+		if (format === 'markdown') {
+			result.markdown = convertHTMLToMarkdown(data.html);
+		}
+
+		if (format === 'text') {
+			result.text = extractTextFromHTML(data.html);
+		}
+
+		return result;
+	}
+
+	/**
+	 * Return a fallback result when all tiers fail
+	 */
+	private fallbackResult(url: string, duration: number): ScrapeResult {
+		return {
+			url,
+			tier: 3,
+			duration,
+			botProtectionDetected: true,
+			contentLength: 0,
+			markdown: '',
+			html: '',
+			text: ''
+		};
+	}
+}

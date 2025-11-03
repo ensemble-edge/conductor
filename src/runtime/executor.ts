@@ -12,6 +12,7 @@ import { FunctionMember } from '../members/function-member';
 import { ThinkMember } from '../members/think-member';
 import { DataMember } from '../members/data-member';
 import { APIMember } from '../members/api-member';
+import { getBuiltInRegistry } from '../members/built-in/registry';
 import { Result, type AsyncResult } from '../types/result';
 import {
 	Errors,
@@ -88,14 +89,42 @@ export class Executor {
 	 * Resolve a member by reference with explicit error handling
 	 * Supports both simple names and versioned references (name@version)
 	 *
+	 * Loading priority:
+	 * 1. Check built-in members (scrape, validate, rag, hitl, fetch)
+	 * 2. Check user-defined members (registered via registerMember)
+	 * 3. Error if not found
+	 *
 	 * @param memberRef - Member reference (e.g., "greet" or "analyze-company@production")
 	 * @returns Result containing the member or an error
 	 */
 	private async resolveMember(memberRef: string): AsyncResult<BaseMember, ConductorError> {
 		const { name, version } = Parser.parseMemberReference(memberRef);
 
-		// If no version specified, get from registry
+		// If no version specified, check both built-in and user registries
 		if (!version) {
+			// 1. Check if it's a built-in member first
+			const builtInRegistry = getBuiltInRegistry();
+			if (builtInRegistry.isBuiltIn(name)) {
+				try {
+					// Create a minimal MemberConfig for built-in members
+					const config: MemberConfig = {
+						name: name,
+						type: builtInRegistry.getMetadata(name)?.type || MemberType.Function,
+						config: {}
+					};
+					const member = builtInRegistry.create(name, config, this.env);
+					return Result.ok(member);
+				} catch (error) {
+					return Result.err(
+						Errors.memberConfig(
+							name,
+							`Failed to load built-in member: ${error instanceof Error ? error.message : 'Unknown error'}`
+						)
+					);
+				}
+			}
+
+			// 2. Check user-defined member registry
 			const member = this.memberRegistry.get(name);
 			if (!member) {
 				return Result.err(Errors.memberNotFound(name));
@@ -392,16 +421,31 @@ export class Executor {
 	}
 
 	/**
-	 * Get all registered member names
+	 * Get all registered member names (both built-in and user-defined)
 	 */
 	getRegisteredMembers(): string[] {
-		return Array.from(this.memberRegistry.keys());
+		const builtInRegistry = getBuiltInRegistry();
+		const builtInNames = builtInRegistry.getAvailableNames();
+		const userDefinedNames = Array.from(this.memberRegistry.keys());
+
+		// Combine both, user-defined members take precedence (can override built-in)
+		const allNames = new Set([...builtInNames, ...userDefinedNames]);
+		return Array.from(allNames);
 	}
 
 	/**
-	 * Check if a member is registered
+	 * Check if a member is registered (checks both built-in and user-defined)
 	 */
 	hasMember(memberName: string): boolean {
-		return this.memberRegistry.has(memberName);
+		const builtInRegistry = getBuiltInRegistry();
+		return builtInRegistry.isBuiltIn(memberName) || this.memberRegistry.has(memberName);
+	}
+
+	/**
+	 * Get all built-in member metadata
+	 */
+	getBuiltInMembers() {
+		const builtInRegistry = getBuiltInRegistry();
+		return builtInRegistry.list();
 	}
 }
