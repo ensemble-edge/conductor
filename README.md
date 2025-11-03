@@ -55,34 +55,42 @@ After running `conductor init`, here's what you'll have:
 ```
 my-project/
 ├── src/
-│   └── index.ts                 # 🔧 Worker entry point
-│                                 #    Choose: Built-in API or custom endpoints
-│                                 #    Must export ExecutionState & HITLState
+│   ├── index.ts                 # 🔧 Worker entry point (Choose: Built-in API or custom)
+│   └── lib/                     # 👈 YOUR UTILITIES - Shared helpers, utilities
+│       └── helpers.ts           #    Reusable functions across members
 │
-├── members/                      # 👈 YOUR CODE - Add your members here
+├── members/                      # 👈 YOUR MEMBERS - Business logic implementations
 │   └── greet/                    #    Each member is a folder with:
 │       ├── member.yaml           #    - member.yaml (configuration)
-│       ├── index.ts              #    - index.ts (implementation)
-│       └── prompt.md             #    - prompt.md (optional, for Think members)
+│       └── index.ts              #    - index.ts (implementation code)
 │
-├── ensembles/                    # 👈 YOUR WORKFLOWS - Add ensemble YAML files here
-│   └── hello-world.yaml          #    Define:
-│                                 #    - flow (member execution steps)
-│                                 #    - schedules (cron triggers) [optional]
-│                                 #    - webhooks (HTTP triggers) [optional]
-│                                 #    - state (shared data) [optional]
+├── ensembles/                    # 👈 YOUR WORKFLOWS - Orchestration definitions
+│   └── hello-world.yaml          #    YAML files defining:
+│                                 #    - flow (execution steps)
+│                                 #    - schedules (cron triggers)
+│                                 #    - webhooks (HTTP triggers)
+│                                 #    - state (shared data)
+│
+├── prompts/                      # 🔄 SHARED PROMPTS - Versioned with Edgit
+│   ├── extraction.md             #    Prompt templates that can be:
+│   └── company-analysis.md       #    - Referenced by multiple members
+│                                 #    - Versioned independently (v1.0.0, v2.0.0)
+│                                 #    - Reused across ensembles
+│
+├── queries/                      # 🔄 SHARED SQL - Versioned with Edgit
+│   ├── company-lookup.sql        #    SQL queries that can be:
+│   └── competitor-search.sql     #    - Referenced by multiple members
+│                                 #    - Versioned independently
+│                                 #    - Optimized over time
+│
+├── configs/                      # 🔄 SHARED CONFIGS - Versioned with Edgit
+│   └── model-settings.yaml       #    Configuration files for:
+│                                 #    - Model parameters
+│                                 #    - Feature flags
+│                                 #    - Environment-specific settings
 │
 ├── wrangler.toml                 # 🔧 Cloudflare configuration
-│                                 #    Configure:
-│                                 #    - Durable Objects bindings
-│                                 #    - KV/D1/R2/Vectorize bindings
-│                                 #    - Cron triggers (from ensembles)
-│                                 #    - Environment variables
-│
-├── package.json                  # 📦 Dependencies
-│   dependencies:
-│     @ensemble-edge/conductor   # Runtime + CLI + SDK
-│
+├── package.json                  # 📦 Dependencies (@ensemble-edge/conductor, @ensemble-edge/edgit)
 ├── tsconfig.json                 # TypeScript config
 └── README.md                     # Project documentation
 ```
@@ -91,21 +99,44 @@ my-project/
 
 | Component | Location | Created With | Purpose |
 |-----------|----------|--------------|---------|
-| **Members** | `members/<name>/` | `conductor add member <name>` | Your reusable logic: AI, functions, API calls, data ops |
-| **Ensembles** | `ensembles/<name>.yaml` | Create YAML file manually | Your workflows: orchestrate members, define schedules/webhooks |
-| **Schedules** | Inside ensemble YAML | Add `schedules:` array | Cron-based automation (daily reports, monitoring, etc.) |
+| **Members** | `members/<name>/` | `conductor add member <name>` | Business logic: AI, functions, API calls, data operations |
+| **Ensembles** | `ensembles/<name>.yaml` | Create YAML file manually | Workflow orchestration: define flow, schedules, webhooks |
+| **Prompts** | `prompts/<name>.md` | Create file, register with `edgit tag` | Shared prompt templates - reusable across members/ensembles |
+| **Queries** | `queries/<name>.sql` | Create file, register with `edgit tag` | Shared SQL queries - reusable, versioned, optimized |
+| **Configs** | `configs/<name>.yaml` | Create file, register with `edgit tag` | Shared configuration - model settings, feature flags |
+| **Utilities** | `src/lib/<name>.ts` | Create file | Shared helper functions across your codebase |
+| **Schedules** | Inside ensemble YAML | Add `schedules:` array | Cron-based automation (daily reports, monitoring) |
 | **Webhooks** | Inside ensemble YAML | Add `webhooks:` array | HTTP triggers (Stripe, GitHub, external events) |
-| **Prompts** | `members/<name>/prompt.md` | `conductor add member <name> --with-prompt` | Versioned prompts for Think members (Edgit) |
 | **API Config** | `src/index.ts` | Edit file | Choose built-in API or custom endpoints |
 | **Cron Triggers** | `wrangler.toml` | Copy from ensemble schedules | Register cron expressions with Cloudflare |
 | **Environment Vars** | `wrangler.toml` | Edit `[vars]` section | API keys, settings, feature flags |
 
 **Key Concepts:**
 
-1. **Members are sacred** - Conductor never modifies your `members/` or `ensembles/` folders during upgrades
-2. **Ensembles = Configuration** - YAML files that define how members work together
-3. **Members = Implementation** - Your code that Conductor orchestrates
-4. **src/index.ts = Entry point** - Choose API style (built-in or custom)
+1. **Two types of components**:
+   - **Built-in** (inside Conductor) - Scoring members, validators, etc. - updated when you upgrade Conductor
+   - **Your components** (your project) - Members, ensembles, prompts, queries - never touched by Conductor
+
+2. **Shared, versioned components** (🔄):
+   - `prompts/`, `queries/`, `configs/` are **Edgit components**
+   - Can be referenced by multiple members or ensembles
+   - Versioned independently (e.g., `extraction-prompt@v1.0.0`, `extraction-prompt@v2.0.0`)
+   - **Example**: 5 different members can all use `company-analysis-prompt@v2.1.0`
+
+3. **Member implementations** (👈):
+   - `members/` contains your business logic code
+   - Each member can reference shared prompts/queries at specific versions
+   - **Example**: `member.yaml` can specify `prompt: company-analysis@v2.1.0`
+
+4. **Workflow orchestration**:
+   - `ensembles/` defines how members work together
+   - Can reference components directly: `component: extraction-prompt@v0.1.0`
+   - **Example**: Mix versions - use v0.1.0 of prompt (ancient but perfect) with v3.0.0 of agent (latest)
+
+5. **Multiple projects share Conductor**:
+   - Install once: `npm install -g @ensemble-edge/conductor`
+   - Use in many projects: `my-app-1/`, `my-app-2/`, `my-app-3/`
+   - Each project has its own members, ensembles, prompts, queries
 
 ### Add to Existing Project
 
@@ -1303,17 +1334,35 @@ Conductor works seamlessly with Edgit for versioning prompts, configs, and membe
 
 ### What Gets Versioned with Edgit?
 
-**Edgit Components** (versioned artifacts):
-- ✅ **Member configurations** (member.yaml) - Version your agent configs independently
-- ✅ **Prompts** (for Think members) - Version prompt templates
-- ✅ **SQL queries** - Version database queries
-- ✅ **Agent configs** - Version settings and parameters
-- ✅ **Templates** - Version reusable templates
+**Edgit Components** (versioned artifacts in shared folders):
+- ✅ **Prompts** (`prompts/*.md`) - Shared prompt templates, reusable across members/ensembles
+- ✅ **Queries** (`queries/*.sql`) - Shared SQL queries, reusable and optimized
+- ✅ **Configs** (`configs/*.yaml`) - Shared configuration files, model settings
+- ✅ **Member configurations** (`members/*/member.yaml`) - Agent config files
 
 **NOT Edgit Components** (code in your repo):
-- ❌ **Member implementations** (index.ts) - Code is git-versioned and bundled with worker
-- ❌ **Ensembles** (YAML workflows) - Workflow definitions live in git
-- ❌ **Worker code** - Application code lives in git
+- ❌ **Member implementations** (`members/*/index.ts`) - Code is git-versioned and bundled with worker
+- ❌ **Ensembles** (`ensembles/*.yaml`) - Workflow definitions live in git
+- ❌ **Worker code** (`src/*`) - Application code lives in git
+
+**Key Insight:** Prompts, queries, and configs live in **their own folders** at the project root, not inside individual members. This enables **reuse** - multiple members can reference the same prompt at different versions.
+
+**Example: Shared Prompt Reuse**
+
+```
+my-project/
+├── prompts/
+│   └── company-analysis.md        # Shared prompt, versioned v1.0.0, v2.0.0, v2.1.0
+├── members/
+│   ├── analyze-tech-company/
+│   │   └── member.yaml            # Uses: company-analysis-prompt@v2.1.0
+│   ├── analyze-startup/
+│   │   └── member.yaml            # Uses: company-analysis-prompt@v2.0.0
+│   └── quick-company-check/
+│       └── member.yaml            # Uses: company-analysis-prompt@v1.0.0
+```
+
+All three members share the same prompt source file, but reference different versions based on what works best for their use case.
 
 ### The Versioning Chain
 
