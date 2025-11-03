@@ -311,7 +311,7 @@ export class Executor {
 					}
 
 					// Parse evaluator output as ScoringResult
-					const evalData = evalResponse.data;
+					const evalData = evalResponse.data as Record<string, any> | number;
 					const score = typeof evalData === 'number' ? evalData :
 					             (evalData.score ?? evalData.value ?? 0);
 
@@ -321,8 +321,8 @@ export class Executor {
 					return {
 						score,
 						passed: score >= threshold,
-						feedback: evalData.feedback || evalData.message || '',
-						breakdown: evalData.breakdown || {},
+						feedback: typeof evalData === 'object' ? (evalData.feedback || evalData.message || '') : '',
+						breakdown: typeof evalData === 'object' ? (evalData.breakdown || {}) : {},
 						metadata: {
 							attempt,
 							evaluator: scoringConfig.evaluator,
