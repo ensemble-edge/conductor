@@ -15,7 +15,7 @@ describe('Hello World Ensemble', () => {
 
 	beforeEach(async () => {
 		conductor = await TestConductor.create({
-			projectPath: './catalog/cloud/cloudflare/templates'
+			projectPath: '.'
 		});
 
 		// Mock AI response for the greet member
