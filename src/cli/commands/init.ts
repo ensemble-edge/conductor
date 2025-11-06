@@ -79,7 +79,9 @@ export function createInitCommand(): Command {
           console.error(chalk.yellow('⚠ Directory is not empty'))
           console.error('')
           console.error(chalk.dim('This directory contains files but is not a Conductor project.'))
-          console.error(chalk.dim('Initializing will add Conductor structure alongside existing files.'))
+          console.error(
+            chalk.dim('Initializing will add Conductor structure alongside existing files.')
+          )
           console.error('')
           console.error(chalk.dim('Use --force to proceed'))
           console.error('')
@@ -112,7 +114,13 @@ export function createInitCommand(): Command {
           }
         }
 
-        const templatePath = path.join(packageRoot, 'catalog', 'cloud', options.template, 'templates')
+        const templatePath = path.join(
+          packageRoot,
+          'catalog',
+          'cloud',
+          options.template,
+          'templates'
+        )
 
         try {
           await fs.access(templatePath)
@@ -149,7 +157,9 @@ export function createInitCommand(): Command {
         console.log(chalk.dim('     - prompts/      : Prompt templates'))
         console.log(chalk.dim('     - configs/      : Configuration files'))
         console.log(
-          chalk.dim(`  ${directory !== '.' ? '4' : '3'}. npx wrangler dev  : Start local development`)
+          chalk.dim(
+            `  ${directory !== '.' ? '4' : '3'}. npx wrangler dev  : Start local development`
+          )
         )
         console.log('')
         console.log(chalk.dim('Documentation: https://docs.ensemble-edge.com/conductor'))
