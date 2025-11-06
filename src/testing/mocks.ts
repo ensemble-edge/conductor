@@ -3,19 +3,158 @@
  */
 
 import type { VectorSearchResult } from './types.js'
+import type {
+  AIProvider,
+  AIProviderRequest,
+  AIProviderResponse,
+  AIProviderConfig,
+} from '../members/think-providers/index.js'
+import type { ConductorEnv } from '../types/env.js'
+import type { ProviderId } from '../types/branded.js'
 
 /**
- * Mock AI provider responses
+ * Mock AI provider for testing
+ * Implements the AIProvider interface to integrate with ThinkMember
  */
-export class MockAIProvider {
-  constructor(private responses: Record<string, unknown | Error>) {}
+export class MockAIProvider implements AIProvider {
+  readonly id: ProviderId
+  readonly name: string
 
-  getResponse(memberName: string): unknown | Error {
-    return this.responses[memberName] || { message: 'Mock AI response' }
+  private responses: Map<string, unknown | Error>
+  private defaultResponse: AIProviderResponse = {
+    content: 'Mock AI response',
+    model: 'mock-model',
+    provider: 'mock',
+    tokensUsed: 0,
+    metadata: {},
+  }
+  private onExecute?: (call: {
+    memberName?: string
+    request: any
+    response: any
+    timestamp: number
+  }) => void
+
+  constructor(
+    responses: Record<string, unknown | Error> = {},
+    id: string = 'mock',
+    sharedResponsesMap?: Map<string, unknown | Error>,
+    onExecute?: (call: any) => void
+  ) {
+    this.id = id as ProviderId
+    this.name = `Mock ${id}`
+    this.onExecute = onExecute
+
+    // Use shared responses map if provided, otherwise create new one
+    if (sharedResponsesMap) {
+      this.responses = sharedResponsesMap
+    } else {
+      this.responses = new Map()
+      for (const [key, value] of Object.entries(responses)) {
+        this.responses.set(key, value)
+      }
+    }
+  }
+
+  async execute(request: AIProviderRequest): Promise<AIProviderResponse> {
+    const timestamp = Date.now()
+    let aiResponse: AIProviderResponse
+
+    // Try to match response by context (this is called during member execution)
+    // We'll match by the first available mocked response
+    for (const [, response] of this.responses.entries()) {
+      if (response instanceof Error) {
+        // Track the error call
+        if (this.onExecute) {
+          this.onExecute({
+            request,
+            response: { error: response.message },
+            timestamp,
+          })
+        }
+        throw response
+      }
+
+      // Convert the mocked response to AIProviderResponse format
+      if (typeof response === 'object' && response !== null) {
+        // If it's already in AIProviderResponse format, use it
+        if ('content' in response && typeof response.content === 'string') {
+          aiResponse = response as AIProviderResponse
+        } else {
+          // For test mocks, the response object IS the expected member output
+          // Return it as JSON in content, and ThinkMember will use it as-is
+          // Since ThinkMember returns AIProviderResponse as the member data,
+          // we return the response directly as the AIProviderResponse,
+          // making the mocked object available in the response
+          aiResponse = {
+            ...response,
+            content: JSON.stringify(response),
+            model: request.config.model,
+            provider: 'mock',
+            tokensUsed: 0,
+          } as AIProviderResponse
+        }
+      } else {
+        // Fallback: convert to string
+        aiResponse = {
+          content: String(response),
+          model: request.config.model,
+          provider: 'mock',
+          tokensUsed: 0,
+          metadata: {},
+        }
+      }
+
+      // Track the AI call
+      if (this.onExecute) {
+        this.onExecute({
+          request,
+          response: aiResponse,
+          timestamp,
+        })
+      }
+
+      return aiResponse
+    }
+
+    // No mocked responses, return default
+    aiResponse = this.defaultResponse
+
+    // Track the default response
+    if (this.onExecute) {
+      this.onExecute({
+        request,
+        response: aiResponse,
+        timestamp,
+      })
+    }
+
+    return aiResponse
+  }
+
+  validateConfig(config: AIProviderConfig, env: ConductorEnv): boolean {
+    return this.getConfigError(config, env) === null
+  }
+
+  getConfigError(config: AIProviderConfig, env: ConductorEnv): string | null {
+    // Mock provider doesn't require API keys
+    return null
   }
 
   setResponse(memberName: string, response: unknown | Error): void {
-    this.responses[memberName] = response
+    this.responses.set(memberName, response)
+  }
+
+  getResponse(memberName: string): unknown | Error | undefined {
+    return this.responses.get(memberName)
+  }
+
+  clear(): void {
+    this.responses.clear()
+  }
+
+  getResponsesMap(): Map<string, unknown | Error> {
+    return this.responses
   }
 }
 
