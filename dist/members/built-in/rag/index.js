@@ -1,5 +1,5 @@
 /**
  * RAG Member - Exports
  */
-export { RAGMember } from './rag-member';
-export { Chunker } from './chunker';
+export { RAGMember } from './rag-member.js';
+export { Chunker } from './chunker.js';

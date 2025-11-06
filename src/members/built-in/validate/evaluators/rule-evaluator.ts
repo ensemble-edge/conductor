@@ -4,8 +4,8 @@
  * Executes JavaScript expressions as validation rules
  */
 
-import { BaseEvaluator } from './base-evaluator'
-import type { EvaluationScore, Rule, ValidateConfig } from '../types'
+import { BaseEvaluator } from './base-evaluator.js'
+import type { EvaluationScore, Rule, ValidateConfig } from '../types.js'
 
 export class RuleEvaluator extends BaseEvaluator {
   async evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore> {

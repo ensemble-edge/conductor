@@ -7,11 +7,11 @@
  * - NLP: Statistical NLP metrics (BLEU, ROUGE)
  * - Embedding: Semantic similarity via embeddings
  */
-import { BaseMember } from '../../base-member';
-import { RuleEvaluator } from './evaluators/rule-evaluator';
-import { JudgeEvaluator } from './evaluators/judge-evaluator';
-import { NLPEvaluator } from './evaluators/nlp-evaluator';
-import { EmbeddingEvaluator } from './evaluators/embedding-evaluator';
+import { BaseMember } from '../../base-member.js';
+import { RuleEvaluator } from './evaluators/rule-evaluator.js';
+import { JudgeEvaluator } from './evaluators/judge-evaluator.js';
+import { NLPEvaluator } from './evaluators/nlp-evaluator.js';
+import { EmbeddingEvaluator } from './evaluators/embedding-evaluator.js';
 export class ValidateMember extends BaseMember {
     constructor(config, env) {
         super(config);

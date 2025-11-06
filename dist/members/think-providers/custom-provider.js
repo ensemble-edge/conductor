@@ -3,7 +3,7 @@
  *
  * Handles custom API endpoints with OpenAI-compatible format.
  */
-import { BaseAIProvider } from './base-provider';
+import { BaseAIProvider } from './base-provider.js';
 export class CustomProvider extends BaseAIProvider {
     constructor() {
         super(...arguments);

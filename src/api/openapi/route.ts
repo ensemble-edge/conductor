@@ -5,8 +5,8 @@
  */
 
 import { Hono } from 'hono'
-import type { ConductorContext } from '../types'
-import { openAPISpec } from './spec'
+import type { ConductorContext } from '../types.js'
+import { openAPISpec } from './spec.js'
 import { stringify as yamlStringify } from 'yaml'
 
 const openapi = new Hono<{ Bindings: Env }>()

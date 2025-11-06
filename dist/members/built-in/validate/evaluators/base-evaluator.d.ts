@@ -1,7 +1,7 @@
 /**
  * Base Evaluator - Abstract class for all evaluators
  */
-import type { EvaluationScore, ValidateConfig } from '../types';
+import type { EvaluationScore, ValidateConfig } from '../types.js';
 export declare abstract class BaseEvaluator {
     /**
      * Evaluate content and return scores

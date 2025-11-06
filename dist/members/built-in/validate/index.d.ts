@@ -1,11 +1,11 @@
 /**
  * Validate Member - Exports
  */
-export { ValidateMember } from './validate-member';
-export type { ValidateConfig, ValidateInput, ValidationResult, EvalType, Rule, Criterion, EvaluationScore, } from './types';
-export { BaseEvaluator } from './evaluators/base-evaluator';
-export { RuleEvaluator } from './evaluators/rule-evaluator';
-export { JudgeEvaluator } from './evaluators/judge-evaluator';
-export { NLPEvaluator } from './evaluators/nlp-evaluator';
-export { EmbeddingEvaluator } from './evaluators/embedding-evaluator';
+export { ValidateMember } from './validate-member.js';
+export type { ValidateConfig, ValidateInput, ValidationResult, EvalType, Rule, Criterion, EvaluationScore, } from './types.js';
+export { BaseEvaluator } from './evaluators/base-evaluator.js';
+export { RuleEvaluator } from './evaluators/rule-evaluator.js';
+export { JudgeEvaluator } from './evaluators/judge-evaluator.js';
+export { NLPEvaluator } from './evaluators/nlp-evaluator.js';
+export { EmbeddingEvaluator } from './evaluators/embedding-evaluator.js';
 //# sourceMappingURL=index.d.ts.map

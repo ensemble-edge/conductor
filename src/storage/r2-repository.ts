@@ -4,10 +4,10 @@
  * Provides a Repository interface over Cloudflare R2 (object storage).
  */
 
-import { Result } from '../types/result'
-import { Errors, type ConductorError } from '../errors/error-types'
-import type { Repository, PutOptions, ListOptions, Serializer } from './repository'
-import { JSONSerializer } from './repository'
+import { Result } from '../types/result.js'
+import { Errors, type ConductorError } from '../errors/error-types.js'
+import type { Repository, PutOptions, ListOptions, Serializer } from './repository.js'
+import { JSONSerializer } from './repository.js'
 
 /**
  * Repository implementation for Cloudflare R2

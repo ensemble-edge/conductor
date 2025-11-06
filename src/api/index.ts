@@ -4,8 +4,8 @@
  * Main exports for the Conductor HTTP API.
  */
 
-export { createConductorAPI } from './app'
-export type { APIConfig } from './app'
+export { createConductorAPI } from './app.js'
+export type { APIConfig } from './app.js'
 
 export type {
   ExecuteRequest,
@@ -22,11 +22,11 @@ export type {
   RateLimitConfig,
   RateLimitResult,
   ConductorContext,
-} from './types'
+} from './types.js'
 
-export { createAuthMiddleware, requireAuth, errorHandler, requestId, timing } from './middleware'
+export { createAuthMiddleware, requireAuth, errorHandler, requestId, timing } from './middleware/index.js'
 
-export { execute, members, health, stream, async } from './routes'
+export { execute, members, health, stream, async } from './routes/index.js'
 
-export { openAPISpec, openapi } from './openapi'
-export type { OpenAPISpec } from './openapi'
+export { openAPISpec, openapi } from './openapi/index.js'
+export type { OpenAPISpec } from './openapi/index.js'

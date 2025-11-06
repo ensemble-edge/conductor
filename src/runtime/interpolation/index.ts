@@ -6,8 +6,8 @@
  */
 
 // Resolver types
-export type { InterpolationResolver, ResolutionContext } from './resolver'
-export { StringResolver, ArrayResolver, ObjectResolver, PassthroughResolver } from './resolver'
+export type { InterpolationResolver, ResolutionContext } from './resolver.js'
+export { StringResolver, ArrayResolver, ObjectResolver, PassthroughResolver } from './resolver.js'
 
 // Interpolator
-export { Interpolator, getInterpolator, resetInterpolator } from './interpolator'
+export { Interpolator, getInterpolator, resetInterpolator } from './interpolator.js'

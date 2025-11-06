@@ -3,7 +3,7 @@
  *
  * Handles Anthropic API calls with proper message formatting.
  */
-import { BaseAIProvider } from './base-provider';
+import { BaseAIProvider } from './base-provider.js';
 export class AnthropicProvider extends BaseAIProvider {
     constructor() {
         super(...arguments);

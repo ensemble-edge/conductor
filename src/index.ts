@@ -6,30 +6,30 @@
  */
 
 // Core Runtime
-export { Executor } from './runtime/executor'
-export { Parser } from './runtime/parser'
-export { StateManager } from './runtime/state-manager'
+export { Executor } from './runtime/executor.js'
+export { Parser } from './runtime/parser.js'
+export { StateManager } from './runtime/state-manager.js'
 
 // Durable Objects
-export { ExecutionState } from './durable-objects/execution-state'
-export { HITLState } from './durable-objects/hitl-state'
+export { ExecutionState } from './durable-objects/execution-state.js'
+export { HITLState } from './durable-objects/hitl-state.js'
 
 // Member Types
-export { BaseMember } from './members/base-member'
-export { FunctionMember } from './members/function-member'
-export { ThinkMember } from './members/think-member'
-export { DataMember } from './members/data-member'
-export { APIMember } from './members/api-member'
+export { BaseMember } from './members/base-member.js'
+export { FunctionMember } from './members/function-member.js'
+export { ThinkMember } from './members/think-member.js'
+export { DataMember } from './members/data-member.js'
+export { APIMember } from './members/api-member.js'
 
 // Utilities
-export { MemberLoader, createLoader } from './utils/loader'
-// export { CacheManager } from './utils/cache';
-// export { Normalizer } from './utils/normalize';
+export { MemberLoader, createLoader } from './utils/loader.js'
+// export { CacheManager } from './utils/cache.js';
+// export { Normalizer } from './utils/normalize.js';
 
 // API Layer
-// export { Router } from './api/router';
-// export { createHandler } from './api/handlers';
-// export { authenticate } from './api/auth';
+// export { Router } from './api/router.js';
+// export { createHandler } from './api/handlers.js';
+// export { authenticate } from './api/auth.js';
 
 // Types
 export type {
@@ -38,18 +38,18 @@ export type {
   FlowStep,
   WebhookConfig,
   ScheduleConfig,
-} from './runtime/parser'
+} from './runtime/parser.js'
 
 export type {
   StateConfig,
   MemberStateConfig,
   StateContext,
   AccessReport,
-} from './runtime/state-manager'
+} from './runtime/state-manager.js'
 
-export type { MemberExecutionContext, MemberResponse } from './members/base-member'
+export type { MemberExecutionContext, MemberResponse } from './members/base-member.js'
 
-export type { ExecutorConfig, ExecutionResult, ExecutionMetrics } from './runtime/executor'
+export type { ExecutorConfig, ExecutionResult, ExecutionMetrics } from './runtime/executor.js'
 
 export type {
   ExecutionStatus,
@@ -57,9 +57,9 @@ export type {
   ExecutionProgressEvent,
   ExecutionCompletionEvent,
   ExecutionEvent,
-} from './durable-objects/execution-state'
+} from './durable-objects/execution-state.js'
 
-export type { HITLStatus, StoredHITLState, HITLEvent } from './durable-objects/hitl-state'
+export type { HITLStatus, StoredHITLState, HITLEvent } from './durable-objects/hitl-state.js'
 
 /**
  * Create a Cloudflare Worker handler with Conductor

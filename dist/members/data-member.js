@@ -6,9 +6,9 @@
  *
  * Reduced from 326 lines to ~120 lines through abstraction.
  */
-import { BaseMember } from './base-member';
-import { KVRepository, D1Repository, R2Repository, JSONSerializer } from '../storage';
-import { StorageType } from '../types/constants';
+import { BaseMember } from './base-member.js';
+import { KVRepository, D1Repository, R2Repository, JSONSerializer } from '../storage/index.js';
+import { StorageType } from '../types/constants.js';
 /**
  * Data Member performs storage operations via Repository pattern
  *

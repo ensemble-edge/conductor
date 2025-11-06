@@ -4,8 +4,8 @@
  * Endpoints for executing members synchronously and asynchronously.
  */
 import { Hono } from 'hono';
-import { getBuiltInRegistry } from '../../members/built-in/registry';
-import { createLogger } from '../../observability';
+import { getBuiltInRegistry } from '../../members/built-in/registry.js';
+import { createLogger } from '../../observability/index.js';
 const execute = new Hono();
 const logger = createLogger({ serviceName: 'api-execute' });
 /**

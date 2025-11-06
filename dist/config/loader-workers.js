@@ -5,8 +5,8 @@
  * No filesystem dependencies - uses environment variables, direct objects,
  * KV storage, or bundled imports.
  */
-import { DEFAULT_CONFIG } from './types';
-import { Result } from '../types/result';
+import { DEFAULT_CONFIG } from './types.js';
+import { Result } from '../types/result.js';
 /**
  * Create configuration from source (Workers-compatible)
  *
@@ -36,7 +36,7 @@ import { Result } from '../types/result';
  *
  * @example Bundled import (Wrangler bundles this)
  * ```typescript
- * import config from './conductor.config';
+ * import config from './conductor.config.js';
  * const result = await createConfig({
  *   type: 'imported',
  *   module: config

@@ -4,9 +4,9 @@
  * Dynamically loads user-created members from their project directory
  * This runs in the user's project context, not in the conductor package
  */
-import { type MemberConfig } from '../runtime/parser';
-import { BaseMember } from '../members/base-member';
-import { type FunctionImplementation } from '../members/function-member';
+import { type MemberConfig } from '../runtime/parser.js';
+import { BaseMember } from '../members/base-member.js';
+import { type FunctionImplementation } from '../members/function-member.js';
 export interface LoaderConfig {
     /**
      * Base directory where members are located
@@ -49,8 +49,8 @@ export declare class MemberLoader {
      *
      * @example
      * ```typescript
-     * import greetConfig from './members/greet/member.yaml';
-     * import greetFunction from './members/greet/index';
+     * import greetConfig from './members/greet/member.yaml.js';
+     * import greetFunction from './members/greet/index.js';
      *
      * loader.registerMember(greetConfig, greetFunction);
      * ```

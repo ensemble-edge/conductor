@@ -3,7 +3,7 @@
  *
  * Detects common bot protection mechanisms like Cloudflare, Captcha, etc.
  */
-import type { BotProtectionResult } from './types';
+import type { BotProtectionResult } from './types.js';
 /**
  * Detect if content contains bot protection
  */

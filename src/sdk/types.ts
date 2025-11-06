@@ -2,9 +2,9 @@
  * SDK Type Definitions
  */
 
-import type { MemberExecutionContext, MemberResponse } from '../members/base-member'
-import type { MemberConfig } from '../runtime/parser'
-import { MemberType } from '../types/constants'
+import type { MemberExecutionContext, MemberResponse } from '../members/base-member.js'
+import type { MemberConfig } from '../runtime/parser.js'
+import { MemberType } from '../types/constants.js'
 
 export type { MemberExecutionContext, MemberResponse, MemberConfig }
 export { MemberType }

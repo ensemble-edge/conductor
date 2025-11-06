@@ -5,8 +5,8 @@
  * No filesystem dependencies - uses environment variables, direct objects,
  * KV storage, or bundled imports.
  */
-import type { ConductorConfig } from './types';
-import { Result } from '../types/result';
+import type { ConductorConfig } from './types.js';
+import { Result } from '../types/result.js';
 /**
  * Configuration source types
  */
@@ -55,7 +55,7 @@ export type ConfigSource = {
  *
  * @example Bundled import (Wrangler bundles this)
  * ```typescript
- * import config from './conductor.config';
+ * import config from './conductor.config.js';
  * const result = await createConfig({
  *   type: 'imported',
  *   module: config

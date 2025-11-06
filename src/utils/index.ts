@@ -12,10 +12,10 @@ export {
   normalizeEmail,
   getGlobalNormalizationRegistry,
   normalize,
-} from './normalization'
+} from './normalization.js'
 
-export type { NormalizerFunction, NormalizerMetadata, NormalizerEntry } from './normalization'
+export type { NormalizerFunction, NormalizerMetadata, NormalizerEntry } from './normalization.js'
 
-export { URLResolver, resolveURL, isURLReachable } from './url-resolver'
+export { URLResolver, resolveURL, isURLReachable } from './url-resolver.js'
 
-export type { URLResolverOptions, URLResolution } from './url-resolver'
+export type { URLResolverOptions, URLResolution } from './url-resolver.js'

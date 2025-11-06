@@ -5,11 +5,11 @@
  */
 
 import { Hono } from 'hono'
-import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types'
-import { getBuiltInRegistry } from '../../members/built-in/registry'
-import { MemberType } from '../../types/constants'
-import type { MemberExecutionContext } from '../../members/base-member'
-import { createLogger } from '../../observability'
+import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types.js'
+import { getBuiltInRegistry } from '../../members/built-in/registry.js'
+import { MemberType } from '../../types/constants.js'
+import type { MemberExecutionContext } from '../../members/base-member.js'
+import { createLogger } from '../../observability/index.js'
 
 const execute = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-execute' })

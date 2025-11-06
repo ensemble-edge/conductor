@@ -4,9 +4,9 @@
  * Handles Anthropic API calls with proper message formatting.
  */
 
-import { BaseAIProvider } from './base-provider'
-import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider'
-import type { ProviderId } from '../../types/branded'
+import { BaseAIProvider } from './base-provider.js'
+import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider.js'
+import type { ProviderId } from '../../types/branded.js'
 
 export class AnthropicProvider extends BaseAIProvider {
   readonly id = 'anthropic' as ProviderId

@@ -3,8 +3,8 @@
  */
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { OpenAPIGenerator } from '../openapi-generator';
-import { loadConfig } from '../../config';
+import { OpenAPIGenerator } from '../openapi-generator.js';
+import { loadConfig } from '../../config/index.js';
 import * as fs from 'fs/promises';
 import YAML from 'yaml';
 export function createDocsCommand() {

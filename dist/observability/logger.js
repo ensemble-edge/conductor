@@ -10,7 +10,7 @@
  *
  * @see https://developers.cloudflare.com/workers/observability/
  */
-import { LogLevel as LogLevelEnum } from './types';
+import { LogLevel as LogLevelEnum } from './types.js';
 /**
  * Log level hierarchy for comparison
  */

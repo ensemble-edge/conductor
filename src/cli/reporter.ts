@@ -5,7 +5,7 @@
  * Supports different output formats (console, JSON, etc.).
  */
 
-import type { CheckResult, Issue, PlatformData } from './config-checker'
+import type { CheckResult, Issue, PlatformData } from './config-checker.js'
 
 export interface ReporterOptions {
   format?: 'console' | 'json'

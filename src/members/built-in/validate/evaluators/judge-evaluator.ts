@@ -4,8 +4,8 @@
  * Uses an LLM to evaluate content quality based on criteria
  */
 
-import { BaseEvaluator } from './base-evaluator'
-import type { EvaluationScore, Criterion, ValidateConfig } from '../types'
+import { BaseEvaluator } from './base-evaluator.js'
+import type { EvaluationScore, Criterion, ValidateConfig } from '../types.js'
 
 export class JudgeEvaluator extends BaseEvaluator {
   async evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore> {

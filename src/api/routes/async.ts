@@ -5,10 +5,10 @@
  */
 
 import { Hono } from 'hono'
-import type { ConductorContext, AsyncExecuteRequest, AsyncExecuteResponse } from '../types'
-import { getBuiltInRegistry } from '../../members/built-in/registry'
-import type { MemberExecutionContext } from '../../members/base-member'
-import { createLogger } from '../../observability'
+import type { ConductorContext, AsyncExecuteRequest, AsyncExecuteResponse } from '../types.js'
+import { getBuiltInRegistry } from '../../members/built-in/registry.js'
+import type { MemberExecutionContext } from '../../members/base-member.js'
+import { createLogger } from '../../observability/index.js'
 
 const async = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-async' })

@@ -4,11 +4,11 @@
  * Handles storing and retrieving suspended execution state for workflow resumption.
  * Uses HITLState Durable Object with alarm-based TTL for strong consistency.
  */
-import type { EnsembleConfig } from './parser';
-import { type AsyncResult } from '../types/result';
-import { type ConductorError } from '../errors/error-types';
-import type { MemberMetric } from './executor';
-import type { ScoringState } from './scoring/types';
+import type { EnsembleConfig } from './parser.js';
+import { type AsyncResult } from '../types/result.js';
+import { type ConductorError } from '../errors/error-types.js';
+import type { MemberMetric } from './executor.js';
+import type { ScoringState } from './scoring/types.js';
 /**
  * Suspended execution state
  */

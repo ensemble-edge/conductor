@@ -5,10 +5,10 @@
  * Supports KV, D1, R2, and in-memory catalogs.
  */
 
-import type { EnsembleConfig } from './parser'
-import { Parser } from './parser'
-import { createLogger, type Logger } from '../observability'
-import type { ConductorEnv } from '../types/env'
+import type { EnsembleConfig } from './parser.js'
+import { Parser } from './parser.js'
+import { createLogger, type Logger } from '../observability/index.js'
+import type { ConductorEnv } from '../types/env.js'
 
 /**
  * Catalog Loader

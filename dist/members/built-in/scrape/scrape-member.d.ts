@@ -10,9 +10,9 @@
  * - Multiple return formats (markdown, html, text)
  * - Configurable strategy (fast, balanced, aggressive)
  */
-import { BaseMember, type MemberExecutionContext } from '../../base-member';
-import type { MemberConfig } from '../../../runtime/parser';
-import type { ScrapeResult } from './types';
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js';
+import type { MemberConfig } from '../../../runtime/parser.js';
+import type { ScrapeResult } from './types.js';
 export declare class ScrapeMember extends BaseMember {
     private readonly env;
     private scrapeConfig;

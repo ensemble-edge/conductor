@@ -12,7 +12,7 @@
  * integration with external observability platforms. For Cloudflare-native
  * deployments, use the standard Logger which integrates with Workers Logs.
  */
-import { LogLevel } from './types';
+import { LogLevel } from './types.js';
 /**
  * OpenTelemetry-compatible logger
  *

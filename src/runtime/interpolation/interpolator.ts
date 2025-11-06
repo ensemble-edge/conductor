@@ -5,8 +5,8 @@
  * Reduced from 42 lines of nested if/else to clean chain pattern.
  */
 
-import type { InterpolationResolver, ResolutionContext } from './resolver'
-import { StringResolver, ArrayResolver, ObjectResolver, PassthroughResolver } from './resolver'
+import type { InterpolationResolver, ResolutionContext } from './resolver.js'
+import { StringResolver, ArrayResolver, ObjectResolver, PassthroughResolver } from './resolver.js'
 
 /**
  * Interpolator with chain of resolvers

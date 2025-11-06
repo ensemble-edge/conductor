@@ -1,11 +1,11 @@
 /**
  * Test Conductor - Testing Helper for Conductor Projects
  */
-import { Executor } from '../runtime/executor';
-import { Parser } from '../runtime/parser';
-import { FunctionMember } from '../members/function-member';
-import { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize } from './mocks';
-import { createLogger } from '../observability';
+import { Executor } from '../runtime/executor.js';
+import { Parser } from '../runtime/parser.js';
+import { FunctionMember } from '../members/function-member.js';
+import { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize } from './mocks.js';
+import { createLogger } from '../observability/index.js';
 /**
  * Test helper for executing and testing Conductor ensembles
  */

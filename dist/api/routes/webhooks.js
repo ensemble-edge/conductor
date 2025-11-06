@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { Parser } from '../../runtime/parser.js';
 import { Executor } from '../../runtime/executor.js';
 import { ResumptionManager } from '../../runtime/resumption-manager.js';
-import { createLogger } from '../../observability';
+import { createLogger } from '../../observability/index.js';
 const app = new Hono();
 const logger = createLogger({ serviceName: 'api-webhooks' });
 /**

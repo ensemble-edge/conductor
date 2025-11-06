@@ -17,7 +17,7 @@ import { LongTermMemory } from './long-term-memory.js'
 import { SemanticMemory } from './semantic-memory.js'
 import { AnalyticalMemory } from './analytical-memory.js'
 import type { MemoryConfig, Message, Memory, SearchOptions, MemorySnapshot } from './types.js'
-import type { ConductorEnv } from '../../types/env'
+import type { ConductorEnv } from '../../types/env.js'
 
 export class MemoryManager {
   private workingMemory: WorkingMemory

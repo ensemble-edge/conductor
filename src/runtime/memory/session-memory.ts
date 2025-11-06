@@ -5,8 +5,8 @@
  * Automatically expires after TTL (default: 1 hour).
  */
 
-import type { ConversationHistory, Message } from './types'
-import type { ConductorEnv } from '../../types/env'
+import type { ConversationHistory, Message } from './types.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 export class SessionMemory {
   private readonly defaultTTL = 3600 // 1 hour in seconds

@@ -4,8 +4,8 @@
  * Endpoints for listing and discovering members.
  */
 import { Hono } from 'hono';
-import { getBuiltInRegistry } from '../../members/built-in/registry';
-import { createLogger } from '../../observability';
+import { getBuiltInRegistry } from '../../members/built-in/registry.js';
+import { createLogger } from '../../observability/index.js';
 const members = new Hono();
 const logger = createLogger({ serviceName: 'api-members' });
 /**

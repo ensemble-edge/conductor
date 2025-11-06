@@ -1,7 +1,7 @@
 /**
  * Mock Utilities for Testing
  */
-import type { VectorSearchResult } from './types';
+import type { VectorSearchResult } from './types.js';
 /**
  * Mock AI provider responses
  */

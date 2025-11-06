@@ -3,9 +3,9 @@
  *
  * Provides a Repository interface over Cloudflare R2 (object storage).
  */
-import { Result } from '../types/result';
-import { Errors } from '../errors/error-types';
-import { JSONSerializer } from './repository';
+import { Result } from '../types/result.js';
+import { Errors } from '../errors/error-types.js';
+import { JSONSerializer } from './repository.js';
 /**
  * Repository implementation for Cloudflare R2
  */

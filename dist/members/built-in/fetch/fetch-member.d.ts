@@ -7,9 +7,9 @@
  * - Custom headers support
  * - Multiple HTTP methods
  */
-import { BaseMember, type MemberExecutionContext } from '../../base-member';
-import type { MemberConfig } from '../../../runtime/parser';
-import type { FetchResult } from './types';
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js';
+import type { MemberConfig } from '../../../runtime/parser.js';
+import type { FetchResult } from './types.js';
 export declare class FetchMember extends BaseMember {
     private readonly env;
     private fetchConfig;

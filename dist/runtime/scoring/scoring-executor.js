@@ -4,7 +4,7 @@
  * Handles member execution with scoring, retry logic, and backoff strategies.
  */
 import { Errors } from '../../errors/error-types.js';
-import { createLogger } from '../../observability';
+import { createLogger } from '../../observability/index.js';
 const logger = createLogger({ serviceName: 'scoring-executor' });
 export class ScoringExecutor {
     /**

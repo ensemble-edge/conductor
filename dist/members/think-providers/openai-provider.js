@@ -3,7 +3,7 @@
  *
  * Handles OpenAI API calls with proper error handling and validation.
  */
-import { BaseAIProvider } from './base-provider';
+import { BaseAIProvider } from './base-provider.js';
 export class OpenAIProvider extends BaseAIProvider {
     constructor() {
         super(...arguments);

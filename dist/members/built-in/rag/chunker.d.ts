@@ -3,7 +3,7 @@
  *
  * Breaks down large text into smaller chunks for embedding
  */
-import type { Chunk, ChunkStrategy } from './types';
+import type { Chunk, ChunkStrategy } from './types.js';
 export declare class Chunker {
     /**
      * Chunk text based on strategy

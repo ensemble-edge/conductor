@@ -4,7 +4,7 @@
  * Executes sophisticated workflows with parallel execution,
  * branching, and complex dependencies.
  */
-import { Result } from '../types/result';
+import { Result } from '../types/result.js';
 export class GraphExecutor {
     /**
      * Execute a graph-based flow

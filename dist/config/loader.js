@@ -6,8 +6,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import { DEFAULT_CONFIG } from './types';
-import { Result } from '../types/result';
+import { DEFAULT_CONFIG } from './types.js';
+import { Result } from '../types/result.js';
 /**
  * Load configuration from project directory
  */

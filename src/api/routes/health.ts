@@ -5,7 +5,7 @@
  */
 
 import { Hono } from 'hono'
-import type { ConductorContext, HealthResponse } from '../types'
+import type { ConductorContext, HealthResponse } from '../types.js'
 
 const health = new Hono<{ Bindings: Env }>()
 

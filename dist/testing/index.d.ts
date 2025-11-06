@@ -24,5 +24,5 @@
 export { TestConductor } from './test-conductor.js';
 export { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize, MockDurableObject, mockAIProvider, mockDatabase, mockHTTP, mockVectorize, mockDurableObject, } from './mocks.js';
 export { registerMatchers } from './matchers.js';
-export type { TestConductorOptions, TestMocks, TestExecutionResult, TestMemberResult, ExecutedStep, StateSnapshot, AICall, DatabaseQuery, HTTPRequest, VectorSearchResult, ExecutionRecord, ProjectSnapshot, } from './types';
+export type { TestConductorOptions, TestMocks, TestExecutionResult, TestMemberResult, ExecutedStep, StateSnapshot, AICall, DatabaseQuery, HTTPRequest, VectorSearchResult, ExecutionRecord, ProjectSnapshot, } from './types.js';
 //# sourceMappingURL=index.d.ts.map

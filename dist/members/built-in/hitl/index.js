@@ -1,4 +1,4 @@
 /**
  * HITL Member - Exports
  */
-export { HITLMember } from './hitl-member';
+export { HITLMember } from './hitl-member.js';

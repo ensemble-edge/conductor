@@ -3,8 +3,8 @@
  *
  * Helpers for creating members with less boilerplate
  */
-import type { CreateMemberOptions, MemberHandler } from './types';
-import type { MemberConfig } from '../runtime/parser';
+import type { CreateMemberOptions, MemberHandler } from './types.js';
+import type { MemberConfig } from '../runtime/parser.js';
 /**
  * Create a member with simplified syntax
  *

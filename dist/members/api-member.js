@@ -4,7 +4,7 @@
  * Makes HTTP requests to external APIs
  * Handles method, headers, body, timeouts, and response parsing
  */
-import { BaseMember } from './base-member';
+import { BaseMember } from './base-member.js';
 /**
  * API Member makes HTTP requests to external services
  *

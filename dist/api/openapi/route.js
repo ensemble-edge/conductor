@@ -4,7 +4,7 @@
  * Serves the OpenAPI specification in JSON and YAML formats.
  */
 import { Hono } from 'hono';
-import { openAPISpec } from './spec';
+import { openAPISpec } from './spec.js';
 import { stringify as yamlStringify } from 'yaml';
 const openapi = new Hono();
 /**

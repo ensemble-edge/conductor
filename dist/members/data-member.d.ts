@@ -6,10 +6,10 @@
  *
  * Reduced from 326 lines to ~120 lines through abstraction.
  */
-import { BaseMember, type MemberExecutionContext } from './base-member';
-import type { MemberConfig } from '../runtime/parser';
-import type { Repository } from '../storage';
-import { StorageType } from '../types/constants';
+import { BaseMember, type MemberExecutionContext } from './base-member.js';
+import type { MemberConfig } from '../runtime/parser.js';
+import type { Repository } from '../storage/index.js';
+import { StorageType } from '../types/constants.js';
 export interface DataConfig {
     storage: StorageType;
     operation: 'get' | 'put' | 'delete' | 'list';

@@ -4,7 +4,7 @@
  * Executes user-defined JavaScript/TypeScript functions
  * The simplest member type - just runs the provided function
  */
-import { BaseMember } from './base-member';
+import { BaseMember } from './base-member.js';
 /**
  * Function Member executes user-provided JavaScript functions
  *

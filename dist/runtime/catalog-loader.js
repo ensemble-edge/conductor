@@ -4,8 +4,8 @@
  * Loads ensemble configurations from various storage backends.
  * Supports KV, D1, R2, and in-memory catalogs.
  */
-import { Parser } from './parser';
-import { createLogger } from '../observability';
+import { Parser } from './parser.js';
+import { createLogger } from '../observability/index.js';
 /**
  * Catalog Loader
  *

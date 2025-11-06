@@ -1,8 +1,8 @@
 /**
  * Test Conductor - Testing Helper for Conductor Projects
  */
-import type { EnsembleConfig, MemberConfig } from '../runtime/parser';
-import type { TestConductorOptions, TestExecutionResult, TestMemberResult, AICall, DatabaseQuery, ExecutionRecord, ProjectSnapshot } from './types';
+import type { EnsembleConfig, MemberConfig } from '../runtime/parser.js';
+import type { TestConductorOptions, TestExecutionResult, TestMemberResult, AICall, DatabaseQuery, ExecutionRecord, ProjectSnapshot } from './types.js';
 /**
  * Test helper for executing and testing Conductor ensembles
  */

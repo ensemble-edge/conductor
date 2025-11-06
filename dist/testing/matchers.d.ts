@@ -1,7 +1,7 @@
 /**
  * Custom Vitest Matchers for Conductor Testing
  */
-import type { TestExecutionResult } from './types';
+import type { TestExecutionResult } from './types.js';
 export interface CustomMatchers<R = unknown> {
     toBeSuccessful(): R;
     toHaveFailed(): R;

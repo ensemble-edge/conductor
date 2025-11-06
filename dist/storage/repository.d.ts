@@ -4,8 +4,8 @@
  * Provides a unified interface for all storage operations across
  * different storage backends (KV, D1, R2, etc.)
  */
-import type { Result } from '../types/result';
-import type { ConductorError } from '../errors/error-types';
+import type { Result } from '../types/result.js';
+import type { ConductorError } from '../errors/error-types.js';
 /**
  * Generic repository interface for CRUD operations
  */

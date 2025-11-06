@@ -4,8 +4,8 @@
  * Uses Cloudflare AI embeddings to calculate semantic similarity
  */
 
-import { BaseEvaluator } from './base-evaluator'
-import type { EvaluationScore, ValidateConfig } from '../types'
+import { BaseEvaluator } from './base-evaluator.js'
+import type { EvaluationScore, ValidateConfig } from '../types.js'
 
 export class EmbeddingEvaluator extends BaseEvaluator {
   async evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore> {

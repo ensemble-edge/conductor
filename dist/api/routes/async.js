@@ -4,8 +4,8 @@
  * Asynchronous execution with status polling and webhooks.
  */
 import { Hono } from 'hono';
-import { getBuiltInRegistry } from '../../members/built-in/registry';
-import { createLogger } from '../../observability';
+import { getBuiltInRegistry } from '../../members/built-in/registry.js';
+import { createLogger } from '../../observability/index.js';
 const async = new Hono();
 const logger = createLogger({ serviceName: 'api-async' });
 // In-memory execution tracking (in production, use Durable Objects or D1)

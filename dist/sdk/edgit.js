@@ -3,7 +3,7 @@
  *
  * Helpers for loading components from Edgit
  */
-import { Parser } from '../runtime/parser';
+import { Parser } from '../runtime/parser.js';
 /**
  * Load a component from Edgit (prompts, queries, templates, etc.)
  *

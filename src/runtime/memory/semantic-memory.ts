@@ -5,9 +5,9 @@
  * Useful for finding contextually relevant information.
  */
 
-import type { Memory, SearchOptions } from './types'
-import { createLogger } from '../../observability'
-import type { ConductorEnv } from '../../types/env'
+import type { Memory, SearchOptions } from './types.js'
+import { createLogger } from '../../observability/index.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 const logger = createLogger({ serviceName: 'semantic-memory' })
 

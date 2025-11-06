@@ -8,12 +8,12 @@
  * Default provider: anthropic
  */
 
-import { BaseMember, type MemberExecutionContext } from './base-member'
-import type { MemberConfig } from '../runtime/parser'
-import { getProviderRegistry, type ProviderRegistry } from './think-providers'
-import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-providers'
-import { AIProvider } from '../types/constants'
-import type { ConductorEnv } from '../types/env'
+import { BaseMember, type MemberExecutionContext } from './base-member.js'
+import type { MemberConfig } from '../runtime/parser.js'
+import { getProviderRegistry, type ProviderRegistry } from './think-providers/index.js'
+import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-providers/index.js'
+import { AIProvider } from '../types/constants.js'
+import type { ConductorEnv } from '../types/env.js'
 
 export interface ThinkConfig {
   model?: string

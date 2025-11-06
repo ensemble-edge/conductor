@@ -18,7 +18,7 @@ const program = new Command();
 program
     .name('conductor')
     .description('Conductor - Agentic workflow orchestration for Cloudflare Workers')
-    .version('1.0.4')
+    .version('1.0.5')
     .addHelpText('before', `
 ${chalk.bold.cyan('Getting Started:')}
 

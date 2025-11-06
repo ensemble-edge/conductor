@@ -11,7 +11,7 @@
 		"test:coverage": "vitest --coverage"
 	},
 	"dependencies": {
-		"@ensemble-edge/conductor": "^1.0.4"
+		"@ensemble-edge/conductor": "^1.0.5"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.8.19",

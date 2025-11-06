@@ -4,8 +4,8 @@
  * Foundation for all member types (Think, Function, Data, API, etc.)
  * Provides standard interface, response wrapping, error handling, and cache key generation
  */
-import type { MemberConfig } from '../runtime/parser';
-import type { ConductorEnv } from '../types/env';
+import type { MemberConfig } from '../runtime/parser.js';
+import type { ConductorEnv } from '../types/env.js';
 export interface MemberExecutionContext {
     input: Record<string, any>;
     state?: Record<string, any>;

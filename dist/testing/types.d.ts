@@ -1,7 +1,7 @@
 /**
  * Testing Types
  */
-import type { EnsembleConfig } from '../runtime/parser';
+import type { EnsembleConfig } from '../runtime/parser.js';
 /**
  * Options for creating a test conductor instance
  */

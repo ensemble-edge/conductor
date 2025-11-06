@@ -8,9 +8,9 @@
  * - Timeout handling with auto-expiry
  * - State persistence via Durable Objects
  */
-import { BaseMember, type MemberExecutionContext } from '../../base-member';
-import type { MemberConfig } from '../../../runtime/parser';
-import type { HITLResult } from './types';
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js';
+import type { MemberConfig } from '../../../runtime/parser.js';
+import type { HITLResult } from './types.js';
 export declare class HITLMember extends BaseMember {
     private readonly env;
     private hitlConfig;

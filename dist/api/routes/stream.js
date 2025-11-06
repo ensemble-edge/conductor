@@ -5,7 +5,7 @@
  */
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { getBuiltInRegistry } from '../../members/built-in/registry';
+import { getBuiltInRegistry } from '../../members/built-in/registry.js';
 const stream = new Hono();
 /**
  * POST /stream - Execute a member with streaming

@@ -7,7 +7,7 @@
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { Parser, type EnsembleConfig, type MemberConfig } from '../runtime/parser'
+import { Parser, type EnsembleConfig, type MemberConfig } from '../runtime/parser.js'
 import YAML from 'yaml'
 
 export interface OpenAPISpec {

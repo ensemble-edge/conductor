@@ -5,24 +5,24 @@
  * Makes all error cases explicit and checked at compile time.
  */
 
-import { Parser, type EnsembleConfig, type FlowStep, type MemberConfig } from './parser'
-import { StateManager, type AccessReport, type AccessLogEntry } from './state-manager'
-import type { BaseMember, MemberExecutionContext, MemberResponse } from '../members/base-member'
-import type { ConductorEnv } from '../types/env'
-import { FunctionMember } from '../members/function-member'
-import { ThinkMember } from '../members/think-member'
-import { DataMember } from '../members/data-member'
-import { APIMember } from '../members/api-member'
-import { getBuiltInRegistry } from '../members/built-in/registry'
-import { Result, type AsyncResult } from '../types/result'
+import { Parser, type EnsembleConfig, type FlowStep, type MemberConfig } from './parser.js'
+import { StateManager, type AccessReport, type AccessLogEntry } from './state-manager.js'
+import type { BaseMember, MemberExecutionContext, MemberResponse } from '../members/base-member.js'
+import type { ConductorEnv } from '../types/env.js'
+import { FunctionMember } from '../members/function-member.js'
+import { ThinkMember } from '../members/think-member.js'
+import { DataMember } from '../members/data-member.js'
+import { APIMember } from '../members/api-member.js'
+import { getBuiltInRegistry } from '../members/built-in/registry.js'
+import { Result, type AsyncResult } from '../types/result.js'
 import {
   Errors,
   type ConductorError,
   MemberExecutionError,
   EnsembleExecutionError,
   ConfigurationError,
-} from '../errors/error-types'
-import { MemberType } from '../types/constants'
+} from '../errors/error-types.js'
+import { MemberType } from '../types/constants.js'
 import {
   ScoringExecutor,
   EnsembleScorer,
@@ -32,7 +32,7 @@ import {
   type EnsembleScoringConfig,
 } from './scoring/index.js'
 import { ResumptionManager, type SuspendedExecutionState } from './resumption-manager.js'
-import { createLogger, type Logger } from '../observability'
+import { createLogger, type Logger } from '../observability/index.js'
 
 export interface ExecutorConfig {
   env: ConductorEnv

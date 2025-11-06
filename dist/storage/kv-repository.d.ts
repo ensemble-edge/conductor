@@ -3,9 +3,9 @@
  *
  * Provides a Repository interface over Cloudflare KV namespace.
  */
-import { Result } from '../types/result';
-import { type ConductorError } from '../errors/error-types';
-import type { Repository, PutOptions, ListOptions, Serializer } from './repository';
+import { Result } from '../types/result.js';
+import { type ConductorError } from '../errors/error-types.js';
+import type { Repository, PutOptions, ListOptions, Serializer } from './repository.js';
 /**
  * Repository implementation for Cloudflare KV
  */

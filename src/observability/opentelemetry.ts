@@ -13,9 +13,9 @@
  * deployments, use the standard Logger which integrates with Workers Logs.
  */
 
-import type { Logger, LoggerConfig, LogContext, MetricDataPoint } from './types'
-import { LogLevel } from './types'
-import type { ConductorError } from '../errors/error-types'
+import type { Logger, LoggerConfig, LogContext, MetricDataPoint } from './types.js'
+import { LogLevel } from './types.js'
+import type { ConductorError } from '../errors/error-types.js'
 
 /**
  * OpenTelemetry configuration

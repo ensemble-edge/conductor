@@ -8,7 +8,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as YAML from 'yaml'
-import { MemberType } from '../types/constants'
+import { MemberType } from '../types/constants.js'
 
 export interface ValidationResult {
   passed: boolean

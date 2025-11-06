@@ -9,7 +9,7 @@ import { Parser } from '../../runtime/parser.js'
 import { Executor } from '../../runtime/executor.js'
 import { ResumptionManager } from '../../runtime/resumption-manager.js'
 import { Errors } from '../../errors/error-types.js'
-import { createLogger } from '../../observability'
+import { createLogger } from '../../observability/index.js'
 
 const app = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-webhooks' })

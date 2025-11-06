@@ -3,8 +3,8 @@
  *
  * Load and validate Conductor configuration files.
  */
-import type { ConductorConfig } from './types';
-import { Result } from '../types/result';
+import type { ConductorConfig } from './types.js';
+import { Result } from '../types/result.js';
 /**
  * Load configuration from project directory
  */

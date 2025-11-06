@@ -4,7 +4,7 @@
  * Returns new instances instead of mutating internal state.
  * Follows functional programming principles for predictability.
  */
-import { createLogger } from '../observability';
+import { createLogger } from '../observability/index.js';
 /**
  * Immutable StateManager - returns new instances for all mutations
  */

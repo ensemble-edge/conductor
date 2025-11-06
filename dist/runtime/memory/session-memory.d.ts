@@ -4,8 +4,8 @@
  * Stores conversation history and session-specific data.
  * Automatically expires after TTL (default: 1 hour).
  */
-import type { ConversationHistory, Message } from './types';
-import type { ConductorEnv } from '../../types/env';
+import type { ConversationHistory, Message } from './types.js';
+import type { ConductorEnv } from '../../types/env.js';
 export declare class SessionMemory {
     private readonly env;
     private readonly sessionId?;

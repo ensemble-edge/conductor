@@ -4,7 +4,7 @@
  * Orchestrates chain of resolvers for template interpolation.
  * Reduced from 42 lines of nested if/else to clean chain pattern.
  */
-import type { InterpolationResolver, ResolutionContext } from './resolver';
+import type { InterpolationResolver, ResolutionContext } from './resolver.js';
 /**
  * Interpolator with chain of resolvers
  */

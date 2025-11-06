@@ -3,6 +3,6 @@
  *
  * Provides platform-specific functionality for different deployment targets
  */
-export * from './base';
-export { CloudflarePlatform, createCloudfarePlatform } from './cloudflare';
+export * from './base/index.js';
+export { CloudflarePlatform, createCloudfarePlatform } from './cloudflare/index.js';
 //# sourceMappingURL=index.d.ts.map

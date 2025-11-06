@@ -8,7 +8,7 @@
  * - Dynamic flow control
  */
 
-import type { FlowStep } from './parser'
+import type { FlowStep } from './parser.js'
 
 /**
  * Enhanced flow step with graph capabilities

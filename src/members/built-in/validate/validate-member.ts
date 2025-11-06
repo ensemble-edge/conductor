@@ -8,14 +8,14 @@
  * - Embedding: Semantic similarity via embeddings
  */
 
-import { BaseMember, type MemberExecutionContext } from '../../base-member'
-import type { MemberConfig } from '../../../runtime/parser'
-import type { ValidateConfig, ValidateInput, ValidationResult, EvalType } from './types'
-import { BaseEvaluator } from './evaluators/base-evaluator'
-import { RuleEvaluator } from './evaluators/rule-evaluator'
-import { JudgeEvaluator } from './evaluators/judge-evaluator'
-import { NLPEvaluator } from './evaluators/nlp-evaluator'
-import { EmbeddingEvaluator } from './evaluators/embedding-evaluator'
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js'
+import type { MemberConfig } from '../../../runtime/parser.js'
+import type { ValidateConfig, ValidateInput, ValidationResult, EvalType } from './types.js'
+import { BaseEvaluator } from './evaluators/base-evaluator.js'
+import { RuleEvaluator } from './evaluators/rule-evaluator.js'
+import { JudgeEvaluator } from './evaluators/judge-evaluator.js'
+import { NLPEvaluator } from './evaluators/nlp-evaluator.js'
+import { EmbeddingEvaluator } from './evaluators/embedding-evaluator.js'
 
 export class ValidateMember extends BaseMember {
   private validateConfig: ValidateConfig

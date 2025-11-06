@@ -14,7 +14,7 @@
  *
  * This is the easiest way to do RAG on Cloudflare - just point to an R2 bucket!
  */
-import { BaseMember } from '../../base-member';
+import { BaseMember } from '../../base-member.js';
 /**
  * AutoRAG Member - Dead simple RAG with zero configuration
  */

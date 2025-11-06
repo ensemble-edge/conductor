@@ -13,7 +13,7 @@
  * Note: For fully automatic RAG with zero configuration, see AutoRAGMember
  * which uses Cloudflare's R2-backed AutoRAG service.
  */
-import { BaseMember, type MemberExecutionContext } from '../../base-member';
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js';
 export interface VectorizeRAGConfig {
     /** Vectorize index to use */
     index: string;
