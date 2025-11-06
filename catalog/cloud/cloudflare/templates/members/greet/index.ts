@@ -19,7 +19,7 @@
  */
 
 import type { MemberExecutionContext } from '@ensemble-edge/conductor';
-import { sanitizeInput, formatMessage } from '../../lib/formatting';
+import { sanitizeInput, formatMessage } from '../../src/lib/formatting';
 
 /**
  * Optional custom implementation (not used when type: "think")
@@ -30,10 +30,10 @@ import { sanitizeInput, formatMessage } from '../../lib/formatting';
  * - Input validation and sanitization
  * - Custom output formatting
  */
-export default async function greet({ input, config }: MemberExecutionContext) {
+export default async function greet({ input }: MemberExecutionContext) {
 	// Sanitize user input using shared utility
 	const name = sanitizeInput(input.name || 'World');
-	const style = input.style || config?.defaults?.style || 'friendly';
+	const style = input.style || 'friendly';
 
 	// Generate greeting based on style
 	let message = '';

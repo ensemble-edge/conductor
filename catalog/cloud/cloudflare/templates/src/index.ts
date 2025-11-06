@@ -14,7 +14,8 @@
  */
 
 import { ExecutionState, HITLState } from '@ensemble-edge/conductor';
-import { createConductorAPI } from '@ensemble-edge/conductor/api';
+// Note: The /api export is not available in v1.0.7
+// import { createConductorAPI } from '@ensemble-edge/conductor/api';
 
 // ==================== Option 1: Use Built-in API (Recommended) ====================
 // Uncomment this for a full-featured API with:
@@ -66,7 +67,7 @@ export default {
 		// Example: Execute hello-world ensemble
 		if (url.pathname === '/ensemble/hello-world' && request.method === 'POST') {
 			try {
-				const input = await request.json();
+				const input = (await request.json()) as Record<string, any>;
 
 				// Create executor
 				const executor = new Executor({ env, ctx });
@@ -96,8 +97,8 @@ export default {
 
 	// Scheduled handler for cron triggers
 	// Gets called when cron expressions in wrangler.toml fire
-	async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-		console.log('Cron trigger:', event.cron, new Date(event.scheduledTime));
+	async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+		console.log('Cron trigger:', controller.cron, new Date(controller.scheduledTime));
 
 		// Your scheduled logic here
 		// Example: Load ensembles with matching schedules and execute them
