@@ -18,7 +18,7 @@ const program = new Command();
 program
     .name('conductor')
     .description('Conductor - Agentic workflow orchestration for Cloudflare Workers')
-    .version('1.0.2');
+    .version('1.0.3');
 // Add commands
 program.addCommand(createInitCommand());
 program.addCommand(createExecCommand());

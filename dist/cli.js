@@ -1844,7 +1844,9 @@ function createInitCommand() {
         console.error(chalk.yellow("\u26A0 Directory is not empty"));
         console.error("");
         console.error(chalk.dim("This directory contains files but is not a Conductor project."));
-        console.error(chalk.dim("Initializing will add Conductor structure alongside existing files."));
+        console.error(
+          chalk.dim("Initializing will add Conductor structure alongside existing files.")
+        );
         console.error("");
         console.error(chalk.dim("Use --force to proceed"));
         console.error("");
@@ -1866,7 +1868,13 @@ function createInitCommand() {
         } catch {
         }
       }
-      const templatePath = path.join(packageRoot, "catalog", "cloud", options.template, "templates");
+      const templatePath = path.join(
+        packageRoot,
+        "catalog",
+        "cloud",
+        options.template,
+        "templates"
+      );
       try {
         await fs.access(templatePath);
       } catch {
@@ -1896,7 +1904,9 @@ function createInitCommand() {
       console.log(chalk.dim("     - prompts/      : Prompt templates"));
       console.log(chalk.dim("     - configs/      : Configuration files"));
       console.log(
-        chalk.dim(`  ${directory !== "." ? "4" : "3"}. npx wrangler dev  : Start local development`)
+        chalk.dim(
+          `  ${directory !== "." ? "4" : "3"}. npx wrangler dev  : Start local development`
+        )
       );
       console.log("");
       console.log(chalk.dim("Documentation: https://docs.ensemble-edge.com/conductor"));
@@ -8352,7 +8362,7 @@ function createHistoryCommand() {
 
 // src/cli/index.ts
 var program = new Command10();
-program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.2");
+program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.3");
 program.addCommand(createInitCommand());
 program.addCommand(createExecCommand());
 program.addCommand(createMembersCommand());
