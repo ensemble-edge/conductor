@@ -18,7 +18,21 @@ const program = new Command();
 program
     .name('conductor')
     .description('Conductor - Agentic workflow orchestration for Cloudflare Workers')
-    .version('1.0.3');
+    .version('1.0.3')
+    .addHelpText('before', `
+${chalk.bold.cyan('Getting Started:')}
+
+  ${chalk.bold('Create new project:')}
+    ${chalk.cyan('conductor init my-new-project')}
+    ${chalk.dim('cd my-new-project')}
+    ${chalk.dim('npm install')}
+
+  ${chalk.bold('Initialize existing project:')}
+    ${chalk.cyan('conductor init .')}
+    ${chalk.dim('npm install')}
+
+${chalk.dim('Documentation:')} ${chalk.cyan('https://docs.ensemble-edge.com/conductor')}
+`);
 // Add commands
 program.addCommand(createInitCommand());
 program.addCommand(createExecCommand());

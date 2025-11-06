@@ -1794,7 +1794,9 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 function createInitCommand() {
   const init = new Command("init");
-  init.description("Initialize a new Conductor project").argument("[directory]", "Project directory", ".").option("--template <name>", "Template to use (cloudflare)", "cloudflare").option("--force", "Overwrite existing files").action(async (directory, options) => {
+  init.description(
+    'Initialize a new Conductor project (use "." for current dir or "my-project" for new)'
+  ).argument("[directory]", "Project directory (default: current directory)", ".").option("--template <name>", "Template to use (cloudflare)", "cloudflare").option("--force", "Overwrite existing files").action(async (directory, options) => {
     try {
       console.log("");
       console.log(chalk.bold("\u{1F3AF} Initializing Conductor project..."));
@@ -8362,7 +8364,23 @@ function createHistoryCommand() {
 
 // src/cli/index.ts
 var program = new Command10();
-program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.3");
+program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.3").addHelpText(
+  "before",
+  `
+${chalk10.bold.cyan("Getting Started:")}
+
+  ${chalk10.bold("Create new project:")}
+    ${chalk10.cyan("conductor init my-new-project")}
+    ${chalk10.dim("cd my-new-project")}
+    ${chalk10.dim("npm install")}
+
+  ${chalk10.bold("Initialize existing project:")}
+    ${chalk10.cyan("conductor init .")}
+    ${chalk10.dim("npm install")}
+
+${chalk10.dim("Documentation:")} ${chalk10.cyan("https://docs.ensemble-edge.com/conductor")}
+`
+);
 program.addCommand(createInitCommand());
 program.addCommand(createExecCommand());
 program.addCommand(createMembersCommand());
