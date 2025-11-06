@@ -3,8 +3,8 @@
  *
  * Catches and formats errors for consistent API responses.
  */
-import { ConductorError } from '../../errors/error-types';
-import { createLogger } from '../../observability';
+import { ConductorError } from '../../errors/error-types.js';
+import { createLogger } from '../../observability/index.js';
 const logger = createLogger({ serviceName: 'api-error-handler' });
 export function errorHandler() {
     return async (c, next) => {

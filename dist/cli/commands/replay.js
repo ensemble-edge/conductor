@@ -3,8 +3,8 @@
  */
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ExecutionHistory } from '../../storage/execution-history';
-import { loadConfig } from '../../config';
+import { ExecutionHistory } from '../../storage/execution-history.js';
+import { loadConfig } from '../../config/index.js';
 export function createReplayCommand() {
     const replay = new Command('replay')
         .description('Replay a past execution for debugging')

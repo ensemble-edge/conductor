@@ -4,7 +4,7 @@
  * Stores persistent user data, preferences, and facts.
  * Data persists indefinitely until explicitly deleted.
  */
-import type { ConductorEnv } from '../../types/env';
+import type { ConductorEnv } from '../../types/env.js';
 export declare class LongTermMemory {
     private readonly env;
     private readonly userId?;

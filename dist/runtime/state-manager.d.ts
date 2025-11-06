@@ -4,7 +4,7 @@
  * Returns new instances instead of mutating internal state.
  * Follows functional programming principles for predictability.
  */
-import { type Logger } from '../observability';
+import { type Logger } from '../observability/index.js';
 export interface StateConfig {
     schema?: Record<string, unknown>;
     initial?: Record<string, unknown>;

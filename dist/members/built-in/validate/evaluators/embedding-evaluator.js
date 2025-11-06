@@ -3,7 +3,7 @@
  *
  * Uses Cloudflare AI embeddings to calculate semantic similarity
  */
-import { BaseEvaluator } from './base-evaluator';
+import { BaseEvaluator } from './base-evaluator.js';
 export class EmbeddingEvaluator extends BaseEvaluator {
     async evaluate(content, config) {
         const reference = config.reference;

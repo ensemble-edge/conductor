@@ -5,8 +5,8 @@
  * Reduced resolveInterpolation from 42 lines to 1 line via chain of responsibility.
  */
 import { z } from 'zod';
-import type { ResolutionContext } from './interpolation';
-import { MemberType } from '../types/constants';
+import type { ResolutionContext } from './interpolation/index.js';
+import { MemberType } from '../types/constants.js';
 /**
  * Schema for validating ensemble configuration
  */

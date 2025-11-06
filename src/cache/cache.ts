@@ -5,9 +5,9 @@
  * Supports TTL, cache keys, and invalidation strategies.
  */
 
-import type { Repository } from '../storage'
-import { Result, type AsyncResult } from '../types/result'
-import { Errors, type ConductorError } from '../errors/error-types'
+import type { Repository } from '../storage/index.js'
+import { Result, type AsyncResult } from '../types/result.js'
+import { Errors, type ConductorError } from '../errors/error-types.js'
 
 export interface CacheConfig {
   defaultTTL?: number // Default TTL in seconds

@@ -3,5 +3,5 @@
  *
  * Core utilities for normalization and URL resolution.
  */
-export { NormalizationRegistry, normalizeURL, normalizeDomain, normalizeCompanyName, normalizeEmail, getGlobalNormalizationRegistry, normalize, } from './normalization';
-export { URLResolver, resolveURL, isURLReachable } from './url-resolver';
+export { NormalizationRegistry, normalizeURL, normalizeDomain, normalizeCompanyName, normalizeEmail, getGlobalNormalizationRegistry, normalize, } from './normalization.js';
+export { URLResolver, resolveURL, isURLReachable } from './url-resolver.js';

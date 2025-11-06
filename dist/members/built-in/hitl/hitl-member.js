@@ -8,8 +8,8 @@
  * - Timeout handling with auto-expiry
  * - State persistence via Durable Objects
  */
-import { BaseMember } from '../../base-member';
-import { createLogger } from '../../../observability';
+import { BaseMember } from '../../base-member.js';
+import { createLogger } from '../../../observability/index.js';
 const logger = createLogger({ serviceName: 'hitl-member' });
 export class HITLMember extends BaseMember {
     constructor(config, env) {

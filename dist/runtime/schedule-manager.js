@@ -4,8 +4,8 @@
  * Manages scheduled ensemble execution using Cloudflare Workers cron triggers.
  * Handles registration, execution, and coordination of scheduled ensembles.
  */
-import { Executor } from './executor';
-import { createLogger } from '../observability';
+import { Executor } from './executor.js';
+import { createLogger } from '../observability/index.js';
 /**
  * Schedule Manager
  *

@@ -7,9 +7,9 @@
  * - index: Store content in vector database
  * - search: Find relevant content using semantic search
  */
-import { BaseMember, type MemberExecutionContext } from '../../base-member';
-import type { MemberConfig } from '../../../runtime/parser';
-import type { RAGResult } from './types';
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js';
+import type { MemberConfig } from '../../../runtime/parser.js';
+import type { RAGResult } from './types.js';
 export declare class RAGMember extends BaseMember {
     private readonly env;
     private ragConfig;

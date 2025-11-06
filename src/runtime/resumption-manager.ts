@@ -5,13 +5,13 @@
  * Uses HITLState Durable Object with alarm-based TTL for strong consistency.
  */
 
-import type { EnsembleConfig } from './parser'
-import type { StateManager } from './state-manager'
-import { Result, type AsyncResult } from '../types/result'
-import { Errors, type ConductorError } from '../errors/error-types'
-import { TTL } from '../config/constants'
-import type { MemberMetric } from './executor'
-import type { ScoringState } from './scoring/types'
+import type { EnsembleConfig } from './parser.js'
+import type { StateManager } from './state-manager.js'
+import { Result, type AsyncResult } from '../types/result.js'
+import { Errors, type ConductorError } from '../errors/error-types.js'
+import { TTL } from '../config/constants.js'
+import type { MemberMetric } from './executor.js'
+import type { ScoringState } from './scoring/types.js'
 
 /**
  * HITL State response from Durable Object

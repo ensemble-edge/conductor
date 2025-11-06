@@ -9,7 +9,7 @@
  * - Versioning (each member has a version)
  * - Metadata (description, schemas, examples)
  */
-import { MemberType } from '../../types/constants';
+import { MemberType } from '../../types/constants.js';
 export class BuiltInMemberRegistry {
     constructor() {
         this.members = new Map();

@@ -5,7 +5,7 @@
  */
 
 import type { MiddlewareHandler } from 'hono'
-import type { ConductorContext, AuthConfig, AuthContext } from '../types'
+import type { ConductorContext, AuthConfig, AuthContext } from '../types.js'
 
 export function createAuthMiddleware(config: AuthConfig): MiddlewareHandler {
   return async (c: ConductorContext, next) => {

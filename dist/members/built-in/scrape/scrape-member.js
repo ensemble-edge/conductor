@@ -10,10 +10,10 @@
  * - Multiple return formats (markdown, html, text)
  * - Configurable strategy (fast, balanced, aggressive)
  */
-import { BaseMember } from '../../base-member';
-import { detectBotProtection, isContentSuccessful } from './bot-detection';
-import { extractTextFromHTML, extractTitleFromHTML, convertHTMLToMarkdown } from './html-parser';
-import { createLogger } from '../../../observability';
+import { BaseMember } from '../../base-member.js';
+import { detectBotProtection, isContentSuccessful } from './bot-detection.js';
+import { extractTextFromHTML, extractTitleFromHTML, convertHTMLToMarkdown } from './html-parser.js';
+import { createLogger } from '../../../observability/index.js';
 const logger = createLogger({ serviceName: 'scrape-member' });
 export class ScrapeMember extends BaseMember {
     constructor(config, env) {

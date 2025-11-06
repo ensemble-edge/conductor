@@ -7,11 +7,11 @@
  * Default model: claude-3-5-haiku-20241022 (Anthropic Haiku 3.5)
  * Default provider: anthropic
  */
-import { BaseMember, type MemberExecutionContext } from './base-member';
-import type { MemberConfig } from '../runtime/parser';
-import { type ProviderRegistry } from './think-providers';
-import type { AIProviderResponse } from './think-providers';
-import { AIProvider } from '../types/constants';
+import { BaseMember, type MemberExecutionContext } from './base-member.js';
+import type { MemberConfig } from '../runtime/parser.js';
+import { type ProviderRegistry } from './think-providers/index.js';
+import type { AIProviderResponse } from './think-providers/index.js';
+import { AIProvider } from '../types/constants.js';
 export interface ThinkConfig {
     model?: string;
     provider?: AIProvider;

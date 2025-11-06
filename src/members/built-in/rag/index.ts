@@ -2,7 +2,7 @@
  * RAG Member - Exports
  */
 
-export { RAGMember } from './rag-member'
+export { RAGMember } from './rag-member.js'
 export type {
   RAGConfig,
   RAGInput,
@@ -14,5 +14,5 @@ export type {
   RAGOperation,
   ChunkStrategy,
   Chunk,
-} from './types'
-export { Chunker } from './chunker'
+} from './types.js'
+export { Chunker } from './chunker.js'

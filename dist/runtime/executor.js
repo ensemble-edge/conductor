@@ -4,17 +4,17 @@
  * Orchestrates ensemble execution with explicit error handling using Result types.
  * Makes all error cases explicit and checked at compile time.
  */
-import { Parser } from './parser';
-import { StateManager } from './state-manager';
-import { ThinkMember } from '../members/think-member';
-import { DataMember } from '../members/data-member';
-import { APIMember } from '../members/api-member';
-import { getBuiltInRegistry } from '../members/built-in/registry';
-import { Result } from '../types/result';
-import { Errors, MemberExecutionError, EnsembleExecutionError, } from '../errors/error-types';
-import { MemberType } from '../types/constants';
+import { Parser } from './parser.js';
+import { StateManager } from './state-manager.js';
+import { ThinkMember } from '../members/think-member.js';
+import { DataMember } from '../members/data-member.js';
+import { APIMember } from '../members/api-member.js';
+import { getBuiltInRegistry } from '../members/built-in/registry.js';
+import { Result } from '../types/result.js';
+import { Errors, MemberExecutionError, EnsembleExecutionError, } from '../errors/error-types.js';
+import { MemberType } from '../types/constants.js';
 import { ScoringExecutor, EnsembleScorer, } from './scoring/index.js';
-import { createLogger } from '../observability';
+import { createLogger } from '../observability/index.js';
 /**
  * Core execution engine for ensembles with Result-based error handling
  */

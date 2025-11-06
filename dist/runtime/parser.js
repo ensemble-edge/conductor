@@ -6,8 +6,8 @@
  */
 import * as YAML from 'yaml';
 import { z } from 'zod';
-import { getInterpolator } from './interpolation';
-import { MemberType } from '../types/constants';
+import { getInterpolator } from './interpolation/index.js';
+import { MemberType } from '../types/constants.js';
 /**
  * Schema for validating ensemble configuration
  */

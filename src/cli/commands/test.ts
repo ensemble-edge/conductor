@@ -5,7 +5,7 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import { spawn } from 'child_process'
-import { loadConfig } from '../../config'
+import { loadConfig } from '../../config/index.js'
 
 export function createTestCommand(): Command {
   const test = new Command('test')

@@ -7,9 +7,9 @@
  * Default model: claude-3-5-haiku-20241022 (Anthropic Haiku 3.5)
  * Default provider: anthropic
  */
-import { BaseMember } from './base-member';
-import { getProviderRegistry } from './think-providers';
-import { AIProvider } from '../types/constants';
+import { BaseMember } from './base-member.js';
+import { getProviderRegistry } from './think-providers/index.js';
+import { AIProvider } from '../types/constants.js';
 /**
  * Think Member - Executes AI reasoning via provider system
  */

@@ -3,9 +3,9 @@
  *
  * Provides a Repository interface over Cloudflare D1 (SQL database).
  */
-import { Result } from '../types/result';
-import { type ConductorError } from '../errors/error-types';
-import type { Repository, PutOptions, ListOptions, Serializer } from './repository';
+import { Result } from '../types/result.js';
+import { type ConductorError } from '../errors/error-types.js';
+import type { Repository, PutOptions, ListOptions, Serializer } from './repository.js';
 /**
  * Configuration for D1 repository
  */

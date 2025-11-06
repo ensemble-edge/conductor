@@ -5,7 +5,7 @@
  * Data persists indefinitely until explicitly deleted.
  */
 
-import type { ConductorEnv } from '../../types/env'
+import type { ConductorEnv } from '../../types/env.js'
 
 /**
  * Type for D1 query result row

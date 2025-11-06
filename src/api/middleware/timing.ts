@@ -5,7 +5,7 @@
  */
 
 import type { MiddlewareHandler } from 'hono'
-import type { ConductorContext } from '../types'
+import type { ConductorContext } from '../types.js'
 
 export function timing(): MiddlewareHandler {
   return async (c: ConductorContext, next) => {

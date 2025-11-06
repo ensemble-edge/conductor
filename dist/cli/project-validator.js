@@ -7,7 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as YAML from 'yaml';
-import { MemberType } from '../types/constants';
+import { MemberType } from '../types/constants.js';
 /**
  * Project validator for Conductor projects
  */

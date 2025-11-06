@@ -4,8 +4,8 @@
  * Calculates BLEU, ROUGE, and other NLP metrics
  */
 
-import { BaseEvaluator } from './base-evaluator'
-import type { EvaluationScore, ValidateConfig } from '../types'
+import { BaseEvaluator } from './base-evaluator.js'
+import type { EvaluationScore, ValidateConfig } from '../types.js'
 
 export class NLPEvaluator extends BaseEvaluator {
   async evaluate(content: string, config: ValidateConfig): Promise<EvaluationScore> {

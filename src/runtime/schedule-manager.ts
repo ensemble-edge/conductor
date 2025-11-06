@@ -5,9 +5,9 @@
  * Handles registration, execution, and coordination of scheduled ensembles.
  */
 
-import type { EnsembleConfig, ScheduleConfig } from './parser'
-import { Executor } from './executor'
-import { createLogger, type Logger } from '../observability'
+import type { EnsembleConfig, ScheduleConfig } from './parser.js'
+import { Executor } from './executor.js'
+import { createLogger, type Logger } from '../observability/index.js'
 
 /**
  * Cloudflare scheduled event

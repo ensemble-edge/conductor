@@ -4,7 +4,7 @@
  * Detects common bot protection mechanisms like Cloudflare, Captcha, etc.
  */
 
-import type { BotProtectionResult } from './types'
+import type { BotProtectionResult } from './types.js'
 
 const BOT_PROTECTION_KEYWORDS = [
   'cloudflare',

@@ -4,8 +4,8 @@
  * Loads ensemble configurations from various storage backends.
  * Supports KV, D1, R2, and in-memory catalogs.
  */
-import type { EnsembleConfig } from './parser';
-import type { ConductorEnv } from '../types/env';
+import type { EnsembleConfig } from './parser.js';
+import type { ConductorEnv } from '../types/env.js';
 /**
  * Catalog Loader
  *

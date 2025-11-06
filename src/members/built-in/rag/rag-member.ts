@@ -8,8 +8,8 @@
  * - search: Find relevant content using semantic search
  */
 
-import { BaseMember, type MemberExecutionContext } from '../../base-member'
-import type { MemberConfig } from '../../../runtime/parser'
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js'
+import type { MemberConfig } from '../../../runtime/parser.js'
 import type {
   RAGConfig,
   RAGInput,
@@ -18,8 +18,8 @@ import type {
   RAGResult,
   RAGIndexResult,
   RAGSearchResult,
-} from './types'
-import { Chunker } from './chunker'
+} from './types.js'
+import { Chunker } from './chunker.js'
 
 export class RAGMember extends BaseMember {
   private ragConfig: RAGConfig

@@ -4,8 +4,8 @@
  * Uses Repository pattern for storage-agnostic caching.
  * Supports TTL, cache keys, and invalidation strategies.
  */
-import { Result } from '../types/result';
-import { Errors } from '../errors/error-types';
+import { Result } from '../types/result.js';
+import { Errors } from '../errors/error-types.js';
 /**
  * Repository-based cache implementation
  */

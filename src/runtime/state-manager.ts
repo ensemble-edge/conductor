@@ -5,7 +5,7 @@
  * Follows functional programming principles for predictability.
  */
 
-import { createLogger, type Logger } from '../observability'
+import { createLogger, type Logger } from '../observability/index.js'
 
 export interface StateConfig {
   schema?: Record<string, unknown>

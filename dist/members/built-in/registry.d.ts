@@ -9,10 +9,10 @@
  * - Versioning (each member has a version)
  * - Metadata (description, schemas, examples)
  */
-import type { BaseMember } from '../base-member';
-import type { MemberConfig } from '../../runtime/parser';
-import type { BuiltInMemberMetadata, BuiltInMemberFactory } from './types';
-import type { ConductorEnv } from '../../types/env';
+import type { BaseMember } from '../base-member.js';
+import type { MemberConfig } from '../../runtime/parser.js';
+import type { BuiltInMemberMetadata, BuiltInMemberFactory } from './types.js';
+import type { ConductorEnv } from '../../types/env.js';
 export declare class BuiltInMemberRegistry {
     private members;
     /**

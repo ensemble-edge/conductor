@@ -9,9 +9,9 @@
  * - State persistence via Durable Objects
  */
 
-import { BaseMember, type MemberExecutionContext } from '../../base-member'
-import type { MemberConfig } from '../../../runtime/parser'
-import { createLogger } from '../../../observability'
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js'
+import type { MemberConfig } from '../../../runtime/parser.js'
+import { createLogger } from '../../../observability/index.js'
 import type {
   HITLConfig,
   HITLInput,
@@ -21,7 +21,7 @@ import type {
   HITLSuspendResult,
   HITLResumeResult,
   ApprovalState,
-} from './types'
+} from './types.js'
 
 const logger = createLogger({ serviceName: 'hitl-member' })
 

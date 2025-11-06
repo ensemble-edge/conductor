@@ -3,8 +3,8 @@
  */
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ExecutionHistory } from '../../storage/execution-history';
-import { loadConfig } from '../../config';
+import { ExecutionHistory } from '../../storage/execution-history.js';
+import { loadConfig } from '../../config/index.js';
 export function createHistoryCommand() {
     const history = new Command('history')
         .description('List past execution history')

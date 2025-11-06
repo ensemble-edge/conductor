@@ -14,16 +14,16 @@ import type {
   ModelWithProvider,
   ModelSearchOptions,
   DataVersion,
-} from '../../types/platform-data'
-import type { ModelId, ProviderId } from '../../types/branded'
-import { ModelValidation } from '../../types/platform-data'
-import { Result } from '../../types/result'
+} from '../../types/platform-data.js'
+import type { ModelId, ProviderId } from '../../types/branded.js'
+import { ModelValidation } from '../../types/platform-data.js'
+import { Result } from '../../types/result.js'
 import {
   Errors,
   ModelNotFoundError,
   ModelDeprecatedError,
   ModelEOLError,
-} from '../../errors/error-types'
+} from '../../errors/error-types.js'
 
 /**
  * Platform Adapter interface - all platforms must implement this

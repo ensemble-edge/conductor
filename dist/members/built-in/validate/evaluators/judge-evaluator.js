@@ -3,7 +3,7 @@
  *
  * Uses an LLM to evaluate content quality based on criteria
  */
-import { BaseEvaluator } from './base-evaluator';
+import { BaseEvaluator } from './base-evaluator.js';
 export class JudgeEvaluator extends BaseEvaluator {
     async evaluate(content, config) {
         const criteria = config.criteria || [];

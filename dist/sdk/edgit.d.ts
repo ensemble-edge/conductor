@@ -3,7 +3,7 @@
  *
  * Helpers for loading components from Edgit
  */
-import { type MemberConfig } from '../runtime/parser';
+import { type MemberConfig } from '../runtime/parser.js';
 /**
  * Load a component from Edgit (prompts, queries, templates, etc.)
  *

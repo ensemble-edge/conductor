@@ -2,7 +2,7 @@
  * Custom Vitest Matchers for Conductor Testing
  */
 
-import type { TestExecutionResult } from './types'
+import type { TestExecutionResult } from './types.js'
 import { expect } from 'vitest'
 
 // Type declarations for custom matchers

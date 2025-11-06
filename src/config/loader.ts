@@ -7,9 +7,9 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { pathToFileURL } from 'url'
-import type { ConductorConfig } from './types'
-import { DEFAULT_CONFIG } from './types'
-import { Result } from '../types/result'
+import type { ConductorConfig } from './types.js'
+import { DEFAULT_CONFIG } from './types.js'
+import { Result } from '../types/result.js'
 
 /**
  * Load configuration from project directory

@@ -4,7 +4,7 @@
  * Provides Cloudflare Workers-specific platform functionality
  * with proper type safety and explicit error handling.
  */
-import { BasePlatform } from '../base/platform';
+import { BasePlatform } from '../base/platform.js';
 /**
  * Cloudflare Platform Adapter
  *

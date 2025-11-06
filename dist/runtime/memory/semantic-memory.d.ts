@@ -4,8 +4,8 @@
  * Stores memories as embeddings for semantic search and retrieval.
  * Useful for finding contextually relevant information.
  */
-import type { Memory, SearchOptions } from './types';
-import type { ConductorEnv } from '../../types/env';
+import type { Memory, SearchOptions } from './types.js';
+import type { ConductorEnv } from '../../types/env.js';
 export declare class SemanticMemory {
     private readonly env;
     private readonly userId?;

@@ -4,15 +4,15 @@
  * Orchestrates ensemble execution with explicit error handling using Result types.
  * Makes all error cases explicit and checked at compile time.
  */
-import { type EnsembleConfig } from './parser';
-import { type AccessReport } from './state-manager';
-import type { BaseMember } from '../members/base-member';
-import type { ConductorEnv } from '../types/env';
-import { type AsyncResult } from '../types/result';
-import { type ConductorError } from '../errors/error-types';
+import { type EnsembleConfig } from './parser.js';
+import { type AccessReport } from './state-manager.js';
+import type { BaseMember } from '../members/base-member.js';
+import type { ConductorEnv } from '../types/env.js';
+import { type AsyncResult } from '../types/result.js';
+import { type ConductorError } from '../errors/error-types.js';
 import { type ScoringState } from './scoring/index.js';
 import { type SuspendedExecutionState } from './resumption-manager.js';
-import { type Logger } from '../observability';
+import { type Logger } from '../observability/index.js';
 export interface ExecutorConfig {
     env: ConductorEnv;
     ctx: ExecutionContext;
@@ -114,7 +114,7 @@ export declare class Executor {
     /**
      * Get all built-in member metadata
      */
-    getBuiltInMembers(): import("../members/built-in").BuiltInMemberMetadata[];
+    getBuiltInMembers(): import("../members/built-in/types.js").BuiltInMemberMetadata[];
     /**
      * Resume execution from suspended state
      * Used for HITL approval workflows and webhook resumption

@@ -14,7 +14,7 @@
  * ## Quick Start
  *
  * ```typescript
- * import { createLogger } from './observability';
+ * import { createLogger } from './observability.js';
  *
  * // Basic usage
  * const logger = createLogger();
@@ -34,6 +34,6 @@
  *
  * @see https://developers.cloudflare.com/workers/observability/
  */
-export { LogLevel } from './types';
-export { ConductorLogger, createLogger, setGlobalLogger, getGlobalLogger } from './logger';
-export { OpenTelemetryLogger, createOpenTelemetryLogger } from './opentelemetry';
+export { LogLevel } from './types.js';
+export { ConductorLogger, createLogger, setGlobalLogger, getGlobalLogger } from './logger.js';
+export { OpenTelemetryLogger, createOpenTelemetryLogger } from './opentelemetry.js';

@@ -4,9 +4,9 @@
  * Provides Cloudflare Workers-specific platform functionality
  * with proper type safety and explicit error handling.
  */
-import { BasePlatform } from '../base/platform';
-import type { ModelValidationResult, PlatformModelsData, PlatformCapabilities } from '../../types/platform-data';
-import type { ModelId, ProviderId } from '../../types/branded';
+import { BasePlatform } from '../base/platform.js';
+import type { ModelValidationResult, PlatformModelsData, PlatformCapabilities } from '../../types/platform-data.js';
+import type { ModelId, ProviderId } from '../../types/branded.js';
 /**
  * Cloudflare Platform Adapter
  *

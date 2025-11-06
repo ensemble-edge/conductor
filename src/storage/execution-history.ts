@@ -6,7 +6,7 @@
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import type { Result } from '../types/result'
+import type { Result } from '../types/result.js'
 
 /**
  * Execution record stored in history

@@ -3,7 +3,7 @@
  *
  * Executes JavaScript expressions as validation rules
  */
-import { BaseEvaluator } from './base-evaluator';
+import { BaseEvaluator } from './base-evaluator.js';
 export class RuleEvaluator extends BaseEvaluator {
     async evaluate(content, config) {
         const rules = config.rules || [];

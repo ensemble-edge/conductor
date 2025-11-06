@@ -4,7 +4,7 @@
  * Base interfaces and types for AI provider implementations.
  * Follows composition over inheritance for flexible provider management.
  */
-import type { ProviderId } from '../../types/branded';
+import type { ProviderId } from '../../types/branded.js';
 /**
  * Message format for AI conversations
  */

@@ -4,11 +4,11 @@
  * Exports all provider types and registry.
  * Makes it trivial to add new AI providers without modifying existing code.
  */
-export { BaseAIProvider } from './base-provider';
+export { BaseAIProvider } from './base-provider.js';
 // Provider implementations
-export { OpenAIProvider } from './openai-provider';
-export { AnthropicProvider } from './anthropic-provider';
-export { CloudflareProvider } from './cloudflare-provider';
-export { CustomProvider } from './custom-provider';
+export { OpenAIProvider } from './openai-provider.js';
+export { AnthropicProvider } from './anthropic-provider.js';
+export { CloudflareProvider } from './cloudflare-provider.js';
+export { CustomProvider } from './custom-provider.js';
 // Registry
-export { ProviderRegistry, getProviderRegistry, resetProviderRegistry } from './registry';
+export { ProviderRegistry, getProviderRegistry, resetProviderRegistry } from './registry.js';

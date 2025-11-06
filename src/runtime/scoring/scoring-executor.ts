@@ -12,7 +12,7 @@ import type {
   ScoreBreakdown,
 } from './types.js'
 import { Errors } from '../../errors/error-types.js'
-import { createLogger } from '../../observability'
+import { createLogger } from '../../observability/index.js'
 
 const logger = createLogger({ serviceName: 'scoring-executor' })
 

@@ -4,9 +4,9 @@
  * Handles Cloudflare Workers AI binding calls.
  */
 
-import { BaseAIProvider } from './base-provider'
-import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider'
-import type { ProviderId } from '../../types/branded'
+import { BaseAIProvider } from './base-provider.js'
+import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider.js'
+import type { ProviderId } from '../../types/branded.js'
 
 export class CloudflareProvider extends BaseAIProvider {
   readonly id = 'workers-ai' as ProviderId

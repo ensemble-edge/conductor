@@ -12,7 +12,7 @@
  */
 import { AnalyticalMemory } from './analytical-memory.js';
 import type { MemoryConfig, Message, Memory, SearchOptions, MemorySnapshot } from './types.js';
-import type { ConductorEnv } from '../../types/env';
+import type { ConductorEnv } from '../../types/env.js';
 export declare class MemoryManager {
     private readonly env;
     private readonly config;

@@ -7,7 +7,7 @@
  * - Custom headers support
  * - Multiple HTTP methods
  */
-import { BaseMember } from '../../base-member';
+import { BaseMember } from '../../base-member.js';
 export class FetchMember extends BaseMember {
     constructor(config, env) {
         super(config);

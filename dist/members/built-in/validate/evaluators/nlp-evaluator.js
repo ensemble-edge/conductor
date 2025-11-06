@@ -3,7 +3,7 @@
  *
  * Calculates BLEU, ROUGE, and other NLP metrics
  */
-import { BaseEvaluator } from './base-evaluator';
+import { BaseEvaluator } from './base-evaluator.js';
 export class NLPEvaluator extends BaseEvaluator {
     async evaluate(content, config) {
         const reference = config.reference;

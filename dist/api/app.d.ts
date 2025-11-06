@@ -4,7 +4,7 @@
  * Main Hono application with routes and middleware.
  */
 import { Hono } from 'hono';
-import { type ScheduledEvent } from '../runtime/schedule-manager';
+import { type ScheduledEvent } from '../runtime/schedule-manager.js';
 export interface APIConfig {
     auth?: {
         apiKeys?: string[];

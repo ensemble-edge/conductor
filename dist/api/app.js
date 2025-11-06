@@ -6,12 +6,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware';
-import { execute, members, health, stream, async, webhooks, executions, schedules } from './routes';
-import { openapi } from './openapi';
-import { ScheduleManager } from '../runtime/schedule-manager';
-import { CatalogLoader } from '../runtime/catalog-loader';
-import { createLogger } from '../observability';
+import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js';
+import { execute, members, health, stream, async, webhooks, executions, schedules } from './routes/index.js';
+import { openapi } from './openapi/index.js';
+import { ScheduleManager } from '../runtime/schedule-manager.js';
+import { CatalogLoader } from '../runtime/catalog-loader.js';
+import { createLogger } from '../observability/index.js';
 const appLogger = createLogger({ serviceName: 'api-app' });
 /**
  * Create Conductor API application

@@ -5,12 +5,12 @@
  * This runs in the user's project context, not in the conductor package
  */
 
-import { Parser, type MemberConfig } from '../runtime/parser'
-import { BaseMember } from '../members/base-member'
-import { FunctionMember, type FunctionImplementation } from '../members/function-member'
-import { ThinkMember } from '../members/think-member'
-import { DataMember } from '../members/data-member'
-import { APIMember } from '../members/api-member'
+import { Parser, type MemberConfig } from '../runtime/parser.js'
+import { BaseMember } from '../members/base-member.js'
+import { FunctionMember, type FunctionImplementation } from '../members/function-member.js'
+import { ThinkMember } from '../members/think-member.js'
+import { DataMember } from '../members/data-member.js'
+import { APIMember } from '../members/api-member.js'
 
 export interface LoaderConfig {
   /**
@@ -69,8 +69,8 @@ export class MemberLoader {
    *
    * @example
    * ```typescript
-   * import greetConfig from './members/greet/member.yaml';
-   * import greetFunction from './members/greet/index';
+   * import greetConfig from './members/greet/member.yaml.js';
+   * import greetFunction from './members/greet/index.js';
    *
    * loader.registerMember(greetConfig, greetFunction);
    * ```
@@ -125,7 +125,7 @@ export class MemberLoader {
 
     // TODO: Load from Edgit when available
     // Expected implementation:
-    // import { loadMemberConfig } from '../sdk/edgit';
+    // import { loadMemberConfig } from '../sdk/edgit.js';
     // const config = await loadMemberConfig(memberRef, this.config.env);
     // const instance = this.createMemberInstance(config);
     // this.loadedMembers.set(versionedKey, { config, instance });

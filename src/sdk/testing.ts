@@ -4,7 +4,7 @@
  * Helpers for testing members and ensembles
  */
 
-import type { MemberExecutionContext } from './types'
+import type { MemberExecutionContext } from './types.js'
 
 /**
  * Create a mock execution context for testing

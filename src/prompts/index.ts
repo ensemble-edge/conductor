@@ -4,20 +4,20 @@
  * YAML-based prompt templates with versioning and variable substitution.
  */
 
-export { PromptManager, getGlobalPromptManager } from './prompt-manager'
+export { PromptManager, getGlobalPromptManager } from './prompt-manager.js'
 
-export type { PromptManagerConfig, RenderOptions, RenderedPrompt } from './prompt-manager'
+export type { PromptManagerConfig, RenderOptions, RenderedPrompt } from './prompt-manager.js'
 
-export { PromptParser, parseTemplate } from './prompt-parser'
+export { PromptParser, parseTemplate } from './prompt-parser.js'
 
-export type { ParserOptions } from './prompt-parser'
+export type { ParserOptions } from './prompt-parser.js'
 
 export {
   validatePromptVariables,
   applyDefaultVariables,
   extractVariables,
   getVariableInfo,
-} from './prompt-schema'
+} from './prompt-schema.js'
 
 export type {
   PromptVariable,
@@ -25,4 +25,4 @@ export type {
   PromptTemplate,
   PromptValidationError,
   PromptValidationResult,
-} from './prompt-schema'
+} from './prompt-schema.js'

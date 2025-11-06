@@ -4,7 +4,7 @@
  * Stores memories as embeddings for semantic search and retrieval.
  * Useful for finding contextually relevant information.
  */
-import { createLogger } from '../../observability';
+import { createLogger } from '../../observability/index.js';
 const logger = createLogger({ serviceName: 'semantic-memory' });
 export class SemanticMemory {
     constructor(env, userId) {

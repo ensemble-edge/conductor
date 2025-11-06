@@ -4,10 +4,10 @@
  * Manages AI provider instances with singleton pattern.
  * Makes it trivial to add new providers without modifying existing code.
  */
-import { OpenAIProvider } from './openai-provider';
-import { AnthropicProvider } from './anthropic-provider';
-import { CloudflareProvider } from './cloudflare-provider';
-import { CustomProvider } from './custom-provider';
+import { OpenAIProvider } from './openai-provider.js';
+import { AnthropicProvider } from './anthropic-provider.js';
+import { CloudflareProvider } from './cloudflare-provider.js';
+import { CustomProvider } from './custom-provider.js';
 /**
  * Provider Registry - manages all AI providers
  */

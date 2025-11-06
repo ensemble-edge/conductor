@@ -8,8 +8,8 @@
  * - Version management
  * - Template validation
  */
-import { validatePromptVariables, applyDefaultVariables } from './prompt-schema';
-import { PromptParser } from './prompt-parser';
+import { validatePromptVariables, applyDefaultVariables } from './prompt-schema.js';
+import { PromptParser } from './prompt-parser.js';
 export class PromptManager {
     constructor(config = {}) {
         this.cache = new Map();

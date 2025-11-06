@@ -13,7 +13,7 @@
  * Note: For fully automatic RAG with zero configuration, see AutoRAGMember
  * which uses Cloudflare's R2-backed AutoRAG service.
  */
-import { BaseMember } from '../../base-member';
+import { BaseMember } from '../../base-member.js';
 /**
  * Manual Vectorize RAG Member with full control
  */

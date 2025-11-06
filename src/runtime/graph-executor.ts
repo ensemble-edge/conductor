@@ -17,10 +17,10 @@ import type {
   MapReduceBlock,
   ExecutionNode,
   ExecutionGraph,
-} from './graph-types'
-import type { MemberExecutionContext } from '../members/base-member'
-import { Result } from '../types/result'
-import type { ConductorError } from '../errors/error-types'
+} from './graph-types.js'
+import type { MemberExecutionContext } from '../members/base-member.js'
+import { Result } from '../types/result.js'
+import type { ConductorError } from '../errors/error-types.js'
 
 export class GraphExecutor {
   /**

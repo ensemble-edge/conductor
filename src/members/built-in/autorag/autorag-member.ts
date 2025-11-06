@@ -15,7 +15,7 @@
  * This is the easiest way to do RAG on Cloudflare - just point to an R2 bucket!
  */
 
-import { BaseMember, type MemberExecutionContext } from '../../base-member'
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js'
 
 export interface AutoRAGConfig {
   /** AutoRAG instance name (configured in wrangler.toml) */

@@ -10,7 +10,7 @@
  *
  * @see https://developers.cloudflare.com/workers/observability/
  */
-import type { Logger, LoggerConfig, LogContext, MetricDataPoint } from './types';
+import type { Logger, LoggerConfig, LogContext, MetricDataPoint } from './types.js';
 /**
  * Structured logger implementation
  *

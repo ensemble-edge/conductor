@@ -56,4 +56,4 @@ export type {
   VectorSearchResult,
   ExecutionRecord,
   ProjectSnapshot,
-} from './types'
+} from './types.js'

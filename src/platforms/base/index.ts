@@ -4,12 +4,12 @@
  * Core interfaces and types for platform adapters
  */
 
-export { BasePlatform } from './platform'
-export { type PlatformAdapter } from './platform'
+export { BasePlatform } from './platform.js'
+export { type PlatformAdapter } from './platform.js'
 export {
   type PlatformModel,
   type PlatformProvider,
   type PlatformModelsData,
   type ValidationResult,
   type ModelValidationResult,
-} from './types'
+} from './types.js'

@@ -1,4 +1,4 @@
 /**
  * Fetch Member - Exports
  */
-export { FetchMember } from './fetch-member';
+export { FetchMember } from './fetch-member.js';

@@ -2,7 +2,7 @@
  * HITL Member - Exports
  */
 
-export { HITLMember } from './hitl-member'
+export { HITLMember } from './hitl-member.js'
 export type {
   HITLConfig,
   HITLInput,
@@ -15,4 +15,4 @@ export type {
   HITLStatus,
   NotificationChannel,
   ApprovalState,
-} from './types'
+} from './types.js'

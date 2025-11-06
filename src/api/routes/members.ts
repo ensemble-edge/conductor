@@ -5,9 +5,9 @@
  */
 
 import { Hono } from 'hono'
-import type { ConductorContext, MemberListResponse, MemberDetailResponse } from '../types'
-import { getBuiltInRegistry } from '../../members/built-in/registry'
-import { createLogger } from '../../observability'
+import type { ConductorContext, MemberListResponse, MemberDetailResponse } from '../types.js'
+import { getBuiltInRegistry } from '../../members/built-in/registry.js'
+import { createLogger } from '../../observability/index.js'
 
 const members = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-members' })

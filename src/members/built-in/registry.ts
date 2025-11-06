@@ -10,11 +10,11 @@
  * - Metadata (description, schemas, examples)
  */
 
-import type { BaseMember } from '../base-member'
-import type { MemberConfig } from '../../runtime/parser'
-import type { BuiltInMemberMetadata, BuiltInMemberFactory, BuiltInMemberEntry } from './types'
-import { MemberType } from '../../types/constants'
-import type { ConductorEnv } from '../../types/env'
+import type { BaseMember } from '../base-member.js'
+import type { MemberConfig } from '../../runtime/parser.js'
+import type { BuiltInMemberMetadata, BuiltInMemberFactory, BuiltInMemberEntry } from './types.js'
+import { MemberType } from '../../types/constants.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 export class BuiltInMemberRegistry {
   private members = new Map<string, BuiltInMemberEntry>()

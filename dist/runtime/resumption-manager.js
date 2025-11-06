@@ -4,9 +4,9 @@
  * Handles storing and retrieving suspended execution state for workflow resumption.
  * Uses HITLState Durable Object with alarm-based TTL for strong consistency.
  */
-import { Result } from '../types/result';
-import { Errors } from '../errors/error-types';
-import { TTL } from '../config/constants';
+import { Result } from '../types/result.js';
+import { Errors } from '../errors/error-types.js';
+import { TTL } from '../config/constants.js';
 /**
  * Resumption Manager
  * Handles HITLState Durable Object-based storage for suspended execution state

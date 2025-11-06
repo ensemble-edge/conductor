@@ -5,20 +5,20 @@
  * Built on Cloudflare Workers
  */
 // Core Runtime
-export { Executor } from './runtime/executor';
-export { Parser } from './runtime/parser';
-export { StateManager } from './runtime/state-manager';
+export { Executor } from './runtime/executor.js';
+export { Parser } from './runtime/parser.js';
+export { StateManager } from './runtime/state-manager.js';
 // Durable Objects
-export { ExecutionState } from './durable-objects/execution-state';
-export { HITLState } from './durable-objects/hitl-state';
+export { ExecutionState } from './durable-objects/execution-state.js';
+export { HITLState } from './durable-objects/hitl-state.js';
 // Member Types
-export { BaseMember } from './members/base-member';
-export { FunctionMember } from './members/function-member';
-export { ThinkMember } from './members/think-member';
-export { DataMember } from './members/data-member';
-export { APIMember } from './members/api-member';
+export { BaseMember } from './members/base-member.js';
+export { FunctionMember } from './members/function-member.js';
+export { ThinkMember } from './members/think-member.js';
+export { DataMember } from './members/data-member.js';
+export { APIMember } from './members/api-member.js';
 // Utilities
-export { MemberLoader, createLoader } from './utils/loader';
+export { MemberLoader, createLoader } from './utils/loader.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *

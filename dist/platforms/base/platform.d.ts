@@ -4,8 +4,8 @@
  * All platform adapters must implement PlatformAdapter interface.
  * Uses Result types for explicit error handling and strongly-typed platform data.
  */
-import type { PlatformModelsData, PlatformCapabilities, ModelValidationResult, ProviderModel, ModelWithProvider, ModelSearchOptions, DataVersion } from '../../types/platform-data';
-import type { ModelId, ProviderId } from '../../types/branded';
+import type { PlatformModelsData, PlatformCapabilities, ModelValidationResult, ProviderModel, ModelWithProvider, ModelSearchOptions, DataVersion } from '../../types/platform-data.js';
+import type { ModelId, ProviderId } from '../../types/branded.js';
 /**
  * Platform Adapter interface - all platforms must implement this
  */

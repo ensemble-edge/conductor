@@ -7,9 +7,9 @@
  * - NLP: Statistical NLP metrics (BLEU, ROUGE)
  * - Embedding: Semantic similarity via embeddings
  */
-import { BaseMember, type MemberExecutionContext } from '../../base-member';
-import type { MemberConfig } from '../../../runtime/parser';
-import type { ValidationResult } from './types';
+import { BaseMember, type MemberExecutionContext } from '../../base-member.js';
+import type { MemberConfig } from '../../../runtime/parser.js';
+import type { ValidationResult } from './types.js';
 export declare class ValidateMember extends BaseMember {
     private readonly env;
     private validateConfig;

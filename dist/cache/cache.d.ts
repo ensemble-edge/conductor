@@ -4,9 +4,9 @@
  * Uses Repository pattern for storage-agnostic caching.
  * Supports TTL, cache keys, and invalidation strategies.
  */
-import type { Repository } from '../storage';
-import { type AsyncResult } from '../types/result';
-import { type ConductorError } from '../errors/error-types';
+import type { Repository } from '../storage/index.js';
+import { type AsyncResult } from '../types/result.js';
+import { type ConductorError } from '../errors/error-types.js';
 export interface CacheConfig {
     defaultTTL?: number;
     enabled?: boolean;

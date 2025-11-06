@@ -3,7 +3,7 @@
  *
  * Handles Cloudflare Workers AI binding calls.
  */
-import { BaseAIProvider } from './base-provider';
+import { BaseAIProvider } from './base-provider.js';
 export class CloudflareProvider extends BaseAIProvider {
     constructor() {
         super(...arguments);

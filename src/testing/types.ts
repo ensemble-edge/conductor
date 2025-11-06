@@ -2,8 +2,8 @@
  * Testing Types
  */
 
-import type { MemberExecutionContext, MemberResponse } from '../members/base-member'
-import type { EnsembleConfig } from '../runtime/parser'
+import type { MemberExecutionContext, MemberResponse } from '../members/base-member.js'
+import type { EnsembleConfig } from '../runtime/parser.js'
 
 /**
  * Options for creating a test conductor instance

@@ -2,11 +2,11 @@
  * Test Conductor - Testing Helper for Conductor Projects
  */
 
-import type { ConductorEnv } from '../types/env'
-import type { EnsembleConfig, MemberConfig } from '../runtime/parser'
-import { Executor } from '../runtime/executor'
-import { Parser } from '../runtime/parser'
-import { FunctionMember } from '../members/function-member'
+import type { ConductorEnv } from '../types/env.js'
+import type { EnsembleConfig, MemberConfig } from '../runtime/parser.js'
+import { Executor } from '../runtime/executor.js'
+import { Parser } from '../runtime/parser.js'
+import { FunctionMember } from '../members/function-member.js'
 import type {
   TestConductorOptions,
   TestExecutionResult,
@@ -18,9 +18,9 @@ import type {
   HTTPRequest,
   ExecutionRecord,
   ProjectSnapshot,
-} from './types'
-import { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize } from './mocks'
-import { createLogger } from '../observability'
+} from './types.js'
+import { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize } from './mocks.js'
+import { createLogger } from '../observability/index.js'
 
 /**
  * Test helper for executing and testing Conductor ensembles

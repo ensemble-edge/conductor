@@ -5,9 +5,9 @@
  * Provides standard interface, response wrapping, error handling, and cache key generation
  */
 
-import type { MemberConfig } from '../runtime/parser'
-import type { StateContext } from '../runtime/state-manager'
-import type { ConductorEnv } from '../types/env'
+import type { MemberConfig } from '../runtime/parser.js'
+import type { StateContext } from '../runtime/state-manager.js'
+import type { ConductorEnv } from '../types/env.js'
 
 export interface MemberExecutionContext {
   input: Record<string, any>

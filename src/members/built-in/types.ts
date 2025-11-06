@@ -4,10 +4,10 @@
  * Common types and interfaces used across all built-in members.
  */
 
-import type { BaseMember } from '../base-member'
-import type { MemberConfig } from '../../runtime/parser'
-import { MemberType } from '../../types/constants'
-import type { ConductorEnv } from '../../types/env'
+import type { BaseMember } from '../base-member.js'
+import type { MemberConfig } from '../../runtime/parser.js'
+import { MemberType } from '../../types/constants.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 /**
  * Metadata for a built-in member

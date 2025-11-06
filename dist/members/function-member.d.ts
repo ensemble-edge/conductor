@@ -4,8 +4,8 @@
  * Executes user-defined JavaScript/TypeScript functions
  * The simplest member type - just runs the provided function
  */
-import { BaseMember, type MemberExecutionContext } from './base-member';
-import type { MemberConfig } from '../runtime/parser';
+import { BaseMember, type MemberExecutionContext } from './base-member.js';
+import type { MemberConfig } from '../runtime/parser.js';
 export type FunctionImplementation = (context: MemberExecutionContext) => Promise<unknown> | unknown;
 /**
  * Function Member executes user-provided JavaScript functions

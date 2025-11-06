@@ -4,9 +4,9 @@
  * Handles OpenAI API calls with proper error handling and validation.
  */
 
-import { BaseAIProvider } from './base-provider'
-import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider'
-import type { ProviderId } from '../../types/branded'
+import { BaseAIProvider } from './base-provider.js'
+import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider.js'
+import type { ProviderId } from '../../types/branded.js'
 
 export class OpenAIProvider extends BaseAIProvider {
   readonly id = 'openai' as ProviderId

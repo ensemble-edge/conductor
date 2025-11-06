@@ -4,7 +4,7 @@
  * All platform adapters must implement PlatformAdapter interface.
  * Uses Result types for explicit error handling and strongly-typed platform data.
  */
-import { ModelValidation } from '../../types/platform-data';
+import { ModelValidation } from '../../types/platform-data.js';
 /**
  * Base Platform Adapter implementation
  * Provides common functionality for all platforms

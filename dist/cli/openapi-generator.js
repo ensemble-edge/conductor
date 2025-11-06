@@ -6,7 +6,7 @@
  */
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Parser } from '../runtime/parser';
+import { Parser } from '../runtime/parser.js';
 import YAML from 'yaml';
 /**
  * OpenAPI Documentation Generator

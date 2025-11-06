@@ -4,7 +4,7 @@
  * Manages AI provider instances with singleton pattern.
  * Makes it trivial to add new providers without modifying existing code.
  */
-import type { AIProvider } from './base-provider';
+import type { AIProvider } from './base-provider.js';
 /**
  * Provider Registry - manages all AI providers
  */

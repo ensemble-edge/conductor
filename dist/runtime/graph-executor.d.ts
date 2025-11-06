@@ -4,9 +4,9 @@
  * Executes sophisticated workflows with parallel execution,
  * branching, and complex dependencies.
  */
-import type { FlowElement } from './graph-types';
-import { Result } from '../types/result';
-import type { ConductorError } from '../errors/error-types';
+import type { FlowElement } from './graph-types.js';
+import { Result } from '../types/result.js';
+import type { ConductorError } from '../errors/error-types.js';
 export declare class GraphExecutor {
     /**
      * Execute a graph-based flow

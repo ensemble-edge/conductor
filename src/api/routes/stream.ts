@@ -6,9 +6,9 @@
 
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import type { ConductorContext } from '../types'
-import { getBuiltInRegistry } from '../../members/built-in/registry'
-import type { MemberExecutionContext } from '../../members/base-member'
+import type { ConductorContext } from '../types.js'
+import { getBuiltInRegistry } from '../../members/built-in/registry.js'
+import type { MemberExecutionContext } from '../../members/base-member.js'
 
 const stream = new Hono<{ Bindings: Env }>()
 

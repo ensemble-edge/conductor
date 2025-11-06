@@ -7,8 +7,8 @@
  * - index: Store content in vector database
  * - search: Find relevant content using semantic search
  */
-import { BaseMember } from '../../base-member';
-import { Chunker } from './chunker';
+import { BaseMember } from '../../base-member.js';
+import { Chunker } from './chunker.js';
 export class RAGMember extends BaseMember {
     constructor(config, env) {
         super(config);

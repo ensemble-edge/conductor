@@ -4,9 +4,9 @@
  * Helpers for creating members with less boilerplate
  */
 
-import type { CreateMemberOptions, MemberHandler } from './types'
-import type { MemberConfig } from '../runtime/parser'
-import { MemberType } from '../types/constants'
+import type { CreateMemberOptions, MemberHandler } from './types.js'
+import type { MemberConfig } from '../runtime/parser.js'
+import { MemberType } from '../types/constants.js'
 
 /**
  * Create a member with simplified syntax

@@ -5,7 +5,7 @@
  * All errors extend ConductorError for consistent handling.
  */
 
-import type { MemberName, ModelId, ProviderId, EnsembleName } from '../types/branded'
+import type { MemberName, ModelId, ProviderId, EnsembleName } from '../types/branded.js'
 
 /**
  * Error codes for categorizing errors

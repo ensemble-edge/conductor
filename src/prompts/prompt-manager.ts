@@ -9,9 +9,9 @@
  * - Template validation
  */
 
-import type { PromptTemplate, PromptVariable } from './prompt-schema'
-import { validatePromptVariables, applyDefaultVariables } from './prompt-schema'
-import { PromptParser, type ParserOptions } from './prompt-parser'
+import type { PromptTemplate, PromptVariable } from './prompt-schema.js'
+import { validatePromptVariables, applyDefaultVariables } from './prompt-schema.js'
+import { PromptParser, type ParserOptions } from './prompt-parser.js'
 
 export interface PromptManagerConfig {
   cacheEnabled?: boolean

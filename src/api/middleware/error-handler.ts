@@ -5,9 +5,9 @@
  */
 
 import type { MiddlewareHandler } from 'hono'
-import type { ConductorContext, ErrorResponse } from '../types'
-import { ConductorError } from '../../errors/error-types'
-import { createLogger } from '../../observability'
+import type { ConductorContext, ErrorResponse } from '../types.js'
+import { ConductorError } from '../../errors/error-types.js'
+import { createLogger } from '../../observability/index.js'
 
 const logger = createLogger({ serviceName: 'api-error-handler' })
 

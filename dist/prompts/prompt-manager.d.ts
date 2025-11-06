@@ -8,8 +8,8 @@
  * - Version management
  * - Template validation
  */
-import type { PromptTemplate } from './prompt-schema';
-import { type ParserOptions } from './prompt-parser';
+import type { PromptTemplate } from './prompt-schema.js';
+import { type ParserOptions } from './prompt-parser.js';
 export interface PromptManagerConfig {
     cacheEnabled?: boolean;
     strictValidation?: boolean;

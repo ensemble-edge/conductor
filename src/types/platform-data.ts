@@ -5,7 +5,7 @@
  * Replaces all `any` types in platform adapters with proper types.
  */
 
-import type { ModelId, ProviderId, PlatformName } from './branded'
+import type { ModelId, ProviderId, PlatformName } from './branded.js'
 
 /**
  * Model status

@@ -3,7 +3,7 @@
  *
  * Helpers for creating members with less boilerplate
  */
-import { MemberType } from '../types/constants';
+import { MemberType } from '../types/constants.js';
 /**
  * Create a member with simplified syntax
  *
