@@ -8364,7 +8364,7 @@ function createHistoryCommand() {
 
 // src/cli/index.ts
 var program = new Command10();
-program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.5").addHelpText(
+program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.6").addHelpText(
   "before",
   `
 ${chalk10.bold.cyan("Getting Started:")}
