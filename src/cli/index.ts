@@ -6,6 +6,7 @@
 
 import { Command } from 'commander'
 import chalk from 'chalk'
+import { createInitCommand } from './commands/init.js'
 import { createExecCommand } from './commands/exec.js'
 import { createMembersCommand } from './commands/members.js'
 import { createDocsCommand } from './commands/docs.js'
@@ -23,6 +24,7 @@ program
   .version('1.0.1')
 
 // Add commands
+program.addCommand(createInitCommand())
 program.addCommand(createExecCommand())
 program.addCommand(createMembersCommand())
 program.addCommand(createDocsCommand())
