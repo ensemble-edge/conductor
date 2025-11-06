@@ -1600,7 +1600,7 @@ var init_fetch_member = __esm({
         };
       }
       sleep(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
+        return new Promise((resolve2) => setTimeout(resolve2, ms));
       }
     };
   }
@@ -1783,12 +1783,126 @@ var init_queries = __esm({
 });
 
 // src/cli/index.ts
-import { Command as Command9 } from "commander";
-import chalk9 from "chalk";
+import { Command as Command10 } from "commander";
+import chalk10 from "chalk";
 
-// src/cli/commands/exec.ts
+// src/cli/commands/init.ts
 import { Command } from "commander";
 import chalk from "chalk";
+import * as fs from "fs/promises";
+import * as path from "path";
+import { fileURLToPath } from "url";
+function createInitCommand() {
+  const init = new Command("init");
+  init.description("Initialize a new Conductor project").argument("[directory]", "Project directory", ".").option("--template <name>", "Template to use (cloudflare)", "cloudflare").option("--force", "Overwrite existing files").action(async (directory, options) => {
+    try {
+      console.log("");
+      console.log(chalk.bold("\u{1F3AF} Initializing Conductor project..."));
+      console.log("");
+      const targetDir = path.resolve(process.cwd(), directory);
+      try {
+        const files = await fs.readdir(targetDir);
+        if (files.length > 0 && !options.force) {
+          console.error(chalk.red("Error: Directory is not empty"));
+          console.error("");
+          console.error(chalk.dim("Use --force to overwrite existing files"));
+          console.error("");
+          process.exit(1);
+        }
+      } catch (error) {
+        await fs.mkdir(targetDir, { recursive: true });
+      }
+      let packageRoot = process.cwd();
+      let currentDir = fileURLToPath(import.meta.url);
+      while (currentDir !== path.dirname(currentDir)) {
+        currentDir = path.dirname(currentDir);
+        try {
+          const pkgPath = path.join(currentDir, "package.json");
+          await fs.access(pkgPath);
+          const pkgContent = await fs.readFile(pkgPath, "utf-8");
+          const pkg = JSON.parse(pkgContent);
+          if (pkg.name === "@ensemble-edge/conductor") {
+            packageRoot = currentDir;
+            break;
+          }
+        } catch {
+        }
+      }
+      const templatePath = path.join(packageRoot, "catalog", "cloud", options.template, "templates");
+      try {
+        await fs.access(templatePath);
+      } catch {
+        console.error(chalk.red(`Error: Template '${options.template}' not found`));
+        console.error("");
+        console.error(chalk.dim(`Searched at: ${templatePath}`));
+        console.error(chalk.dim("Available templates:"));
+        console.error(chalk.dim("  - cloudflare (default)"));
+        console.error("");
+        process.exit(1);
+      }
+      console.log(chalk.cyan(`Template: ${options.template}`));
+      console.log(chalk.cyan(`Target: ${targetDir}`));
+      console.log("");
+      await copyDirectory(templatePath, targetDir, options.force || false);
+      console.log(chalk.green("\u2713 Project initialized successfully"));
+      console.log("");
+      console.log(chalk.bold("Next steps:"));
+      console.log("");
+      if (directory !== ".") {
+        console.log(chalk.dim(`  1. cd ${directory}`));
+      }
+      console.log(chalk.dim(`  ${directory !== "." ? "2" : "1"}. npm install`));
+      console.log(chalk.dim(`  ${directory !== "." ? "3" : "2"}. Review the generated files:`));
+      console.log(chalk.dim("     - ensembles/    : Your workflows"));
+      console.log(chalk.dim("     - members/      : AI members, functions, and agents"));
+      console.log(chalk.dim("     - prompts/      : Prompt templates"));
+      console.log(chalk.dim("     - configs/      : Configuration files"));
+      console.log(
+        chalk.dim(`  ${directory !== "." ? "4" : "3"}. npx wrangler dev  : Start local development`)
+      );
+      console.log("");
+      console.log(chalk.dim("Documentation: https://docs.ensemble-edge.com/conductor"));
+      console.log("");
+    } catch (error) {
+      console.error("");
+      console.error(chalk.red("\u2717 Failed to initialize project"));
+      console.error("");
+      console.error(chalk.dim(error.message));
+      if (error.stack) {
+        console.error(chalk.dim(error.stack));
+      }
+      console.error("");
+      process.exit(1);
+    }
+  });
+  return init;
+}
+async function copyDirectory(src, dest, force) {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirectory(srcPath, destPath, force);
+    } else {
+      if (!force) {
+        try {
+          await fs.access(destPath);
+          console.log(chalk.yellow(`  \u2298 Skipping ${entry.name} (already exists)`));
+          continue;
+        } catch {
+        }
+      }
+      await fs.copyFile(srcPath, destPath);
+      console.log(chalk.dim(`  \u2713 Created ${path.relative(dest, destPath)}`));
+    }
+  }
+}
+
+// src/cli/commands/exec.ts
+import { Command as Command2 } from "commander";
+import chalk2 from "chalk";
 
 // src/members/built-in/registry.ts
 var BuiltInMemberRegistry = class {
@@ -2188,8 +2302,8 @@ var ConductorClient = class {
     const response = await this.request("GET", "/health/live");
     return response.alive;
   }
-  async request(method, path4, body) {
-    const url = `${this.baseUrl}${path4}`;
+  async request(method, path5, body) {
+    const url = `${this.baseUrl}${path5}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     try {
@@ -2228,14 +2342,14 @@ function createClient(config) {
 
 // src/cli/commands/exec.ts
 function createExecCommand() {
-  const exec = new Command("exec").description("Execute a member").argument("<member>", "Member name to execute").option("-i, --input <json>", "Input data as JSON string").option("-c, --config <json>", "Configuration as JSON string").option("-f, --file <path>", "Input data from JSON file").option("--remote", "Force remote execution via API").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json, pretty, or raw (default: pretty)", "pretty").action(async (memberName, options) => {
+  const exec = new Command2("exec").description("Execute a member").argument("<member>", "Member name to execute").option("-i, --input <json>", "Input data as JSON string").option("-c, --config <json>", "Configuration as JSON string").option("-f, --file <path>", "Input data from JSON file").option("--remote", "Force remote execution via API").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json, pretty, or raw (default: pretty)", "pretty").action(async (memberName, options) => {
     try {
       let input = {};
       if (options.input) {
         input = JSON.parse(options.input);
       } else if (options.file) {
-        const fs5 = await import("fs");
-        const content = fs5.readFileSync(options.file, "utf-8");
+        const fs6 = await import("fs");
+        const content = fs6.readFileSync(options.file, "utf-8");
         input = JSON.parse(content);
       }
       let config = {};
@@ -2247,7 +2361,7 @@ function createExecCommand() {
       let result;
       let executionMode;
       if (canExecuteLocally) {
-        console.log(chalk.dim("\u2192 Executing locally..."));
+        console.log(chalk2.dim("\u2192 Executing locally..."));
         executionMode = "local";
         result = await executeLocal(memberName, input, config);
       } else {
@@ -2255,11 +2369,11 @@ function createExecCommand() {
         const apiKey = options.apiKey || process.env.CONDUCTOR_API_KEY;
         if (!apiUrl) {
           console.error(
-            chalk.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
+            chalk2.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
           );
           process.exit(1);
         }
-        console.log(chalk.dim(`\u2192 Executing remotely via ${apiUrl}...`));
+        console.log(chalk2.dim(`\u2192 Executing remotely via ${apiUrl}...`));
         executionMode = "remote";
         result = await executeRemote(memberName, input, config, apiUrl, apiKey);
       }
@@ -2270,23 +2384,23 @@ function createExecCommand() {
       } else {
         console.log("");
         if (result.success) {
-          console.log(chalk.green("\u2713 Execution successful"));
+          console.log(chalk2.green("\u2713 Execution successful"));
           console.log("");
-          console.log(chalk.bold("Result:"));
+          console.log(chalk2.bold("Result:"));
           console.log(JSON.stringify(result.data, null, 2));
           console.log("");
-          console.log(chalk.dim(`Duration: ${result.metadata?.duration || "N/A"}ms`));
-          console.log(chalk.dim(`Mode: ${executionMode}`));
+          console.log(chalk2.dim(`Duration: ${result.metadata?.duration || "N/A"}ms`));
+          console.log(chalk2.dim(`Mode: ${executionMode}`));
         } else {
-          console.log(chalk.red("\u2717 Execution failed"));
+          console.log(chalk2.red("\u2717 Execution failed"));
           console.log("");
-          console.log(chalk.bold("Error:"));
-          console.log(chalk.red(result.error || "Unknown error"));
+          console.log(chalk2.bold("Error:"));
+          console.log(chalk2.red(result.error || "Unknown error"));
         }
       }
       process.exit(result.success ? 0 : 1);
     } catch (error) {
-      console.error(chalk.red("Error:"), error.message);
+      console.error(chalk2.red("Error:"), error.message);
       if (options.output === "json") {
         console.log(JSON.stringify({ error: error.message }, null, 2));
       }
@@ -2356,10 +2470,10 @@ async function executeRemote(memberName, input, config, apiUrl, apiKey) {
 }
 
 // src/cli/commands/members.ts
-import { Command as Command2 } from "commander";
-import chalk2 from "chalk";
+import { Command as Command3 } from "commander";
+import chalk3 from "chalk";
 function createMembersCommand() {
-  const members = new Command2("members").description("Manage and inspect members");
+  const members = new Command3("members").description("Manage and inspect members");
   members.command("list").description("List all available members").option("--remote", "List from API instead of local").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json, table, or simple (default: table)", "table").action(async (options) => {
     try {
       let membersList;
@@ -2368,7 +2482,7 @@ function createMembersCommand() {
         const apiKey = options.apiKey || process.env.CONDUCTOR_API_KEY;
         if (!apiUrl) {
           console.error(
-            chalk2.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
+            chalk3.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
           );
           process.exit(1);
         }
@@ -2391,18 +2505,18 @@ function createMembersCommand() {
         membersList.forEach((m) => console.log(m.name));
       } else {
         console.log("");
-        console.log(chalk2.bold("Available Members:"));
+        console.log(chalk3.bold("Available Members:"));
         console.log("");
         membersList.forEach((m) => {
           console.log(
-            `${chalk2.cyan(m.name.padEnd(15))} ${chalk2.dim(m.type.padEnd(10))} ${m.description || ""}`
+            `${chalk3.cyan(m.name.padEnd(15))} ${chalk3.dim(m.type.padEnd(10))} ${m.description || ""}`
           );
         });
         console.log("");
-        console.log(chalk2.dim(`Total: ${membersList.length} members`));
+        console.log(chalk3.dim(`Total: ${membersList.length} members`));
       }
     } catch (error) {
-      console.error(chalk2.red("Error:"), error.message);
+      console.error(chalk3.red("Error:"), error.message);
       process.exit(1);
     }
   });
@@ -2414,7 +2528,7 @@ function createMembersCommand() {
         const apiKey = options.apiKey || process.env.CONDUCTOR_API_KEY;
         if (!apiUrl) {
           console.error(
-            chalk2.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
+            chalk3.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
           );
           process.exit(1);
         }
@@ -2423,7 +2537,7 @@ function createMembersCommand() {
       } else {
         const registry2 = getBuiltInRegistry();
         if (!registry2.isBuiltIn(memberName)) {
-          console.error(chalk2.red(`Error: Member not found: ${memberName}`));
+          console.error(chalk3.red(`Error: Member not found: ${memberName}`));
           process.exit(1);
         }
         const metadata = registry2.getMetadata(memberName);
@@ -2452,47 +2566,47 @@ function createMembersCommand() {
         console.log(JSON.stringify(memberInfo, null, 2));
       } else {
         console.log("");
-        console.log(chalk2.bold.cyan(memberInfo.name));
-        console.log(chalk2.dim(`Version: ${memberInfo.version}`));
+        console.log(chalk3.bold.cyan(memberInfo.name));
+        console.log(chalk3.dim(`Version: ${memberInfo.version}`));
         console.log("");
-        console.log(chalk2.bold("Description:"));
+        console.log(chalk3.bold("Description:"));
         console.log(memberInfo.description || "No description");
         console.log("");
         const tags = memberInfo.tags;
         if (tags && tags.length > 0) {
-          console.log(chalk2.bold("Tags:"));
+          console.log(chalk3.bold("Tags:"));
           console.log(tags.join(", "));
           console.log("");
         }
         const input = memberInfo.input;
         if (input?.schema) {
-          console.log(chalk2.bold("Input Schema:"));
+          console.log(chalk3.bold("Input Schema:"));
           console.log(JSON.stringify(input.schema, null, 2));
           console.log("");
         }
         const examples = input?.examples;
         if (examples && examples.length > 0) {
-          console.log(chalk2.bold("Examples:"));
+          console.log(chalk3.bold("Examples:"));
           examples.forEach((example, i) => {
-            console.log(chalk2.dim(`Example ${i + 1}:`));
+            console.log(chalk3.dim(`Example ${i + 1}:`));
             console.log(JSON.stringify(example, null, 2));
           });
           console.log("");
         }
         const config = memberInfo.config;
         if (config?.schema) {
-          console.log(chalk2.bold("Config Schema:"));
+          console.log(chalk3.bold("Config Schema:"));
           console.log(JSON.stringify(config.schema, null, 2));
           console.log("");
         }
         if (memberInfo.documentation) {
-          console.log(chalk2.bold("Documentation:"));
+          console.log(chalk3.bold("Documentation:"));
           console.log(memberInfo.documentation);
           console.log("");
         }
       }
     } catch (error) {
-      console.error(chalk2.red("Error:"), error.message);
+      console.error(chalk3.red("Error:"), error.message);
       process.exit(1);
     }
   });
@@ -2500,12 +2614,12 @@ function createMembersCommand() {
 }
 
 // src/cli/commands/docs.ts
-import { Command as Command3 } from "commander";
-import chalk3 from "chalk";
+import { Command as Command4 } from "commander";
+import chalk4 from "chalk";
 
 // src/cli/openapi-generator.ts
-import * as fs from "fs/promises";
-import * as path from "path";
+import * as fs2 from "fs/promises";
+import * as path2 from "path";
 
 // src/runtime/parser.ts
 import * as YAML from "yaml";
@@ -2988,8 +3102,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path4, errorMaps, issueData } = params;
-  const fullPath = [...path4, ...issueData.path || []];
+  const { data, path: path5, errorMaps, issueData } = params;
+  const fullPath = [...path5, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -3105,11 +3219,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path4, key) {
+  constructor(parent, value, path5, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path4;
+    this._path = path5;
     this._key = key;
   }
   get path() {
@@ -6565,14 +6679,14 @@ var StringResolver = class {
   resolve(template, context2, interpolate) {
     const fullMatch = template.match(this.fullPattern);
     if (fullMatch) {
-      const path4 = fullMatch[1].trim();
-      if (!path4) {
+      const path5 = fullMatch[1].trim();
+      if (!path5) {
         return void 0;
       }
-      return this.traversePath(path4, context2);
+      return this.traversePath(path5, context2);
     }
-    const result = template.replace(/\$\{([^}]*)\}/g, (match, path4) => {
-      const trimmedPath = path4.trim();
+    const result = template.replace(/\$\{([^}]*)\}/g, (match, path5) => {
+      const trimmedPath = path5.trim();
       if (!trimmedPath) {
         return "";
       }
@@ -6584,8 +6698,8 @@ var StringResolver = class {
   /**
    * Traverse context using dot-separated path
    */
-  traversePath(path4, context2) {
-    const parts = path4.split(".").map((p) => p.trim());
+  traversePath(path5, context2) {
+    const parts = path5.split(".").map((p) => p.trim());
     let value = context2;
     for (const part of parts) {
       if (value && typeof value === "object" && part in value) {
@@ -6873,27 +6987,27 @@ var OpenAPIGenerator = class {
    * Load project catalog (ensembles and members)
    */
   async loadCatalog() {
-    const ensemblesPath = path.join(this.projectPath, "ensembles");
+    const ensemblesPath = path2.join(this.projectPath, "ensembles");
     try {
-      const files = await fs.readdir(ensemblesPath);
+      const files = await fs2.readdir(ensemblesPath);
       for (const file of files) {
         if (file.endsWith(".yaml") || file.endsWith(".yml")) {
-          const filePath = path.join(ensemblesPath, file);
-          const content = await fs.readFile(filePath, "utf-8");
+          const filePath = path2.join(ensemblesPath, file);
+          const content = await fs2.readFile(filePath, "utf-8");
           const ensemble = YAML2.parse(content);
           this.ensembles.set(ensemble.name, ensemble);
         }
       }
     } catch (error) {
     }
-    const membersPath = path.join(this.projectPath, "members");
+    const membersPath = path2.join(this.projectPath, "members");
     try {
-      const dirs = await fs.readdir(membersPath, { withFileTypes: true });
+      const dirs = await fs2.readdir(membersPath, { withFileTypes: true });
       for (const dir of dirs) {
         if (dir.isDirectory()) {
-          const memberYamlPath = path.join(membersPath, dir.name, "member.yaml");
+          const memberYamlPath = path2.join(membersPath, dir.name, "member.yaml");
           try {
-            const content = await fs.readFile(memberYamlPath, "utf-8");
+            const content = await fs2.readFile(memberYamlPath, "utf-8");
             const member = YAML2.parse(content);
             this.members.set(member.name, member);
           } catch {
@@ -7078,8 +7192,8 @@ var OpenAPIGenerator = class {
    */
   async getProjectName() {
     try {
-      const pkgPath = path.join(this.projectPath, "package.json");
-      const content = await fs.readFile(pkgPath, "utf-8");
+      const pkgPath = path2.join(this.projectPath, "package.json");
+      const content = await fs2.readFile(pkgPath, "utf-8");
       const pkg = JSON.parse(content);
       return pkg.name || "Conductor Project";
     } catch {
@@ -7091,8 +7205,8 @@ var OpenAPIGenerator = class {
    */
   async getProjectVersion() {
     try {
-      const pkgPath = path.join(this.projectPath, "package.json");
-      const content = await fs.readFile(pkgPath, "utf-8");
+      const pkgPath = path2.join(this.projectPath, "package.json");
+      const content = await fs2.readFile(pkgPath, "utf-8");
       const pkg = JSON.parse(content);
       return pkg.version || "1.0.0";
     } catch {
@@ -7104,7 +7218,7 @@ var OpenAPIGenerator = class {
    */
   async save(spec, outputPath) {
     const content = YAML2.stringify(spec);
-    await fs.writeFile(outputPath, content, "utf-8");
+    await fs2.writeFile(outputPath, content, "utf-8");
   }
 };
 
@@ -7148,8 +7262,8 @@ var DEFAULT_CONFIG = {
 };
 
 // src/config/loader.ts
-import * as fs2 from "fs/promises";
-import * as path2 from "path";
+import * as fs3 from "fs/promises";
+import * as path3 from "path";
 import { pathToFileURL } from "url";
 
 // src/types/result.ts
@@ -7435,9 +7549,9 @@ var Result = {
 // src/config/loader.ts
 async function loadConfig(projectPath) {
   try {
-    const configPath = path2.join(projectPath, "conductor.config.ts");
+    const configPath = path3.join(projectPath, "conductor.config.ts");
     try {
-      await fs2.access(configPath);
+      await fs3.access(configPath);
     } catch {
       return Result.ok(DEFAULT_CONFIG);
     }
@@ -7535,19 +7649,19 @@ ${errors.join("\n")}`));
 }
 
 // src/cli/commands/docs.ts
-import * as fs3 from "fs/promises";
+import * as fs4 from "fs/promises";
 import YAML3 from "yaml";
 function createDocsCommand() {
-  const docs = new Command3("docs");
+  const docs = new Command4("docs");
   docs.description("Generate OpenAPI documentation for your project").option("--ai", "Use AI to enhance documentation (requires docs-writer member)").option("-o, --output <path>", "Output file path", "./openapi.yaml").option("--json", "Output as JSON instead of YAML").action(async (options) => {
     const projectPath = process.cwd();
     try {
       console.log("");
-      console.log(chalk3.bold("\u{1F4DA} Generating API Documentation..."));
+      console.log(chalk4.bold("\u{1F4DA} Generating API Documentation..."));
       console.log("");
       const useAI = await shouldUseAI(projectPath, options.ai);
       if (useAI) {
-        console.log(chalk3.cyan("\u{1F916} AI-powered documentation mode enabled"));
+        console.log(chalk4.cyan("\u{1F916} AI-powered documentation mode enabled"));
         console.log("");
       }
       const generator = new OpenAPIGenerator(projectPath);
@@ -7559,26 +7673,26 @@ function createDocsCommand() {
       const outputPath = options.output;
       const isJson = options.json || outputPath.endsWith(".json");
       const content = isJson ? JSON.stringify(spec, null, 2) : YAML3.stringify(spec);
-      await fs3.writeFile(outputPath, content, "utf-8");
-      console.log(chalk3.green("\u2713 Documentation generated successfully"));
+      await fs4.writeFile(outputPath, content, "utf-8");
+      console.log(chalk4.green("\u2713 Documentation generated successfully"));
       console.log("");
-      console.log(`Output: ${chalk3.bold(outputPath)}`);
+      console.log(`Output: ${chalk4.bold(outputPath)}`);
       console.log("");
       const pathCount = Object.keys(spec.paths).length;
       const tagCount = spec.tags?.length || 0;
-      console.log(chalk3.dim(`  ${pathCount} API endpoint${pathCount !== 1 ? "s" : ""}`));
-      console.log(chalk3.dim(`  ${tagCount} tag${tagCount !== 1 ? "s" : ""}`));
+      console.log(chalk4.dim(`  ${pathCount} API endpoint${pathCount !== 1 ? "s" : ""}`));
+      console.log(chalk4.dim(`  ${tagCount} tag${tagCount !== 1 ? "s" : ""}`));
       console.log("");
-      console.log(chalk3.dim("Next steps:"));
-      console.log(chalk3.dim(`  \u2022 View your docs: ${outputPath}`));
-      console.log(chalk3.dim("  \u2022 Host docs: conductor docs serve (coming soon)"));
-      console.log(chalk3.dim("  \u2022 Publish to cloud: conductor docs publish (coming soon)"));
+      console.log(chalk4.dim("Next steps:"));
+      console.log(chalk4.dim(`  \u2022 View your docs: ${outputPath}`));
+      console.log(chalk4.dim("  \u2022 Host docs: conductor docs serve (coming soon)"));
+      console.log(chalk4.dim("  \u2022 Publish to cloud: conductor docs publish (coming soon)"));
       console.log("");
     } catch (error) {
       console.error("");
-      console.error(chalk3.red("\u2717 Failed to generate documentation"));
+      console.error(chalk4.red("\u2717 Failed to generate documentation"));
       console.error("");
-      console.error(chalk3.dim(error.message));
+      console.error(chalk4.dim(error.message));
       console.error("");
       process.exit(1);
     }
@@ -7586,9 +7700,9 @@ function createDocsCommand() {
   docs.command("validate").description("Validate OpenAPI specification").argument("[file]", "OpenAPI spec file", "./openapi.yaml").action(async (file) => {
     try {
       console.log("");
-      console.log(chalk3.bold("\u{1F50D} Validating OpenAPI specification..."));
+      console.log(chalk4.bold("\u{1F50D} Validating OpenAPI specification..."));
       console.log("");
-      const content = await fs3.readFile(file, "utf-8");
+      const content = await fs4.readFile(file, "utf-8");
       const spec = file.endsWith(".json") ? JSON.parse(content) : YAML3.parse(content);
       const errors = [];
       if (!spec.openapi) {
@@ -7601,22 +7715,22 @@ function createDocsCommand() {
         errors.push("No paths defined");
       }
       if (errors.length > 0) {
-        console.log(chalk3.red("\u2717 Validation failed"));
+        console.log(chalk4.red("\u2717 Validation failed"));
         console.log("");
-        errors.forEach((err) => console.log(chalk3.red(`  \u2022 ${err}`)));
+        errors.forEach((err) => console.log(chalk4.red(`  \u2022 ${err}`)));
         console.log("");
         process.exit(1);
       }
-      console.log(chalk3.green("\u2713 Specification is valid"));
+      console.log(chalk4.green("\u2713 Specification is valid"));
       console.log("");
-      console.log(chalk3.dim(`  OpenAPI ${spec.openapi}`));
-      console.log(chalk3.dim(`  ${Object.keys(spec.paths).length} endpoints`));
+      console.log(chalk4.dim(`  OpenAPI ${spec.openapi}`));
+      console.log(chalk4.dim(`  ${Object.keys(spec.paths).length} endpoints`));
       console.log("");
     } catch (error) {
       console.error("");
-      console.error(chalk3.red("\u2717 Validation failed"));
+      console.error(chalk4.red("\u2717 Validation failed"));
       console.error("");
-      console.error(chalk3.dim(error.message));
+      console.error(chalk4.dim(error.message));
       console.error("");
       process.exit(1);
     }
@@ -7635,11 +7749,11 @@ async function shouldUseAI(projectPath, cliOption) {
 }
 
 // src/cli/commands/test.ts
-import { Command as Command4 } from "commander";
-import chalk4 from "chalk";
+import { Command as Command5 } from "commander";
+import chalk5 from "chalk";
 import { spawn } from "child_process";
 function createTestCommand() {
-  const test = new Command4("test").description("Run tests for your Conductor project").argument("[path]", "Test file or directory to run").option("--watch", "Run tests in watch mode").option("--coverage", "Generate coverage report").option("--ui", "Open Vitest UI").option("--reporter <type>", "Test reporter: default, verbose, dot, json").action(
+  const test = new Command5("test").description("Run tests for your Conductor project").argument("[path]", "Test file or directory to run").option("--watch", "Run tests in watch mode").option("--coverage", "Generate coverage report").option("--ui", "Open Vitest UI").option("--reporter <type>", "Test reporter: default, verbose, dot, json").action(
     async (testPath, options) => {
       const projectPath = process.cwd();
       try {
@@ -7668,8 +7782,8 @@ function createTestCommand() {
           args.push("--globals");
         }
         console.log("");
-        console.log(chalk4.bold("\u{1F9EA} Running Tests..."));
-        console.log(chalk4.dim(`Command: npx ${args.join(" ")}`));
+        console.log(chalk5.bold("\u{1F9EA} Running Tests..."));
+        console.log(chalk5.dim(`Command: npx ${args.join(" ")}`));
         console.log("");
         const vitestProcess = spawn("npx", args, {
           stdio: "inherit",
@@ -7681,19 +7795,19 @@ function createTestCommand() {
         });
         vitestProcess.on("error", (error) => {
           console.error("");
-          console.error(chalk4.red("\u2717 Failed to run tests"));
+          console.error(chalk5.red("\u2717 Failed to run tests"));
           console.error("");
-          console.error(chalk4.dim(error.message));
+          console.error(chalk5.dim(error.message));
           console.error("");
-          console.error(chalk4.dim("Make sure vitest is installed: npm install -D vitest"));
+          console.error(chalk5.dim("Make sure vitest is installed: npm install -D vitest"));
           console.error("");
           process.exit(1);
         });
       } catch (error) {
         console.error("");
-        console.error(chalk4.red("\u2717 Test command failed"));
+        console.error(chalk5.red("\u2717 Test command failed"));
         console.error("");
-        console.error(chalk4.dim(error.message));
+        console.error(chalk5.dim(error.message));
         console.error("");
         process.exit(1);
       }
@@ -7703,12 +7817,12 @@ function createTestCommand() {
 }
 
 // src/cli/commands/logs.ts
-import { Command as Command5 } from "commander";
-import chalk5 from "chalk";
+import { Command as Command6 } from "commander";
+import chalk6 from "chalk";
 
 // src/storage/execution-history.ts
-import * as fs4 from "fs/promises";
-import * as path3 from "path";
+import * as fs5 from "fs/promises";
+import * as path4 from "path";
 var ExecutionHistory = class {
   constructor(storagePath = "./.conductor/history") {
     this.storagePath = storagePath;
@@ -7717,23 +7831,23 @@ var ExecutionHistory = class {
    * Initialize storage directory
    */
   async initialize() {
-    await fs4.mkdir(this.storagePath, { recursive: true });
+    await fs5.mkdir(this.storagePath, { recursive: true });
   }
   /**
    * Store execution record
    */
   async store(record) {
     await this.initialize();
-    const filePath = path3.join(this.storagePath, `${record.id}.json`);
-    await fs4.writeFile(filePath, JSON.stringify(record, null, 2), "utf-8");
+    const filePath = path4.join(this.storagePath, `${record.id}.json`);
+    await fs5.writeFile(filePath, JSON.stringify(record, null, 2), "utf-8");
   }
   /**
    * Get execution record by ID
    */
   async get(executionId) {
     try {
-      const filePath = path3.join(this.storagePath, `${executionId}.json`);
-      const content = await fs4.readFile(filePath, "utf-8");
+      const filePath = path4.join(this.storagePath, `${executionId}.json`);
+      const content = await fs5.readFile(filePath, "utf-8");
       return JSON.parse(content);
     } catch {
       return null;
@@ -7745,11 +7859,11 @@ var ExecutionHistory = class {
   async list(options) {
     try {
       await this.initialize();
-      const files = await fs4.readdir(this.storagePath);
+      const files = await fs5.readdir(this.storagePath);
       const jsonFiles = files.filter((f) => f.endsWith(".json"));
       const records = await Promise.all(
         jsonFiles.map(async (file) => {
-          const content = await fs4.readFile(path3.join(this.storagePath, file), "utf-8");
+          const content = await fs5.readFile(path4.join(this.storagePath, file), "utf-8");
           return JSON.parse(content);
         })
       );
@@ -7788,16 +7902,16 @@ var ExecutionHistory = class {
    */
   async cleanup(maxAge = 7 * 24 * 60 * 60 * 1e3) {
     try {
-      const files = await fs4.readdir(this.storagePath);
+      const files = await fs5.readdir(this.storagePath);
       const jsonFiles = files.filter((f) => f.endsWith(".json"));
       let deletedCount = 0;
       const now = Date.now();
       for (const file of jsonFiles) {
-        const filePath = path3.join(this.storagePath, file);
-        const content = await fs4.readFile(filePath, "utf-8");
+        const filePath = path4.join(this.storagePath, file);
+        const content = await fs5.readFile(filePath, "utf-8");
         const record = JSON.parse(content);
         if (now - record.endTime > maxAge) {
-          await fs4.unlink(filePath);
+          await fs5.unlink(filePath);
           deletedCount++;
         }
       }
@@ -7810,87 +7924,7 @@ var ExecutionHistory = class {
 
 // src/cli/commands/logs.ts
 function createLogsCommand() {
-  const logs = new Command5("logs").description("View logs for a specific execution").argument("<execution-id>", "Execution ID to view logs for").option("--level <level>", "Filter by log level: debug, info, warn, error").option("--step <name>", "Filter by step name").option("--json", "Output as JSON").action(
-    async (executionId, options) => {
-      const projectPath = process.cwd();
-      try {
-        const configResult = await loadConfig(projectPath);
-        const storagePath = configResult.success ? configResult.value.storage?.path : "./.conductor";
-        const history = new ExecutionHistory(`${storagePath}/history`);
-        const record = await history.get(executionId);
-        if (!record) {
-          console.error("");
-          console.error(chalk5.red(`\u2717 Execution not found: ${executionId}`));
-          console.error("");
-          console.error(chalk5.dim("Use `conductor history` to list available executions"));
-          console.error("");
-          process.exit(1);
-        }
-        let logs2 = record.logs || [];
-        if (options.level) {
-          logs2 = logs2.filter((log) => log.level === options.level);
-        }
-        if (options.step) {
-          logs2 = logs2.filter((log) => log.step === options.step);
-        }
-        if (options.json) {
-          console.log(JSON.stringify({ executionId, logs: logs2 }, null, 2));
-        } else {
-          console.log("");
-          console.log(chalk5.bold(`\u{1F4CB} Logs for execution: ${executionId}`));
-          console.log("");
-          console.log(chalk5.dim(`Ensemble: ${record.name}`));
-          console.log(
-            chalk5.dim(
-              `Status: ${record.status === "success" ? chalk5.green(record.status) : chalk5.red(record.status)}`
-            )
-          );
-          console.log(chalk5.dim(`Duration: ${record.duration}ms`));
-          console.log("");
-          if (logs2.length === 0) {
-            console.log(chalk5.dim("No logs found"));
-            if (options.level || options.step) {
-              console.log(chalk5.dim("Try removing filters to see all logs"));
-            }
-            console.log("");
-            return;
-          }
-          logs2.forEach((log) => {
-            const timestamp = new Date(log.timestamp).toLocaleTimeString();
-            const levelColor = {
-              debug: chalk5.gray,
-              info: chalk5.blue,
-              warn: chalk5.yellow,
-              error: chalk5.red
-            }[log.level];
-            const level = levelColor(`[${log.level.toUpperCase()}]`);
-            const step = log.step ? chalk5.dim(`[${log.step}]`) : "";
-            const time = chalk5.dim(timestamp);
-            console.log(`${time} ${level} ${step} ${log.message}`);
-            if (log.context && Object.keys(log.context).length > 0) {
-              console.log(chalk5.dim(`  ${JSON.stringify(log.context)}`));
-            }
-          });
-          console.log("");
-        }
-      } catch (error) {
-        console.error("");
-        console.error(chalk5.red("\u2717 Failed to retrieve logs"));
-        console.error("");
-        console.error(chalk5.dim(error.message));
-        console.error("");
-        process.exit(1);
-      }
-    }
-  );
-  return logs;
-}
-
-// src/cli/commands/state.ts
-import { Command as Command6 } from "commander";
-import chalk6 from "chalk";
-function createStateCommand() {
-  const state = new Command6("state").description("Inspect state snapshots for a specific execution").argument("<execution-id>", "Execution ID to view state for").option("--step <name>", "Filter by step name").option("--latest", "Show only the latest state snapshot").option("--json", "Output as JSON").action(
+  const logs = new Command6("logs").description("View logs for a specific execution").argument("<execution-id>", "Execution ID to view logs for").option("--level <level>", "Filter by log level: debug, info, warn, error").option("--step <name>", "Filter by step name").option("--json", "Output as JSON").action(
     async (executionId, options) => {
       const projectPath = process.cwd();
       try {
@@ -7906,18 +7940,18 @@ function createStateCommand() {
           console.error("");
           process.exit(1);
         }
-        let snapshots = record.stateSnapshots || [];
-        if (options.step) {
-          snapshots = snapshots.filter((snapshot) => snapshot.stepName === options.step);
+        let logs2 = record.logs || [];
+        if (options.level) {
+          logs2 = logs2.filter((log) => log.level === options.level);
         }
-        if (options.latest && snapshots.length > 0) {
-          snapshots = [snapshots[snapshots.length - 1]];
+        if (options.step) {
+          logs2 = logs2.filter((log) => log.step === options.step);
         }
         if (options.json) {
-          console.log(JSON.stringify({ executionId, snapshots }, null, 2));
+          console.log(JSON.stringify({ executionId, logs: logs2 }, null, 2));
         } else {
           console.log("");
-          console.log(chalk6.bold(`\u{1F50D} State for execution: ${executionId}`));
+          console.log(chalk6.bold(`\u{1F4CB} Logs for execution: ${executionId}`));
           console.log("");
           console.log(chalk6.dim(`Ensemble: ${record.name}`));
           console.log(
@@ -7927,34 +7961,35 @@ function createStateCommand() {
           );
           console.log(chalk6.dim(`Duration: ${record.duration}ms`));
           console.log("");
-          if (snapshots.length === 0) {
-            console.log(chalk6.dim("No state snapshots found"));
-            if (options.step || options.latest) {
-              console.log(chalk6.dim("Try removing filters to see all snapshots"));
+          if (logs2.length === 0) {
+            console.log(chalk6.dim("No logs found"));
+            if (options.level || options.step) {
+              console.log(chalk6.dim("Try removing filters to see all logs"));
             }
             console.log("");
             return;
           }
-          snapshots.forEach((snapshot, index) => {
-            const timestamp = new Date(snapshot.timestamp).toLocaleTimeString();
-            console.log(chalk6.bold(`Snapshot ${index + 1} - ${snapshot.stepName}`));
-            console.log(chalk6.dim(`  Time: ${timestamp}`));
-            console.log("");
-            if (snapshot.state && Object.keys(snapshot.state).length > 0) {
-              console.log(chalk6.cyan("  State:"));
-              Object.entries(snapshot.state).forEach(([key, value]) => {
-                const valueStr = typeof value === "object" ? JSON.stringify(value, null, 2).split("\n").map((line, i) => i === 0 ? line : `    ${line}`).join("\n") : String(value);
-                console.log(`    ${chalk6.yellow(key)}: ${valueStr}`);
-              });
-            } else {
-              console.log(chalk6.dim("  No state variables"));
+          logs2.forEach((log) => {
+            const timestamp = new Date(log.timestamp).toLocaleTimeString();
+            const levelColor = {
+              debug: chalk6.gray,
+              info: chalk6.blue,
+              warn: chalk6.yellow,
+              error: chalk6.red
+            }[log.level];
+            const level = levelColor(`[${log.level.toUpperCase()}]`);
+            const step = log.step ? chalk6.dim(`[${log.step}]`) : "";
+            const time = chalk6.dim(timestamp);
+            console.log(`${time} ${level} ${step} ${log.message}`);
+            if (log.context && Object.keys(log.context).length > 0) {
+              console.log(chalk6.dim(`  ${JSON.stringify(log.context)}`));
             }
-            console.log("");
           });
+          console.log("");
         }
       } catch (error) {
         console.error("");
-        console.error(chalk6.red("\u2717 Failed to retrieve state"));
+        console.error(chalk6.red("\u2717 Failed to retrieve logs"));
         console.error("");
         console.error(chalk6.dim(error.message));
         console.error("");
@@ -7962,14 +7997,14 @@ function createStateCommand() {
       }
     }
   );
-  return state;
+  return logs;
 }
 
-// src/cli/commands/replay.ts
+// src/cli/commands/state.ts
 import { Command as Command7 } from "commander";
 import chalk7 from "chalk";
-function createReplayCommand() {
-  const replay = new Command7("replay").description("Replay a past execution for debugging").argument("<execution-id>", "Execution ID to replay").option("--step-by-step", "Pause after each step (press Enter to continue)").option("--from-step <name>", "Start replay from a specific step").option("--show-state", "Show state after each step").option("--json", "Output as JSON").action(
+function createStateCommand() {
+  const state = new Command7("state").description("Inspect state snapshots for a specific execution").argument("<execution-id>", "Execution ID to view state for").option("--step <name>", "Filter by step name").option("--latest", "Show only the latest state snapshot").option("--json", "Output as JSON").action(
     async (executionId, options) => {
       const projectPath = process.cwd();
       try {
@@ -7985,29 +8020,108 @@ function createReplayCommand() {
           console.error("");
           process.exit(1);
         }
+        let snapshots = record.stateSnapshots || [];
+        if (options.step) {
+          snapshots = snapshots.filter((snapshot) => snapshot.stepName === options.step);
+        }
+        if (options.latest && snapshots.length > 0) {
+          snapshots = [snapshots[snapshots.length - 1]];
+        }
+        if (options.json) {
+          console.log(JSON.stringify({ executionId, snapshots }, null, 2));
+        } else {
+          console.log("");
+          console.log(chalk7.bold(`\u{1F50D} State for execution: ${executionId}`));
+          console.log("");
+          console.log(chalk7.dim(`Ensemble: ${record.name}`));
+          console.log(
+            chalk7.dim(
+              `Status: ${record.status === "success" ? chalk7.green(record.status) : chalk7.red(record.status)}`
+            )
+          );
+          console.log(chalk7.dim(`Duration: ${record.duration}ms`));
+          console.log("");
+          if (snapshots.length === 0) {
+            console.log(chalk7.dim("No state snapshots found"));
+            if (options.step || options.latest) {
+              console.log(chalk7.dim("Try removing filters to see all snapshots"));
+            }
+            console.log("");
+            return;
+          }
+          snapshots.forEach((snapshot, index) => {
+            const timestamp = new Date(snapshot.timestamp).toLocaleTimeString();
+            console.log(chalk7.bold(`Snapshot ${index + 1} - ${snapshot.stepName}`));
+            console.log(chalk7.dim(`  Time: ${timestamp}`));
+            console.log("");
+            if (snapshot.state && Object.keys(snapshot.state).length > 0) {
+              console.log(chalk7.cyan("  State:"));
+              Object.entries(snapshot.state).forEach(([key, value]) => {
+                const valueStr = typeof value === "object" ? JSON.stringify(value, null, 2).split("\n").map((line, i) => i === 0 ? line : `    ${line}`).join("\n") : String(value);
+                console.log(`    ${chalk7.yellow(key)}: ${valueStr}`);
+              });
+            } else {
+              console.log(chalk7.dim("  No state variables"));
+            }
+            console.log("");
+          });
+        }
+      } catch (error) {
+        console.error("");
+        console.error(chalk7.red("\u2717 Failed to retrieve state"));
+        console.error("");
+        console.error(chalk7.dim(error.message));
+        console.error("");
+        process.exit(1);
+      }
+    }
+  );
+  return state;
+}
+
+// src/cli/commands/replay.ts
+import { Command as Command8 } from "commander";
+import chalk8 from "chalk";
+function createReplayCommand() {
+  const replay = new Command8("replay").description("Replay a past execution for debugging").argument("<execution-id>", "Execution ID to replay").option("--step-by-step", "Pause after each step (press Enter to continue)").option("--from-step <name>", "Start replay from a specific step").option("--show-state", "Show state after each step").option("--json", "Output as JSON").action(
+    async (executionId, options) => {
+      const projectPath = process.cwd();
+      try {
+        const configResult = await loadConfig(projectPath);
+        const storagePath = configResult.success ? configResult.value.storage?.path : "./.conductor";
+        const history = new ExecutionHistory(`${storagePath}/history`);
+        const record = await history.get(executionId);
+        if (!record) {
+          console.error("");
+          console.error(chalk8.red(`\u2717 Execution not found: ${executionId}`));
+          console.error("");
+          console.error(chalk8.dim("Use `conductor history` to list available executions"));
+          console.error("");
+          process.exit(1);
+        }
         if (record.type !== "ensemble") {
           console.error("");
-          console.error(chalk7.red("\u2717 Can only replay ensemble executions"));
+          console.error(chalk8.red("\u2717 Can only replay ensemble executions"));
           console.error("");
-          console.error(chalk7.dim("Member executions cannot be replayed independently"));
+          console.error(chalk8.dim("Member executions cannot be replayed independently"));
           console.error("");
           process.exit(1);
         }
         if (!options.json) {
           console.log("");
-          console.log(chalk7.bold(`\u{1F504} Replaying execution: ${executionId}`));
+          console.log(chalk8.bold(`\u{1F504} Replaying execution: ${executionId}`));
           console.log("");
-          console.log(chalk7.dim(`Ensemble: ${record.name}`));
+          console.log(chalk8.dim(`Ensemble: ${record.name}`));
           console.log(
-            chalk7.dim(
-              `Original status: ${record.status === "success" ? chalk7.green(record.status) : chalk7.red(record.status)}`
+            chalk8.dim(
+              `Original status: ${record.status === "success" ? chalk8.green(record.status) : chalk8.red(record.status)}`
             )
           );
-          console.log(chalk7.dim(`Original duration: ${record.duration}ms`));
+          console.log(chalk8.dim(`Original duration: ${record.duration}ms`));
           console.log("");
           if (options.stepByStep) {
             console.log(
-              chalk7.yellow("\u23F8  Step-by-step mode enabled (press Enter to continue each step)")
+              chalk8.yellow("\u23F8  Step-by-step mode enabled (press Enter to continue each step)")
             );
             console.log("");
           }
@@ -8034,79 +8148,79 @@ function createReplayCommand() {
             )
           );
         } else {
-          console.log(chalk7.bold("\u{1F4CB} Input:"));
+          console.log(chalk8.bold("\u{1F4CB} Input:"));
           console.log(JSON.stringify(record.input, null, 2));
           console.log("");
           if (record.steps && record.steps.length > 0) {
-            console.log(chalk7.bold("\u{1F504} Execution Steps:"));
+            console.log(chalk8.bold("\u{1F504} Execution Steps:"));
             console.log("");
             let startIndex = 0;
             if (options.fromStep) {
               const stepIndex = record.steps.findIndex((s) => s.name === options.fromStep);
               if (stepIndex === -1) {
                 console.log(
-                  chalk7.yellow(`\u26A0 Step "${options.fromStep}" not found, showing all steps`)
+                  chalk8.yellow(`\u26A0 Step "${options.fromStep}" not found, showing all steps`)
                 );
                 console.log("");
               } else {
                 startIndex = stepIndex;
-                console.log(chalk7.cyan(`\u23ED  Starting from step: ${options.fromStep}`));
+                console.log(chalk8.cyan(`\u23ED  Starting from step: ${options.fromStep}`));
                 console.log("");
               }
             }
             for (let i = startIndex; i < record.steps.length; i++) {
               const step = record.steps[i];
-              const statusIcon = step.status === "success" ? chalk7.green("\u2713") : step.status === "failure" ? chalk7.red("\u2717") : chalk7.yellow("\u2298");
-              console.log(`${statusIcon} Step ${i + 1}: ${chalk7.bold(step.name)}`);
-              console.log(chalk7.dim(`  Duration: ${step.duration}ms`));
+              const statusIcon = step.status === "success" ? chalk8.green("\u2713") : step.status === "failure" ? chalk8.red("\u2717") : chalk8.yellow("\u2298");
+              console.log(`${statusIcon} Step ${i + 1}: ${chalk8.bold(step.name)}`);
+              console.log(chalk8.dim(`  Duration: ${step.duration}ms`));
               if (step.output !== void 0 && options.showState) {
-                console.log(chalk7.dim("  Output:"));
-                console.log(chalk7.dim(`    ${JSON.stringify(step.output)}`));
+                console.log(chalk8.dim("  Output:"));
+                console.log(chalk8.dim(`    ${JSON.stringify(step.output)}`));
               }
               if (step.error) {
-                console.log(chalk7.red(`  Error: ${step.error}`));
+                console.log(chalk8.red(`  Error: ${step.error}`));
               }
               console.log("");
               if (options.showState && record.stateSnapshots) {
                 const snapshot = record.stateSnapshots.find((s) => s.stepIndex === i);
                 if (snapshot && Object.keys(snapshot.state).length > 0) {
-                  console.log(chalk7.cyan("  State:"));
+                  console.log(chalk8.cyan("  State:"));
                   Object.entries(snapshot.state).forEach(([key, value]) => {
-                    console.log(chalk7.dim(`    ${key}: ${JSON.stringify(value)}`));
+                    console.log(chalk8.dim(`    ${key}: ${JSON.stringify(value)}`));
                   });
                   console.log("");
                 }
               }
               if (options.stepByStep && i < record.steps.length - 1) {
-                await new Promise((resolve) => {
-                  console.log(chalk7.yellow("Press Enter to continue..."));
-                  process.stdin.once("data", () => resolve());
+                await new Promise((resolve2) => {
+                  console.log(chalk8.yellow("Press Enter to continue..."));
+                  process.stdin.once("data", () => resolve2());
                 });
               }
             }
           }
-          console.log(chalk7.bold("\u{1F4CA} Final Result:"));
+          console.log(chalk8.bold("\u{1F4CA} Final Result:"));
           console.log("");
           console.log(
-            `  Status: ${record.status === "success" ? chalk7.green(record.status) : chalk7.red(record.status)}`
+            `  Status: ${record.status === "success" ? chalk8.green(record.status) : chalk8.red(record.status)}`
           );
-          console.log(chalk7.dim(`  Duration: ${record.duration}ms`));
+          console.log(chalk8.dim(`  Duration: ${record.duration}ms`));
           console.log("");
           if (record.output !== void 0) {
-            console.log(chalk7.bold("Output:"));
+            console.log(chalk8.bold("Output:"));
             console.log(JSON.stringify(record.output, null, 2));
           }
           if (record.error) {
-            console.log(chalk7.bold("Error:"));
-            console.log(chalk7.red(record.error.message));
+            console.log(chalk8.bold("Error:"));
+            console.log(chalk8.red(record.error.message));
           }
           console.log("");
         }
       } catch (error) {
         console.error("");
-        console.error(chalk7.red("\u2717 Failed to replay execution"));
+        console.error(chalk8.red("\u2717 Failed to replay execution"));
         console.error("");
-        console.error(chalk7.dim(error.message));
+        console.error(chalk8.dim(error.message));
         console.error("");
         process.exit(1);
       }
@@ -8116,10 +8230,10 @@ function createReplayCommand() {
 }
 
 // src/cli/commands/history.ts
-import { Command as Command8 } from "commander";
-import chalk8 from "chalk";
+import { Command as Command9 } from "commander";
+import chalk9 from "chalk";
 function createHistoryCommand() {
-  const history = new Command8("history").description("List past execution history").option("--limit <number>", "Limit number of results", "20").option("--type <type>", "Filter by type: ensemble or member").option("--status <status>", "Filter by status: success or failure").option("--json", "Output as JSON").action(
+  const history = new Command9("history").description("List past execution history").option("--limit <number>", "Limit number of results", "20").option("--type <type>", "Filter by type: ensemble or member").option("--status <status>", "Filter by status: success or failure").option("--json", "Output as JSON").action(
     async (options) => {
       const projectPath = process.cwd();
       try {
@@ -8135,12 +8249,12 @@ function createHistoryCommand() {
           console.log(JSON.stringify({ records }, null, 2));
         } else {
           console.log("");
-          console.log(chalk8.bold("\u{1F4DC} Execution History"));
+          console.log(chalk9.bold("\u{1F4DC} Execution History"));
           console.log("");
           if (records.length === 0) {
-            console.log(chalk8.dim("No executions found"));
+            console.log(chalk9.dim("No executions found"));
             if (options.type || options.status) {
-              console.log(chalk8.dim("Try removing filters to see all executions"));
+              console.log(chalk9.dim("Try removing filters to see all executions"));
             }
             console.log("");
             return;
@@ -8152,12 +8266,12 @@ function createHistoryCommand() {
           const durationWidth = 10;
           const timeWidth = 20;
           console.log(
-            chalk8.dim(
+            chalk9.dim(
               "ID".padEnd(idWidth) + "Name".padEnd(nameWidth) + "Type".padEnd(typeWidth) + "Status".padEnd(statusWidth) + "Duration".padEnd(durationWidth) + "Time"
             )
           );
           console.log(
-            chalk8.dim(
+            chalk9.dim(
               "\u2500".repeat(
                 idWidth + nameWidth + typeWidth + statusWidth + durationWidth + timeWidth
               )
@@ -8167,29 +8281,29 @@ function createHistoryCommand() {
             const id = record.id.padEnd(idWidth);
             const name = (record.name.length > nameWidth - 3 ? record.name.substring(0, nameWidth - 3) + "..." : record.name).padEnd(nameWidth);
             const type = record.type.padEnd(typeWidth);
-            const status = (record.status === "success" ? chalk8.green(record.status) : chalk8.red(record.status)).padEnd(statusWidth + 9);
+            const status = (record.status === "success" ? chalk9.green(record.status) : chalk9.red(record.status)).padEnd(statusWidth + 9);
             const duration = `${record.duration}ms`.padEnd(durationWidth);
             const time = new Date(record.startTime).toLocaleString();
             console.log(
-              `${chalk8.dim(id)}${name}${chalk8.dim(type)}${status}${chalk8.dim(duration)}${chalk8.dim(time)}`
+              `${chalk9.dim(id)}${name}${chalk9.dim(type)}${status}${chalk9.dim(duration)}${chalk9.dim(time)}`
             );
           });
           console.log("");
           console.log(
-            chalk8.dim(`Showing ${records.length} execution${records.length !== 1 ? "s" : ""}`)
+            chalk9.dim(`Showing ${records.length} execution${records.length !== 1 ? "s" : ""}`)
           );
           console.log("");
-          console.log(chalk8.dim("Commands:"));
-          console.log(chalk8.dim("  conductor logs <id>    - View execution logs"));
-          console.log(chalk8.dim("  conductor state <id>   - Inspect execution state"));
-          console.log(chalk8.dim("  conductor replay <id>  - Replay execution"));
+          console.log(chalk9.dim("Commands:"));
+          console.log(chalk9.dim("  conductor logs <id>    - View execution logs"));
+          console.log(chalk9.dim("  conductor state <id>   - Inspect execution state"));
+          console.log(chalk9.dim("  conductor replay <id>  - Replay execution"));
           console.log("");
         }
       } catch (error) {
         console.error("");
-        console.error(chalk8.red("\u2717 Failed to retrieve history"));
+        console.error(chalk9.red("\u2717 Failed to retrieve history"));
         console.error("");
-        console.error(chalk8.dim(error.message));
+        console.error(chalk9.dim(error.message));
         console.error("");
         process.exit(1);
       }
@@ -8199,8 +8313,9 @@ function createHistoryCommand() {
 }
 
 // src/cli/index.ts
-var program = new Command9();
+var program = new Command10();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.1");
+program.addCommand(createInitCommand());
 program.addCommand(createExecCommand());
 program.addCommand(createMembersCommand());
 program.addCommand(createDocsCommand());
@@ -8214,43 +8329,43 @@ program.command("health").description("Check API health").option("--api-url <url
     const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;
     if (!apiUrl) {
       console.error(
-        chalk9.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
+        chalk10.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
       );
       process.exit(1);
     }
     const response = await fetch(`${apiUrl}/health`);
     const data = await response.json();
     console.log("");
-    console.log(chalk9.bold("API Health:"));
+    console.log(chalk10.bold("API Health:"));
     console.log("");
     console.log(
-      `Status: ${data.status === "healthy" ? chalk9.green(data.status) : chalk9.yellow(data.status)}`
+      `Status: ${data.status === "healthy" ? chalk10.green(data.status) : chalk10.yellow(data.status)}`
     );
     console.log(`Version: ${data.version}`);
     console.log("");
-    console.log(chalk9.bold("Checks:"));
+    console.log(chalk10.bold("Checks:"));
     Object.entries(data.checks).forEach(([key, value]) => {
-      const status = value ? chalk9.green("\u2713") : chalk9.red("\u2717");
+      const status = value ? chalk10.green("\u2713") : chalk10.red("\u2717");
       console.log(`  ${status} ${key}`);
     });
     console.log("");
   } catch (error) {
-    console.error(chalk9.red("Error:"), error.message);
+    console.error(chalk10.red("Error:"), error.message);
     process.exit(1);
   }
 });
 program.command("config").description("Show current configuration").action(() => {
   console.log("");
-  console.log(chalk9.bold("Configuration:"));
+  console.log(chalk10.bold("Configuration:"));
   console.log("");
-  console.log(`API URL: ${process.env.CONDUCTOR_API_URL || chalk9.dim("not set")}`);
+  console.log(`API URL: ${process.env.CONDUCTOR_API_URL || chalk10.dim("not set")}`);
   console.log(
-    `API Key: ${process.env.CONDUCTOR_API_KEY ? chalk9.green("set") : chalk9.dim("not set")}`
+    `API Key: ${process.env.CONDUCTOR_API_KEY ? chalk10.green("set") : chalk10.dim("not set")}`
   );
   console.log("");
-  console.log(chalk9.dim("Set via environment variables:"));
-  console.log(chalk9.dim("  export CONDUCTOR_API_URL=https://api.conductor.dev"));
-  console.log(chalk9.dim("  export CONDUCTOR_API_KEY=your-api-key"));
+  console.log(chalk10.dim("Set via environment variables:"));
+  console.log(chalk10.dim("  export CONDUCTOR_API_URL=https://api.conductor.dev"));
+  console.log(chalk10.dim("  export CONDUCTOR_API_KEY=your-api-key"));
   console.log("");
 });
 program.parse(process.argv);
