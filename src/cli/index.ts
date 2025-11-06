@@ -16,12 +16,16 @@ import { createStateCommand } from './commands/state.js'
 import { createReplayCommand } from './commands/replay.js'
 import { createHistoryCommand } from './commands/history.js'
 
+// Version is injected at build time by esbuild
+declare const __CONDUCTOR_VERSION__: string
+const version = __CONDUCTOR_VERSION__
+
 const program = new Command()
 
 program
   .name('conductor')
   .description('Conductor - Agentic workflow orchestration for Cloudflare Workers')
-  .version('1.0.6')
+  .version(version)
   .addHelpText(
     'before',
     `

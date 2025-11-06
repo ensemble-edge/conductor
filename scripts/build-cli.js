@@ -8,9 +8,14 @@
 import esbuild from 'esbuild';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Read version from package.json
+const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf-8'));
+const version = packageJson.version || '0.0.0';
 
 async function build() {
 	try {
@@ -30,6 +35,10 @@ async function build() {
 				'commander',
 				'yaml'
 			],
+			define: {
+				// Inject version at build time
+				__CONDUCTOR_VERSION__: JSON.stringify(version),
+			},
 			sourcemap: false,
 			minify: false,
 		});

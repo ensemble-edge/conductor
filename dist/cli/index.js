@@ -14,11 +14,12 @@ import { createLogsCommand } from './commands/logs.js';
 import { createStateCommand } from './commands/state.js';
 import { createReplayCommand } from './commands/replay.js';
 import { createHistoryCommand } from './commands/history.js';
+const version = __CONDUCTOR_VERSION__;
 const program = new Command();
 program
     .name('conductor')
     .description('Conductor - Agentic workflow orchestration for Cloudflare Workers')
-    .version('1.0.6')
+    .version(version)
     .addHelpText('before', `
 ${chalk.bold.cyan('Getting Started:')}
 
