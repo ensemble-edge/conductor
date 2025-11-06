@@ -2,14 +2,27 @@
  * Mock Utilities for Testing
  */
 import type { VectorSearchResult } from './types.js';
+import type { AIProvider, AIProviderRequest, AIProviderResponse, AIProviderConfig } from '../members/think-providers/index.js';
+import type { ConductorEnv } from '../types/env.js';
+import type { ProviderId } from '../types/branded.js';
 /**
- * Mock AI provider responses
+ * Mock AI provider for testing
+ * Implements the AIProvider interface to integrate with ThinkMember
  */
-export declare class MockAIProvider {
+export declare class MockAIProvider implements AIProvider {
+    readonly id: ProviderId;
+    readonly name: string;
     private responses;
-    constructor(responses: Record<string, unknown | Error>);
-    getResponse(memberName: string): unknown | Error;
+    private defaultResponse;
+    private onExecute?;
+    constructor(responses?: Record<string, unknown | Error>, id?: string, sharedResponsesMap?: Map<string, unknown | Error>, onExecute?: (call: any) => void);
+    execute(request: AIProviderRequest): Promise<AIProviderResponse>;
+    validateConfig(config: AIProviderConfig, env: ConductorEnv): boolean;
+    getConfigError(config: AIProviderConfig, env: ConductorEnv): string | null;
     setResponse(memberName: string, response: unknown | Error): void;
+    getResponse(memberName: string): unknown | Error | undefined;
+    clear(): void;
+    getResponsesMap(): Map<string, unknown | Error>;
 }
 /**
  * Mock database for testing

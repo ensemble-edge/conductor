@@ -4,9 +4,13 @@
 
 import type { ConductorEnv } from '../types/env.js'
 import type { EnsembleConfig, MemberConfig } from '../runtime/parser.js'
+import { MemberType } from '../types/constants.js'
 import { Executor } from '../runtime/executor.js'
 import { Parser } from '../runtime/parser.js'
 import { FunctionMember } from '../members/function-member.js'
+import { ThinkMember } from '../members/think-member.js'
+import { APIMember } from '../members/api-member.js'
+import { DataMember } from '../members/data-member.js'
 import type {
   TestConductorOptions,
   TestExecutionResult,
@@ -21,6 +25,7 @@ import type {
 } from './types.js'
 import { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize } from './mocks.js'
 import { createLogger } from '../observability/index.js'
+import { ProviderRegistry } from '../members/think-providers/index.js'
 
 /**
  * Test helper for executing and testing Conductor ensembles
@@ -36,6 +41,7 @@ export class TestConductor {
     http?: MockHTTPClient
     vectorize?: MockVectorize
   }
+  private mockProviderRegistry: ProviderRegistry
   private executionHistory: ExecutionRecord[] = []
   private catalog: {
     ensembles: Map<string, EnsembleConfig>
@@ -50,11 +56,48 @@ export class TestConductor {
     this.ctx = this.createTestContext()
 
     // Initialize mocks
+    // Create AI call tracker
+    const aiCallTracker = (call: any) => {
+      // Only track if we have an active execution
+      if (this.executionHistory.length > 0) {
+        this.executionHistory[this.executionHistory.length - 1]?.aiCalls.push({
+          member: call.memberName || 'unknown',
+          model: call.response.model,
+          prompt: JSON.stringify(call.request.messages),
+          response: call.response.content,
+          duration: 0, // Duration not tracked yet
+        })
+      }
+    }
+
     this.mocks = {
-      ai: options.mocks?.ai ? new MockAIProvider(options.mocks.ai) : undefined,
+      ai: options.mocks?.ai
+        ? new MockAIProvider(options.mocks.ai, 'mock', undefined, aiCallTracker)
+        : new MockAIProvider({}, 'mock', undefined, aiCallTracker),
       database: options.mocks?.database ? new MockDatabase(options.mocks.database) : undefined,
       http: options.mocks?.http ? new MockHTTPClient(options.mocks.http) : undefined,
       vectorize: options.mocks?.vectorize ? new MockVectorize(options.mocks.vectorize) : undefined,
+    }
+
+    // Initialize mock provider registry for AI testing
+    // Register mock providers under all standard provider names
+    // so we intercept all AI calls regardless of configured provider
+    this.mockProviderRegistry = new ProviderRegistry()
+    if (this.mocks.ai) {
+      // Get the shared responses map from the main mock
+      const sharedResponses = this.mocks.ai.getResponsesMap()
+
+      // Create mock provider instances for each provider ID,
+      // all sharing the same responses map and tracker
+      this.mockProviderRegistry.register(
+        new MockAIProvider({}, 'anthropic', sharedResponses, aiCallTracker)
+      )
+      this.mockProviderRegistry.register(new MockAIProvider({}, 'openai', sharedResponses, aiCallTracker))
+      this.mockProviderRegistry.register(
+        new MockAIProvider({}, 'cloudflare', sharedResponses, aiCallTracker)
+      )
+      this.mockProviderRegistry.register(new MockAIProvider({}, 'custom', sharedResponses, aiCallTracker))
+      this.mockProviderRegistry.register(this.mocks.ai)
     }
 
     // Initialize catalog
@@ -107,16 +150,10 @@ export class TestConductor {
         throw new Error(`Ensemble '${name}' not found in catalog`)
       }
 
-      // Execute ensemble
-      const result = await this.executor.executeEnsemble(ensemble, input)
-
-      const executionTime = Math.max(0.001, performance.now() - startTime)
-
+      // Record execution before executing (so AI tracker can access it)
       const testResult: TestExecutionResult = {
-        success: result.success,
-        output: result.success ? result.value.output : undefined,
-        error: result.success ? undefined : (result.error as Error),
-        executionTime,
+        success: false,
+        executionTime: 0,
         stepsExecuted,
         stateHistory,
         aiCalls,
@@ -124,13 +161,46 @@ export class TestConductor {
         httpRequests,
       }
 
-      // Record execution
       this.executionHistory.push({
         ...testResult,
         ensemble: name,
         input,
         timestamp: startTime,
       })
+
+      // Execute ensemble
+      const result = await this.executor.executeEnsemble(ensemble, input)
+
+      const executionTime = Math.max(0.001, performance.now() - startTime)
+
+      // Basic step tracking - populate with flow steps if execution succeeded
+      // TODO: Enhanced tracking requires instrumenting Executor for per-step input/output
+      if (result.success && ensemble.flow) {
+        for (const step of ensemble.flow) {
+          stepsExecuted.push({
+            member: step.member,
+            input: {},  // Not tracked yet
+            output: {}, // Not tracked yet
+            duration: 0,
+            success: true,
+          })
+        }
+      }
+
+      // Update the test result
+      testResult.success = result.success
+      testResult.output = result.success ? result.value.output : undefined
+      testResult.error = result.success ? undefined : (result.error as Error)
+      testResult.executionTime = executionTime
+
+      // Update the execution history entry
+      const historyEntry = this.executionHistory[this.executionHistory.length - 1]
+      if (historyEntry) {
+        historyEntry.success = testResult.success
+        historyEntry.output = testResult.output
+        historyEntry.error = testResult.error
+        historyEntry.executionTime = testResult.executionTime
+      }
 
       return testResult
     } catch (error) {
@@ -162,32 +232,48 @@ export class TestConductor {
    * Execute a member directly
    */
   async executeMember(name: string, input: unknown): Promise<TestMemberResult> {
-    const member = this.catalog.members.get(name)
-    if (!member) {
+    const config = this.catalog.members.get(name)
+    if (!config) {
       throw new Error(`Member '${name}' not found in catalog`)
     }
 
     const startTime = Date.now()
 
-    // Create execution context
-    const context = {
-      input,
-      config: member.config,
-      env: this.env as ConductorEnv,
-      ctx: this.ctx,
-      logger: createLogger(),
-    }
-
     try {
-      // Execute member
-      // Note: This is simplified - actual implementation would load and execute the member
-      const output = { message: 'Mock member execution' }
+      // Instantiate the member based on its type
+      const normalizedType = String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
+      let member
+
+      if (normalizedType === MemberType.Think) {
+        member = new ThinkMember(config, this.mockProviderRegistry)
+      } else if (normalizedType === MemberType.API) {
+        member = new APIMember(config)
+      } else if (normalizedType === MemberType.Data) {
+        member = new DataMember(config)
+      } else if (normalizedType === MemberType.Function) {
+        throw new Error('Function members not yet supported in executeMember')
+      } else {
+        throw new Error(`Unknown member type: ${config.type}`)
+      }
+
+      // Execute the member
+      const result = await member.execute({
+        input: input as Record<string, unknown>,
+        env: this.env as ConductorEnv,
+        ctx: this.ctx,
+      })
+
+      // If member execution failed, throw the error
+      if (!result.success) {
+        throw new Error(result.error || 'Member execution failed')
+      }
 
       return {
-        output,
+        output: result.data,
         executionTime: Date.now() - startTime,
       }
     } catch (error) {
+      // Re-throw to let test handle it
       throw error
     }
   }
@@ -198,6 +284,7 @@ export class TestConductor {
   mockAI(memberName: string, response: unknown | Error): void {
     if (!this.mocks.ai) {
       this.mocks.ai = new MockAIProvider({})
+      this.mockProviderRegistry.register(this.mocks.ai)
     }
     this.mocks.ai.setResponse(memberName, response)
   }
@@ -370,6 +457,45 @@ export class TestConductor {
       }
     } catch (error) {
       // Members directory doesn't exist or is empty - silently skip
+    }
+
+    // Register loaded members with the executor
+    await this.registerLoadedMembers()
+  }
+
+  /**
+   * Register loaded members with the executor
+   */
+  private async registerLoadedMembers(): Promise<void> {
+    for (const [name, config] of this.catalog.members.entries()) {
+      try {
+        let member
+
+        // Instantiate appropriate member type based on config
+        // Normalize type comparison (YAML uses lowercase, enum uses capitalized)
+        const normalizedType = String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
+
+        if (normalizedType === MemberType.Think) {
+          // Pass mock provider registry to ThinkMember for testing
+          member = new ThinkMember(config, this.mockProviderRegistry)
+        } else if (normalizedType === MemberType.API) {
+          member = new APIMember(config)
+        } else if (normalizedType === MemberType.Data) {
+          member = new DataMember(config)
+        } else if (normalizedType === MemberType.Function) {
+          // For function members, we'd need to load the actual function
+          // For now, skip registration - function members need special handling
+          continue
+        } else {
+          // Skip unknown types - they might be built-in members that don't need registration
+          continue
+        }
+
+        // Register with executor
+        this.executor.registerMember(member)
+      } catch (error) {
+        console.error(`Failed to register member '${name}':`, error)
+      }
     }
   }
 

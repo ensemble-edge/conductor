@@ -12,6 +12,7 @@ export declare class TestConductor {
     private executor;
     private parser;
     private mocks;
+    private mockProviderRegistry;
     private executionHistory;
     private catalog;
     private constructor();
@@ -79,6 +80,10 @@ export declare class TestConductor {
      * Load catalog from project directory
      */
     private loadCatalog;
+    /**
+     * Register loaded members with the executor
+     */
+    private registerLoadedMembers;
     /**
      * Create test environment
      */
