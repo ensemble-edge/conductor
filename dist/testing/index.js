@@ -22,8 +22,8 @@
  * ```
  */
 // Core testing utilities
-export { TestConductor } from './test-conductor';
+export { TestConductor } from './test-conductor.js';
 // Mock utilities
-export { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize, MockDurableObject, mockAIProvider, mockDatabase, mockHTTP, mockVectorize, mockDurableObject, } from './mocks';
+export { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize, MockDurableObject, mockAIProvider, mockDatabase, mockHTTP, mockVectorize, mockDurableObject, } from './mocks.js';
 // Custom matchers
-export { registerMatchers } from './matchers';
+export { registerMatchers } from './matchers.js';
