@@ -27,7 +27,8 @@ async function build() {
 			external: [
 				// Don't bundle these, they should be installed as dependencies
 				'chalk',
-				'commander'
+				'commander',
+				'yaml'
 			],
 			sourcemap: false,
 			minify: false,
