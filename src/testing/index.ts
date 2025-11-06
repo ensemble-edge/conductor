@@ -23,7 +23,7 @@
  */
 
 // Core testing utilities
-export { TestConductor } from './test-conductor'
+export { TestConductor } from './test-conductor.js'
 
 // Mock utilities
 export {
@@ -37,10 +37,10 @@ export {
   mockHTTP,
   mockVectorize,
   mockDurableObject,
-} from './mocks'
+} from './mocks.js'
 
 // Custom matchers
-export { registerMatchers } from './matchers'
+export { registerMatchers } from './matchers.js'
 
 // Types
 export type {
