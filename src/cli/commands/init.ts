@@ -12,8 +12,10 @@ export function createInitCommand(): Command {
   const init = new Command('init')
 
   init
-    .description('Initialize a new Conductor project')
-    .argument('[directory]', 'Project directory', '.')
+    .description(
+      'Initialize a new Conductor project (use "." for current dir or "my-project" for new)'
+    )
+    .argument('[directory]', 'Project directory (default: current directory)', '.')
     .option('--template <name>', 'Template to use (cloudflare)', 'cloudflare')
     .option('--force', 'Overwrite existing files')
     .action(async (directory: string, options: { template: string; force?: boolean }) => {
