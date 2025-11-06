@@ -6,8 +6,6 @@ import chalk from 'chalk';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 export function createInitCommand() {
     const init = new Command('init');
     init
@@ -37,14 +35,37 @@ export function createInitCommand() {
                 await fs.mkdir(targetDir, { recursive: true });
             }
             // Determine template path
-            const templatePath = path.resolve(__dirname, '../../../catalog/cloud', options.template, 'templates');
-            // Check if template exists
+            // The catalog directory is at the package root
+            // When installed: node_modules/@ensemble-edge/conductor/catalog
+            // When in development: conductor/catalog
+            // Find package root by looking for package.json
+            let packageRoot = process.cwd();
+            let currentDir = fileURLToPath(import.meta.url);
+            // Walk up the directory tree to find package.json
+            while (currentDir !== path.dirname(currentDir)) {
+                currentDir = path.dirname(currentDir);
+                try {
+                    const pkgPath = path.join(currentDir, 'package.json');
+                    await fs.access(pkgPath);
+                    const pkgContent = await fs.readFile(pkgPath, 'utf-8');
+                    const pkg = JSON.parse(pkgContent);
+                    if (pkg.name === '@ensemble-edge/conductor') {
+                        packageRoot = currentDir;
+                        break;
+                    }
+                }
+                catch {
+                    // Continue searching
+                }
+            }
+            const templatePath = path.join(packageRoot, 'catalog', 'cloud', options.template, 'templates');
             try {
                 await fs.access(templatePath);
             }
-            catch (error) {
+            catch {
                 console.error(chalk.red(`Error: Template '${options.template}' not found`));
                 console.error('');
+                console.error(chalk.dim(`Searched at: ${templatePath}`));
                 console.error(chalk.dim('Available templates:'));
                 console.error(chalk.dim('  - cloudflare (default)'));
                 console.error('');
