@@ -24,7 +24,13 @@ export type {
   ConductorContext,
 } from './types.js'
 
-export { createAuthMiddleware, requireAuth, errorHandler, requestId, timing } from './middleware/index.js'
+export {
+  createAuthMiddleware,
+  requireAuth,
+  errorHandler,
+  requestId,
+  timing,
+} from './middleware/index.js'
 
 export { execute, members, health, stream, async } from './routes/index.js'
 

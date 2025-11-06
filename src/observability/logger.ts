@@ -11,7 +11,14 @@
  * @see https://developers.cloudflare.com/workers/observability/
  */
 
-import type { Logger, LoggerConfig, LogLevel, LogContext, LogEntry, MetricDataPoint } from './types.js'
+import type {
+  Logger,
+  LoggerConfig,
+  LogLevel,
+  LogContext,
+  LogEntry,
+  MetricDataPoint,
+} from './types.js'
 import { LogLevel as LogLevelEnum } from './types.js'
 import type { ConductorError } from '../errors/error-types.js'
 
