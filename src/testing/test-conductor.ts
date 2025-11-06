@@ -92,11 +92,15 @@ export class TestConductor {
       this.mockProviderRegistry.register(
         new MockAIProvider({}, 'anthropic', sharedResponses, aiCallTracker)
       )
-      this.mockProviderRegistry.register(new MockAIProvider({}, 'openai', sharedResponses, aiCallTracker))
+      this.mockProviderRegistry.register(
+        new MockAIProvider({}, 'openai', sharedResponses, aiCallTracker)
+      )
       this.mockProviderRegistry.register(
         new MockAIProvider({}, 'cloudflare', sharedResponses, aiCallTracker)
       )
-      this.mockProviderRegistry.register(new MockAIProvider({}, 'custom', sharedResponses, aiCallTracker))
+      this.mockProviderRegistry.register(
+        new MockAIProvider({}, 'custom', sharedResponses, aiCallTracker)
+      )
       this.mockProviderRegistry.register(this.mocks.ai)
     }
 
@@ -179,7 +183,7 @@ export class TestConductor {
         for (const step of ensemble.flow) {
           stepsExecuted.push({
             member: step.member,
-            input: {},  // Not tracked yet
+            input: {}, // Not tracked yet
             output: {}, // Not tracked yet
             duration: 0,
             success: true,
@@ -241,7 +245,8 @@ export class TestConductor {
 
     try {
       // Instantiate the member based on its type
-      const normalizedType = String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
+      const normalizedType =
+        String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
       let member
 
       if (normalizedType === MemberType.Think) {
@@ -473,7 +478,8 @@ export class TestConductor {
 
         // Instantiate appropriate member type based on config
         // Normalize type comparison (YAML uses lowercase, enum uses capitalized)
-        const normalizedType = String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
+        const normalizedType =
+          String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
 
         if (normalizedType === MemberType.Think) {
           // Pass mock provider registry to ThinkMember for testing
