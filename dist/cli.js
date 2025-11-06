@@ -1800,17 +1800,55 @@ function createInitCommand() {
       console.log(chalk.bold("\u{1F3AF} Initializing Conductor project..."));
       console.log("");
       const targetDir = path.resolve(process.cwd(), directory);
+      let directoryExists = false;
+      let isConductorProject = false;
+      let hasFiles = false;
       try {
         const files = await fs.readdir(targetDir);
-        if (files.length > 0 && !options.force) {
-          console.error(chalk.red("Error: Directory is not empty"));
-          console.error("");
-          console.error(chalk.dim("Use --force to overwrite existing files"));
-          console.error("");
-          process.exit(1);
+        directoryExists = true;
+        hasFiles = files.length > 0;
+        const conductorMarkers = [
+          "conductor.config.ts",
+          "conductor.config.js",
+          "ensembles",
+          "members"
+        ];
+        for (const marker of conductorMarkers) {
+          try {
+            await fs.access(path.join(targetDir, marker));
+            isConductorProject = true;
+            break;
+          } catch {
+          }
         }
       } catch (error) {
         await fs.mkdir(targetDir, { recursive: true });
+      }
+      if (isConductorProject && !options.force) {
+        console.error(chalk.yellow("\u26A0 Detected existing Conductor project"));
+        console.error("");
+        console.error(chalk.dim("This directory appears to already have Conductor files."));
+        console.error(chalk.dim("Initializing will overwrite:"));
+        console.error(chalk.dim("  - conductor.config.ts"));
+        console.error(chalk.dim("  - ensembles/"));
+        console.error(chalk.dim("  - members/"));
+        console.error(chalk.dim("  - prompts/"));
+        console.error(chalk.dim("  - configs/"));
+        console.error(chalk.dim("  - tests/"));
+        console.error("");
+        console.error(chalk.dim("Use --force to overwrite existing Conductor files"));
+        console.error("");
+        process.exit(1);
+      }
+      if (hasFiles && !isConductorProject && !options.force) {
+        console.error(chalk.yellow("\u26A0 Directory is not empty"));
+        console.error("");
+        console.error(chalk.dim("This directory contains files but is not a Conductor project."));
+        console.error(chalk.dim("Initializing will add Conductor structure alongside existing files."));
+        console.error("");
+        console.error(chalk.dim("Use --force to proceed"));
+        console.error("");
+        process.exit(1);
       }
       let packageRoot = process.cwd();
       let currentDir = fileURLToPath(import.meta.url);
@@ -8314,7 +8352,7 @@ function createHistoryCommand() {
 
 // src/cli/index.ts
 var program = new Command10();
-program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.1");
+program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version("1.0.2");
 program.addCommand(createInitCommand());
 program.addCommand(createExecCommand());
 program.addCommand(createMembersCommand());

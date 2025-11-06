@@ -24,19 +24,66 @@ export function createInitCommand(): Command {
 
         const targetDir = path.resolve(process.cwd(), directory)
 
-        // Check if directory exists and is not empty
+        // Check if directory exists and what's in it
+        let directoryExists = false
+        let isConductorProject = false
+        let hasFiles = false
+
         try {
           const files = await fs.readdir(targetDir)
-          if (files.length > 0 && !options.force) {
-            console.error(chalk.red('Error: Directory is not empty'))
-            console.error('')
-            console.error(chalk.dim('Use --force to overwrite existing files'))
-            console.error('')
-            process.exit(1)
+          directoryExists = true
+          hasFiles = files.length > 0
+
+          // Check for Conductor project markers
+          const conductorMarkers = [
+            'conductor.config.ts',
+            'conductor.config.js',
+            'ensembles',
+            'members',
+          ]
+
+          for (const marker of conductorMarkers) {
+            try {
+              await fs.access(path.join(targetDir, marker))
+              isConductorProject = true
+              break
+            } catch {
+              // Marker doesn't exist
+            }
           }
         } catch (error) {
           // Directory doesn't exist, create it
           await fs.mkdir(targetDir, { recursive: true })
+        }
+
+        // Handle existing Conductor project
+        if (isConductorProject && !options.force) {
+          console.error(chalk.yellow('⚠ Detected existing Conductor project'))
+          console.error('')
+          console.error(chalk.dim('This directory appears to already have Conductor files.'))
+          console.error(chalk.dim('Initializing will overwrite:'))
+          console.error(chalk.dim('  - conductor.config.ts'))
+          console.error(chalk.dim('  - ensembles/'))
+          console.error(chalk.dim('  - members/'))
+          console.error(chalk.dim('  - prompts/'))
+          console.error(chalk.dim('  - configs/'))
+          console.error(chalk.dim('  - tests/'))
+          console.error('')
+          console.error(chalk.dim('Use --force to overwrite existing Conductor files'))
+          console.error('')
+          process.exit(1)
+        }
+
+        // Handle non-empty directory that's not a Conductor project
+        if (hasFiles && !isConductorProject && !options.force) {
+          console.error(chalk.yellow('⚠ Directory is not empty'))
+          console.error('')
+          console.error(chalk.dim('This directory contains files but is not a Conductor project.'))
+          console.error(chalk.dim('Initializing will add Conductor structure alongside existing files.'))
+          console.error('')
+          console.error(chalk.dim('Use --force to proceed'))
+          console.error('')
+          process.exit(1)
         }
 
         // Determine template path

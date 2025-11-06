@@ -21,7 +21,7 @@ const program = new Command()
 program
   .name('conductor')
   .description('Conductor - Agentic workflow orchestration for Cloudflare Workers')
-  .version('1.0.1')
+  .version('1.0.2')
 
 // Add commands
 program.addCommand(createInitCommand())
