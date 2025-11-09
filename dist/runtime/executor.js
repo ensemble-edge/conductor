@@ -9,6 +9,10 @@ import { StateManager } from './state-manager.js';
 import { ThinkMember } from '../members/think-member.js';
 import { DataMember } from '../members/data-member.js';
 import { APIMember } from '../members/api-member.js';
+import { EmailMember } from '../members/email/email-member.js';
+import { SmsMember } from '../members/sms/sms-member.js';
+import { HtmlMember } from '../members/html/html-member.js';
+import { PdfMember } from '../members/pdf/pdf-member.js';
 import { getBuiltInRegistry } from '../members/built-in/registry.js';
 import { Result } from '../types/result.js';
 import { Errors, MemberExecutionError, EnsembleExecutionError, } from '../errors/error-types.js';
@@ -100,6 +104,14 @@ export class Executor {
                 return Result.ok(new DataMember(config));
             case MemberType.API:
                 return Result.ok(new APIMember(config));
+            case MemberType.Email:
+                return Result.ok(new EmailMember(config));
+            case MemberType.SMS:
+                return Result.ok(new SmsMember(config));
+            case MemberType.HTML:
+                return Result.ok(new HtmlMember(config));
+            case MemberType.PDF:
+                return Result.ok(new PdfMember(config));
             case MemberType.Function:
                 return Result.err(Errors.memberConfig(config.name, 'Function members require code implementation and must be registered manually'));
             case MemberType.MCP:

@@ -76,6 +76,34 @@ export declare function createDataMember(options: Omit<CreateMemberOptions, 'typ
  */
 export declare function createAPIMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
 /**
+ * Create an Email member (email sending)
+ *
+ * @example
+ * ```typescript
+ * export default createEmailMember({
+ *   async handler({ input, env }) {
+ *     // Custom email logic
+ *     return { messageId: '...', status: 'sent' };
+ *   }
+ * });
+ * ```
+ */
+export declare function createEmailMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
+/**
+ * Create an SMS member (SMS sending)
+ *
+ * @example
+ * ```typescript
+ * export default createSMSMember({
+ *   async handler({ input, env }) {
+ *     // Custom SMS logic
+ *     return { messageId: '...', status: 'sent' };
+ *   }
+ * });
+ * ```
+ */
+export declare function createSMSMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
+/**
  * Generate a member config (for programmatic member creation)
  */
 export declare function generateMemberConfig(options: CreateMemberOptions): MemberConfig;

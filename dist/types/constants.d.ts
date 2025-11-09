@@ -30,7 +30,11 @@ export declare enum MemberType {
     Data = "Data",
     API = "API",
     MCP = "MCP",
-    Scoring = "Scoring"
+    Scoring = "Scoring",
+    Email = "Email",
+    SMS = "SMS",
+    HTML = "HTML",
+    PDF = "PDF"
 }
 /**
  * Type guards for runtime validation
@@ -43,5 +47,5 @@ export declare const isMemberType: (value: string) => value is MemberType;
  */
 export type AIProviderType = 'openai' | 'anthropic' | 'cloudflare' | 'custom';
 export type StorageTypeString = 'kv' | 'd1' | 'r2';
-export type MemberTypeString = 'Think' | 'Function' | 'Data' | 'API' | 'MCP' | 'Scoring';
+export type MemberTypeString = 'Think' | 'Function' | 'Data' | 'API' | 'MCP' | 'Scoring' | 'Email' | 'SMS' | 'HTML' | 'PDF';
 //# sourceMappingURL=constants.d.ts.map

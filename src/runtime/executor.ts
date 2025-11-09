@@ -15,6 +15,8 @@ import { DataMember } from '../members/data-member.js'
 import { APIMember } from '../members/api-member.js'
 import { EmailMember } from '../members/email/email-member.js'
 import { SmsMember } from '../members/sms/sms-member.js'
+import { HtmlMember } from '../members/html/html-member.js'
+import { PdfMember } from '../members/pdf/pdf-member.js'
 import { getBuiltInRegistry } from '../members/built-in/registry.js'
 import { Result, type AsyncResult } from '../types/result.js'
 import {
@@ -226,6 +228,12 @@ export class Executor {
 
       case MemberType.SMS:
         return Result.ok(new SmsMember(config))
+
+      case MemberType.HTML:
+        return Result.ok(new HtmlMember(config))
+
+      case MemberType.PDF:
+        return Result.ok(new PdfMember(config))
 
       case MemberType.Function:
         return Result.err(

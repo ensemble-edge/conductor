@@ -1,0 +1,10 @@
+<footer>
+	<p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+	{{#if footerLinks}}
+	<div style="margin-top: 1rem; display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+		{{#each footerLinks}}
+		<a href="{{url}}" style="color: #ecf0f1; text-decoration: none;">{{name}}</a>
+		{{/each}}
+	</div>
+	{{/if}}
+</footer>
