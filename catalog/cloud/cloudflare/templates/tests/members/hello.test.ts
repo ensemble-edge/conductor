@@ -33,11 +33,11 @@ describe('Greet Member', () => {
 
 	it('should greet user by name', async () => {
 		// Mock AI response for this specific test
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Hello, Alice! Nice to meet you!'
 		});
 
-		const result = await conductor.executeMember('greet', {
+		const result = await conductor.executeMember('hello', {
 			name: 'Alice',
 			style: 'friendly'
 		});
@@ -48,11 +48,11 @@ describe('Greet Member', () => {
 	});
 
 	it('should handle formal style', async () => {
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Good day, Bob. It is a pleasure to make your acquaintance.'
 		});
 
-		const result = await conductor.executeMember('greet', {
+		const result = await conductor.executeMember('hello', {
 			name: 'Bob',
 			style: 'formal'
 		});
@@ -62,11 +62,11 @@ describe('Greet Member', () => {
 	});
 
 	it('should handle casual style', async () => {
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Hey Charlie! Great to see you!'
 		});
 
-		const result = await conductor.executeMember('greet', {
+		const result = await conductor.executeMember('hello', {
 			name: 'Charlie',
 			style: 'casual'
 		});
@@ -75,11 +75,11 @@ describe('Greet Member', () => {
 	});
 
 	it('should handle different languages', async () => {
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Bonjour, Marie! Bienvenue chez Conductor!'
 		});
 
-		const result = await conductor.executeMember('greet', {
+		const result = await conductor.executeMember('hello', {
 			name: 'Marie',
 			language: 'fr'
 		});
@@ -89,19 +89,19 @@ describe('Greet Member', () => {
 
 	it('should handle AI provider errors gracefully', async () => {
 		// Mock an AI error
-		conductor.mockAI('greet', new Error('AI service unavailable'));
+		conductor.mockAI('hello', new Error('AI service unavailable'));
 
 		await expect(async () => {
-			await conductor.executeMember('greet', { name: 'Alice' });
+			await conductor.executeMember('hello', { name: 'Alice' });
 		}).rejects.toThrow('AI service unavailable');
 	});
 
 	it('should complete within reasonable time', async () => {
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Hello, Alice!'
 		});
 
-		const result = await conductor.executeMember('greet', { name: 'Alice' });
+		const result = await conductor.executeMember('hello', { name: 'Alice' });
 
 		expect(result.executionTime).toBeLessThan(500);
 	});

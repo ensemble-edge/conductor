@@ -1,8 +1,8 @@
 name: hello-world
 description: |
   Basic ensemble example demonstrating Conductor's capabilities:
-  - Uses shared prompts (prompts/greeting.md)
-  - Uses shared configs (configs/greet-settings.yaml)
+  - Uses shared prompts (prompts/hello.md)
+  - Uses shared configs (configs/hello-settings.yaml)
   - Shows how members can reference versioned components
 
 flow:
@@ -15,5 +15,5 @@ flow:
 output:
   greeting: ${greet.output.message}
   metadata:
-    promptUsed: "prompts/greeting.md"
-    configUsed: "configs/greet-settings.yaml"
+    promptUsed: "prompts/hello.md"
+    configUsed: "configs/hello-settings.yaml"

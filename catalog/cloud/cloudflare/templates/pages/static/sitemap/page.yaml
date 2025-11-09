@@ -1,0 +1,58 @@
+name: sitemap
+type: Page
+description: XML sitemap for search engines
+
+config:
+  route:
+    path: /sitemap.xml
+    methods: [GET]
+    auth: none
+
+  renderMode: static
+
+  contentType: application/xml
+
+  component: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      {{#each urls}}
+      <url>
+        <loc>{{this.loc}}</loc>
+        {{#if this.lastmod}}
+        <lastmod>{{this.lastmod}}</lastmod>
+        {{/if}}
+        {{#if this.changefreq}}
+        <changefreq>{{this.changefreq}}</changefreq>
+        {{/if}}
+        {{#if this.priority}}
+        <priority>{{this.priority}}</priority>
+        {{/if}}
+      </url>
+      {{/each}}
+    </urlset>
+
+  cache:
+    enabled: true
+    ttl: 3600  # 1 hour
+
+# Default URLs - typically generated dynamically from your pages/content
+input:
+  urls:
+    - loc: ${env.PUBLIC_URL}/
+      lastmod: ${new Date().toISOString().split('T')[0]}
+      changefreq: daily
+      priority: 1.0
+
+    - loc: ${env.PUBLIC_URL}/dashboard
+      lastmod: ${new Date().toISOString().split('T')[0]}
+      changefreq: weekly
+      priority: 0.8
+
+    - loc: ${env.PUBLIC_URL}/login
+      changefreq: monthly
+      priority: 0.5
+
+# To generate sitemap dynamically from your content:
+# 1. Use a Data member to query your content
+# 2. Map results to sitemap URL format
+# 3. Pass to this page member

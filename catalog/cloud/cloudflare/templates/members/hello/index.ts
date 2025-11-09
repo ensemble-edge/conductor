@@ -5,9 +5,9 @@
  *
  * Since this member is defined as type: "think" in member.yaml, Conductor's
  * built-in Think member automatically handles:
- * - Loading the prompt from prompts/greeting.md
+ * - Loading the prompt from prompts/hello.md
  * - Rendering the prompt with input variables (name, style, language)
- * - Loading config from configs/greet-settings.yaml
+ * - Loading config from configs/hello-settings.yaml
  * - Calling the AI model with the rendered prompt
  * - Returning the AI's response as output.message
  *

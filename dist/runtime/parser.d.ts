@@ -383,7 +383,7 @@ declare const EnsembleSchema: z.ZodObject<{
 }>;
 declare const MemberSchema: z.ZodObject<{
     name: z.ZodString;
-    type: z.ZodEnum<[MemberType.Think, MemberType.Function, MemberType.Data, MemberType.API, MemberType.MCP, MemberType.Scoring]>;
+    type: z.ZodEnum<[MemberType.Think, MemberType.Function, MemberType.Data, MemberType.API, MemberType.MCP, MemberType.Scoring, MemberType.Email, MemberType.SMS, MemberType.Form, MemberType.Page, MemberType.HTML, MemberType.PDF]>;
     description: z.ZodOptional<z.ZodString>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     schema: z.ZodOptional<z.ZodObject<{
@@ -398,7 +398,7 @@ declare const MemberSchema: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    type: MemberType.Think | MemberType.Function | MemberType.Data | MemberType.API | MemberType.MCP | MemberType.Scoring;
+    type: MemberType;
     description?: string | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;
@@ -407,7 +407,7 @@ declare const MemberSchema: z.ZodObject<{
     config?: Record<string, unknown> | undefined;
 }, {
     name: string;
-    type: MemberType.Think | MemberType.Function | MemberType.Data | MemberType.API | MemberType.MCP | MemberType.Scoring;
+    type: MemberType;
     description?: string | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;

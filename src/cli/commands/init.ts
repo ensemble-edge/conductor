@@ -18,7 +18,8 @@ export function createInitCommand(): Command {
     .argument('[directory]', 'Project directory (default: current directory)', '.')
     .option('--template <name>', 'Template to use (cloudflare)', 'cloudflare')
     .option('--force', 'Overwrite existing files')
-    .action(async (directory: string, options: { template: string; force?: boolean }) => {
+    .option('--no-examples', 'Skip example files (only include minimal starter files)')
+    .action(async (directory: string, options: { template: string; force?: boolean; examples?: boolean }) => {
       try {
         console.log('')
         console.log(chalk.bold('🎯 Initializing Conductor project...'))
@@ -138,10 +139,11 @@ export function createInitCommand(): Command {
 
         console.log(chalk.cyan(`Template: ${options.template}`))
         console.log(chalk.cyan(`Target: ${targetDir}`))
+        console.log(chalk.cyan(`Examples: ${options.examples !== false ? 'included' : 'excluded'}`))
         console.log('')
 
         // Copy template files
-        await copyDirectory(templatePath, targetDir, options.force || false)
+        await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false)
 
         console.log(chalk.green('✓ Project initialized successfully'))
         console.log('')
@@ -185,7 +187,7 @@ export function createInitCommand(): Command {
 /**
  * Recursively copy a directory
  */
-async function copyDirectory(src: string, dest: string, force: boolean): Promise<void> {
+async function copyDirectory(src: string, dest: string, force: boolean, includeExamples: boolean = true): Promise<void> {
   await fs.mkdir(dest, { recursive: true })
 
   const entries = await fs.readdir(src, { withFileTypes: true })
@@ -194,8 +196,14 @@ async function copyDirectory(src: string, dest: string, force: boolean): Promise
     const srcPath = path.join(src, entry.name)
     const destPath = path.join(dest, entry.name)
 
+    // Skip examples directory if --no-examples flag is set
+    if (!includeExamples && entry.name === 'examples' && entry.isDirectory()) {
+      console.log(chalk.dim(`  ⊘ Skipping ${path.relative(dest, destPath)} (--no-examples)`))
+      continue
+    }
+
     if (entry.isDirectory()) {
-      await copyDirectory(srcPath, destPath, force)
+      await copyDirectory(srcPath, destPath, force, includeExamples)
     } else {
       // Check if file exists
       if (!force) {

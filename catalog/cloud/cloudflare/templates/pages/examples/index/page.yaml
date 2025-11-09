@@ -1,0 +1,171 @@
+name: index
+type: Page
+description: Homepage - automatically serves at /
+
+config:
+  # No route config needed - "index" automatically routes to /
+  # This demonstrates convention-based routing
+
+  renderMode: ssr
+
+  component: |
+    <div class="hero">
+      <div class="hero-content">
+        <h1>Welcome to {{siteName}}</h1>
+        <p class="tagline">{{tagline}}</p>
+        <div class="cta-buttons">
+          <a href="/dashboard" class="btn-primary">Get Started</a>
+          <a href="/login" class="btn-secondary">Sign In</a>
+        </div>
+      </div>
+
+      <div class="features">
+        <h2>Features</h2>
+        <div class="features-grid">
+          {{#each features}}
+          <div class="feature-card">
+            <div class="feature-icon">{{this.icon}}</div>
+            <h3>{{this.title}}</h3>
+            <p>{{this.description}}</p>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+    </div>
+
+  hydration:
+    strategy: htmx
+    htmx:
+      enabled: true
+      version: "1.9.10"
+
+  seo:
+    title: Home
+    description: Welcome to our application
+    canonical: /
+    jsonLd:
+      "@context": "https://schema.org"
+      "@type": "WebSite"
+      name: "My Application"
+      url: "https://myapp.com"
+
+  cache:
+    enabled: true
+    ttl: 3600  # 1 hour
+    vary: []
+
+  head:
+    meta:
+      - name: viewport
+        content: width=device-width, initial-scale=1
+    links:
+      - rel: stylesheet
+        href: https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css
+    styles:
+      - |
+        body {
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          margin: 0;
+          padding: 0;
+        }
+        .hero {
+          min-height: 100vh;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 2rem;
+        }
+        .hero-content {
+          max-width: 800px;
+          margin: 0 auto;
+          text-align: center;
+          padding: 4rem 0;
+        }
+        .hero h1 {
+          font-size: 3rem;
+          margin-bottom: 1rem;
+        }
+        .tagline {
+          font-size: 1.5rem;
+          margin-bottom: 2rem;
+          opacity: 0.9;
+        }
+        .cta-buttons {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          margin-top: 2rem;
+        }
+        .btn-primary, .btn-secondary {
+          padding: 1rem 2rem;
+          border-radius: 8px;
+          text-decoration: none;
+          font-weight: 600;
+          transition: all 0.3s;
+        }
+        .btn-primary {
+          background: white;
+          color: #667eea;
+        }
+        .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .btn-secondary {
+          background: rgba(255,255,255,0.2);
+          color: white;
+          border: 2px solid white;
+        }
+        .btn-secondary:hover {
+          background: rgba(255,255,255,0.3);
+        }
+        .features {
+          max-width: 1200px;
+          margin: 4rem auto;
+          padding: 2rem;
+        }
+        .features h2 {
+          text-align: center;
+          font-size: 2.5rem;
+          margin-bottom: 3rem;
+        }
+        .features-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 2rem;
+        }
+        .feature-card {
+          background: rgba(255,255,255,0.1);
+          padding: 2rem;
+          border-radius: 12px;
+          text-align: center;
+          backdrop-filter: blur(10px);
+        }
+        .feature-icon {
+          font-size: 3rem;
+          margin-bottom: 1rem;
+        }
+        .feature-card h3 {
+          margin-bottom: 1rem;
+        }
+        .feature-card p {
+          opacity: 0.9;
+          line-height: 1.6;
+        }
+
+# Default props (can be overridden at runtime)
+input:
+  siteName: Conductor
+  tagline: Edge-native orchestration for AI members
+  features:
+    - icon: "⚡"
+      title: Lightning Fast
+      description: Deploy globally on Cloudflare's edge network for sub-50ms response times
+    - icon: "🔗"
+      title: Easy Integration
+      description: Connect AI members with a simple YAML configuration
+    - icon: "🚀"
+      title: Zero Config Deploy
+      description: One command to deploy your entire application stack
+    - icon: "🔒"
+      title: Secure by Default
+      description: Built-in authentication, rate limiting, and security best practices

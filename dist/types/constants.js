@@ -36,6 +36,8 @@ export var MemberType;
     MemberType["Scoring"] = "Scoring";
     MemberType["Email"] = "Email";
     MemberType["SMS"] = "SMS";
+    MemberType["Form"] = "Form";
+    MemberType["Page"] = "Page";
     MemberType["HTML"] = "HTML";
     MemberType["PDF"] = "PDF";
 })(MemberType || (MemberType = {}));

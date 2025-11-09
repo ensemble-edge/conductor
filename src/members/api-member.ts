@@ -7,8 +7,31 @@
 
 import { BaseMember, type MemberExecutionContext } from './base-member.js'
 import type { MemberConfig } from '../runtime/parser.js'
+import type { RouteAuthConfig } from '../routing/config.js'
 
 export interface APIConfig {
+  /** Route configuration for UnifiedRouter integration */
+  route?: {
+    /** Route path (e.g., "/api/v1/users") */
+    path?: string
+    /** HTTP methods (defaults to ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']) */
+    methods?: string[]
+    /** Auth configuration */
+    auth?: Partial<RouteAuthConfig>
+    /** Priority (defaults to 50 for APIs) */
+    priority?: number
+    /** Response headers to add/override */
+    headers?: Record<string, string>
+    /** CORS configuration */
+    cors?: {
+      origins?: string[] | '*'
+      methods?: string[]
+      allowedHeaders?: string[]
+      exposedHeaders?: string[]
+      credentials?: boolean
+      maxAge?: number
+    }
+  }
   url?: string
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   headers?: Record<string, string>

@@ -165,6 +165,9 @@ export class OpenAPIGenerator {
     try {
       const files = await fs.readdir(ensemblesPath)
       for (const file of files) {
+        // Skip examples directory
+        if (file === 'examples') continue
+
         if (file.endsWith('.yaml') || file.endsWith('.yml')) {
           const filePath = path.join(ensemblesPath, file)
           const content = await fs.readFile(filePath, 'utf-8')
@@ -181,6 +184,9 @@ export class OpenAPIGenerator {
     try {
       const dirs = await fs.readdir(membersPath, { withFileTypes: true })
       for (const dir of dirs) {
+        // Skip examples directory
+        if (dir.name === 'examples') continue
+
         if (dir.isDirectory()) {
           const memberYamlPath = path.join(membersPath, dir.name, 'member.yaml')
           try {

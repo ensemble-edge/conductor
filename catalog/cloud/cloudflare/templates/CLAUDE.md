@@ -22,9 +22,9 @@ This is a Conductor orchestration system built on Cloudflare Workers. Conductor 
 │   ├── hello-world.yaml      # Simple greeting workflow
 │   └── parallel-workflow.yaml # Parallel execution example
 ├── prompts/                  # AI prompt templates
-│   └── greeting.md           # Used by greet member
+│   └── hello.md           # Used by greet member
 ├── configs/                  # Member configurations
-│   └── greet-settings.yaml   # Settings for greet member
+│   └── hello-settings.yaml   # Settings for greet member
 ├── tests/                    # Test files
 │   └── hello-world.test.ts   # Ensemble tests
 ├── wrangler.toml             # Cloudflare Workers config

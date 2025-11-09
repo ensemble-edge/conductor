@@ -1,0 +1,49 @@
+name: robots
+type: Page
+description: Robots.txt for search engine crawlers
+
+config:
+  route:
+    path: /robots.txt
+    methods: [GET]
+    auth: none
+
+  renderMode: static
+
+  # Return plain text, not HTML
+  contentType: text/plain
+
+  component: |
+    User-agent: *
+    {{#if disallowAll}}
+    Disallow: /
+    {{else}}
+    Allow: /
+    {{#if disallowPaths}}
+    {{#each disallowPaths}}
+    Disallow: {{this}}
+    {{/each}}
+    {{/if}}
+    {{/if}}
+
+    {{#if crawlDelay}}
+    Crawl-delay: {{crawlDelay}}
+    {{/if}}
+
+    {{#if sitemap}}
+    Sitemap: {{sitemap}}
+    {{/if}}
+
+  cache:
+    enabled: true
+    ttl: 86400  # 24 hours
+
+# Default configuration
+input:
+  disallowAll: false
+  disallowPaths:
+    - /api/*
+    - /admin/*
+    - /_*
+  crawlDelay: null
+  sitemap: ${env.PUBLIC_URL}/sitemap.xml

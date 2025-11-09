@@ -19,7 +19,7 @@ npm run test:coverage
 
 ### Testing Members
 
-See `members/greet.test.ts` for an example of testing a member:
+See `members/hello.test.ts` for an example of testing a member:
 
 ```typescript
 import { TestConductor, registerMatchers } from '@ensemble-edge/conductor/testing';

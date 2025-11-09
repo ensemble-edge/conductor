@@ -18,7 +18,7 @@ describe('Debug TestConductor', () => {
 
 		// Try to get greet member
 		// @ts-expect-error - accessing private method
-		const greetMember = conductor.catalog.members.get('greet');
+		const greetMember = conductor.catalog.members.get('hello');
 		console.log('Greet member:', greetMember);
 
 		expect(members.size).toBeGreaterThan(0);

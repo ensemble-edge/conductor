@@ -8,7 +8,7 @@
  * - CSS inlining for email compatibility
  * - HTML minification
  */
-import { BaseMember } from '../../runtime/base-member.js';
+import { BaseMember } from '../base-member.js';
 import { loadTemplate, normalizeTemplateSource } from './utils/template-loader.js';
 import { createTemplateEngine } from './engines/index.js';
 import { SimpleTemplateEngine } from './engines/simple.js';
@@ -17,7 +17,7 @@ import { createSetCookieHeader, createDeleteCookie, parseSignedCookies, isValidC
 export class HtmlMember extends BaseMember {
     constructor(config) {
         super(config);
-        this.config = config;
+        this.htmlConfig = config;
         // Validate configuration
         this.validateConfig();
     }
@@ -25,7 +25,7 @@ export class HtmlMember extends BaseMember {
      * Validate member configuration
      */
     validateConfig() {
-        if (!this.config.template) {
+        if (!this.htmlConfig.template) {
             throw new Error('HTML member requires a template configuration');
         }
     }
@@ -38,15 +38,15 @@ export class HtmlMember extends BaseMember {
         // Load template
         const templateSource = input.template
             ? normalizeTemplateSource(input.template)
-            : this.config.template;
+            : this.htmlConfig.template;
         const templateResult = await loadTemplate(templateSource, context.env);
         // Parse request cookies if provided
         const requestCookies = input.cookies || {};
         let readCookies = {};
         if (Object.keys(requestCookies).length > 0) {
-            if (this.config.cookieSecret) {
+            if (this.htmlConfig.cookieSecret) {
                 // Parse and verify signed cookies
-                const parsed = await parseSignedCookies(requestCookies, this.config.cookieSecret);
+                const parsed = await parseSignedCookies(requestCookies, this.htmlConfig.cookieSecret);
                 readCookies = Object.entries(parsed).reduce((acc, [name, cookie]) => {
                     acc[name] = cookie.value;
                     return acc;
@@ -104,7 +104,7 @@ export class HtmlMember extends BaseMember {
             }
         }
         // Apply render options
-        const renderOptions = { ...this.config.renderOptions, ...input.renderOptions };
+        const renderOptions = { ...this.htmlConfig.renderOptions, ...input.renderOptions };
         if (renderOptions?.inlineCss) {
             html = await this.inlineCss(html);
         }
@@ -118,15 +118,15 @@ export class HtmlMember extends BaseMember {
                 if (!isValidCookieName(cookie.name)) {
                     throw new Error(`Invalid cookie name: ${cookie.name}`);
                 }
-                const options = mergeCookieOptions(cookie.options, this.config.defaultCookieOptions);
-                const header = await createSetCookieHeader({ ...cookie, options }, this.config.cookieSecret);
+                const options = mergeCookieOptions(cookie.options, this.htmlConfig.defaultCookieOptions);
+                const header = await createSetCookieHeader({ ...cookie, options }, this.htmlConfig.cookieSecret);
                 setCookieHeaders.push(header);
             }
         }
         // Process cookies to delete
         if (input.deleteCookies && input.deleteCookies.length > 0) {
             for (const cookieName of input.deleteCookies) {
-                const deleteHeader = createDeleteCookie(cookieName, this.config.defaultCookieOptions);
+                const deleteHeader = createDeleteCookie(cookieName, this.htmlConfig.defaultCookieOptions);
                 setCookieHeaders.push(deleteHeader);
             }
         }
