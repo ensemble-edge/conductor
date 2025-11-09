@@ -2,6 +2,16 @@ name = "my-conductor-project"
 main = "src/index.ts"
 compatibility_date = "2025-10-29"
 
+# ==================== Local Development Secrets ====================
+# For local development, copy .dev.vars.example to .dev.vars and add your secrets:
+#   cp .dev.vars.example .dev.vars
+#
+# For production, use wrangler secrets (NOT environment variables):
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put OPENAI_API_KEY
+#
+# Learn more: https://developers.cloudflare.com/workers/configuration/secrets/
+
 # ==================== Durable Objects ====================
 # Required for stateful workflows, async execution tracking, and HITL
 [[durable_objects.bindings]]
