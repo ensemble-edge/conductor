@@ -50,6 +50,12 @@ kv_namespaces = [
   { binding = "TEMPLATES", id = "your-templates-kv-id", preview_id = "your-preview-templates-kv-id" }
 ]
 
+# R2 for static assets (images, fonts, global CSS)
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "conductor-assets"
+preview_bucket_name = "conductor-assets-preview"
+
 # Email sending via Cloudflare Email Routing (optional - only if using Cloudflare provider)
 # [[send_email]]
 # name = "EMAIL"
