@@ -96,6 +96,40 @@ export function createAPIMember(options: Omit<CreateMemberOptions, 'type'>): Mem
 }
 
 /**
+ * Create an Email member (email sending)
+ *
+ * @example
+ * ```typescript
+ * export default createEmailMember({
+ *   async handler({ input, env }) {
+ *     // Custom email logic
+ *     return { messageId: '...', status: 'sent' };
+ *   }
+ * });
+ * ```
+ */
+export function createEmailMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
+  return createMember({ ...options, type: MemberType.Email })
+}
+
+/**
+ * Create an SMS member (SMS sending)
+ *
+ * @example
+ * ```typescript
+ * export default createSMSMember({
+ *   async handler({ input, env }) {
+ *     // Custom SMS logic
+ *     return { messageId: '...', status: 'sent' };
+ *   }
+ * });
+ * ```
+ */
+export function createSMSMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler {
+  return createMember({ ...options, type: MemberType.SMS })
+}
+
+/**
  * Generate a member config (for programmatic member creation)
  */
 export function generateMemberConfig(options: CreateMemberOptions): MemberConfig {

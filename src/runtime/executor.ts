@@ -13,6 +13,7 @@ import { FunctionMember } from '../members/function-member.js'
 import { ThinkMember } from '../members/think-member.js'
 import { DataMember } from '../members/data-member.js'
 import { APIMember } from '../members/api-member.js'
+import { EmailMember } from '../members/email/email-member.js'
 import { getBuiltInRegistry } from '../members/built-in/registry.js'
 import { Result, type AsyncResult } from '../types/result.js'
 import {
@@ -218,6 +219,12 @@ export class Executor {
 
       case MemberType.API:
         return Result.ok(new APIMember(config))
+
+      case MemberType.Email:
+        return Result.ok(new EmailMember(config))
+
+      case MemberType.SMS:
+        return Result.err(Errors.memberConfig(config.name, 'SMS member type not yet implemented'))
 
       case MemberType.Function:
         return Result.err(
