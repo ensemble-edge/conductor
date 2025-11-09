@@ -1,0 +1,50 @@
+name: batch-newsletter
+description: |
+  Send batch newsletters with personalized content for each recipient.
+  Demonstrates:
+  - Batch email sending with rate limiting
+  - Personalized data per recipient
+  - Template rendering with common and per-recipient data
+  - Error handling for failed sends
+
+members:
+  - name: send-newsletter
+    type: email
+    config:
+      provider:
+        provider: resend
+        resend:
+          apiKey: ${env.RESEND_API_KEY}
+        from: newsletter@example.com
+        fromName: Your Newsletter
+      rateLimit: 5  # 5 emails per second
+      tracking: true
+
+flow:
+  - member: send-newsletter
+    input:
+      recipients:
+        - email: user1@example.com
+          data:
+            name: Alice
+            lastArticle: "10 Tips for Productivity"
+        - email: user2@example.com
+          data:
+            name: Bob
+            lastArticle: "Getting Started with AI"
+        - email: user3@example.com
+          data:
+            name: Charlie
+            lastArticle: "Modern Web Development"
+      template: kv://templates/email/newsletter@v1.0.0
+      subject: ${input.subject || "Your Weekly Newsletter"}
+      commonData:
+        companyName: Your Company
+        unsubscribeUrl: https://example.com/unsubscribe
+        currentMonth: ${input.currentMonth}
+
+output:
+  sent: ${send-newsletter.output.sent}
+  failed: ${send-newsletter.output.failed}
+  messageIds: ${send-newsletter.output.messageIds}
+  errors: ${send-newsletter.output.errors}

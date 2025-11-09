@@ -45,6 +45,16 @@ database_id = "your-d1-database-id"
 binding = "VECTORIZE"
 index_name = "conductor-embeddings"
 
+# Templates KV for versioned email/HTML/PDF templates
+kv_namespaces = [
+  { binding = "TEMPLATES", id = "your-templates-kv-id", preview_id = "your-preview-templates-kv-id" }
+]
+
+# Email sending via Cloudflare Email Routing (optional - only if using Cloudflare provider)
+# [[send_email]]
+# name = "EMAIL"
+# destination_address_list = "allowed-recipients"  # Optional: restrict recipients
+
 # Hyperdrive bindings for external databases
 # Each Hyperdrive binding can connect to Postgres, MySQL, or MariaDB
 [[hyperdrive]]

@@ -14,6 +14,10 @@ my-conductor-project/
 │       └── index.ts       # Member implementation
 ├── ensembles/             # Your workflows (sacred user space)
 │   └── hello-world.yaml   # Example ensemble
+├── templates/             # HTML/Email/PDF templates (sacred user space)
+│   ├── email/             # Email templates
+│   ├── html/              # HTML templates
+│   └── pdf/               # PDF templates
 ├── wrangler.toml          # Cloudflare configuration
 ├── package.json
 └── tsconfig.json
