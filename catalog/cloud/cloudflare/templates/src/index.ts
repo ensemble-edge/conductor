@@ -63,6 +63,42 @@ export default {
 			});
 		}
 
+		// Static asset serving from R2
+		// Serves files from /assets/* via the ASSETS R2 bucket
+		if (url.pathname.startsWith('/assets/')) {
+			try {
+				// Remove /assets/ prefix to get the R2 key
+				const key = url.pathname.slice(8); // Remove '/assets/'
+
+				// Get the ASSETS R2 bucket binding
+				const bucket = env.ASSETS;
+
+				if (!bucket) {
+					return new Response('R2 bucket not configured', { status: 503 });
+				}
+
+				// Fetch from R2
+				const object = await bucket.get(key);
+
+				if (!object) {
+					return new Response('Asset not found', { status: 404 });
+				}
+
+				// Return with appropriate headers
+				const headers = new Headers();
+				object.writeHttpMetadata(headers);
+				headers.set('etag', object.httpEtag);
+
+				// Add cache headers for CDN
+				headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+
+				return new Response(object.body, { headers });
+			} catch (error) {
+				console.error('Asset serving error:', error);
+				return new Response('Internal Server Error', { status: 500 });
+			}
+		}
+
 		// Your custom endpoints here
 		// Example: Execute hello-world ensemble
 		if (url.pathname === '/ensemble/hello-world' && request.method === 'POST') {
