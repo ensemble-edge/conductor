@@ -1796,7 +1796,7 @@ function createInitCommand() {
   const init = new Command("init");
   init.description(
     'Initialize a new Conductor project (use "." for current dir or "my-project" for new)'
-  ).argument("[directory]", "Project directory (default: current directory)", ".").option("--template <name>", "Template to use (cloudflare)", "cloudflare").option("--force", "Overwrite existing files").action(async (directory, options) => {
+  ).argument("[directory]", "Project directory (default: current directory)", ".").option("--template <name>", "Template to use (cloudflare)", "cloudflare").option("--force", "Overwrite existing files").option("--no-examples", "Skip example files (only include minimal starter files)").action(async (directory, options) => {
     try {
       console.log("");
       console.log(chalk.bold("\u{1F3AF} Initializing Conductor project..."));
@@ -1890,8 +1890,9 @@ function createInitCommand() {
       }
       console.log(chalk.cyan(`Template: ${options.template}`));
       console.log(chalk.cyan(`Target: ${targetDir}`));
+      console.log(chalk.cyan(`Examples: ${options.examples !== false ? "included" : "excluded"}`));
       console.log("");
-      await copyDirectory(templatePath, targetDir, options.force || false);
+      await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false);
       console.log(chalk.green("\u2713 Project initialized successfully"));
       console.log("");
       console.log(chalk.bold("Next steps:"));
@@ -1927,14 +1928,18 @@ function createInitCommand() {
   });
   return init;
 }
-async function copyDirectory(src, dest, force) {
+async function copyDirectory(src, dest, force, includeExamples = true) {
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
+    if (!includeExamples && entry.name === "examples" && entry.isDirectory()) {
+      console.log(chalk.dim(`  \u2298 Skipping ${path.relative(dest, destPath)} (--no-examples)`));
+      continue;
+    }
     if (entry.isDirectory()) {
-      await copyDirectory(srcPath, destPath, force);
+      await copyDirectory(srcPath, destPath, force, includeExamples);
     } else {
       if (!force) {
         try {
@@ -6904,7 +6909,13 @@ var MemberSchema = external_exports.object({
     "Data" /* Data */,
     "API" /* API */,
     "MCP" /* MCP */,
-    "Scoring" /* Scoring */
+    "Scoring" /* Scoring */,
+    "Email" /* Email */,
+    "SMS" /* SMS */,
+    "Form" /* Form */,
+    "Page" /* Page */,
+    "HTML" /* HTML */,
+    "PDF" /* PDF */
   ]),
   description: external_exports.string().optional(),
   config: external_exports.record(external_exports.unknown()).optional(),
@@ -7041,6 +7052,7 @@ var OpenAPIGenerator = class {
     try {
       const files = await fs2.readdir(ensemblesPath);
       for (const file of files) {
+        if (file === "examples") continue;
         if (file.endsWith(".yaml") || file.endsWith(".yml")) {
           const filePath = path2.join(ensemblesPath, file);
           const content = await fs2.readFile(filePath, "utf-8");
@@ -7054,6 +7066,7 @@ var OpenAPIGenerator = class {
     try {
       const dirs = await fs2.readdir(membersPath, { withFileTypes: true });
       for (const dir of dirs) {
+        if (dir.name === "examples") continue;
         if (dir.isDirectory()) {
           const memberYamlPath = path2.join(membersPath, dir.name, "member.yaml");
           try {

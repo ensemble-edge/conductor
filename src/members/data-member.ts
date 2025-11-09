@@ -13,13 +13,17 @@ import type { Repository } from '../storage/index.js'
 import { KVRepository, D1Repository, R2Repository, JSONSerializer } from '../storage/index.js'
 import { StorageType } from '../types/constants.js'
 import type { ConductorEnv } from '../types/env.js'
+import { exportData, createStreamingExport, type ExportOptions, type ExportFormat } from './data/export-formats.js'
 
 export interface DataConfig {
   storage: StorageType
-  operation: 'get' | 'put' | 'delete' | 'list'
+  operation: 'get' | 'put' | 'delete' | 'list' | 'query' | 'export'
   binding?: string // Name of the binding in wrangler.toml
   // Options
   ttl?: number
+  // Export options
+  exportFormat?: ExportFormat
+  exportOptions?: ExportOptions
 }
 
 export interface DataInput {
@@ -29,6 +33,14 @@ export interface DataInput {
   limit?: number
   cursor?: string
   ttl?: number
+  // Query options
+  query?: string
+  filter?: Record<string, unknown>
+  sort?: string
+  // Export options
+  format?: ExportFormat
+  exportOptions?: ExportOptions
+  streaming?: boolean
 }
 
 /**
@@ -88,6 +100,12 @@ export class DataMember extends BaseMember {
 
       case 'list':
         return await this.executeList(repo, input)
+
+      case 'query':
+        return await this.executeQuery(repo, input)
+
+      case 'export':
+        return await this.executeExport(repo, input)
 
       default:
         throw new Error(`Unknown operation: ${this.dataConfig.operation}`)
@@ -249,6 +267,129 @@ export class DataMember extends BaseMember {
         return 'STORAGE'
       default:
         return 'DATA'
+    }
+  }
+
+  /**
+   * Execute QUERY operation (D1 only)
+   */
+  private async executeQuery(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
+    // Query operations are storage-specific
+    // For now, use list with filtering
+    const listResult = await repo.list({
+      prefix: input.prefix,
+      limit: input.limit,
+      cursor: input.cursor,
+    })
+
+    if (!listResult.success) {
+      return {
+        items: [],
+        success: false,
+        error: listResult.error.message,
+      }
+    }
+
+    let items = listResult.value
+
+    // Apply filters if provided
+    if (input.filter) {
+      items = items.filter((item: any) => {
+        return Object.entries(input.filter!).every(([key, value]) => {
+          return item[key] === value
+        })
+      })
+    }
+
+    // Apply sorting if provided
+    if (input.sort) {
+      const [field, order = 'asc'] = input.sort.split(':')
+      items = items.sort((a: any, b: any) => {
+        const aVal = a[field]
+        const bVal = b[field]
+        if (order === 'desc') {
+          return bVal > aVal ? 1 : bVal < aVal ? -1 : 0
+        }
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0
+      })
+    }
+
+    return {
+      items,
+      count: items.length,
+      success: true,
+    }
+  }
+
+  /**
+   * Execute EXPORT operation
+   */
+  private async executeExport(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
+    // Get data to export
+    const listResult = await repo.list({
+      prefix: input.prefix,
+      limit: input.limit || 10000, // Default to large limit for exports
+      cursor: input.cursor,
+    })
+
+    if (!listResult.success) {
+      return {
+        success: false,
+        error: listResult.error.message,
+      }
+    }
+
+    let items = listResult.value
+
+    // Apply filters if provided
+    if (input.filter) {
+      items = items.filter((item: any) => {
+        return Object.entries(input.filter!).every(([key, value]) => {
+          return item[key] === value
+        })
+      })
+    }
+
+    // Prepare export options
+    const exportOptions: ExportOptions = {
+      format: input.format || this.dataConfig.exportFormat || 'json',
+      ...this.dataConfig.exportOptions,
+      ...input.exportOptions,
+    }
+
+    // Handle streaming export for large datasets
+    if (input.streaming || items.length > 1000) {
+      // Create async iterable for streaming
+      async function* dataSource() {
+        const batchSize = exportOptions.batchSize || 100
+        for (let i = 0; i < items.length; i += batchSize) {
+          yield items.slice(i, i + batchSize)
+        }
+      }
+
+      const exportResult = createStreamingExport(dataSource(), exportOptions)
+
+      return {
+        success: true,
+        streaming: true,
+        stream: exportResult.data,
+        contentType: exportResult.contentType,
+        extension: exportResult.extension,
+        count: items.length,
+      }
+    }
+
+    // Non-streaming export
+    const exportResult = await exportData(items, exportOptions)
+
+    return {
+      success: true,
+      streaming: false,
+      data: exportResult.data,
+      contentType: exportResult.contentType,
+      extension: exportResult.extension,
+      size: exportResult.size,
+      count: items.length,
     }
   }
 

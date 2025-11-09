@@ -19,6 +19,18 @@ export { DataMember } from './members/data-member.js';
 export { APIMember } from './members/api-member.js';
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js';
+// export { CacheManager } from './utils/cache.js';
+// export { Normalizer } from './utils/normalize.js';
+// API Layer
+// export { Router } from './api/router.js';
+// export { createHandler } from './api/handlers.js';
+// export { authenticate } from './api/auth.js';
+// Pages Module
+export { PageRouter } from './pages/index.js';
+// Authentication Module
+export * from './auth/index.js';
+// Routing Module
+export { UnifiedRouter } from './routing/router.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *

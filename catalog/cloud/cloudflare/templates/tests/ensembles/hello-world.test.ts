@@ -19,7 +19,7 @@ describe('Hello World Ensemble', () => {
 		});
 
 		// Mock AI response for the greet member
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Hello, World! Welcome to Conductor.'
 		});
 	});
@@ -35,12 +35,12 @@ describe('Hello World Ensemble', () => {
 
 		// Use custom matchers
 		expect(result).toBeSuccessful();
-		expect(result).toHaveExecutedMember('greet');
+		expect(result).toHaveExecutedMember('hello');
 		expect(result).toHaveCompletedIn(1000);
 	});
 
 	it('should pass name through to member', async () => {
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Hello, Alice! Welcome to Conductor.'
 		});
 
@@ -55,7 +55,7 @@ describe('Hello World Ensemble', () => {
 	});
 
 	it('should handle formal style', async () => {
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Good day, Bob. It is a pleasure to make your acquaintance.'
 		});
 
@@ -86,11 +86,11 @@ describe('Hello World Ensemble', () => {
 
 		expect(result).toBeSuccessful();
 		expect(result).toHaveExecutedSteps(1);
-		expect(result).toHaveExecutedMember('greet');
+		expect(result).toHaveExecutedMember('hello');
 	});
 
 	it('should handle AI failures gracefully', async () => {
-		conductor.mockAI('greet', new Error('AI service temporarily unavailable'));
+		conductor.mockAI('hello', new Error('AI service temporarily unavailable'));
 
 		const result = await conductor.executeEnsemble('hello-world', {
 			name: 'Alice'
@@ -101,7 +101,7 @@ describe('Hello World Ensemble', () => {
 	});
 
 	it('should track AI usage', async () => {
-		conductor.mockAI('greet', {
+		conductor.mockAI('hello', {
 			message: 'Hello, Alice!'
 		});
 

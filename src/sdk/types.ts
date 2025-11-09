@@ -21,7 +21,7 @@ export type MemberHandler<TInput = unknown, TOutput = unknown> = (
  */
 export interface CreateMemberOptions {
   name: string
-  type: MemberType.Function | MemberType.Think | MemberType.Data | MemberType.API
+  type: MemberType.Function | MemberType.Think | MemberType.Data | MemberType.API | MemberType.Email | MemberType.SMS
   description?: string
   config?: Record<string, unknown>
   schema?: {

@@ -638,6 +638,6 @@ Stop processing when possible:
 
 ## Examples
 
-Complete example: [advanced-workflow.yaml](../ensembles/advanced-workflow.yaml)
+Complete example: [advanced-workflow.yaml](../ensembles/examples/advanced-workflow.yaml)
 
-More patterns: [parallel-workflow.yaml](../ensembles/parallel-workflow.yaml)
+More patterns: [parallel-workflow.yaml](../ensembles/examples/parallel-workflow.yaml)

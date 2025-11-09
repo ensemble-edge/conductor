@@ -4,13 +4,15 @@
  * This template shows how to use Conductor with:
  * - ✅ REST API for execution (optional - comment out if not needed)
  * - ✅ Custom endpoints (your own logic)
+ * - ✅ Page routing (automatic web server for your pages)
  * - ✅ Durable Objects for stateful workflows
  * - ✅ Scheduled execution (cron triggers)
  *
  * Choose your approach:
  * 1. Use the built-in API (recommended for most projects)
  * 2. Build custom endpoints (full control)
- * 3. Mix both (API + custom endpoints)
+ * 3. Use page routing for web pages
+ * 4. Mix all three (API + custom endpoints + pages)
  */
 
 import { ExecutionState, HITLState } from '@ensemble-edge/conductor';
@@ -41,18 +43,76 @@ export default app;
 // ==================== Option 2: Custom Endpoints (Full Control) ====================
 // Use this approach if you want complete control over your API structure
 
-import { Executor, MemberLoader } from '@ensemble-edge/conductor';
+import { Executor, MemberLoader, PageRouter, UnifiedRouter } from '@ensemble-edge/conductor';
+import { PageMember } from '@ensemble-edge/conductor/members/page';
+import conductorConfig from '../conductor.config';
 
 // Import your members (add more as you create them)
-import greetConfig from '../members/greet/member.yaml';
-import greetFunction from '../members/greet';
+import greetConfig from '../members/hello/member.yaml';
+import greetFunction from '../members/hello';
 
 // Import your ensembles (add more as you create them)
 import helloWorldYAML from '../ensembles/hello-world.yaml';
 
+// Import page configurations
+import indexPageConfig from '../pages/examples/index/page.yaml';
+import dashboardPageConfig from '../pages/examples/dashboard/page.yaml';
+import loginPageConfig from '../pages/examples/login/page.yaml';
+import blogPostPageConfig from '../pages/examples/blog-post/page.yaml';
+
+// Import error pages
+import error404PageConfig from '../pages/errors/404/page.yaml';
+import error500PageConfig from '../pages/errors/500/page.yaml';
+
+// Import static pages
+import robotsPageConfig from '../pages/static/robots/page.yaml';
+import sitemapPageConfig from '../pages/static/sitemap/page.yaml';
+
+// Initialize PageRouter with pages
+const pageRouter = new PageRouter({
+	indexFiles: ['index'],
+	notFoundPage: 'error-404', // Use custom 404 page
+	baseUrl: '' // Will be set from request
+});
+
+// Register pages
+const pagesMap = new Map([
+	// Example pages
+	['index', { config: indexPageConfig, member: new PageMember(indexPageConfig) }],
+	['dashboard', { config: dashboardPageConfig, member: new PageMember(dashboardPageConfig) }],
+	['login', { config: loginPageConfig, member: new PageMember(loginPageConfig) }],
+	['blog-post', { config: blogPostPageConfig, member: new PageMember(blogPostPageConfig) }],
+
+	// Error pages
+	['error-404', { config: error404PageConfig, member: new PageMember(error404PageConfig) }],
+	['error-500', { config: error500PageConfig, member: new PageMember(error500PageConfig) }],
+
+	// Static pages
+	['robots', { config: robotsPageConfig, member: new PageMember(robotsPageConfig) }],
+	['sitemap', { config: sitemapPageConfig, member: new PageMember(sitemapPageConfig) }]
+]);
+
+// Auto-discover and register all pages
+await pageRouter.discoverPages(pagesMap);
+
+// ==================== Option 3: Use UnifiedRouter (Authentication & Routing) ====================
+// UnifiedRouter provides:
+// - Centralized authentication (Bearer, API Key, Cookie, Unkey, Custom)
+// - Type-specific defaults (pages, APIs, webhooks, forms, docs)
+// - Path-based rules from conductor.config.ts
+// - Rate limiting per route
+// - Permission & role checks
+//
+// See conductor.config.ts for routing configuration
+// See members/docs-*.yaml for examples of route configuration in member YAML files
+
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
+
+		// Initialize UnifiedRouter with authentication
+		const router = new UnifiedRouter(conductorConfig);
+		await router.init(env);
 
 		// Health check (always available)
 		if (url.pathname === '/health') {
@@ -99,6 +159,32 @@ export default {
 			}
 		}
 
+		// ==================== Authenticated API Endpoint Example ====================
+		// This demonstrates how to use UnifiedRouter for authentication
+		// The router will check credentials based on conductor.config.ts rules
+		if (url.pathname === '/api/v1/protected' && request.method === 'GET') {
+			// Register the route with authentication
+			router.register({
+				pattern: '/api/v1/protected',
+				path: '/api/v1/protected',
+				methods: ['GET'],
+				memberType: 'api',
+				memberName: 'protected-api',
+				handler: async (req, env, ctx, auth) => {
+					return Response.json({
+						message: 'Protected endpoint',
+						authenticated: auth.authenticated,
+						user: auth.user,
+						method: auth.method
+					});
+				}
+			});
+
+			// Let router handle authentication and call the handler
+			const response = await router.handle(request, env, ctx);
+			if (response) return response;
+		}
+
 		// Your custom endpoints here
 		// Example: Execute hello-world ensemble
 		if (url.pathname === '/ensemble/hello-world' && request.method === 'POST') {
@@ -126,6 +212,13 @@ export default {
 					{ status: 500 }
 				);
 			}
+		}
+
+		// Try page routing (before 404)
+		// This handles all your page routes automatically
+		const pageResponse = await pageRouter.handle(request, env, ctx);
+		if (pageResponse) {
+			return pageResponse;
 		}
 
 		return new Response('Not Found', { status: 404 });

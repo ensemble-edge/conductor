@@ -10,8 +10,8 @@
  * - PDF metadata
  */
 
-import { BaseMember } from '../../runtime/base-member.js';
-import type { MemberExecutionContext, MemberConfig } from '../../runtime/types.js';
+import { BaseMember, type MemberExecutionContext } from '../base-member.js';
+import type { MemberConfig } from '../../runtime/parser.js';
 import type {
   PdfMemberConfig,
   PdfMemberInput,
@@ -27,11 +27,11 @@ import {
 } from './utils/storage.js';
 
 export class PdfMember extends BaseMember {
-  private config: PdfMemberConfig;
+  private pdfConfig: PdfMemberConfig;
 
   constructor(config: MemberConfig) {
     super(config);
-    this.config = config as MemberConfig & PdfMemberConfig;
+    this.pdfConfig = config as MemberConfig & PdfMemberConfig;
 
     // Validate configuration
     this.validateConfig();
@@ -42,16 +42,16 @@ export class PdfMember extends BaseMember {
    */
   private validateConfig(): void {
     // Validate page config
-    if (this.config.page) {
-      const pageValidation = validatePageConfig(this.config.page);
+    if (this.pdfConfig.page) {
+      const pageValidation = validatePageConfig(this.pdfConfig.page);
       if (!pageValidation.valid) {
         throw new Error(`Invalid page config: ${pageValidation.errors?.join(', ')}`);
       }
     }
 
     // Validate storage config
-    if (this.config.storage) {
-      const storageValidation = validateStorageConfig(this.config.storage);
+    if (this.pdfConfig.storage) {
+      const storageValidation = validateStorageConfig(this.pdfConfig.storage);
       if (!storageValidation.valid) {
         throw new Error(`Invalid storage config: ${storageValidation.errors?.join(', ')}`);
       }
@@ -66,13 +66,13 @@ export class PdfMember extends BaseMember {
     const input = context.input as PdfMemberInput;
 
     // Merge config with input
-    const htmlSource = input.html || this.config.html;
-    const pageConfig = { ...this.config.page, ...input.page };
-    const headerFooter = { ...this.config.headerFooter, ...input.headerFooter };
-    const storageConfig = { ...this.config.storage, ...input.storage };
-    const metadata = { ...this.config.metadata, ...input.metadata };
-    const deliveryMode = input.deliveryMode || this.config.deliveryMode || 'inline';
-    const filename = input.filename || this.config.filename;
+    const htmlSource = input.html || this.pdfConfig.html;
+    const pageConfig = { ...this.pdfConfig.page, ...input.page };
+    const headerFooter = { ...this.pdfConfig.headerFooter, ...input.headerFooter };
+    const storageConfig = { ...this.pdfConfig.storage, ...input.storage };
+    const metadata = { ...this.pdfConfig.metadata, ...input.metadata };
+    const deliveryMode = input.deliveryMode || this.pdfConfig.deliveryMode || 'inline';
+    const filename = input.filename || this.pdfConfig.filename;
 
     // Get HTML content
     let html: string;

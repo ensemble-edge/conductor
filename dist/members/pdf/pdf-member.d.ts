@@ -9,11 +9,11 @@
  * - Headers and footers with page numbers
  * - PDF metadata
  */
-import { BaseMember } from '../../runtime/base-member.js';
-import type { MemberExecutionContext, MemberConfig } from '../../runtime/types.js';
+import { BaseMember, type MemberExecutionContext } from '../base-member.js';
+import type { MemberConfig } from '../../runtime/parser.js';
 import type { PdfMemberOutput } from './types/index.js';
 export declare class PdfMember extends BaseMember {
-    private config;
+    private pdfConfig;
     constructor(config: MemberConfig);
     /**
      * Validate member configuration

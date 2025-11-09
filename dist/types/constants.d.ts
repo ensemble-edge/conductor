@@ -33,6 +33,8 @@ export declare enum MemberType {
     Scoring = "Scoring",
     Email = "Email",
     SMS = "SMS",
+    Form = "Form",
+    Page = "Page",
     HTML = "HTML",
     PDF = "PDF"
 }
@@ -47,5 +49,5 @@ export declare const isMemberType: (value: string) => value is MemberType;
  */
 export type AIProviderType = 'openai' | 'anthropic' | 'cloudflare' | 'custom';
 export type StorageTypeString = 'kv' | 'd1' | 'r2';
-export type MemberTypeString = 'Think' | 'Function' | 'Data' | 'API' | 'MCP' | 'Scoring' | 'Email' | 'SMS' | 'HTML' | 'PDF';
+export type MemberTypeString = 'Think' | 'Function' | 'Data' | 'API' | 'MCP' | 'Scoring' | 'Email' | 'SMS' | 'Form' | 'Page' | 'HTML' | 'PDF';
 //# sourceMappingURL=constants.d.ts.map

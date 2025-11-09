@@ -1,0 +1,26 @@
+name: error-401
+type: page
+description: 401 Unauthorized error page
+
+# Route configuration
+route:
+  path: /errors/401
+  methods: [GET]
+  auth:
+    requirement: public  # Error pages should be public
+
+# Page configuration
+renderMode: ssr
+componentPath: ./component.tsx
+
+# SEO
+head:
+  title: "401 - Unauthorized"
+  meta:
+    - name: robots
+      content: noindex, nofollow
+
+# Cache for performance
+cache:
+  enabled: true
+  ttl: 3600  # 1 hour

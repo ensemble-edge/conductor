@@ -11,6 +11,8 @@ import { DataMember } from '../members/data-member.js';
 import { APIMember } from '../members/api-member.js';
 import { EmailMember } from '../members/email/email-member.js';
 import { SmsMember } from '../members/sms/sms-member.js';
+import { FormMember } from '../members/form/form-member.js';
+import { PageMember } from '../members/page/page-member.js';
 import { HtmlMember } from '../members/html/html-member.js';
 import { PdfMember } from '../members/pdf/pdf-member.js';
 import { getBuiltInRegistry } from '../members/built-in/registry.js';
@@ -108,6 +110,10 @@ export class Executor {
                 return Result.ok(new EmailMember(config));
             case MemberType.SMS:
                 return Result.ok(new SmsMember(config));
+            case MemberType.Form:
+                return Result.ok(new FormMember(config));
+            case MemberType.Page:
+                return Result.ok(new PageMember(config));
             case MemberType.HTML:
                 return Result.ok(new HtmlMember(config));
             case MemberType.PDF:

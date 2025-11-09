@@ -8,11 +8,11 @@
  * - CSS inlining for email compatibility
  * - HTML minification
  */
-import { BaseMember } from '../../runtime/base-member.js';
-import type { MemberExecutionContext, MemberConfig } from '../../runtime/types.js';
+import { BaseMember, type MemberExecutionContext } from '../base-member.js';
+import type { MemberConfig } from '../../runtime/parser.js';
 import type { HtmlMemberOutput } from './types/index.js';
 export declare class HtmlMember extends BaseMember {
-    private config;
+    private htmlConfig;
     constructor(config: MemberConfig);
     /**
      * Validate member configuration

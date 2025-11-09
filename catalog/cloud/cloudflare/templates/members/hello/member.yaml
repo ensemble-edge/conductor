@@ -1,13 +1,13 @@
-name: greet
+name: hello
 type: think
 description: |
-  Greet the user with a personalized AI-generated welcome message.
+  Say hello to the user with a personalized AI-generated welcome message.
   Demonstrates AI model inference via Cloudflare Workers AI.
 
   🔮 FUTURE: This will use shared components from prompts/ and configs/
   Once Edgit integration is complete, you can reference components like:
-    prompt: { component: "prompts/greeting.md@v1.0.0" }
-    config: { component: "configs/greet-settings.yaml@v1.0.0" }
+    prompt: { component: "prompts/hello.md@v1.0.0" }
+    config: { component: "configs/hello-settings.yaml@v1.0.0" }
 
 config:
   # AI Model Settings (from Cloudflare Workers AI)
@@ -15,10 +15,10 @@ config:
   temperature: 0.7
   maxTokens: 150
 
-  # System prompt (inline for now, will move to prompts/greeting.md)
+  # System prompt (inline for now, will move to prompts/hello.md)
   systemPrompt: |
-    You are a friendly greeting assistant.
-    Generate a personalized greeting message for the user.
+    You are a friendly hello assistant.
+    Generate a personalized hello message for the user.
 
     Requirements:
     1. Be warm and welcoming
@@ -26,7 +26,7 @@ config:
     3. Match the requested style if provided (formal, casual, enthusiastic)
     4. Keep the greeting concise (1-2 sentences)
 
-    Return only the greeting message without any explanation.
+    Return only the hello message without any explanation.
 
 schema:
   input:

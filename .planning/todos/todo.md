@@ -7,3 +7,6 @@
 - make sure auto docs are easily bindable and accessible via /docs/ (password optionsl?).
 - need to configure backup models and come up with a smart way. best practice reccomendation is to have a seperate provider in case the main is down or billing is do wn etc
 - future roadmap ideas/needs, bind to cf workflows
+- add image processing, both analysis and generation
+- add audio processing, both analysis and generation
+- add graph or chart generation

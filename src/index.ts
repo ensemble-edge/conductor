@@ -31,6 +31,28 @@ export { MemberLoader, createLoader } from './utils/loader.js'
 // export { createHandler } from './api/handlers.js';
 // export { authenticate } from './api/auth.js';
 
+// Pages Module
+export { PageRouter } from './pages/index.js'
+export type { PageRoute, PageRouterConfig } from './pages/index.js'
+
+// Authentication Module
+export * from './auth/index.js'
+
+// Routing Module
+export { UnifiedRouter } from './routing/router.js'
+export type {
+	ConductorConfig,
+	RoutingConfig,
+	RouteConfig,
+	RouteAuthConfig as RoutingAuthConfig,
+	ResolvedRouteAuthConfig,
+	RouteMatch,
+	MemberType,
+	AuthDefaults,
+	RateLimitConfig as RoutingRateLimitConfig,
+	AuthFailureAction
+} from './routing/config.js'
+
 // Types
 export type {
   EnsembleConfig,

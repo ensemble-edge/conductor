@@ -10,11 +10,14 @@ import { BaseMember, type MemberExecutionContext } from './base-member.js';
 import type { MemberConfig } from '../runtime/parser.js';
 import type { Repository } from '../storage/index.js';
 import { StorageType } from '../types/constants.js';
+import { type ExportOptions, type ExportFormat } from './data/export-formats.js';
 export interface DataConfig {
     storage: StorageType;
-    operation: 'get' | 'put' | 'delete' | 'list';
+    operation: 'get' | 'put' | 'delete' | 'list' | 'query' | 'export';
     binding?: string;
     ttl?: number;
+    exportFormat?: ExportFormat;
+    exportOptions?: ExportOptions;
 }
 export interface DataInput {
     key?: string;
@@ -23,6 +26,12 @@ export interface DataInput {
     limit?: number;
     cursor?: string;
     ttl?: number;
+    query?: string;
+    filter?: Record<string, unknown>;
+    sort?: string;
+    format?: ExportFormat;
+    exportOptions?: ExportOptions;
+    streaming?: boolean;
 }
 /**
  * Data Member performs storage operations via Repository pattern
@@ -66,6 +75,14 @@ export declare class DataMember extends BaseMember {
      * Get binding name with sensible defaults
      */
     private getBindingName;
+    /**
+     * Execute QUERY operation (D1 only)
+     */
+    private executeQuery;
+    /**
+     * Execute EXPORT operation
+     */
+    private executeExport;
     /**
      * Get Data configuration
      */
