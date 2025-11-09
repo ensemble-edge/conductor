@@ -14,6 +14,7 @@ import { ThinkMember } from '../members/think-member.js'
 import { DataMember } from '../members/data-member.js'
 import { APIMember } from '../members/api-member.js'
 import { EmailMember } from '../members/email/email-member.js'
+import { SmsMember } from '../members/sms/sms-member.js'
 import { getBuiltInRegistry } from '../members/built-in/registry.js'
 import { Result, type AsyncResult } from '../types/result.js'
 import {
@@ -224,7 +225,7 @@ export class Executor {
         return Result.ok(new EmailMember(config))
 
       case MemberType.SMS:
-        return Result.err(Errors.memberConfig(config.name, 'SMS member type not yet implemented'))
+        return Result.ok(new SmsMember(config))
 
       case MemberType.Function:
         return Result.err(

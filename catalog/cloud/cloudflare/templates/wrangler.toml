@@ -55,6 +55,12 @@ kv_namespaces = [
 # name = "EMAIL"
 # destination_address_list = "allowed-recipients"  # Optional: restrict recipients
 
+# SMS configuration (via secrets - use wrangler secret put)
+# Required secrets for Twilio:
+#   wrangler secret put TWILIO_ACCOUNT_SID
+#   wrangler secret put TWILIO_AUTH_TOKEN
+#   wrangler secret put TWILIO_PHONE_NUMBER
+
 # Hyperdrive bindings for external databases
 # Each Hyperdrive binding can connect to Postgres, MySQL, or MariaDB
 [[hyperdrive]]
