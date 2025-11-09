@@ -398,7 +398,7 @@ declare const MemberSchema: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    type: MemberType;
+    type: MemberType.Think | MemberType.Function | MemberType.Data | MemberType.API | MemberType.MCP | MemberType.Scoring;
     description?: string | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;
@@ -407,7 +407,7 @@ declare const MemberSchema: z.ZodObject<{
     config?: Record<string, unknown> | undefined;
 }, {
     name: string;
-    type: MemberType;
+    type: MemberType.Think | MemberType.Function | MemberType.Data | MemberType.API | MemberType.MCP | MemberType.Scoring;
     description?: string | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;

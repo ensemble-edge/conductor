@@ -1,0 +1,12 @@
+<header>
+	<div style="display: flex; justify-content: space-between; align-items: center;">
+		<h1 style="margin: 0;">{{title}}</h1>
+		<nav style="display: flex; gap: 1.5rem;">
+			{{#if navigation}}
+			{{#each navigation}}
+			<a href="{{url}}" style="color: white; text-decoration: none;">{{name}}</a>
+			{{/each}}
+			{{/if}}
+		</nav>
+	</div>
+</header>

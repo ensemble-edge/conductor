@@ -1,0 +1,16 @@
+<div class="card" style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+	{{#if title}}
+	<h2 style="margin: 0 0 1rem 0; color: #2c3e50;">{{title}}</h2>
+	{{/if}}
+	{{#if image}}
+	<img src="{{image}}" alt="{{imageAlt}}" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 1rem;">
+	{{/if}}
+	{{#if description}}
+	<p style="color: #555; margin-bottom: 1rem;">{{description}}</p>
+	{{/if}}
+	{{#if link}}
+	<a href="{{link}}" style="display: inline-block; background: #3498db; color: white; padding: 0.5rem 1rem; border-radius: 4px; text-decoration: none;">
+		{{linkText}}
+	</a>
+	{{/if}}
+</div>

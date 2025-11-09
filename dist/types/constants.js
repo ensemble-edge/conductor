@@ -34,6 +34,10 @@ export var MemberType;
     MemberType["API"] = "API";
     MemberType["MCP"] = "MCP";
     MemberType["Scoring"] = "Scoring";
+    MemberType["Email"] = "Email";
+    MemberType["SMS"] = "SMS";
+    MemberType["HTML"] = "HTML";
+    MemberType["PDF"] = "PDF";
 })(MemberType || (MemberType = {}));
 /**
  * Type guards for runtime validation
