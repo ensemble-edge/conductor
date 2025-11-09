@@ -1,0 +1,43 @@
+# ============================================================
+# Local Development Secrets
+# ============================================================
+# 🚨 FIRST TIME SETUP:
+#    1. Copy this file: cp .dev.vars.example .dev.vars
+#    2. Add your secrets to .dev.vars (it's in .gitignore)
+#    3. Run: wrangler dev
+#
+# This file (.dev.vars) is automatically loaded by `wrangler dev`
+# ============================================================
+
+# AI Provider API Keys
+# Uncomment and add your keys as needed
+# ANTHROPIC_API_KEY=sk-ant-...
+# OPENAI_API_KEY=sk-...
+
+# Cloudflare Account Settings
+# Get these from: https://dash.cloudflare.com/
+# CLOUDFLARE_ACCOUNT_ID=
+# CLOUDFLARE_API_TOKEN=
+
+# Custom API Keys
+# Add any other secrets your application needs
+# MY_API_KEY=
+# DATABASE_URL=
+
+# ============================================================
+# USAGE GUIDE:
+# ============================================================
+# LOCAL DEVELOPMENT:
+#   1. Copy .dev.vars.example to .dev.vars
+#   2. Uncomment and add your values above
+#   3. Run: wrangler dev
+#   4. Access in code: env.ANTHROPIC_API_KEY
+#
+# PRODUCTION DEPLOYMENT:
+#   1. Set secrets in Cloudflare (not in .dev.vars)
+#   2. Run: wrangler secret put ANTHROPIC_API_KEY
+#   3. Paste your key when prompted
+#   4. Repeat for each secret
+#
+# Learn more: https://developers.cloudflare.com/workers/configuration/secrets/
+# ============================================================
