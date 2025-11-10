@@ -38,7 +38,7 @@ export class HtmlMember extends BaseMember {
         const templateSource = input.template
             ? normalizeTemplateSource(input.template)
             : this.htmlConfig.template;
-        const templateResult = await loadTemplate(templateSource, context.env);
+        const templateResult = await loadTemplate(templateSource, { TEMPLATES: context.env.KV, ASSETS: context.env.STORAGE });
         // Parse request cookies if provided
         const requestCookies = input.cookies || {};
         let readCookies = {};
@@ -62,11 +62,8 @@ export class HtmlMember extends BaseMember {
             // Create cache instance if CACHE binding exists
             let cache;
             if (context.env.CACHE) {
-                const { KVRepository } = await import('../../storage/index.js');
-                const { RepositoryCache } = await import('../../cache/cache.js');
-                const repository = new KVRepository(context.env.CACHE);
-                cache = new RepositoryCache(repository, {
-                    keyPrefix: 'conductor:cache:',
+                const { MemoryCache } = await import('../../cache/cache.js');
+                cache = new MemoryCache({
                     defaultTTL: 3600
                 });
             }
@@ -155,11 +152,8 @@ export class HtmlMember extends BaseMember {
                 // Create cache instance if CACHE binding exists
                 let cache;
                 if (context.env.CACHE) {
-                    const { KVRepository } = await import('../../storage/index.js');
-                    const { RepositoryCache } = await import('../../cache/cache.js');
-                    const repository = new KVRepository(context.env.CACHE);
-                    cache = new RepositoryCache(repository, {
-                        keyPrefix: 'conductor:cache:',
+                    const { MemoryCache } = await import('../../cache/cache.js');
+                    cache = new MemoryCache({
                         defaultTTL: 3600
                     });
                 }
@@ -172,7 +166,7 @@ export class HtmlMember extends BaseMember {
                     return await componentLoader.load(layout);
                 }
                 catch (error) {
-                    context.logger?.warn('Failed to load layout', { layout, error });
+                    context.logger?.warn('Failed to load layout', { layout, error: error instanceof Error ? error.message : String(error) });
                     return null;
                 }
             }
@@ -196,21 +190,24 @@ export class HtmlMember extends BaseMember {
                 });
             },
             // String helpers
-            uppercase: (str) => str.toUpperCase(),
-            lowercase: (str) => str.toLowerCase(),
-            capitalize: (str) => str.charAt(0).toUpperCase() + str.slice(1),
+            uppercase: (str) => String(str).toUpperCase(),
+            lowercase: (str) => String(str).toLowerCase(),
+            capitalize: (str) => {
+                const s = String(str);
+                return s.charAt(0).toUpperCase() + s.slice(1);
+            },
             // Number formatting
             currency: (amount, currency = 'USD') => {
                 return new Intl.NumberFormat('en-US', {
                     style: 'currency',
-                    currency
-                }).format(amount);
+                    currency: String(currency)
+                }).format(Number(amount));
             },
             // Conditional helpers
             eq: (a, b) => a === b,
             ne: (a, b) => a !== b,
-            lt: (a, b) => a < b,
-            gt: (a, b) => a > b,
+            lt: (a, b) => Number(a) < Number(b),
+            gt: (a, b) => Number(a) > Number(b),
             and: (...args) => args.every(Boolean),
             or: (...args) => args.some(Boolean)
         };

@@ -3,8 +3,8 @@
  *
  * Full-featured Handlebars template rendering with support for helpers, partials, and all Handlebars features.
  */
-import Handlebars from 'handlebars';
-import type { TemplateContext } from '../types/index.js';
+import * as Handlebars from 'handlebars';
+import type { TemplateContext } from '../types.js';
 import { BaseTemplateEngine } from './base.js';
 /**
  * Handlebars template engine

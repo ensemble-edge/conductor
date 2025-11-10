@@ -6,7 +6,7 @@
  * Handlebars, Liquid, and MJML support can be added as optional dependencies.
  */
 
-import type { TemplateEngine } from '../types/index.js';
+import type { TemplateEngine } from '../types.js';
 import { BaseTemplateEngine } from './base.js';
 import { SimpleTemplateEngine } from './simple.js';
 import { HandlebarsTemplateEngine } from './handlebars.js';

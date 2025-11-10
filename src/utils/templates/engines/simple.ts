@@ -14,7 +14,7 @@
  */
 
 import { BaseTemplateEngine } from './base.js';
-import type { TemplateContext } from '../types/index.js';
+import type { TemplateContext } from '../types.js';
 import type { ComponentLoader } from '../../../runtime/component-loader.js';
 
 export class SimpleTemplateEngine extends BaseTemplateEngine {

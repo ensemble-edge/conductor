@@ -6,7 +6,7 @@
  * Note: MJML has Node.js dependencies that may not work in all test environments.
  * In production Cloudflare Workers, this should work fine.
  */
-import type { TemplateContext } from '../types/index.js';
+import type { TemplateContext } from '../types.js';
 import { BaseTemplateEngine } from './base.js';
 /**
  * MJML template engine

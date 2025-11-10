@@ -51,8 +51,12 @@ async function generatePdfWithBrowser(options, browser) {
         }
         // Generate PDF
         const pdfBuffer = await session.pdf(pdfOptions);
+        // Convert ArrayBufferLike to ArrayBuffer if needed
+        const pdf = pdfBuffer instanceof ArrayBuffer
+            ? pdfBuffer
+            : new Uint8Array(pdfBuffer).buffer;
         return {
-            pdf: pdfBuffer,
+            pdf,
             generateTime: Date.now() - startTime
         };
     }
@@ -72,8 +76,10 @@ async function generatePdfBasic(options) {
     const pdfContent = createBasicPdf(options);
     const encoder = new TextEncoder();
     const pdfBuffer = encoder.encode(pdfContent);
+    // Convert Uint8Array buffer to ArrayBuffer (pdfBuffer.buffer is ArrayBufferLike)
+    const pdf = pdfBuffer.buffer.slice(0);
     return {
-        pdf: pdfBuffer.buffer,
+        pdf,
         generateTime: Date.now() - startTime
     };
 }

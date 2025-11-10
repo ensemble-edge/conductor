@@ -12,7 +12,7 @@
  * It's designed to be compatible with Cloudflare Workers Env type
  * while providing proper typing for all bindings.
  */
-export interface ConductorEnv extends Env {
+export interface ConductorEnv {
   /**
    * KV Namespace for general key-value storage
    */
@@ -73,6 +73,41 @@ export interface ConductorEnv extends Env {
    * Queue bindings
    */
   QUEUE?: Queue
+
+  /**
+   * KV Namespace for docs cache
+   */
+  DOCS_CACHE?: KVNamespace
+
+  /**
+   * KV Namespace for page cache
+   */
+  PAGE_CACHE?: KVNamespace
+
+  /**
+   * KV Namespace for rate limiting
+   */
+  RATE_LIMIT?: KVNamespace
+
+  /**
+   * KV Namespace for components (Edgit)
+   */
+  COMPONENTS?: KVNamespace
+
+  /**
+   * KV Namespace for general cache
+   */
+  CACHE?: KVNamespace
+
+  /**
+   * Environment name (development, staging, production)
+   */
+  ENVIRONMENT?: string
+
+  /**
+   * Index signature to allow dynamic access
+   */
+  [key: string]: any
 }
 
 /**

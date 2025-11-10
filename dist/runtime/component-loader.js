@@ -122,14 +122,13 @@ export class ComponentLoader {
         this.logger?.debug('Loading component from KV', { uri, kvKey, bypass });
         const content = await this.kv.get(kvKey, 'text');
         if (!content) {
-            const error = new Error(`Component not found: ${uri}\n` +
+            this.logger?.warn('Component not found', { uri, kvKey });
+            throw new Error(`Component not found: ${uri}\n` +
                 `KV key: ${kvKey}\n` +
                 `Make sure the component is deployed to KV with:\n` +
                 `  edgit components add <name> <path> ${parsed.protocol}\n` +
                 `  edgit tag create <name> ${parsed.version}\n` +
                 `  edgit deploy set <name> ${parsed.version} --to production`);
-            this.logger?.warn('Component not found', { uri, kvKey });
-            throw error;
         }
         // Cache using standard Conductor cache (unless bypassed)
         if (this.cache && !bypass) {
@@ -149,10 +148,10 @@ export class ComponentLoader {
             return JSON.parse(content);
         }
         catch (error) {
-            const err = new Error(`Failed to parse JSON component: ${uri}\n` +
-                `Error: ${error instanceof Error ? error.message : String(error)}`);
-            this.logger?.error('JSON parse error', { uri, error });
-            throw err;
+            const err = error instanceof Error ? error : new Error(String(error));
+            this.logger?.error('JSON parse error', err, { uri });
+            throw new Error(`Failed to parse JSON component: ${uri}\n` +
+                `Error: ${err.message}`);
         }
     }
     /**
@@ -170,11 +169,11 @@ export class ComponentLoader {
             return (exports.default || exports);
         }
         catch (error) {
-            const err = new Error(`Failed to load compiled component: ${uri}\n` +
-                `Error: ${error instanceof Error ? error.message : String(error)}\n` +
+            const err = error instanceof Error ? error : new Error(String(error));
+            this.logger?.error('Component compilation error', err, { uri });
+            throw new Error(`Failed to load compiled component: ${uri}\n` +
+                `Error: ${err.message}\n` +
                 `Make sure the component was compiled with: npm run build:pages`);
-            this.logger?.error('Component compilation error', { uri, error });
-            throw err;
         }
     }
     /**

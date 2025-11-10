@@ -3,7 +3,7 @@
  *
  * Shopify's Liquid templating with powerful filters and safe execution
  */
-import type { TemplateContext } from '../types/index.js';
+import type { TemplateContext } from '../types.js';
 import { BaseTemplateEngine } from './base.js';
 /**
  * Liquid template engine

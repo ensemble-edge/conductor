@@ -13,7 +13,7 @@
  * - Helpers: {{uppercase name}}
  */
 import { BaseTemplateEngine } from './base.js';
-import type { TemplateContext } from '../types/index.js';
+import type { TemplateContext } from '../types.js';
 import type { ComponentLoader } from '../../../runtime/component-loader.js';
 export declare class SimpleTemplateEngine extends BaseTemplateEngine {
     name: string;
@@ -43,7 +43,18 @@ export declare class SimpleTemplateEngine extends BaseTemplateEngine {
      */
     private resolveValue;
     /**
-     * Process {{#if condition}}...{{else}}...{{/if}} blocks
+     * Process {{#if condition}}...{{else}}...{{/if}} blocks recursively
+     * This allows conditionals to contain partials and other templates
+     */
+    private processConditionalsRecursive;
+    /**
+     * Process {{#each array}}...{{/each}} blocks recursively
+     * This allows loops to contain partials with access to loop item data
+     */
+    private processLoopsRecursive;
+    /**
+     * Process {{#if condition}}...{{else}}...{{/if}} blocks (non-recursive, legacy)
+     * @deprecated Use processConditionalsRecursive instead
      */
     private processConditionals;
     /**

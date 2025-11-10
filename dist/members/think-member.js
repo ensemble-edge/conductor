@@ -64,7 +64,7 @@ export class ThinkMember extends BaseMember {
         return await provider.execute({
             messages,
             config: providerConfig,
-            env,
+            env: env,
         });
     }
     /**

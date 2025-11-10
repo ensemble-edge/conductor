@@ -14,6 +14,7 @@ import type { MemberConfig } from '../../runtime/parser.js';
 import type { PdfMemberOutput } from './types/index.js';
 export declare class PdfMember extends BaseMember {
     private pdfConfig;
+    private templateEngine;
     constructor(config: MemberConfig);
     /**
      * Validate member configuration
@@ -23,5 +24,9 @@ export declare class PdfMember extends BaseMember {
      * Execute PDF generation
      */
     protected run(context: MemberExecutionContext): Promise<PdfMemberOutput>;
+    /**
+     * Render header/footer templates with template engine
+     */
+    private renderHeaderFooter;
 }
 //# sourceMappingURL=pdf-member.d.ts.map

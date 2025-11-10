@@ -12,10 +12,12 @@
 
 import { BaseMember, type MemberExecutionContext } from '../base-member.js';
 import type { MemberConfig } from '../../runtime/parser.js';
+import { MemberType } from '../../types/constants.js';
 import type {
   PdfMemberConfig,
   PdfMemberInput,
-  PdfMemberOutput
+  PdfMemberOutput,
+  PdfHeaderFooter
 } from './types/index.js';
 import { HtmlMember } from '../html/html-member.js';
 import { generatePdf, validatePageConfig } from './utils/pdf-generator.js';
@@ -103,15 +105,15 @@ export class PdfMember extends BaseMember {
       // Render HTML from template
       const htmlMemberConfig: MemberConfig = {
         name: `${this.name}-html-renderer`,
-        type: 'HTML',
-        template: htmlSource.template,
+        type: MemberType.HTML,
         config: {
-          templateEngine: this.pdfConfig.templateEngine || 'simple'
-        },
-        renderOptions: {
-          // Don't inline CSS for PDF - browser can handle it
-          inlineCss: false,
-          minify: false
+          template: htmlSource.template,
+          templateEngine: this.pdfConfig.templateEngine || 'simple',
+          renderOptions: {
+            // Don't inline CSS for PDF - browser can handle it
+            inlineCss: false,
+            minify: false
+          }
         }
       };
 
@@ -148,7 +150,7 @@ export class PdfMember extends BaseMember {
         headerFooter: renderedHeaderFooter,
         metadata
       },
-      context.env
+      context.env as any
     );
 
     // Store to R2 if configured

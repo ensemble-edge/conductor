@@ -6,6 +6,7 @@
  */
 import type { MemberConfig } from '../runtime/parser.js';
 import type { ConductorEnv } from '../types/env.js';
+import type { Logger } from '../observability/types.js';
 export interface MemberExecutionContext {
     input: Record<string, any>;
     state?: Record<string, any>;
@@ -13,10 +14,12 @@ export interface MemberExecutionContext {
     env: ConductorEnv;
     ctx: ExecutionContext;
     previousOutputs?: Record<string, any>;
+    logger?: Logger;
 }
 export interface MemberResponse {
     success: boolean;
     data?: unknown;
+    output?: any;
     error?: string;
     timestamp: string;
     cached: boolean;

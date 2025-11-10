@@ -37,10 +37,10 @@ var init_base_member = __esm({
        * @param context - Execution context
        * @returns Member response
        */
-      async execute(context2) {
+      async execute(context) {
         const startTime = Date.now();
         try {
-          const result = await this.run(context2);
+          const result = await this.run(context);
           const executionTime = Date.now() - startTime;
           return this.wrapSuccess(result, executionTime, false);
         } catch (error) {
@@ -304,13 +304,13 @@ var init_logger = __esm({
       /**
        * Create structured log entry
        */
-      createLogEntry(level, message, context2, error) {
+      createLogEntry(level, message, context, error) {
         const entry = {
           timestamp: (/* @__PURE__ */ new Date()).toISOString(),
           level,
           message,
-          ...Object.keys({ ...this.baseContext, ...context2 }).length > 0 && {
-            context: { ...this.baseContext, ...context2 }
+          ...Object.keys({ ...this.baseContext, ...context }).length > 0 && {
+            context: { ...this.baseContext, ...context }
           }
         };
         if (error) {
@@ -365,8 +365,8 @@ var init_logger = __esm({
        * Only output when DEBUG=true or log level is DEBUG.
        * Useful for development and troubleshooting.
        */
-      debug(message, context2) {
-        const entry = this.createLogEntry("debug" /* DEBUG */, message, context2);
+      debug(message, context) {
+        const entry = this.createLogEntry("debug" /* DEBUG */, message, context);
         this.log(entry);
       }
       /**
@@ -374,8 +374,8 @@ var init_logger = __esm({
        *
        * Use for normal operational events worth tracking.
        */
-      info(message, context2) {
-        const entry = this.createLogEntry("info" /* INFO */, message, context2);
+      info(message, context) {
+        const entry = this.createLogEntry("info" /* INFO */, message, context);
         this.log(entry);
       }
       /**
@@ -383,8 +383,8 @@ var init_logger = __esm({
        *
        * Use for concerning but non-critical issues.
        */
-      warn(message, context2) {
-        const entry = this.createLogEntry("warn" /* WARN */, message, context2);
+      warn(message, context) {
+        const entry = this.createLogEntry("warn" /* WARN */, message, context);
         this.log(entry);
       }
       /**
@@ -393,8 +393,8 @@ var init_logger = __esm({
        * Use for errors that need attention.
        * Includes full error details and stack trace.
        */
-      error(message, error, context2) {
-        const entry = this.createLogEntry("error" /* ERROR */, message, context2, error);
+      error(message, error, context) {
+        const entry = this.createLogEntry("error" /* ERROR */, message, context, error);
         this.log(entry);
       }
       /**
@@ -407,10 +407,10 @@ var init_logger = __esm({
        * const requestLogger = logger.child({ requestId: '123', userId: 'alice' });
        * requestLogger.info('Processing request'); // Includes requestId and userId
        */
-      child(context2) {
+      child(context) {
         return new _ConductorLogger(this.config, this.analyticsEngine, {
           ...this.baseContext,
-          ...context2
+          ...context
         });
       }
       /**
@@ -488,8 +488,8 @@ var init_scrape_member = __esm({
           timeout: cfg?.timeout || 3e4
         };
       }
-      async run(context2) {
-        const input = context2.input;
+      async run(context) {
+        const input = context.input;
         if (!input.url) {
           throw new Error('Scrape member requires "url" in input');
         }
@@ -675,13 +675,13 @@ var init_rule_evaluator = __esm({
         const details = {};
         for (const rule of rules) {
           try {
-            const context2 = {
+            const context = {
               content,
               length: content.length,
               wordCount: content.split(/\s+/).length,
               lineCount: content.split("\n").length
             };
-            const result = this.evaluateRule(rule.check, context2);
+            const result = this.evaluateRule(rule.check, context);
             const score = result ? 1 : 0;
             breakdown[rule.name] = score;
             weights[rule.name] = rule.weight;
@@ -721,7 +721,8 @@ var init_rule_evaluator = __esm({
           }
         );
         try {
-          return eval(evalExpression);
+          const fn = new Function("return (" + evalExpression + ")");
+          return Boolean(fn());
         } catch (error) {
           return false;
         }
@@ -947,8 +948,8 @@ var init_validate_member = __esm({
           model: cfg?.model
         };
       }
-      async run(context2) {
-        const input = context2.input;
+      async run(context) {
+        const input = context.input;
         if (!input.content) {
           throw new Error('Validate member requires "content" in input');
         }
@@ -1170,8 +1171,8 @@ var init_rag_member = __esm({
         };
         this.chunker = new Chunker();
       }
-      async run(context2) {
-        const input = context2.input;
+      async run(context) {
+        const input = context.input;
         const operation = this.ragConfig.operation;
         switch (operation) {
           case "index":
@@ -1286,17 +1287,17 @@ var init_hitl_member = __esm({
           notificationConfig: cfg?.notificationConfig
         };
       }
-      async run(context2) {
+      async run(context) {
         const action = this.hitlConfig.action;
         switch (action) {
           case "suspend":
-            return await this.suspendForApproval(context2);
+            return await this.suspendForApproval(context);
           case "resume":
-            return await this.resumeExecution(context2);
+            return await this.resumeExecution(context);
           case "approve":
-            return await this.approveExecution(context2);
+            return await this.approveExecution(context);
           case "reject":
-            return await this.rejectExecution(context2);
+            return await this.rejectExecution(context);
           default:
             throw new Error(`Unknown HITL action: ${action}`);
         }
@@ -1304,8 +1305,8 @@ var init_hitl_member = __esm({
       /**
        * Suspend execution and wait for approval
        */
-      async suspendForApproval(context2) {
-        const input = context2.input;
+      async suspendForApproval(context) {
+        const input = context.input;
         if (!input.approvalData) {
           throw new Error('Suspend action requires "approvalData" in input');
         }
@@ -1313,7 +1314,7 @@ var init_hitl_member = __esm({
         const expiresAt = Date.now() + this.hitlConfig.timeout;
         const approvalState = {
           executionId,
-          state: context2.state || {},
+          state: context.state || {},
           suspendedAt: Date.now(),
           expiresAt,
           approvalData: input.approvalData,
@@ -1333,8 +1334,8 @@ var init_hitl_member = __esm({
       /**
        * Resume execution after approval/rejection
        */
-      async resumeExecution(context2) {
-        const input = context2.input;
+      async resumeExecution(context) {
+        const input = context.input;
         if (!input.executionId) {
           throw new Error('Resume action requires "executionId" in input');
         }
@@ -1364,20 +1365,20 @@ var init_hitl_member = __esm({
       /**
        * Approve execution (shorthand for resume with approved=true)
        */
-      async approveExecution(context2) {
-        const input = context2.input;
+      async approveExecution(context) {
+        const input = context.input;
         return await this.resumeExecution({
-          ...context2,
+          ...context,
           input: { ...input, approved: true }
         });
       }
       /**
        * Reject execution (shorthand for resume with approved=false)
        */
-      async rejectExecution(context2) {
-        const input = context2.input;
+      async rejectExecution(context) {
+        const input = context.input;
         return await this.resumeExecution({
-          ...context2,
+          ...context,
           input: { ...input, approved: false }
         });
       }
@@ -1530,8 +1531,8 @@ var init_fetch_member = __esm({
           retryDelay: cfg?.retryDelay || 1e3
         };
       }
-      async run(context2) {
-        const input = context2.input;
+      async run(context) {
+        const input = context.input;
         if (!input.url) {
           throw new Error('Fetch member requires "url" in input');
         }
@@ -1639,8 +1640,8 @@ var init_queries_member = __esm({
           includeMetadata: cfg?.includeMetadata !== void 0 ? cfg.includeMetadata : true
         };
       }
-      async run(context2) {
-        const input = context2.input;
+      async run(context) {
+        const input = context.input;
         if (!input.queryName && !input.sql) {
           throw new Error("Either queryName or sql must be provided");
         }
@@ -2489,7 +2490,7 @@ async function executeLocal(memberName, input, config) {
   };
   const mockEnv = {};
   const member = registry2.create(memberName, memberConfig, mockEnv);
-  const context2 = {
+  const context = {
     input,
     env: mockEnv,
     ctx: {
@@ -2499,7 +2500,7 @@ async function executeLocal(memberName, input, config) {
       }
     }
   };
-  const result = await member.execute(context2);
+  const result = await member.execute(context);
   return {
     success: result.success,
     data: result.data,
@@ -6731,21 +6732,21 @@ var StringResolver = class {
     if (typeof template !== "string") return false;
     return this.fullPattern.test(template) || this.hasInterpolationPattern.test(template);
   }
-  resolve(template, context2, interpolate) {
+  resolve(template, context, interpolate) {
     const fullMatch = template.match(this.fullPattern);
     if (fullMatch) {
       const path5 = fullMatch[1].trim();
       if (!path5) {
         return void 0;
       }
-      return this.traversePath(path5, context2);
+      return this.traversePath(path5, context);
     }
     const result = template.replace(/\$\{([^}]*)\}/g, (match, path5) => {
       const trimmedPath = path5.trim();
       if (!trimmedPath) {
         return "";
       }
-      const value = this.traversePath(trimmedPath, context2);
+      const value = this.traversePath(trimmedPath, context);
       return value !== void 0 ? String(value) : match;
     });
     return result;
@@ -6753,9 +6754,9 @@ var StringResolver = class {
   /**
    * Traverse context using dot-separated path
    */
-  traversePath(path5, context2) {
+  traversePath(path5, context) {
     const parts = path5.split(".").map((p) => p.trim());
-    let value = context2;
+    let value = context;
     for (const part of parts) {
       if (value && typeof value === "object" && part in value) {
         value = value[part];
@@ -6770,18 +6771,18 @@ var ArrayResolver = class {
   canResolve(template) {
     return Array.isArray(template);
   }
-  resolve(template, context2, interpolate) {
-    return template.map((item) => interpolate(item, context2));
+  resolve(template, context, interpolate) {
+    return template.map((item) => interpolate(item, context));
   }
 };
 var ObjectResolver = class {
   canResolve(template) {
     return typeof template === "object" && template !== null && !Array.isArray(template);
   }
-  resolve(template, context2, interpolate) {
+  resolve(template, context, interpolate) {
     const resolved = {};
     for (const [key, value] of Object.entries(template)) {
-      resolved[key] = interpolate(value, context2);
+      resolved[key] = interpolate(value, context);
     }
     return resolved;
   }
@@ -6810,10 +6811,10 @@ var Interpolator = class {
    * Resolve template with context
    * Delegates to first resolver that can handle the template
    */
-  resolve(template, context2) {
+  resolve(template, context) {
     for (const resolver of this.resolvers) {
       if (resolver.canResolve(template)) {
-        return resolver.resolve(template, context2, (t, c) => this.resolve(t, c));
+        return resolver.resolve(template, context, (t, c) => this.resolve(t, c));
       }
     }
     return template;
@@ -6979,8 +6980,8 @@ var Parser = class {
    *
    * Reduced from 42 lines of nested if/else to 1 line via chain of responsibility
    */
-  static resolveInterpolation(template, context2) {
-    return this.interpolator.resolve(template, context2);
+  static resolveInterpolation(template, context) {
+    return this.interpolator.resolve(template, context);
   }
   /**
    * Parse a member reference that may include version

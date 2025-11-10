@@ -49,7 +49,7 @@ export class MemoryManager {
     }
 
     if (config.layers.analytical && config.analyticalConfig) {
-      this.analyticalMemory = new AnalyticalMemory(env, config.analyticalConfig)
+      this.analyticalMemory = new AnalyticalMemory(env as any, config.analyticalConfig)
     }
   }
 

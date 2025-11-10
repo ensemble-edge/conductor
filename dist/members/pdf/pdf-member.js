@@ -10,13 +10,18 @@
  * - PDF metadata
  */
 import { BaseMember } from '../base-member.js';
+import { MemberType } from '../../types/constants.js';
 import { HtmlMember } from '../html/html-member.js';
 import { generatePdf, validatePageConfig } from './utils/pdf-generator.js';
 import { storePdfToR2, generateFilename, createContentDisposition, validateStorageConfig } from './utils/storage.js';
+import { createTemplateEngine } from '../../utils/templates/index.js';
 export class PdfMember extends BaseMember {
     constructor(config) {
         super(config);
         this.pdfConfig = config;
+        // Initialize template engine (default to 'simple')
+        const engine = this.pdfConfig.templateEngine || 'simple';
+        this.templateEngine = createTemplateEngine(engine);
         // Validate configuration
         this.validateConfig();
     }
@@ -75,12 +80,15 @@ export class PdfMember extends BaseMember {
             // Render HTML from template
             const htmlMemberConfig = {
                 name: `${this.name}-html-renderer`,
-                type: 'HTML',
-                template: htmlSource.template,
-                renderOptions: {
-                    // Don't inline CSS for PDF - browser can handle it
-                    inlineCss: false,
-                    minify: false
+                type: MemberType.HTML,
+                config: {
+                    template: htmlSource.template,
+                    templateEngine: this.pdfConfig.templateEngine || 'simple',
+                    renderOptions: {
+                        // Don't inline CSS for PDF - browser can handle it
+                        inlineCss: false,
+                        minify: false
+                    }
                 }
             };
             const htmlMember = new HtmlMember(htmlMemberConfig);
@@ -100,11 +108,13 @@ export class PdfMember extends BaseMember {
         else {
             throw new Error('No HTML source specified. Provide html.inline, html.fromMember, or html.template');
         }
+        // Render header/footer templates if they contain variables
+        const renderedHeaderFooter = await this.renderHeaderFooter(headerFooter);
         // Generate PDF
         const pdfResult = await generatePdf({
             html,
             page: pageConfig,
-            headerFooter,
+            headerFooter: renderedHeaderFooter,
             metadata
         }, context.env);
         // Store to R2 if configured
@@ -132,5 +142,24 @@ export class PdfMember extends BaseMember {
                 htmlSize
             }
         };
+    }
+    /**
+     * Render header/footer templates with template engine
+     */
+    async renderHeaderFooter(headerFooter) {
+        if (!headerFooter) {
+            return undefined;
+        }
+        const data = headerFooter.data || {};
+        const rendered = { ...headerFooter };
+        // Render header template if it exists
+        if (headerFooter.header) {
+            rendered.header = await this.templateEngine.render(headerFooter.header, data);
+        }
+        // Render footer template if it exists
+        if (headerFooter.footer) {
+            rendered.footer = await this.templateEngine.render(headerFooter.footer, data);
+        }
+        return rendered;
     }
 }

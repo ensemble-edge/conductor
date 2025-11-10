@@ -7,7 +7,7 @@
  * In production Cloudflare Workers, this should work fine.
  */
 
-import type { TemplateContext } from '../types/index.js';
+import type { TemplateContext } from '../types.js';
 import { BaseTemplateEngine } from './base.js';
 import { HandlebarsTemplateEngine } from './handlebars.js';
 

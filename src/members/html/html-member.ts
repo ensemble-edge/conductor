@@ -62,7 +62,7 @@ export class HtmlMember extends BaseMember {
 			? normalizeTemplateSource(input.template)
 			: this.htmlConfig.template;
 
-		const templateResult = await loadTemplate(templateSource, context.env);
+		const templateResult = await loadTemplate(templateSource, { TEMPLATES: context.env.KV, ASSETS: context.env.STORAGE });
 
 		// Parse request cookies if provided
 		const requestCookies = input.cookies || {};
@@ -92,11 +92,8 @@ export class HtmlMember extends BaseMember {
 			// Create cache instance if CACHE binding exists
 			let cache;
 			if (context.env.CACHE) {
-				const { KVRepository } = await import('../../storage/index.js');
-				const { RepositoryCache } = await import('../../cache/cache.js');
-				const repository = new KVRepository(context.env.CACHE);
-				cache = new RepositoryCache(repository, {
-					keyPrefix: 'conductor:cache:',
+				const { MemoryCache } = await import('../../cache/cache.js');
+				cache = new MemoryCache({
 					defaultTTL: 3600
 				});
 			}
@@ -209,11 +206,8 @@ export class HtmlMember extends BaseMember {
 				// Create cache instance if CACHE binding exists
 				let cache;
 				if (context.env.CACHE) {
-					const { KVRepository } = await import('../../storage/index.js');
-					const { RepositoryCache } = await import('../../cache/cache.js');
-					const repository = new KVRepository(context.env.CACHE);
-					cache = new RepositoryCache(repository, {
-						keyPrefix: 'conductor:cache:',
+					const { MemoryCache } = await import('../../cache/cache.js');
+					cache = new MemoryCache({
 						defaultTTL: 3600
 					});
 				}
@@ -226,7 +220,7 @@ export class HtmlMember extends BaseMember {
 				try {
 					return await componentLoader.load(layout);
 				} catch (error) {
-					context.logger?.warn('Failed to load layout', { layout, error });
+					context.logger?.warn('Failed to load layout', { layout, error: error instanceof Error ? error.message : String(error) });
 					return null;
 				}
 			}
@@ -243,8 +237,8 @@ export class HtmlMember extends BaseMember {
 	private getDefaultHelpers(): Record<string, (...args: unknown[]) => unknown> {
 		return {
 			// Date formatting
-			formatDate: (date: string | Date, format?: string) => {
-				const d = typeof date === 'string' ? new Date(date) : date;
+			formatDate: (date: unknown, format?: unknown) => {
+				const d = typeof date === 'string' ? new Date(date) : date as Date;
 				return d.toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: 'long',
@@ -253,25 +247,28 @@ export class HtmlMember extends BaseMember {
 			},
 
 			// String helpers
-			uppercase: (str: string) => str.toUpperCase(),
-			lowercase: (str: string) => str.toLowerCase(),
-			capitalize: (str: string) => str.charAt(0).toUpperCase() + str.slice(1),
+			uppercase: (str: unknown) => String(str).toUpperCase(),
+			lowercase: (str: unknown) => String(str).toLowerCase(),
+			capitalize: (str: unknown) => {
+				const s = String(str);
+				return s.charAt(0).toUpperCase() + s.slice(1);
+			},
 
 			// Number formatting
-			currency: (amount: number, currency = 'USD') => {
+			currency: (amount: unknown, currency: unknown = 'USD') => {
 				return new Intl.NumberFormat('en-US', {
 					style: 'currency',
-					currency
-				}).format(amount);
+					currency: String(currency)
+				}).format(Number(amount));
 			},
 
 			// Conditional helpers
 			eq: (a: unknown, b: unknown) => a === b,
 			ne: (a: unknown, b: unknown) => a !== b,
-			lt: (a: number, b: number) => a < b,
-			gt: (a: number, b: number) => a > b,
-			and: (...args: boolean[]) => args.every(Boolean),
-			or: (...args: boolean[]) => args.some(Boolean)
+			lt: (a: unknown, b: unknown) => Number(a) < Number(b),
+			gt: (a: unknown, b: unknown) => Number(a) > Number(b),
+			and: (...args: unknown[]) => args.every(Boolean),
+			or: (...args: unknown[]) => args.some(Boolean)
 		};
 	}
 

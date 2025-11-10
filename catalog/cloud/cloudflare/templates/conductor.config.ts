@@ -144,87 +144,49 @@ const config: ConductorConfig = {
 				}
 			]
 		}
-	},
+	}
+
 	/**
 	 * Documentation generation settings
-	 *
-	 * OpenAPI specs are automatically generated and stored in KV for caching.
-	 * Configure where docs are served and how they're authenticated.
+	 * NOTE: Docs configuration is not yet integrated with the routing ConductorConfig type.
+	 * This section is commented out until the types are merged.
 	 */
-	docs: {
-		/**
-		 * Use AI to enhance documentation
-		 * When true, `conductor docs generate` will use the docs-writer member
-		 * to create production-quality API documentation.
-		 *
-		 * Set to false for basic auto-generated docs (faster but less detailed).
-		 */
-		useAI: true,
-
-		/**
-		 * AI member to use for documentation enhancement
-		 */
-		aiMember: 'docs-writer',
-
-		/**
-		 * Output format (yaml or json)
-		 */
-		format: 'yaml' as 'yaml' | 'json',
-
-		/**
-		 * Include examples in generated documentation
-		 */
-		includeExamples: true,
-
-		/**
-		 * Include security schemes in documentation
-		 */
-		includeSecurity: true,
-
-		/**
-		 * Cache configuration (uses KV)
-		 * OpenAPI specs are cached for performance
-		 */
-		cache: {
-			enabled: true,
-			ttl: 3600 // 1 hour
-		}
-	},
+	// docs: {
+	// 	useAI: true,
+	// 	aiMember: 'docs-writer',
+	// 	format: 'yaml' as 'yaml' | 'json',
+	// 	includeExamples: true,
+	// 	includeSecurity: true,
+	// 	cache: {
+	// 		enabled: true,
+	// 		ttl: 3600 // 1 hour
+	// 	}
+	// }
 
 	/**
 	 * Testing configuration
+	 * NOTE: Testing configuration is not yet integrated with the routing ConductorConfig type.
+	 * This section is commented out until the types are merged.
 	 */
-	testing: {
-		/**
-		 * Coverage thresholds
-		 */
-		coverage: {
-			lines: 70,
-			functions: 70,
-			branches: 65,
-			statements: 70
-		}
-	},
+	// testing: {
+	// 	coverage: {
+	// 		lines: 70,
+	// 		functions: 70,
+	// 		branches: 65,
+	// 		statements: 70
+	// 	}
+	// }
 
 	/**
 	 * Observability configuration
+	 * NOTE: Observability configuration is not yet integrated with the routing ConductorConfig type.
+	 * This section is commented out until the types are merged.
 	 */
-	observability: {
-		/**
-		 * Enable structured logging
-		 */
-		logging: true,
-
-		/**
-		 * Log level (debug, info, warn, error)
-		 */
-		logLevel: 'info' as 'debug' | 'info' | 'warn' | 'error',
-
-		/**
-		 * Enable Analytics Engine metrics
-		 */
-		metrics: true
-	}
+	// observability: {
+	// 	logging: true,
+	// 	logLevel: 'info' as 'debug' | 'info' | 'warn' | 'error',
+	// 	metrics: true
+	// }
 };
 
 export default config;

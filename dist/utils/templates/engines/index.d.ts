@@ -5,7 +5,7 @@
  * Currently supports 'simple' engine out of the box.
  * Handlebars, Liquid, and MJML support can be added as optional dependencies.
  */
-import type { TemplateEngine } from '../types/index.js';
+import type { TemplateEngine } from '../types.js';
 import { BaseTemplateEngine } from './base.js';
 /**
  * Create a template engine instance
