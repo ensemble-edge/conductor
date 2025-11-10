@@ -1,18 +1,15 @@
-import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
+import { defineConfig } from 'vitest/config';
 
-export default defineWorkersConfig({
+export default defineConfig({
 	test: {
-		// Exclude catalog example tests - they use filesystem which isn't available in Workers pool
+		globals: true,
+		environment: 'node',
+		// Exclude catalog tests - they are tested separately in their own environments
 		exclude: [
 			'**/node_modules/**',
 			'**/dist/**',
 			'catalog/**/tests/**',
 		],
-		poolOptions: {
-			workers: {
-				wrangler: { configPath: './wrangler.jsonc' },
-			},
-		},
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html', 'lcov'],
@@ -35,7 +32,7 @@ export default defineWorkersConfig({
 				'dist/**',
 			],
 		},
-		testTimeout: 15000, // 15 seconds for Worker operations
+		testTimeout: 15000,
 		hookTimeout: 30000,
 	},
 });
