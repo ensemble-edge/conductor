@@ -19,6 +19,6 @@
 		"wrangler": "^4.45.2"
 	},
 	"dependencies": {
-		"@ensemble-edge/conductor": "^1.0.9"
+		"@ensemble-edge/conductor": "^1.0.10"
 	}
 }
