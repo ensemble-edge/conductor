@@ -71,6 +71,8 @@ export interface RetryConfig {
     backoffMultiplier?: number;
     /** Jitter to add to retry delays (0-1) */
     jitter?: number;
+    /** Enable exponential backoff (default: true) */
+    exponentialBackoff?: boolean;
 }
 /**
  * Dead letter queue configuration

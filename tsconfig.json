@@ -42,6 +42,6 @@
 			"./worker-configuration.d.ts"
 		]
 	},
-	"exclude": ["test"],
+	"exclude": ["test", "**/__tests__/**", "**/*.test.ts"],
 	"include": ["worker-configuration.d.ts", "src/**/*.ts"]
 }

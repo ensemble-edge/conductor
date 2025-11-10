@@ -2,6 +2,12 @@ name = "my-conductor-project"
 main = "src/index.ts"
 compatibility_date = "2025-10-29"
 
+# Module rules for file imports
+[[rules]]
+type = "Text"
+globs = ["**/*.yaml", "**/*.yml"]
+fallthrough = true
+
 # ==================== Local Development Secrets ====================
 # For local development, copy .dev.vars.example to .dev.vars and add your secrets:
 #   cp .dev.vars.example .dev.vars
@@ -14,52 +20,56 @@ compatibility_date = "2025-10-29"
 
 # ==================== Durable Objects ====================
 # Required for stateful workflows, async execution tracking, and HITL
-[[durable_objects.bindings]]
-name = "EXECUTION_STATE"
-class_name = "ExecutionState"
-script_name = "my-conductor-project"
-
-[[durable_objects.bindings]]
-name = "HITL_STATE"
-class_name = "HITLState"
-script_name = "my-conductor-project"
-
-[[migrations]]
-tag = "v1"
-new_classes = ["ExecutionState", "HITLState"]
+# Uncomment when you need stateful workflows:
+# [[durable_objects.bindings]]
+# name = "EXECUTION_STATE"
+# class_name = "ExecutionState"
+# script_name = "my-conductor-project"
+#
+# [[durable_objects.bindings]]
+# name = "HITL_STATE"
+# class_name = "HITLState"
+# script_name = "my-conductor-project"
+#
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["ExecutionState", "HITLState"]
 
 # ==================== Cloudflare Bindings ====================
-# KV for caching and fast lookups
-kv_namespaces = [
-  { binding = "CACHE", id = "your-kv-namespace-id", preview_id = "your-preview-kv-id" }
-]
-
-# D1 database for long-term memory
-[[d1_databases]]
-binding = "DB"
-database_name = "conductor-db"
-database_id = "your-d1-database-id"
-
-# Vectorize for semantic memory (RAG)
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "conductor-embeddings"
-
-# Templates KV for versioned email/HTML/PDF templates
-kv_namespaces = [
-  { binding = "TEMPLATES", id = "your-templates-kv-id", preview_id = "your-preview-templates-kv-id" }
-]
+# Comment out bindings you don't need. All are optional except for Durable Objects above.
 
 # R2 for static assets (images, fonts, global CSS)
-[[r2_buckets]]
-binding = "ASSETS"
-bucket_name = "conductor-assets"
-preview_bucket_name = "conductor-assets-preview"
+# Uncomment when you set up an R2 bucket:
+# [[r2_buckets]]
+# binding = "ASSETS"
+# bucket_name = "conductor-assets"
+# preview_bucket_name = "conductor-assets-preview"
 
-# Email sending via Cloudflare Email Routing (optional - only if using Cloudflare provider)
+# KV for caching and fast lookups
+# Uncomment when you create KV namespaces:
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-id"
+
+# D1 database for long-term memory
+# Uncomment when you create a D1 database:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "conductor-db"
+# database_id = "your-d1-database-id"
+
+# Vectorize for semantic memory (RAG)
+# Uncomment when you create a Vectorize index:
+# [[vectorize]]
+# binding = "VECTORIZE"
+# index_name = "conductor-embeddings"
+
+# Email sending via Cloudflare Email Routing
+# Uncomment when using Cloudflare email provider:
 # [[send_email]]
 # name = "EMAIL"
-# destination_address_list = "allowed-recipients"  # Optional: restrict recipients
+# destination_address_list = "allowed-recipients"
 
 # SMS configuration (via secrets - use wrangler secret put)
 # Required secrets for Twilio:
@@ -68,25 +78,19 @@ preview_bucket_name = "conductor-assets-preview"
 #   wrangler secret put TWILIO_PHONE_NUMBER
 
 # Hyperdrive bindings for external databases
-# Each Hyperdrive binding can connect to Postgres, MySQL, or MariaDB
-[[hyperdrive]]
-binding = "PRODUCTION_DB"
-id = "your-hyperdrive-id-production"
-# For production database queries (read-only recommended)
-
-[[hyperdrive]]
-binding = "ANALYTICS_DB"
-id = "your-hyperdrive-id-analytics"
-# For analytics and reporting queries
-
-[[hyperdrive]]
-binding = "DATA_WAREHOUSE"
-id = "your-hyperdrive-id-warehouse"
-# For data warehouse queries
+# Uncomment and configure when connecting to external databases:
+# [[hyperdrive]]
+# binding = "PRODUCTION_DB"
+# id = "your-hyperdrive-id-production"
+#
+# [[hyperdrive]]
+# binding = "ANALYTICS_DB"
+# id = "your-hyperdrive-id-analytics"
 
 # AI binding for Think members
-[ai]
-binding = "AI"
+# Uncomment when you use Think-type members:
+# [ai]
+# binding = "AI"
 
 # ==================== Environment Variables ====================
 [vars]

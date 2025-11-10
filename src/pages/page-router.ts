@@ -199,7 +199,6 @@ export class PageRouter {
         ctx,
         state: {},
         previousOutputs: {},
-        memberName: route.page.getName(),
       })
 
       if (!result.success) {
@@ -207,11 +206,12 @@ export class PageRouter {
         return new Response('Internal Server Error', { status: 500 })
       }
 
-      return new Response(result.output.html, {
+      const pageOutput = (result.output || result.data) as any;
+      return new Response(pageOutput.html, {
         status: 200,
         headers: {
           'content-type': 'text/html; charset=utf-8',
-          ...result.output.headers,
+          ...pageOutput.headers,
         },
       })
     } catch (error) {
@@ -390,7 +390,6 @@ export class PageRouter {
         ctx,
         state: {},
         previousOutputs: {},
-        memberName: notFoundPage.getName(),
       })
 
       if (!result.success) {
@@ -398,11 +397,12 @@ export class PageRouter {
         return new Response('Not Found', { status: 404 })
       }
 
-      return new Response(result.output.html, {
+      const pageOutput = (result.output || result.data) as any;
+      return new Response(pageOutput.html, {
         status: 404,
         headers: {
           'content-type': 'text/html; charset=utf-8',
-          ...result.output.headers,
+          ...pageOutput.headers,
         },
       })
     } catch (error) {

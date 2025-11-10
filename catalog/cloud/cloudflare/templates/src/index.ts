@@ -15,7 +15,9 @@
  * 4. Mix all three (API + custom endpoints + pages)
  */
 
-import { ExecutionState, HITLState } from '@ensemble-edge/conductor';
+// Import Durable Objects from the cloudflare-specific entry point
+import { ExecutionState, HITLState } from '@ensemble-edge/conductor/cloudflare';
+
 // Note: The /api export is not available in v1.0.7
 // import { createConductorAPI } from '@ensemble-edge/conductor/api';
 
@@ -31,7 +33,7 @@ import { ExecutionState, HITLState } from '@ensemble-edge/conductor';
 /*
 const app = createConductorAPI({
 	auth: {
-		apiKeys: (env: any) => env.API_KEYS?.split(',') || [],
+		apiKeys: (env: Env) => env.API_KEYS?.split(',') || [],
 		allowAnonymous: true  // Set to false in production
 	},
 	logging: true
@@ -43,8 +45,7 @@ export default app;
 // ==================== Option 2: Custom Endpoints (Full Control) ====================
 // Use this approach if you want complete control over your API structure
 
-import { Executor, MemberLoader, PageRouter, UnifiedRouter } from '@ensemble-edge/conductor';
-import { PageMember } from '@ensemble-edge/conductor/members/page';
+import { Executor, MemberLoader, PageRouter, UnifiedRouter, PageMember, type MemberConfig } from '@ensemble-edge/conductor';
 import conductorConfig from '../conductor.config';
 
 // Import your members (add more as you create them)
@@ -71,25 +72,25 @@ import sitemapPageConfig from '../pages/static/sitemap/page.yaml';
 // Initialize PageRouter with pages
 const pageRouter = new PageRouter({
 	indexFiles: ['index'],
-	notFoundPage: 'error-404', // Use custom 404 page
-	baseUrl: '' // Will be set from request
+	notFoundPage: 'error-404' // Use custom 404 page
 });
 
 // Register pages
+// Note: YAML imports are typed as Record<string, unknown>, so we assert them as MemberConfig
 const pagesMap = new Map([
 	// Example pages
-	['index', { config: indexPageConfig, member: new PageMember(indexPageConfig) }],
-	['dashboard', { config: dashboardPageConfig, member: new PageMember(dashboardPageConfig) }],
-	['login', { config: loginPageConfig, member: new PageMember(loginPageConfig) }],
-	['blog-post', { config: blogPostPageConfig, member: new PageMember(blogPostPageConfig) }],
+	['index', { config: indexPageConfig as MemberConfig, member: new PageMember(indexPageConfig as MemberConfig) }],
+	['dashboard', { config: dashboardPageConfig as MemberConfig, member: new PageMember(dashboardPageConfig as MemberConfig) }],
+	['login', { config: loginPageConfig as MemberConfig, member: new PageMember(loginPageConfig as MemberConfig) }],
+	['blog-post', { config: blogPostPageConfig as MemberConfig, member: new PageMember(blogPostPageConfig as MemberConfig) }],
 
 	// Error pages
-	['error-404', { config: error404PageConfig, member: new PageMember(error404PageConfig) }],
-	['error-500', { config: error500PageConfig, member: new PageMember(error500PageConfig) }],
+	['error-404', { config: error404PageConfig as MemberConfig, member: new PageMember(error404PageConfig as MemberConfig) }],
+	['error-500', { config: error500PageConfig as MemberConfig, member: new PageMember(error500PageConfig as MemberConfig) }],
 
 	// Static pages
-	['robots', { config: robotsPageConfig, member: new PageMember(robotsPageConfig) }],
-	['sitemap', { config: sitemapPageConfig, member: new PageMember(sitemapPageConfig) }]
+	['robots', { config: robotsPageConfig as MemberConfig, member: new PageMember(robotsPageConfig as MemberConfig) }],
+	['sitemap', { config: sitemapPageConfig as MemberConfig, member: new PageMember(sitemapPageConfig as MemberConfig) }]
 ]);
 
 // Auto-discover and register all pages
@@ -196,11 +197,11 @@ export default {
 				const loader = new MemberLoader({ env, ctx });
 
 				// Register your members
-				const greetMember = loader.registerMember(greetConfig, greetFunction);
+				const greetMember = loader.registerMember(greetConfig as MemberConfig, greetFunction);
 				executor.registerMember(greetMember);
 
 				// Execute ensemble
-				const result = await executor.executeFromYAML(helloWorldYAML, input);
+				const result = await executor.executeFromYAML(helloWorldYAML as unknown as string, input);
 
 				return Response.json(result);
 			} catch (error) {

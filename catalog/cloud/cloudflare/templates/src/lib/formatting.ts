@@ -59,6 +59,12 @@ export function getTimeBasedGreeting(hour: number = new Date().getHours()): stri
  * @param style - Requested style
  * @returns Style configuration
  */
-export function getStyleConfig(config: any, style: string) {
-	return config?.styles?.[style] || config?.styles?.[config?.defaults?.style] || {};
+export function getStyleConfig(config: Record<string, unknown>, style: string): Record<string, unknown> {
+	const styles = config?.styles as Record<string, unknown> | undefined;
+	const defaults = config?.defaults as Record<string, unknown> | undefined;
+	const defaultStyle = defaults?.style as string | undefined;
+
+	return (styles?.[style] as Record<string, unknown>) ||
+	       (defaultStyle && styles?.[defaultStyle] as Record<string, unknown>) ||
+	       {};
 }

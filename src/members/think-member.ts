@@ -89,7 +89,7 @@ export class ThinkMember extends BaseMember {
     }
 
     // Validate configuration
-    const configError = provider.getConfigError(providerConfig, env)
+    const configError = provider.getConfigError(providerConfig, env as any)
     if (configError) {
       throw new Error(configError)
     }
@@ -101,7 +101,7 @@ export class ThinkMember extends BaseMember {
     return await provider.execute({
       messages,
       config: providerConfig,
-      env,
+      env: env as any,
     })
   }
 

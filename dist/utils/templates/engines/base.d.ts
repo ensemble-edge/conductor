@@ -3,7 +3,7 @@
  *
  * Abstract base class for all template rendering engines.
  */
-import type { TemplateContext } from '../types/index.js';
+import type { TemplateContext } from '../types.js';
 export declare abstract class BaseTemplateEngine {
     abstract name: string;
     /**

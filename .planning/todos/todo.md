@@ -10,3 +10,11 @@
 - add image processing, both analysis and generation
 - add audio processing, both analysis and generation
 - add graph or chart generation
+- undo this, i don't like it (rethink tests for default project after init):
+    I created two ways to import Conductor: 
+    @ensemble-edge/conductor - Regular import, works everywhere (tests, local dev, CI/CD)
+    Does NOT include Durable Objects
+    Perfect for testing
+    @ensemble-edge/conductor/cloudflare - Cloudflare-specific import
+    DOES include Durable Objects
+    Only use in your Cloudflare Workers src/index.ts

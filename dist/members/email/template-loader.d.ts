@@ -5,6 +5,7 @@
  * Supports Handlebars templating and Edgit versioning
  */
 import type { KVNamespace } from '@cloudflare/workers-types';
+import type { BaseTemplateEngine } from '../../utils/templates/index.js';
 /**
  * Template data for rendering
  */
@@ -15,6 +16,8 @@ export interface TemplateData {
  * Template loader configuration
  */
 export interface TemplateLoaderConfig {
+    /** Template engine for rendering */
+    engine: BaseTemplateEngine;
     /** KV namespace for templates (optional) */
     kv?: KVNamespace;
     /** Local templates directory (optional) */
@@ -26,11 +29,12 @@ export interface TemplateLoaderConfig {
  * Email Template Loader
  */
 export declare class TemplateLoader {
+    private engine;
     private kv?;
     private localDir;
     private defaultVersion;
     private cache;
-    constructor(config?: TemplateLoaderConfig);
+    constructor(config: TemplateLoaderConfig);
     /**
      * Load and render template
      */
@@ -52,14 +56,6 @@ export declare class TemplateLoader {
      */
     private loadFromLocal;
     /**
-     * Render template with Handlebars
-     */
-    private renderTemplate;
-    /**
-     * Get nested value from object
-     */
-    private getNestedValue;
-    /**
      * Clear template cache
      */
     clearCache(): void;
@@ -71,5 +67,5 @@ export declare class TemplateLoader {
 /**
  * Create template loader instance
  */
-export declare function createTemplateLoader(config?: TemplateLoaderConfig): TemplateLoader;
+export declare function createTemplateLoader(config: TemplateLoaderConfig): TemplateLoader;
 //# sourceMappingURL=template-loader.d.ts.map

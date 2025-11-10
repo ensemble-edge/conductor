@@ -188,6 +188,6 @@ export class TemplateLoader {
 /**
  * Create template loader instance
  */
-export function createTemplateLoader(config?: TemplateLoaderConfig): TemplateLoader {
+export function createTemplateLoader(config: TemplateLoaderConfig): TemplateLoader {
 	return new TemplateLoader(config);
 }

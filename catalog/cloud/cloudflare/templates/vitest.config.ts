@@ -1,12 +1,18 @@
 /**
  * Vitest Configuration for Conductor Project
  *
- * Pre-configured for testing Conductor ensembles and members.
+ * Standard Vitest configuration for testing Conductor ensembles and members.
+ * Tests run in Node.js environment for maximum compatibility.
+ *
+ * Note: If you need to test Cloudflare Workers-specific bindings (AI, KV, D1, etc.),
+ * you can switch to @cloudflare/vitest-pool-workers by using defineWorkersConfig instead.
  */
 
 import { defineConfig } from 'vitest/config';
+import yaml from '@rollup/plugin-yaml';
 
 export default defineConfig({
+	plugins: [yaml()],
 	test: {
 		globals: true,
 		environment: 'node',

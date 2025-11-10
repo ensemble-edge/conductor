@@ -111,14 +111,14 @@ export class TwilioProvider extends BaseSmsProvider {
 			body: body.toString(),
 		});
 
-		const data = await response.json();
+		const data = await response.json() as any;
 
 		if (!response.ok) {
 			return {
 				messageId: '',
 				status: 'failed',
 				provider: this.name,
-				error: data.message || `HTTP ${response.status}`,
+				error: data?.message || `HTTP ${response.status}`,
 			};
 		}
 

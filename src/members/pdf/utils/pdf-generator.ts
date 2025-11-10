@@ -86,8 +86,13 @@ async function generatePdfWithBrowser(
     // Generate PDF
     const pdfBuffer = await session.pdf(pdfOptions);
 
+    // Convert ArrayBufferLike to ArrayBuffer if needed
+    const pdf = pdfBuffer instanceof ArrayBuffer
+      ? pdfBuffer
+      : new Uint8Array(pdfBuffer).buffer;
+
     return {
-      pdf: pdfBuffer,
+      pdf,
       generateTime: Date.now() - startTime
     };
   } finally {
@@ -109,8 +114,11 @@ async function generatePdfBasic(options: PdfGenerateOptions): Promise<PdfGenerat
   const encoder = new TextEncoder();
   const pdfBuffer = encoder.encode(pdfContent);
 
+  // Convert Uint8Array buffer to ArrayBuffer (pdfBuffer.buffer is ArrayBufferLike)
+  const pdf = pdfBuffer.buffer.slice(0) as ArrayBuffer;
+
   return {
-    pdf: pdfBuffer.buffer,
+    pdf,
     generateTime: Date.now() - startTime
   };
 }

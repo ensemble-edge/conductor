@@ -28,6 +28,7 @@ export interface EmailMemberConfig {
 export declare class EmailMember extends BaseMember {
     private provider;
     private templateEngine;
+    private templateLoader;
     private rateLimit;
     private tracking;
     constructor(config: any);

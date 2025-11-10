@@ -7,6 +7,7 @@
 import { BaseMember } from '../base-member.js';
 import { createEmailProvider } from './providers/index.js';
 import { createTemplateEngine } from '../../utils/templates/index.js';
+import { TemplateLoader } from './template-loader.js';
 /**
  * Email Member
  */
@@ -23,6 +24,12 @@ export class EmailMember extends BaseMember {
         // Initialize template engine (default to 'simple')
         const engine = emailConfig.templateEngine || 'simple';
         this.templateEngine = createTemplateEngine(engine);
+        // Initialize template loader for KV/file loading
+        this.templateLoader = new TemplateLoader({
+            engine: this.templateEngine,
+            kv: emailConfig.templatesKv ? (config.env?.[emailConfig.templatesKv] || undefined) : undefined,
+            defaultVersion: 'latest'
+        });
         // Configuration
         this.rateLimit = emailConfig.rateLimit || 10; // emails per second
         this.tracking = emailConfig.tracking ?? false;
@@ -129,7 +136,8 @@ export class EmailMember extends BaseMember {
         // Render template if provided
         if (input.template) {
             const data = input.data || {};
-            html = await this.templateEngine.render(input.template, data);
+            // Use template loader to load and render template (handles KV, files, inline)
+            html = await this.templateLoader.render(input.template, data);
             // If no text version provided, strip HTML for plain text
             if (!text) {
                 text = this.stripHtml(html);

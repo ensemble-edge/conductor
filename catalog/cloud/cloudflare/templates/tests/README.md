@@ -2,6 +2,17 @@
 
 This directory contains tests for your Conductor ensembles and members.
 
+## Test Structure
+
+- **smoke.test.ts** - Basic sanity checks (always included)
+- **basic.test.ts** - Hello world ensemble test (always included)
+- **examples/** - Example tests (skipped with `--no-examples` flag)
+  - **ensembles/** - Tests for example ensembles
+  - **members/** - Tests for example members
+  - **debug.test.ts** - Debug utilities
+
+When you run `conductor init --no-examples`, the examples/ directory is not copied, so your project starts with only the essential tests.
+
 ## Running Tests
 
 ```bash
@@ -17,9 +28,27 @@ npm run test:coverage
 
 ## Writing Tests
 
-### Testing Members
+### Testing Members (Basic Approach)
 
-See `members/hello.test.ts` for an example of testing a member:
+See `basic.test.ts` for an example of testing without TestConductor:
+
+```typescript
+import { Executor, MemberLoader } from '@ensemble-edge/conductor';
+import type { MemberConfig } from '@ensemble-edge/conductor';
+
+const executor = new Executor({ env, ctx });
+const loader = new MemberLoader({ env, ctx });
+
+const member = loader.registerMember(memberConfig as MemberConfig, memberFunction);
+executor.registerMember(member);
+
+const result = await executor.executeFromYAML(ensembleYAML as unknown as string, input);
+expect(result.success).toBe(true);
+```
+
+### Testing Members (TestConductor)
+
+See `examples/members/hello.test.ts` for an example using TestConductor:
 
 ```typescript
 import { TestConductor, registerMatchers } from '@ensemble-edge/conductor/testing';

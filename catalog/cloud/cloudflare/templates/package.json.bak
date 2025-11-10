@@ -1,0 +1,25 @@
+{
+	"name": "my-conductor-project",
+	"version": "0.0.1",
+	"private": true,
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"cf-typegen": "wrangler types",
+		"test": "vitest",
+		"test:watch": "vitest --watch",
+		"test:coverage": "vitest --coverage"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.8.19",
+		"@cloudflare/workers-types": "^4.20241127.0",
+		"@rollup/plugin-yaml": "^4.1.2",
+		"@types/node": "^20.11.0",
+		"typescript": "^5.5.2",
+		"vitest": "~3.2.0",
+		"wrangler": "^4.45.2"
+	},
+	"dependencies": {
+		"@ensemble-edge/conductor": "^1.0.9"
+	}
+}

@@ -9,14 +9,16 @@ export { Executor } from './runtime/executor.js';
 export { Parser } from './runtime/parser.js';
 export { StateManager } from './runtime/state-manager.js';
 // Durable Objects
-export { ExecutionState } from './durable-objects/execution-state.js';
-export { HITLState } from './durable-objects/hitl-state.js';
+// These are available via '@ensemble-edge/conductor/cloudflare' to avoid
+// importing cloudflare: protocol modules in non-Cloudflare environments.
+// See: src/cloudflare.ts for Cloudflare-specific exports
 // Member Types
 export { BaseMember } from './members/base-member.js';
 export { FunctionMember } from './members/function-member.js';
 export { ThinkMember } from './members/think-member.js';
 export { DataMember } from './members/data-member.js';
 export { APIMember } from './members/api-member.js';
+export { PageMember } from './members/page/page-member.js';
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js';
 // export { CacheManager } from './utils/cache.js';

@@ -6,14 +6,14 @@ description: |
   - Shows how members can reference versioned components
 
 flow:
-  - member: greet
+  - member: hello
     input:
       name: ${input.name}
       style: ${input.style || "friendly"}
       language: ${input.language || "en"}
 
 output:
-  greeting: ${greet.output.message}
+  greeting: ${hello.output.message}
   metadata:
     promptUsed: "prompts/hello.md"
     configUsed: "configs/hello-settings.yaml"

@@ -7,14 +7,15 @@
  */
 
 // YAML module declarations
-// Allows importing .yaml and .yml files in TypeScript
+// YAML files are imported as parsed objects via @rollup/plugin-yaml in tests
+// In production (Cloudflare Workers), they're imported as text via wrangler rules
 declare module '*.yaml' {
-	const content: any;
+	const content: Record<string, unknown>;
 	export default content;
 }
 
 declare module '*.yml' {
-	const content: any;
+	const content: Record<string, unknown>;
 	export default content;
 }
 
@@ -23,6 +24,12 @@ declare module '*.yml' {
 interface Env {
 	// Cloudflare AI binding (required by Conductor for Think members)
 	AI: Ai;
+
+	// R2 Buckets for static assets
+	ASSETS?: R2Bucket;
+
+	// API Keys for authentication (comma-separated)
+	API_KEYS?: string;
 
 	// Add your other environment bindings below:
 	// KV Namespaces

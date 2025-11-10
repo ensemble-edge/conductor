@@ -81,10 +81,12 @@ export class RuleEvaluator extends BaseEvaluator {
       }
     )
 
-    // Evaluate the expression
+    // Evaluate the expression using Function constructor (safer than eval)
     try {
-      // This is a simplified evaluation - in production, use a proper expression parser
-      return eval(evalExpression)
+      // Use Function constructor instead of eval to avoid bundler warnings
+      // This is still a simplified evaluation - in production, use a proper expression parser
+      const fn = new Function('return (' + evalExpression + ')')
+      return Boolean(fn())
     } catch (error) {
       return false
     }

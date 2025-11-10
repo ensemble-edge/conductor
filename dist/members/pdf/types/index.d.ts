@@ -9,6 +9,7 @@
  * - Headers and footers with page numbers
  */
 import type { TemplateSource } from '../../html/types/index.js';
+import type { TemplateEngine } from '../../../utils/templates/index.js';
 /**
  * PDF page size presets
  */
@@ -45,10 +46,12 @@ export interface PdfPageConfig {
  * PDF header/footer configuration
  */
 export interface PdfHeaderFooter {
-    /** HTML template for header */
+    /** HTML template for header (supports template variables) */
     header?: string;
-    /** HTML template for footer */
+    /** HTML template for footer (supports template variables) */
     footer?: string;
+    /** Template data for header/footer rendering */
+    data?: Record<string, unknown>;
     /** Display header on first page */
     displayHeaderFooter?: boolean;
     /** Height of header in mm */
@@ -113,6 +116,8 @@ export interface PdfMemberConfig {
     deliveryMode?: PdfDeliveryMode;
     /** Filename for download (only used with attachment mode) */
     filename?: string;
+    /** Template engine for HTML/header/footer rendering (default: 'simple') */
+    templateEngine?: TemplateEngine;
 }
 /**
  * PDF member input

@@ -36,24 +36,30 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
      */
     async render(template, context) {
         let result = template;
-        // Process partials first (they may contain variables)
-        result = await this.processPartials(result, context);
-        // Replace {{variable}} with context data
+        // Handle both structured context {data: {...}} and flat context {...}
+        const data = context.data !== undefined ? context.data : context;
+        const helpers = context.helpers;
+        // Process conditionals FIRST (recursively processes content)
+        result = await this.processConditionalsRecursive(result, data, context);
+        // Process loops SECOND (recursively processes content)
+        result = await this.processLoopsRecursive(result, data, context);
+        // Process partials THIRD (partials may contain variables)
+        result = await this.processPartials(result, { ...context, data });
+        // Replace {{variable}} with context data FOURTH
         result = result.replace(/\{\{(\s*[\w.]+\s*)\}\}/g, (match, key) => {
             const trimmedKey = key.trim();
-            const value = this.resolveValue(context.data, trimmedKey);
-            if (value === undefined || value === null) {
-                return match; // Keep original if not found
+            const value = this.resolveValue(data, trimmedKey);
+            if (value === undefined) {
+                return ''; // undefined -> empty string
+            }
+            if (value === null) {
+                return 'null'; // null -> string "null"
             }
             return String(value);
         });
-        // Replace {{#if condition}} blocks
-        result = this.processConditionals(result, context.data);
-        // Replace {{#each array}} blocks
-        result = this.processLoops(result, context.data);
         // Call helpers if available
-        if (context.helpers) {
-            result = this.processHelpers(result, context.helpers);
+        if (helpers) {
+            result = this.processHelpers(result, helpers);
         }
         return result;
     }
@@ -102,7 +108,65 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
         return value;
     }
     /**
-     * Process {{#if condition}}...{{else}}...{{/if}} blocks
+     * Process {{#if condition}}...{{else}}...{{/if}} blocks recursively
+     * This allows conditionals to contain partials and other templates
+     */
+    async processConditionalsRecursive(template, data, context) {
+        // Use a manual loop to process all conditionals
+        const conditionalRegex = /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/;
+        let result = template;
+        let match;
+        while ((match = conditionalRegex.exec(result)) !== null) {
+            const [fullMatch, key, content] = match;
+            const value = this.resolveValue(data, key);
+            // Check if there's an {{else}} block
+            const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/);
+            let selectedContent;
+            if (elseMatch) {
+                const [, ifContent, elseContent] = elseMatch;
+                selectedContent = value ? ifContent : elseContent;
+            }
+            else {
+                selectedContent = value ? content : '';
+            }
+            // Recursively render the selected content with same context
+            const rendered = await this.render(selectedContent, { ...context, data });
+            result = result.replace(fullMatch, rendered);
+        }
+        return result;
+    }
+    /**
+     * Process {{#each array}}...{{/each}} blocks recursively
+     * This allows loops to contain partials with access to loop item data
+     */
+    async processLoopsRecursive(template, data, context) {
+        // Use a manual loop to process all loops
+        const loopRegex = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/;
+        let result = template;
+        let match;
+        while ((match = loopRegex.exec(result)) !== null) {
+            const [fullMatch, key, content] = match;
+            const array = this.resolveValue(data, key);
+            if (!Array.isArray(array)) {
+                result = result.replace(fullMatch, '');
+                continue;
+            }
+            // Render each item with its own context
+            const renderedItems = await Promise.all(array.map(async (item, index) => {
+                // Build item context
+                const itemData = typeof item === 'object' && item !== null
+                    ? { ...data, ...item, '@index': index, '@first': index === 0, '@last': index === array.length - 1 }
+                    : { ...data, 'this': item, '@index': index, '@first': index === 0, '@last': index === array.length - 1 };
+                // Recursively render content with item context
+                return await this.render(content, { ...context, data: itemData });
+            }));
+            result = result.replace(fullMatch, renderedItems.join(''));
+        }
+        return result;
+    }
+    /**
+     * Process {{#if condition}}...{{else}}...{{/if}} blocks (non-recursive, legacy)
+     * @deprecated Use processConditionalsRecursive instead
      */
     processConditionals(template, data) {
         return template.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, key, content) => {

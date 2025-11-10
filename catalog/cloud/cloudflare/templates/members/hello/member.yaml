@@ -1,32 +1,17 @@
 name: hello
-type: think
+type: Function
 description: |
-  Say hello to the user with a personalized AI-generated welcome message.
-  Demonstrates AI model inference via Cloudflare Workers AI.
+  Say hello to the user with a simple, deterministic greeting message.
+  This is a basic function member that demonstrates the core Conductor workflow
+  without requiring AI models or external services.
 
-  🔮 FUTURE: This will use shared components from prompts/ and configs/
-  Once Edgit integration is complete, you can reference components like:
-    prompt: { component: "prompts/hello.md@v1.0.0" }
-    config: { component: "configs/hello-settings.yaml@v1.0.0" }
+  The function implementation is in members/hello/index.ts and uses:
+  - Input validation and sanitization
+  - Style-based greeting selection (formal, casual, friendly)
+  - Shared utility functions from src/lib/
 
-config:
-  # AI Model Settings (from Cloudflare Workers AI)
-  model: "@cf/meta/llama-3.1-8b-instruct"
-  temperature: 0.7
-  maxTokens: 150
-
-  # System prompt (inline for now, will move to prompts/hello.md)
-  systemPrompt: |
-    You are a friendly hello assistant.
-    Generate a personalized hello message for the user.
-
-    Requirements:
-    1. Be warm and welcoming
-    2. Use the user's name naturally
-    3. Match the requested style if provided (formal, casual, enthusiastic)
-    4. Keep the greeting concise (1-2 sentences)
-
-    Return only the hello message without any explanation.
+  💡 To see an AI-powered version using Cloudflare Workers AI, check out the
+  example members in tests/examples/ or change this to type: "think".
 
 schema:
   input:

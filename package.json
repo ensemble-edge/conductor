@@ -12,6 +12,11 @@
 			"import": "./dist/index.js",
 			"require": "./dist/index.js"
 		},
+		"./cloudflare": {
+			"types": "./dist/cloudflare.d.ts",
+			"import": "./dist/cloudflare.js",
+			"require": "./dist/cloudflare.js"
+		},
 		"./sdk": {
 			"types": "./dist/sdk/index.d.ts",
 			"import": "./dist/sdk/index.js",
@@ -60,6 +65,7 @@
 		"glob": "^10.3.10",
 		"handlebars": "^4.7.8",
 		"hono": "^4.6.0",
+		"liquidjs": "^10.10.0",
 		"yaml": "^2.4.0",
 		"zod": "^3.22.4"
 	},
@@ -67,6 +73,7 @@
 		"@changesets/cli": "^2.29.7",
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
 		"@cloudflare/workers-types": "^4.20241127.0",
+		"@types/mjml": "^4.7.4",
 		"@types/node": "^20.11.0",
 		"@vitest/coverage-v8": "^3.2.4",
 		"esbuild": "^0.25.12",
