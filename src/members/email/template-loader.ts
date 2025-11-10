@@ -6,6 +6,7 @@
  */
 
 import type { KVNamespace } from '@cloudflare/workers-types';
+import type { BaseTemplateEngine } from '../../utils/templates/index.js';
 
 /**
  * Template data for rendering
@@ -18,6 +19,8 @@ export interface TemplateData {
  * Template loader configuration
  */
 export interface TemplateLoaderConfig {
+	/** Template engine for rendering */
+	engine: BaseTemplateEngine;
 	/** KV namespace for templates (optional) */
 	kv?: KVNamespace;
 	/** Local templates directory (optional) */
@@ -42,12 +45,14 @@ interface TemplateRef {
  * Email Template Loader
  */
 export class TemplateLoader {
+	private engine: BaseTemplateEngine;
 	private kv?: KVNamespace;
 	private localDir: string;
 	private defaultVersion: string;
 	private cache: Map<string, string>;
 
-	constructor(config: TemplateLoaderConfig = {}) {
+	constructor(config: TemplateLoaderConfig) {
+		this.engine = config.engine;
 		this.kv = config.kv;
 		this.localDir = config.localDir || 'templates';
 		this.defaultVersion = config.defaultVersion || 'latest';
@@ -64,8 +69,8 @@ export class TemplateLoader {
 		// Load template content
 		const content = await this.loadTemplate(ref);
 
-		// Render template
-		return this.renderTemplate(content, data);
+		// Render template with template engine
+		return await this.engine.render(content, data);
 	}
 
 	/**
@@ -84,14 +89,16 @@ export class TemplateLoader {
 		}
 
 		// Local file reference: templates/email/welcome.html
-		if (template.includes('/') || template.endsWith('.html') || template.endsWith('.mjml')) {
+		// Must end with file extension and not contain HTML tags
+		const isFilePath = (template.endsWith('.html') || template.endsWith('.mjml')) && !template.includes('<');
+		if (isFilePath) {
 			return {
 				type: 'local',
 				path: template,
 			};
 		}
 
-		// Inline HTML
+		// Inline HTML (everything else)
 		return {
 			type: 'inline',
 			path: template,
@@ -161,69 +168,6 @@ export class TemplateLoader {
 		);
 	}
 
-	/**
-	 * Render template with Handlebars
-	 */
-	private renderTemplate(content: string, data: TemplateData): string {
-		// Simple Handlebars-style variable replacement
-		// For more complex templates, use the handlebars library
-		let rendered = content;
-
-		// Replace {{variable}} with data values
-		rendered = rendered.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
-			const trimmedKey = key.trim();
-
-			// Handle nested properties: {{user.name}}
-			const value = this.getNestedValue(data, trimmedKey);
-
-			// Return value or empty string if undefined
-			return value !== undefined ? String(value) : '';
-		});
-
-		// Handle {{#if condition}} blocks (simple implementation)
-		rendered = rendered.replace(
-			/\{\{#if\s+([^}]+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
-			(match, condition, content) => {
-				const value = this.getNestedValue(data, condition.trim());
-				return value ? content : '';
-			}
-		);
-
-		// Handle {{#each array}} blocks (simple implementation)
-		rendered = rendered.replace(
-			/\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g,
-			(match, arrayKey, template) => {
-				const array = this.getNestedValue(data, arrayKey.trim());
-				if (!Array.isArray(array)) return '';
-
-				return array
-					.map((item) => {
-						// Render template for each item
-						return this.renderTemplate(template, { ...data, this: item });
-					})
-					.join('');
-			}
-		);
-
-		return rendered;
-	}
-
-	/**
-	 * Get nested value from object
-	 */
-	private getNestedValue(obj: any, path: string): any {
-		if (path === 'this') return obj;
-
-		const keys = path.split('.');
-		let value = obj;
-
-		for (const key of keys) {
-			if (value === undefined || value === null) return undefined;
-			value = value[key];
-		}
-
-		return value;
-	}
 
 	/**
 	 * Clear template cache

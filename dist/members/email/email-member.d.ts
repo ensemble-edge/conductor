@@ -6,6 +6,7 @@
  */
 import { BaseMember, type MemberExecutionContext } from '../base-member.js';
 import type { EmailProviderConfig, EmailMemberOutput, BatchEmailOutput } from './types/index.js';
+import { type TemplateEngine } from '../../utils/templates/index.js';
 /**
  * Email Member configuration
  */
@@ -18,13 +19,15 @@ export interface EmailMemberConfig {
     tracking?: boolean;
     /** KV namespace for templates */
     templatesKv?: string;
+    /** Template engine to use (default: 'simple') */
+    templateEngine?: TemplateEngine;
 }
 /**
  * Email Member
  */
 export declare class EmailMember extends BaseMember {
     private provider;
-    private templateLoader;
+    private templateEngine;
     private rateLimit;
     private tracking;
     constructor(config: any);

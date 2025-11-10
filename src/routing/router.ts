@@ -133,9 +133,9 @@ export class UnifiedRouter {
 			const bPrio = b.priority ?? this.getDefaultPriority(b.memberType);
 			if (aPrio !== bPrio) return aPrio - bPrio;
 
-			// Static routes before dynamic
-			const aStatic = !a.pattern.includes(':');
-			const bStatic = !b.pattern.includes(':');
+			// Static routes before dynamic (both : params and * wildcards)
+			const aStatic = !a.pattern.includes(':') && !a.pattern.includes('*');
+			const bStatic = !b.pattern.includes(':') && !b.pattern.includes('*');
 			if (aStatic && !bStatic) return -1;
 			if (!aStatic && bStatic) return 1;
 
@@ -291,8 +291,19 @@ export class UnifiedRouter {
 		// 2. Type default
 		const typeDefaults = this.config.routing?.auth?.defaults;
 		if (typeDefaults) {
-			const typeKey = memberType === 'webhook' ? 'webhooks' : `${memberType}s` as keyof typeof typeDefaults;
-			if (typeDefaults[typeKey]) {
+			// Map member types to config keys (handle singular/plural variations)
+			const typeKeyMap: Record<MemberType, keyof typeof typeDefaults> = {
+				page: 'pages',
+				api: 'api',
+				webhook: 'webhooks',
+				form: 'forms',
+				docs: 'docs',
+				static: 'pages', // Use pages default for static
+				health: 'api',    // Use api default for health
+				auth: 'api'       // Use api default for auth
+			};
+			const typeKey = typeKeyMap[memberType];
+			if (typeKey && typeDefaults[typeKey]) {
 				resolved = { ...resolved, ...typeDefaults[typeKey] };
 				source = 'type-default';
 			}

@@ -5,7 +5,7 @@
  * Render complete form HTML
  */
 export async function renderForm(options) {
-    const { config, fields, data, errors, csrfToken, currentStep } = options;
+    const { config, fields, data, errors, csrfToken, currentStep, stepInfo } = options;
     const style = config.style || {};
     const classes = style.classes || {};
     // Build error map for quick lookup
@@ -23,12 +23,14 @@ export async function renderForm(options) {
 		${config.action ? `action="${escapeHtml(config.action)}"` : ''}
 		novalidate
 	>`;
-    // Form title and description
-    if (config.title) {
-        html += `<h2 class="form-title">${escapeHtml(config.title)}</h2>`;
+    // Form title and description (use step info if in multi-step form)
+    const title = stepInfo?.title || config.title;
+    const description = stepInfo?.description || config.description;
+    if (title) {
+        html += `<h2 class="form-title">${escapeHtml(title)}</h2>`;
     }
-    if (config.description) {
-        html += `<p class="form-description">${escapeHtml(config.description)}</p>`;
+    if (description) {
+        html += `<p class="form-description">${escapeHtml(description)}</p>`;
     }
     // CSRF token field
     if (csrfToken) {

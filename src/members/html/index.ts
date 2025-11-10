@@ -17,7 +17,7 @@ export type {
 	TemplateContext,
 	EmailHtmlConfig
 } from './types/index.js';
-export { createTemplateEngine, getAvailableEngines } from './engines/index.js';
+export { createTemplateEngine, getAvailableEngines } from '../../utils/templates/index.js';
 export {
 	loadTemplate,
 	detectTemplateEngine,

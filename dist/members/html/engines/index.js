@@ -6,6 +6,9 @@
  * Handlebars, Liquid, and MJML support can be added as optional dependencies.
  */
 import { SimpleTemplateEngine } from './simple.js';
+import { HandlebarsTemplateEngine } from './handlebars.js';
+import { LiquidTemplateEngine } from './liquid.js';
+import { MJMLTemplateEngine } from './mjml.js';
 /**
  * Create a template engine instance
  */
@@ -14,14 +17,11 @@ export function createTemplateEngine(engine) {
         case 'simple':
             return new SimpleTemplateEngine();
         case 'handlebars':
-            throw new Error('Handlebars engine not implemented yet. ' +
-                'Use "simple" engine or add handlebars support to your project.');
+            return new HandlebarsTemplateEngine();
         case 'liquid':
-            throw new Error('Liquid engine not implemented yet. ' +
-                'Use "simple" engine or add liquidjs support to your project.');
+            return new LiquidTemplateEngine();
         case 'mjml':
-            throw new Error('MJML engine not implemented yet. ' +
-                'Use "simple" engine or add mjml support to your project.');
+            return new MJMLTemplateEngine();
         default:
             throw new Error(`Unknown template engine: ${engine}`);
     }
@@ -30,14 +30,17 @@ export function createTemplateEngine(engine) {
  * Check if an engine is available
  */
 export function isEngineAvailable(engine) {
-    return engine === 'simple';
+    return engine === 'simple' || engine === 'handlebars' || engine === 'liquid' || engine === 'mjml';
 }
 /**
  * Get list of available engines
  */
 export function getAvailableEngines() {
-    return ['simple'];
+    return ['handlebars', 'simple', 'liquid', 'mjml']; // handlebars first as default
 }
 // Re-export types and classes
 export { BaseTemplateEngine } from './base.js';
 export { SimpleTemplateEngine } from './simple.js';
+export { HandlebarsTemplateEngine } from './handlebars.js';
+export { LiquidTemplateEngine } from './liquid.js';
+export { MJMLTemplateEngine } from './mjml.js';

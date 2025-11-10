@@ -2,7 +2,7 @@
  * Form HTML rendering utilities
  */
 
-import type { FormMemberConfig, FormField, SelectOption, ValidationError } from '../types/index.js';
+import type { FormMemberConfig, FormField, FormStep, SelectOption, ValidationError } from '../types/index.js';
 
 export interface RenderOptions {
 	config: FormMemberConfig;
@@ -11,13 +11,14 @@ export interface RenderOptions {
 	errors: ValidationError[];
 	csrfToken?: string;
 	currentStep?: string;
+	stepInfo?: FormStep;
 }
 
 /**
  * Render complete form HTML
  */
 export async function renderForm(options: RenderOptions): Promise<string> {
-	const { config, fields, data, errors, csrfToken, currentStep } = options;
+	const { config, fields, data, errors, csrfToken, currentStep, stepInfo } = options;
 
 	const style = config.style || {};
 	const classes = style.classes || {};
@@ -39,12 +40,15 @@ export async function renderForm(options: RenderOptions): Promise<string> {
 		novalidate
 	>`;
 
-	// Form title and description
-	if (config.title) {
-		html += `<h2 class="form-title">${escapeHtml(config.title)}</h2>`;
+	// Form title and description (use step info if in multi-step form)
+	const title = stepInfo?.title || config.title;
+	const description = stepInfo?.description || config.description;
+
+	if (title) {
+		html += `<h2 class="form-title">${escapeHtml(title)}</h2>`;
 	}
-	if (config.description) {
-		html += `<p class="form-description">${escapeHtml(config.description)}</p>`;
+	if (description) {
+		html += `<p class="form-description">${escapeHtml(description)}</p>`;
 	}
 
 	// CSRF token field

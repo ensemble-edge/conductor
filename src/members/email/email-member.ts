@@ -17,6 +17,7 @@ import type {
 	BatchEmailOutput,
 } from './types/index.js';
 import { createEmailProvider } from './providers/index.js';
+import { createTemplateEngine, type TemplateEngine, type BaseTemplateEngine } from '../../utils/templates/index.js';
 import { TemplateLoader } from './template-loader.js';
 
 /**
@@ -31,6 +32,8 @@ export interface EmailMemberConfig {
 	tracking?: boolean;
 	/** KV namespace for templates */
 	templatesKv?: string;
+	/** Template engine to use (default: 'simple') */
+	templateEngine?: TemplateEngine;
 }
 
 /**
@@ -38,6 +41,7 @@ export interface EmailMemberConfig {
  */
 export class EmailMember extends BaseMember {
 	private provider: EmailProvider;
+	private templateEngine: BaseTemplateEngine;
 	private templateLoader: TemplateLoader;
 	private rateLimit: number;
 	private tracking: boolean;
@@ -54,9 +58,15 @@ export class EmailMember extends BaseMember {
 		// Initialize provider
 		this.provider = createEmailProvider(emailConfig.provider);
 
-		// Initialize template loader
+		// Initialize template engine (default to 'simple')
+		const engine = emailConfig.templateEngine || 'simple';
+		this.templateEngine = createTemplateEngine(engine);
+
+		// Initialize template loader for KV/file loading
 		this.templateLoader = new TemplateLoader({
-			kv: emailConfig.templatesKv as any,
+			engine: this.templateEngine,
+			kv: emailConfig.templatesKv ? (config.env?.[emailConfig.templatesKv] || undefined) : undefined,
+			defaultVersion: 'latest'
 		});
 
 		// Configuration
@@ -191,6 +201,7 @@ export class EmailMember extends BaseMember {
 		// Render template if provided
 		if (input.template) {
 			const data = input.data || {};
+			// Use template loader to load and render template (handles KV, files, inline)
 			html = await this.templateLoader.render(input.template, data);
 
 			// If no text version provided, strip HTML for plain text

@@ -134,6 +134,7 @@ export class FormMember extends BaseMember {
 			data: input.data || {},
 			csrfToken,
 			currentStep: currentStep?.id,
+			stepInfo: currentStep || undefined,
 			errors: []
 		});
 

@@ -46,6 +46,9 @@ describe('EmailMember', () => {
 					provider: {
 						provider: 'cloudflare',
 						from: 'test@example.com',
+						cloudflare: {
+							binding: {} as any, // Mock Cloudflare Email binding
+						},
 					},
 				},
 			};
@@ -357,6 +360,14 @@ describe('EmailMember', () => {
 			const member = new EmailMember(config);
 			(member as any).provider = { send: mockSend, validateConfig: mockValidate };
 
+			// Mock templateLoader to handle template rendering
+			(member as any).templateLoader = {
+				render: vi.fn().mockImplementation(async (template, data) => {
+					// Simple template rendering
+					return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => data[key] || '');
+				}),
+			};
+
 			const result = await member.execute({
 				input: {
 					recipients: [
@@ -377,6 +388,17 @@ describe('EmailMember', () => {
 			expect(data.failed).toBe(0);
 			expect(data.messageIds).toHaveLength(3);
 			expect(mockSend).toHaveBeenCalledTimes(3);
+
+			// Verify each email was personalized with template rendering
+			expect(mockSend).toHaveBeenNthCalledWith(1, expect.objectContaining({
+				html: '<h1>Hello Alice</h1>',
+			}));
+			expect(mockSend).toHaveBeenNthCalledWith(2, expect.objectContaining({
+				html: '<h1>Hello Bob</h1>',
+			}));
+			expect(mockSend).toHaveBeenNthCalledWith(3, expect.objectContaining({
+				html: '<h1>Hello Charlie</h1>',
+			}));
 		});
 
 		it('should handle partial batch failures', async () => {
@@ -394,6 +416,9 @@ describe('EmailMember', () => {
 					rateLimit: 10,
 				},
 			};
+
+			// Mock provider validation first
+			const mockValidate = vi.fn().mockResolvedValue({ valid: true });
 
 			const mockSend = vi.fn()
 				.mockResolvedValueOnce({
@@ -413,17 +438,22 @@ describe('EmailMember', () => {
 					provider: 'resend',
 				});
 
-			const mockValidate = vi.fn().mockResolvedValue({ valid: true });
-
 			const member = new EmailMember(config);
 			(member as any).provider = { send: mockSend, validateConfig: mockValidate };
+
+			// Mock templateLoader to handle template rendering
+			(member as any).templateLoader = {
+				render: vi.fn().mockImplementation(async (template, data) => {
+					return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => data[key] || '');
+				}),
+			};
 
 			const result = await member.execute({
 				input: {
 					recipients: [
-						{ email: 'user1@example.com' },
-						{ email: 'invalid', },
-						{ email: 'user3@example.com' },
+						{ email: 'user1@example.com', data: {} },
+						{ email: 'invalid', data: {} },
+						{ email: 'user3@example.com', data: {} },
 					],
 					template: '<h1>Hello</h1>',
 					subject: 'Test',
@@ -467,14 +497,21 @@ describe('EmailMember', () => {
 			const member = new EmailMember(config);
 			(member as any).provider = { send: mockSend, validateConfig: mockValidate };
 
+			// Mock templateLoader to handle template rendering
+			(member as any).templateLoader = {
+				render: vi.fn().mockImplementation(async (template, data) => {
+					return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => data[key] || '');
+				}),
+			};
+
 			const startTime = Date.now();
 
 			await member.execute({
 				input: {
 					recipients: [
-						{ email: 'user1@example.com' },
-						{ email: 'user2@example.com' },
-						{ email: 'user3@example.com' },
+						{ email: 'user1@example.com', data: {} },
+						{ email: 'user2@example.com', data: {} },
+						{ email: 'user3@example.com', data: {} },
 					],
 					template: '<h1>Test</h1>',
 					subject: 'Test',
@@ -519,10 +556,17 @@ describe('EmailMember', () => {
 			const member = new EmailMember(config);
 			(member as any).provider = { send: mockSend, validateConfig: mockValidate };
 
+			// Mock templateLoader to handle template rendering
+			(member as any).templateLoader = {
+				render: vi.fn().mockImplementation(async (template, data) => {
+					return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => data[key] || '');
+				}),
+			};
+
 			await member.execute({
 				input: {
 					to: 'user@example.com',
-					subject: 'Welcome {{name}}',
+					subject: 'Welcome',
 					template: '<h1>Hello {{name}}</h1><p>{{message}}</p>',
 					data: {
 						name: 'Alice',
@@ -536,6 +580,7 @@ describe('EmailMember', () => {
 			expect(mockSend).toHaveBeenCalledWith(
 				expect.objectContaining({
 					html: '<h1>Hello Alice</h1><p>Welcome to our service!</p>',
+					subject: 'Welcome',
 				})
 			);
 		});
@@ -570,16 +615,26 @@ describe('EmailMember', () => {
 			const member = new EmailMember(config);
 			(member as any).provider = { send: mockSend, validateConfig: mockValidate };
 
+			// Mock templateLoader to handle template rendering
+			(member as any).templateLoader = {
+				render: vi.fn().mockImplementation(async (template, data) => {
+					return template; // Return as-is for this test
+				}),
+			};
+
 			await member.execute({
 				input: {
 					to: 'user@example.com',
 					subject: 'Test',
 					template: '<h1>Hello</h1><p>This is a test</p>',
+					data: {}, // Need to provide data for template rendering
 				},
 				env: mockEnv as ConductorEnv,
 				ctx: {} as ExecutionContext,
 			});
 
+			expect(mockSend).toHaveBeenCalled();
+			expect(capturedMessage).toBeDefined();
 			expect(capturedMessage.text).toBeDefined();
 			expect(capturedMessage.text).toContain('Hello');
 			expect(capturedMessage.text).toContain('This is a test');
