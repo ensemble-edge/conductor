@@ -33,8 +33,8 @@ describe('HtmlMember', () => {
 		} as unknown as R2Bucket;
 
 		mockEnv = {
-			TEMPLATES: mockKV,
-			ASSETS: mockR2,
+			KV: mockKV,
+			STORAGE: mockR2,
 		};
 
 		mockCtx = {
