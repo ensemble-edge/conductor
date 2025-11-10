@@ -23,7 +23,7 @@ class MockKVNamespace {
             this.store.delete(key);
             return null;
         }
-        return type === 'json' ? item.value : item.value;
+        return type === 'json' ? JSON.parse(item.value) : item.value;
     }
     async put(key, value, options) {
         const expiration = options?.expirationTtl

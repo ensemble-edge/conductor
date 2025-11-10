@@ -25,13 +25,19 @@ import {
   createContentDisposition,
   validateStorageConfig
 } from './utils/storage.js';
+import { createTemplateEngine, type BaseTemplateEngine } from '../../utils/templates/index.js';
 
 export class PdfMember extends BaseMember {
   private pdfConfig: PdfMemberConfig;
+  private templateEngine: BaseTemplateEngine;
 
   constructor(config: MemberConfig) {
     super(config);
     this.pdfConfig = config as MemberConfig & PdfMemberConfig;
+
+    // Initialize template engine (default to 'simple')
+    const engine = this.pdfConfig.templateEngine || 'simple';
+    this.templateEngine = createTemplateEngine(engine);
 
     // Validate configuration
     this.validateConfig();
@@ -99,6 +105,9 @@ export class PdfMember extends BaseMember {
         name: `${this.name}-html-renderer`,
         type: 'HTML',
         template: htmlSource.template,
+        config: {
+          templateEngine: this.pdfConfig.templateEngine || 'simple'
+        },
         renderOptions: {
           // Don't inline CSS for PDF - browser can handle it
           inlineCss: false,
@@ -128,12 +137,15 @@ export class PdfMember extends BaseMember {
       );
     }
 
+    // Render header/footer templates if they contain variables
+    const renderedHeaderFooter = await this.renderHeaderFooter(headerFooter);
+
     // Generate PDF
     const pdfResult = await generatePdf(
       {
         html,
         page: pageConfig,
-        headerFooter,
+        headerFooter: renderedHeaderFooter,
         metadata
       },
       context.env
@@ -168,5 +180,31 @@ export class PdfMember extends BaseMember {
         htmlSize
       }
     };
+  }
+
+  /**
+   * Render header/footer templates with template engine
+   */
+  private async renderHeaderFooter(
+    headerFooter?: PdfHeaderFooter
+  ): Promise<PdfHeaderFooter | undefined> {
+    if (!headerFooter) {
+      return undefined;
+    }
+
+    const data = headerFooter.data || {};
+    const rendered: PdfHeaderFooter = { ...headerFooter };
+
+    // Render header template if it exists
+    if (headerFooter.header) {
+      rendered.header = await this.templateEngine.render(headerFooter.header, data);
+    }
+
+    // Render footer template if it exists
+    if (headerFooter.footer) {
+      rendered.footer = await this.templateEngine.render(headerFooter.footer, data);
+    }
+
+    return rendered;
   }
 }

@@ -6,6 +6,7 @@
  */
 import { BaseMember } from '../base-member.js';
 import { createSmsProvider } from './providers/index.js';
+import { createTemplateEngine } from '../../utils/templates/index.js';
 /**
  * SMS Member
  */
@@ -19,6 +20,9 @@ export class SmsMember extends BaseMember {
         }
         // Initialize provider
         this.provider = createSmsProvider(smsConfig.provider);
+        // Initialize template engine (default to 'simple' for SMS)
+        const engine = smsConfig.templateEngine || 'simple';
+        this.templateEngine = createTemplateEngine(engine);
         // Configuration
         this.rateLimit = smsConfig.rateLimit || 10; // SMS per second
     }
@@ -77,7 +81,7 @@ export class SmsMember extends BaseMember {
                 }
                 lastSendTime = Date.now();
                 // Render message body with recipient data
-                const body = this.renderTemplate(input.body, {
+                const body = await this.renderTemplate(input.body, {
                     ...input.commonData,
                     ...recipient.data,
                 });
@@ -129,30 +133,10 @@ export class SmsMember extends BaseMember {
         };
     }
     /**
-     * Render template with variables
+     * Render template with variables using template engine
      */
-    renderTemplate(template, data) {
-        let rendered = template;
-        // Replace {{variable}} with data values
-        rendered = rendered.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
-            const trimmedKey = key.trim();
-            const value = this.getNestedValue(data, trimmedKey);
-            return value !== undefined ? String(value) : '';
-        });
-        return rendered;
-    }
-    /**
-     * Get nested value from object
-     */
-    getNestedValue(obj, path) {
-        const keys = path.split('.');
-        let value = obj;
-        for (const key of keys) {
-            if (value === undefined || value === null)
-                return undefined;
-            value = value[key];
-        }
-        return value;
+    async renderTemplate(template, data) {
+        return await this.templateEngine.render(template, data);
     }
     /**
      * Delay execution

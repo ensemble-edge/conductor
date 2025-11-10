@@ -205,7 +205,8 @@ describe('UnifiedRouter', () => {
 				pattern: '/admin/users',
 				methods: ['GET'],
 				memberType: 'page',
-				memberName: 'admin-users'
+				memberName: 'admin-users',
+				priority: 10
 			});
 
 			router.register({

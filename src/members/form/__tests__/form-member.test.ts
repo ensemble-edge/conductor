@@ -23,14 +23,14 @@ import type { MemberExecutionContext } from '../../../runtime/types.js';
 class MockKVNamespace {
 	private store = new Map<string, { value: string; expiration?: number }>();
 
-	async get(key: string, type?: string): Promise<string | null> {
+	async get(key: string, type?: string): Promise<any> {
 		const item = this.store.get(key);
 		if (!item) return null;
 		if (item.expiration && Date.now() > item.expiration) {
 			this.store.delete(key);
 			return null;
 		}
-		return type === 'json' ? item.value : item.value;
+		return type === 'json' ? JSON.parse(item.value) : item.value;
 	}
 
 	async put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void> {

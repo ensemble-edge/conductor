@@ -10,8 +10,7 @@
  */
 import { BaseMember } from '../base-member.js';
 import { loadTemplate, normalizeTemplateSource } from './utils/template-loader.js';
-import { createTemplateEngine } from './engines/index.js';
-import { SimpleTemplateEngine } from './engines/simple.js';
+import { createTemplateEngine, SimpleTemplateEngine } from '../../utils/templates/index.js';
 import { createComponentLoader } from '../../runtime/component-loader.js';
 import { createSetCookieHeader, createDeleteCookie, parseSignedCookies, isValidCookieName, mergeCookieOptions } from './utils/cookies.js';
 export class HtmlMember extends BaseMember {

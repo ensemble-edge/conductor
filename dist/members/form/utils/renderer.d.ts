@@ -1,7 +1,7 @@
 /**
  * Form HTML rendering utilities
  */
-import type { FormMemberConfig, FormField, ValidationError } from '../types/index.js';
+import type { FormMemberConfig, FormField, FormStep, ValidationError } from '../types/index.js';
 export interface RenderOptions {
     config: FormMemberConfig;
     fields: FormField[];
@@ -9,6 +9,7 @@ export interface RenderOptions {
     errors: ValidationError[];
     csrfToken?: string;
     currentStep?: string;
+    stepInfo?: FormStep;
 }
 /**
  * Render complete form HTML

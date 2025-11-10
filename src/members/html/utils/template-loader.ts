@@ -30,17 +30,19 @@ export function detectTemplateEngine(key: string, content?: string): TemplateEng
 		return 'mjml';
 	}
 
-	// Check content for Handlebars syntax
-	if (content && /\{\{.*\}\}/.test(content)) {
-		return 'handlebars';
-	}
-
-	// Check content for Liquid syntax
+	// Check content for Liquid syntax (must come before Handlebars check)
 	if (content && /\{%.*%\}/.test(content)) {
 		return 'liquid';
 	}
 
-	// Default to simple template engine
+	// Check content for Handlebars-specific syntax (advanced features)
+	// Simple syntax like {{variable}}, {{#if}}, {{#each}} is supported by both Simple and Handlebars
+	// Only detect as Handlebars if it has Handlebars-specific helpers/syntax
+	if (content && /\{\{(#(unless|with|lookup|log)|@root|@index|@key|>\s*\w+\.\w+)/.test(content)) {
+		return 'handlebars';
+	}
+
+	// Default to simple template engine (which supports {{variable}}, {{#if}}, {{#each}})
 	return 'simple';
 }
 

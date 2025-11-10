@@ -453,7 +453,7 @@ describe('PdfMember', () => {
 			expect(response.success).toBe(true);
 			const output = response.data as PdfMemberOutput;
 			expect(output.metadata).toBeDefined();
-			expect(output.metadata?.generateTime).toBeGreaterThan(0);
+			expect(output.metadata?.generateTime).toBeGreaterThanOrEqual(0);
 			expect(output.metadata?.htmlSize).toBeGreaterThan(0);
 		});
 

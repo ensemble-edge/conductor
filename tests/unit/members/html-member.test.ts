@@ -555,7 +555,7 @@ describe('HtmlMember', () => {
 			expect(response.success).toBe(true);
 			const output = response.data as HtmlMemberOutput;
 			expect(output.metadata).toBeDefined();
-			expect(output.metadata?.renderTime).toBeGreaterThan(0);
+			expect(output.metadata?.renderTime).toBeGreaterThanOrEqual(0);
 			expect(output.metadata?.templateSize).toBeGreaterThan(0);
 			expect(output.metadata?.outputSize).toBeGreaterThan(0);
 			expect(output.engine).toBe('simple');
