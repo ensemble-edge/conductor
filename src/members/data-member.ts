@@ -13,7 +13,12 @@ import type { Repository } from '../storage/index.js'
 import { KVRepository, D1Repository, R2Repository, JSONSerializer } from '../storage/index.js'
 import { StorageType } from '../types/constants.js'
 import type { ConductorEnv } from '../types/env.js'
-import { exportData, createStreamingExport, type ExportOptions, type ExportFormat } from './data/export-formats.js'
+import {
+  exportData,
+  createStreamingExport,
+  type ExportOptions,
+  type ExportFormat,
+} from './data/export-formats.js'
 
 export interface DataConfig {
   storage: StorageType
@@ -273,7 +278,10 @@ export class DataMember extends BaseMember {
   /**
    * Execute QUERY operation (D1 only)
    */
-  private async executeQuery(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
+  private async executeQuery(
+    repo: Repository<unknown, string>,
+    input: DataInput
+  ): Promise<unknown> {
     // Query operations are storage-specific
     // For now, use list with filtering
     const listResult = await repo.list({
@@ -324,7 +332,10 @@ export class DataMember extends BaseMember {
   /**
    * Execute EXPORT operation
    */
-  private async executeExport(repo: Repository<unknown, string>, input: DataInput): Promise<unknown> {
+  private async executeExport(
+    repo: Repository<unknown, string>,
+    input: DataInput
+  ): Promise<unknown> {
     // Get data to export
     const listResult = await repo.list({
       prefix: input.prefix,

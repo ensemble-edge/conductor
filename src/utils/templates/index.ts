@@ -5,10 +5,10 @@
  * Supports multiple engines and template sources (inline, KV, bundled)
  */
 
-export * from './engines/index.js';
+export * from './engines/index.js'
 export type {
-	TemplateEngine,
-	TemplateContext,
-	TemplateSource,
-	TemplateManagerConfig
-} from './types.js';
+  TemplateEngine,
+  TemplateContext,
+  TemplateSource,
+  TemplateManagerConfig,
+} from './types.js'

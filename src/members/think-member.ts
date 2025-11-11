@@ -127,9 +127,7 @@ export class ThinkMember extends BaseMember {
         if (typeof resolved.content === 'string') {
           this.thinkConfig.systemPrompt = resolved.content
         } else {
-          throw new Error(
-            `Prompt must resolve to a string, got ${typeof resolved.content}`
-          )
+          throw new Error(`Prompt must resolve to a string, got ${typeof resolved.content}`)
         }
       } catch (error) {
         throw new Error(

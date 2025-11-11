@@ -10,17 +10,17 @@ import type {
   PdfHeaderFooter,
   PdfMetadata,
   PdfGenerationResult,
-  PdfPageSize
-} from '../types/index.js';
+  PdfPageSize,
+} from '../types/index.js'
 
 /**
  * PDF generation options
  */
 export interface PdfGenerateOptions {
-  html: string;
-  page?: PdfPageConfig;
-  headerFooter?: PdfHeaderFooter;
-  metadata?: PdfMetadata;
+  html: string
+  page?: PdfPageConfig
+  headerFooter?: PdfHeaderFooter
+  metadata?: PdfMetadata
 }
 
 /**
@@ -30,15 +30,15 @@ export async function generatePdf(
   options: PdfGenerateOptions,
   env?: { BROWSER?: any }
 ): Promise<PdfGenerationResult> {
-  const startTime = Date.now();
+  const startTime = Date.now()
 
   // Try Cloudflare Browser Rendering API first
   if (env?.BROWSER) {
-    return await generatePdfWithBrowser(options, env.BROWSER);
+    return await generatePdfWithBrowser(options, env.BROWSER)
   }
 
   // Fallback to basic implementation
-  return await generatePdfBasic(options);
+  return await generatePdfBasic(options)
 }
 
 /**
@@ -48,15 +48,15 @@ async function generatePdfWithBrowser(
   options: PdfGenerateOptions,
   browser: any
 ): Promise<PdfGenerationResult> {
-  const startTime = Date.now();
+  const startTime = Date.now()
 
   // Launch browser session
-  const session = await browser.newSession();
+  const session = await browser.newSession()
 
   try {
     // Navigate to data URL with HTML
-    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(options.html)}`;
-    await session.goto(dataUrl, { waitUntil: 'networkidle' });
+    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(options.html)}`
+    await session.goto(dataUrl, { waitUntil: 'networkidle' })
 
     // Build PDF options
     const pdfOptions: any = {
@@ -67,37 +67,35 @@ async function generatePdfWithBrowser(
         top: `${options.page?.margins?.top || 10}mm`,
         right: `${options.page?.margins?.right || 10}mm`,
         bottom: `${options.page?.margins?.bottom || 10}mm`,
-        left: `${options.page?.margins?.left || 10}mm`
-      }
-    };
+        left: `${options.page?.margins?.left || 10}mm`,
+      },
+    }
 
     // Add header/footer if configured
     if (options.headerFooter?.displayHeaderFooter) {
-      pdfOptions.displayHeaderFooter = true;
-      pdfOptions.headerTemplate = options.headerFooter.header || '';
-      pdfOptions.footerTemplate = options.headerFooter.footer || '';
+      pdfOptions.displayHeaderFooter = true
+      pdfOptions.headerTemplate = options.headerFooter.header || ''
+      pdfOptions.footerTemplate = options.headerFooter.footer || ''
     }
 
     // Add scale if configured
     if (options.page?.scale) {
-      pdfOptions.scale = options.page.scale;
+      pdfOptions.scale = options.page.scale
     }
 
     // Generate PDF
-    const pdfBuffer = await session.pdf(pdfOptions);
+    const pdfBuffer = await session.pdf(pdfOptions)
 
     // Convert ArrayBufferLike to ArrayBuffer if needed
-    const pdf = pdfBuffer instanceof ArrayBuffer
-      ? pdfBuffer
-      : new Uint8Array(pdfBuffer).buffer;
+    const pdf = pdfBuffer instanceof ArrayBuffer ? pdfBuffer : new Uint8Array(pdfBuffer).buffer
 
     return {
       pdf,
-      generateTime: Date.now() - startTime
-    };
+      generateTime: Date.now() - startTime,
+    }
   } finally {
     // Close browser session
-    await session.close();
+    await session.close()
   }
 }
 
@@ -106,21 +104,21 @@ async function generatePdfWithBrowser(
  * Creates a minimal PDF structure
  */
 async function generatePdfBasic(options: PdfGenerateOptions): Promise<PdfGenerationResult> {
-  const startTime = Date.now();
+  const startTime = Date.now()
 
   // This is a very basic PDF generation for development/testing
   // In production, Browser Rendering API should be used
-  const pdfContent = createBasicPdf(options);
-  const encoder = new TextEncoder();
-  const pdfBuffer = encoder.encode(pdfContent);
+  const pdfContent = createBasicPdf(options)
+  const encoder = new TextEncoder()
+  const pdfBuffer = encoder.encode(pdfContent)
 
   // Convert Uint8Array buffer to ArrayBuffer (pdfBuffer.buffer is ArrayBufferLike)
-  const pdf = pdfBuffer.buffer.slice(0) as ArrayBuffer;
+  const pdf = pdfBuffer.buffer.slice(0) as ArrayBuffer
 
   return {
     pdf,
-    generateTime: Date.now() - startTime
-  };
+    generateTime: Date.now() - startTime,
+  }
 }
 
 /**
@@ -128,12 +126,15 @@ async function generatePdfBasic(options: PdfGenerateOptions): Promise<PdfGenerat
  * This creates a minimal valid PDF with the HTML rendered as text
  */
 function createBasicPdf(options: PdfGenerateOptions): string {
-  const title = options.metadata?.title || 'Document';
-  const author = options.metadata?.author || 'Conductor';
-  const creationDate = options.metadata?.creationDate || new Date();
+  const title = options.metadata?.title || 'Document'
+  const author = options.metadata?.author || 'Conductor'
+  const creationDate = options.metadata?.creationDate || new Date()
 
   // Strip HTML tags for text content
-  const textContent = options.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const textContent = options.html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 
   // Basic PDF structure
   return `%PDF-1.4
@@ -221,45 +222,45 @@ trailer
 >>
 startxref
 ${(550 + textContent.length).toString()}
-%%EOF`;
+%%EOF`
 }
 
 /**
  * Format date for PDF
  */
 function formatPdfDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
 
-  return `${year}${month}${day}${hours}${minutes}${seconds}`;
+  return `${year}${month}${day}${hours}${minutes}${seconds}`
 }
 
 /**
  * Validate page configuration
  */
 export function validatePageConfig(page?: PdfPageConfig): { valid: boolean; errors?: string[] } {
-  const errors: string[] = [];
+  const errors: string[] = []
 
   if (page?.scale && (page.scale < 0.1 || page.scale > 2.0)) {
-    errors.push('Scale must be between 0.1 and 2.0');
+    errors.push('Scale must be between 0.1 and 2.0')
   }
 
   if (page?.margins) {
-    const { top, right, bottom, left } = page.margins;
-    if (top && top < 0) errors.push('Top margin cannot be negative');
-    if (right && right < 0) errors.push('Right margin cannot be negative');
-    if (bottom && bottom < 0) errors.push('Bottom margin cannot be negative');
-    if (left && left < 0) errors.push('Left margin cannot be negative');
+    const { top, right, bottom, left } = page.margins
+    if (top && top < 0) errors.push('Top margin cannot be negative')
+    if (right && right < 0) errors.push('Right margin cannot be negative')
+    if (bottom && bottom < 0) errors.push('Bottom margin cannot be negative')
+    if (left && left < 0) errors.push('Left margin cannot be negative')
   }
 
   return {
     valid: errors.length === 0,
-    errors: errors.length > 0 ? errors : undefined
-  };
+    errors: errors.length > 0 ? errors : undefined,
+  }
 }
 
 /**
@@ -270,7 +271,7 @@ export function createDefaultHeader(title?: string): string {
     <div style="font-size: 10px; text-align: center; width: 100%; margin: 0 10mm;">
       <span>${title || 'Document'}</span>
     </div>
-  `;
+  `
 }
 
 /**
@@ -281,5 +282,5 @@ export function createDefaultFooter(): string {
     <div style="font-size: 10px; text-align: center; width: 100%; margin: 0 10mm;">
       <span class="pageNumber"></span> / <span class="totalPages"></span>
     </div>
-  `;
+  `
 }

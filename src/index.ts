@@ -43,16 +43,16 @@ export * from './auth/index.js'
 // Routing Module
 export { UnifiedRouter } from './routing/router.js'
 export type {
-	ConductorConfig,
-	RoutingConfig,
-	RouteConfig,
-	RouteAuthConfig as RoutingAuthConfig,
-	ResolvedRouteAuthConfig,
-	RouteMatch,
-	MemberType,
-	AuthDefaults,
-	RateLimitConfig as RoutingRateLimitConfig,
-	AuthFailureAction
+  ConductorConfig,
+  RoutingConfig,
+  RouteConfig,
+  RouteAuthConfig as RoutingAuthConfig,
+  ResolvedRouteAuthConfig,
+  RouteMatch,
+  MemberType,
+  AuthDefaults,
+  RateLimitConfig as RoutingRateLimitConfig,
+  AuthFailureAction,
 } from './routing/config.js'
 
 // Config Module (full config type for conductor.config.ts)

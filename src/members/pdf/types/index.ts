@@ -9,49 +9,43 @@
  * - Headers and footers with page numbers
  */
 
-import type { HtmlMemberInput, TemplateSource } from '../../html/types/index.js';
-import type { TemplateEngine } from '../../../utils/templates/index.js';
+import type { HtmlMemberInput, TemplateSource } from '../../html/types/index.js'
+import type { TemplateEngine } from '../../../utils/templates/index.js'
 
 /**
  * PDF page size presets
  */
-export type PdfPageSize =
-  | 'A4'
-  | 'A3'
-  | 'A5'
-  | 'Letter'
-  | 'Legal'
-  | 'Tabloid';
+export type PdfPageSize = 'A4' | 'A3' | 'A5' | 'Letter' | 'Legal' | 'Tabloid'
 
 /**
  * PDF page orientation
  */
-export type PdfOrientation = 'portrait' | 'landscape';
+export type PdfOrientation = 'portrait' | 'landscape'
 
 /**
  * PDF delivery mode
  */
-export type PdfDeliveryMode = 'inline' | 'attachment';
+export type PdfDeliveryMode = 'inline' | 'attachment'
 
 /**
  * PDF page configuration
  */
 export interface PdfPageConfig {
   /** Page size (default: A4) */
-  size?: PdfPageSize;
+  size?: PdfPageSize
   /** Page orientation (default: portrait) */
-  orientation?: PdfOrientation;
+  orientation?: PdfOrientation
   /** Page margins in mm */
   margins?: {
-    top?: number;
-    right?: number;
-    bottom?: number;
-    left?: number;
-  };
+    top?: number
+    right?: number
+    bottom?: number
+    left?: number
+  }
   /** Print background graphics */
-  printBackground?: boolean;
+  printBackground?: boolean
   /** Scale factor (0.1 - 2.0) */
-  scale?: number;
+  scale?: number
 }
 
 /**
@@ -59,17 +53,17 @@ export interface PdfPageConfig {
  */
 export interface PdfHeaderFooter {
   /** HTML template for header (supports template variables) */
-  header?: string;
+  header?: string
   /** HTML template for footer (supports template variables) */
-  footer?: string;
+  footer?: string
   /** Template data for header/footer rendering */
-  data?: Record<string, unknown>;
+  data?: Record<string, unknown>
   /** Display header on first page */
-  displayHeaderFooter?: boolean;
+  displayHeaderFooter?: boolean
   /** Height of header in mm */
-  headerHeight?: number;
+  headerHeight?: number
   /** Height of footer in mm */
-  footerHeight?: number;
+  footerHeight?: number
 }
 
 /**
@@ -77,13 +71,13 @@ export interface PdfHeaderFooter {
  */
 export interface PdfStorageConfig {
   /** Store to R2 */
-  saveToR2?: boolean;
+  saveToR2?: boolean
   /** R2 key (default: assets/static/generated-{timestamp}.pdf) */
-  r2Key?: string;
+  r2Key?: string
   /** R2 bucket binding name (default: ASSETS) */
-  r2Binding?: string;
+  r2Binding?: string
   /** Make R2 object public */
-  publicUrl?: boolean;
+  publicUrl?: boolean
 }
 
 /**
@@ -91,17 +85,17 @@ export interface PdfStorageConfig {
  */
 export interface PdfMetadata {
   /** Document title */
-  title?: string;
+  title?: string
   /** Document author */
-  author?: string;
+  author?: string
   /** Document subject */
-  subject?: string;
+  subject?: string
   /** Document keywords */
-  keywords?: string;
+  keywords?: string
   /** Document creator */
-  creator?: string;
+  creator?: string
   /** Creation date */
-  creationDate?: Date;
+  creationDate?: Date
 }
 
 /**
@@ -111,28 +105,28 @@ export interface PdfMemberConfig {
   /** HTML source for PDF generation */
   html?: {
     /** Inline HTML */
-    inline?: string;
+    inline?: string
     /** Use HTML member output */
-    fromMember?: string;
+    fromMember?: string
     /** HTML template source (KV/R2) */
-    template?: TemplateSource;
+    template?: TemplateSource
     /** Template data */
-    data?: Record<string, unknown>;
-  };
+    data?: Record<string, unknown>
+  }
   /** Page configuration */
-  page?: PdfPageConfig;
+  page?: PdfPageConfig
   /** Header and footer */
-  headerFooter?: PdfHeaderFooter;
+  headerFooter?: PdfHeaderFooter
   /** Storage configuration */
-  storage?: PdfStorageConfig;
+  storage?: PdfStorageConfig
   /** PDF metadata */
-  metadata?: PdfMetadata;
+  metadata?: PdfMetadata
   /** Delivery mode (inline=display, attachment=download) */
-  deliveryMode?: PdfDeliveryMode;
+  deliveryMode?: PdfDeliveryMode
   /** Filename for download (only used with attachment mode) */
-  filename?: string;
+  filename?: string
   /** Template engine for HTML/header/footer rendering (default: 'simple') */
-  templateEngine?: TemplateEngine;
+  templateEngine?: TemplateEngine
 }
 
 /**
@@ -141,23 +135,23 @@ export interface PdfMemberConfig {
 export interface PdfMemberInput {
   /** Override HTML source */
   html?: {
-    inline?: string;
-    fromMember?: string;
-    template?: TemplateSource;
-    data?: Record<string, unknown>;
-  };
+    inline?: string
+    fromMember?: string
+    template?: TemplateSource
+    data?: Record<string, unknown>
+  }
   /** Override page config */
-  page?: PdfPageConfig;
+  page?: PdfPageConfig
   /** Override header/footer */
-  headerFooter?: PdfHeaderFooter;
+  headerFooter?: PdfHeaderFooter
   /** Override storage config */
-  storage?: PdfStorageConfig;
+  storage?: PdfStorageConfig
   /** Override metadata */
-  metadata?: PdfMetadata;
+  metadata?: PdfMetadata
   /** Override delivery mode */
-  deliveryMode?: PdfDeliveryMode;
+  deliveryMode?: PdfDeliveryMode
   /** Override filename */
-  filename?: string;
+  filename?: string
 }
 
 /**
@@ -165,26 +159,26 @@ export interface PdfMemberInput {
  */
 export interface PdfMemberOutput {
   /** PDF binary data (ArrayBuffer) */
-  pdf: ArrayBuffer;
+  pdf: ArrayBuffer
   /** PDF size in bytes */
-  size: number;
+  size: number
   /** R2 URL if stored */
-  url?: string;
+  url?: string
   /** R2 key if stored */
-  r2Key?: string;
+  r2Key?: string
   /** Content-Disposition header value */
-  contentDisposition: string;
+  contentDisposition: string
   /** Suggested filename */
-  filename: string;
+  filename: string
   /** PDF metadata */
   metadata?: {
     /** Generation time in milliseconds */
-    generateTime: number;
+    generateTime: number
     /** Page count */
-    pageCount?: number;
+    pageCount?: number
     /** HTML source size */
-    htmlSize: number;
-  };
+    htmlSize: number
+  }
 }
 
 /**
@@ -192,21 +186,21 @@ export interface PdfMemberOutput {
  */
 export interface PdfGenerationResult {
   /** PDF binary */
-  pdf: ArrayBuffer;
+  pdf: ArrayBuffer
   /** Page count */
-  pageCount?: number;
+  pageCount?: number
   /** Generation time */
-  generateTime: number;
+  generateTime: number
 }
 
 /**
  * PDF page dimensions by size
  */
 export const PDF_PAGE_SIZES: Record<PdfPageSize, { width: number; height: number }> = {
-  A4: { width: 210, height: 297 },      // mm
+  A4: { width: 210, height: 297 }, // mm
   A3: { width: 297, height: 420 },
   A5: { width: 148, height: 210 },
-  Letter: { width: 216, height: 279 },  // 8.5" x 11"
-  Legal: { width: 216, height: 356 },   // 8.5" x 14"
-  Tabloid: { width: 279, height: 432 }  // 11" x 17"
-};
+  Letter: { width: 216, height: 279 }, // 8.5" x 11"
+  Legal: { width: 216, height: 356 }, // 8.5" x 14"
+  Tabloid: { width: 279, height: 432 }, // 11" x 17"
+}
