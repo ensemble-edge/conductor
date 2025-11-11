@@ -213,25 +213,7 @@ export async function resolveValue(
 		};
 	}
 
-	// CASE 2: Legacy kv:// protocol (backward compatibility)
-	// kv://templates/welcome@latest → templates/welcome@latest
-	if (value.startsWith('kv://')) {
-		const componentPath = value.slice(5); // Remove 'kv://' prefix
-		const content = await resolveComponentRef(componentPath, context);
-		const [pathPart, version] = componentPath.split('@');
-		return {
-			content,
-			source: 'component',
-			originalRef: value,
-			metadata: {
-				path: pathPart,
-				version: version || 'latest',
-				fromEdgit: !!context.env?.EDGIT,
-			},
-		};
-	}
-
-	// CASE 3: Multi-line string
+	// CASE 2: Multi-line string
 	// → Inline content (prompt text, markdown, etc.)
 	if (value.includes('\n')) {
 		return {
@@ -241,7 +223,7 @@ export async function resolveValue(
 		};
 	}
 
-	// CASE 4: File path (starts with ./ or ../ or /)
+	// CASE 3: File path (starts with ./ or ../ or /)
 	// → Load from filesystem
 	if (value.match(/^\.{0,2}\//)) {
 		const content = await loadFromFile(value, context);
@@ -252,7 +234,7 @@ export async function resolveValue(
 		};
 	}
 
-	// CASE 5: Component reference (path/name@version)
+	// CASE 4: Component reference (path/name@version)
 	// → Resolve from Edgit or local
 	if (isComponentReference(value)) {
 		const content = await resolveComponentRef(value, context);
@@ -269,7 +251,7 @@ export async function resolveValue(
 		};
 	}
 
-	// CASE 6: Unversioned component (path/name without @)
+	// CASE 5: Unversioned component (path/name without @)
 	// → Resolve with @latest
 	if (isUnversionedComponent(value)) {
 		const versionedRef = `${value}@latest`;
@@ -286,7 +268,7 @@ export async function resolveValue(
 		};
 	}
 
-	// CASE 7: Everything else
+	// CASE 6: Everything else
 	// → Inline string value
 	return {
 		content: value,

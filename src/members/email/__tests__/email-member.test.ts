@@ -109,6 +109,7 @@ describe('EmailMember', () => {
 			input: {},
 			env: {
 				TEMPLATES: mockTemplateKV,
+				EDGIT: mockTemplateKV, // Use same KV for Edgit component resolution
 			},
 			state: {
 				ensembleName: 'test-ensemble',
@@ -559,9 +560,9 @@ describe('EmailMember', () => {
 			member['provider'] = mockProvider;
 			member['templateLoader']['kv'] = mockTemplateKV;
 
-			// Store test template in KV
+			// Store test template in KV (Edgit format: components/templates/name/version)
 			await mockTemplateKV.put(
-				'welcome@latest',
+				'components/templates/welcome/latest',
 				'<h1>Welcome {{name}}!</h1><p>Your email is {{email}}.</p>'
 			);
 		});
@@ -584,7 +585,7 @@ describe('EmailMember', () => {
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Welcome',
-				template: 'kv://welcome@latest',
+				template: 'templates/welcome@latest',
 				data: {
 					name: 'John Doe',
 					email: 'john@example.com',
@@ -598,12 +599,12 @@ describe('EmailMember', () => {
 		});
 
 		it('should handle nested variables', async () => {
-			await mockTemplateKV.put('nested@latest', '<p>{{user.name}} from {{user.company}}</p>');
+			await mockTemplateKV.put('components/templates/nested/latest', '<p>{{user.name}} from {{user.company}}</p>');
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://nested@latest',
+				template: 'templates/nested@latest',
 				data: {
 					user: {
 						name: 'John',
@@ -619,14 +620,14 @@ describe('EmailMember', () => {
 
 		it('should handle conditional blocks', async () => {
 			await mockTemplateKV.put(
-				'conditional@latest',
+				'components/templates/conditional/latest',
 				'<p>{{#if premium}}Premium User{{/if}}</p>'
 			);
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://conditional@latest',
+				template: 'templates/conditional@latest',
 				data: { premium: true },
 			};
 
@@ -640,14 +641,14 @@ describe('EmailMember', () => {
 			// with #each loops. For production use, consider integrating a full Handlebars library
 			// or using a more robust templating engine.
 			await mockTemplateKV.put(
-				'loop@latest',
+				'components/templates/loop/latest',
 				'<ul>{{#each items}}<li>{{this}}</li>{{/each}}</ul>'
 			);
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://loop@latest',
+				template: 'templates/loop@latest',
 				data: {
 					items: ['Apple', 'Banana', 'Orange']
 				},
@@ -664,14 +665,14 @@ describe('EmailMember', () => {
 
 		it('should auto-generate plain text from HTML template', async () => {
 			await mockTemplateKV.put(
-				'htmlonly@latest',
+				'components/templates/htmlonly/latest',
 				'<h1>Hello</h1><p>This is a <strong>test</strong> email.</p>'
 			);
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://htmlonly@latest',
+				template: 'templates/htmlonly@latest',
 				data: {},
 			};
 
@@ -685,12 +686,12 @@ describe('EmailMember', () => {
 		});
 
 		it('should use provided text over auto-generated', async () => {
-			await mockTemplateKV.put('withtext@latest', '<h1>Hello</h1>');
+			await mockTemplateKV.put('components/templates/withtext/latest', '<h1>Hello</h1>');
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://withtext@latest',
+				template: 'templates/withtext@latest',
 				text: 'Custom plain text',
 				data: {},
 			};
@@ -781,7 +782,7 @@ describe('EmailMember', () => {
 		});
 
 		it('should send batch emails to multiple recipients', async () => {
-			await mockTemplateKV.put('batch@latest', '<p>Hello {{name}}, your order {{orderId}} is ready.</p>');
+			await mockTemplateKV.put('components/templates/batch/latest', '<p>Hello {{name}}, your order {{orderId}} is ready.</p>');
 
 			const input: BatchEmailInput = {
 				recipients: [
@@ -790,7 +791,7 @@ describe('EmailMember', () => {
 					{ email: 'user3@example.com', data: { name: 'Charlie', orderId: '003' } },
 				],
 				subject: 'Order Ready',
-				template: 'kv://batch@latest',
+				template: 'templates/batch@latest',
 			};
 
 			const result = (await member['run']({
@@ -814,7 +815,7 @@ describe('EmailMember', () => {
 
 		it('should merge common data with recipient data', async () => {
 			await mockTemplateKV.put(
-				'batch-common@latest',
+				'components/templates/batch-common/latest',
 				'<p>Hi {{name}}, sale ends {{saleDate}}!</p>'
 			);
 
@@ -824,7 +825,7 @@ describe('EmailMember', () => {
 					{ email: 'user2@example.com', data: { name: 'Bob' } },
 				],
 				subject: 'Sale Ending',
-				template: 'kv://batch-common@latest',
+				template: 'templates/batch-common@latest',
 				commonData: { saleDate: '2024-12-31' },
 			};
 
@@ -837,7 +838,7 @@ describe('EmailMember', () => {
 		});
 
 		it('should handle partial failures in batch', async () => {
-			await mockTemplateKV.put('batch@latest', '<p>Hello {{name}}, your order {{orderId}} is ready.</p>');
+			await mockTemplateKV.put('components/templates/batch/latest', '<p>Hello {{name}}, your order {{orderId}} is ready.</p>');
 
 			const input: BatchEmailInput = {
 				recipients: [
@@ -846,7 +847,7 @@ describe('EmailMember', () => {
 					{ email: 'another@example.com', data: { name: 'Another' } },
 				],
 				subject: 'Test',
-				template: 'kv://batch@latest',
+				template: 'templates/batch@latest',
 			};
 
 			const result = (await member['run']({
@@ -861,7 +862,7 @@ describe('EmailMember', () => {
 		});
 
 		it('should track errors for failed emails', async () => {
-			await mockTemplateKV.put('batch@latest', '<p>Hello {{name}}, your order {{orderId}} is ready.</p>');
+			await mockTemplateKV.put('components/templates/batch/latest', '<p>Hello {{name}}, your order {{orderId}} is ready.</p>');
 
 			mockProvider.shouldFail = true;
 
@@ -871,7 +872,7 @@ describe('EmailMember', () => {
 					{ email: 'user2@example.com', data: { name: 'Bob' } },
 				],
 				subject: 'Test',
-				template: 'kv://batch@latest',
+				template: 'templates/batch@latest',
 			};
 
 			const result = (await member['run']({
@@ -1157,12 +1158,12 @@ describe('EmailMember', () => {
 		});
 
 		it('should handle undefined variables gracefully', async () => {
-			await mockTemplateKV.put('undefined@latest', '<p>Hello {{name}}, you have {{count}} items.</p>');
+			await mockTemplateKV.put('components/templates/undefined/latest', '<p>Hello {{name}}, you have {{count}} items.</p>');
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://undefined@latest',
+				template: 'templates/undefined@latest',
 				data: {},
 			};
 
@@ -1172,12 +1173,12 @@ describe('EmailMember', () => {
 		});
 
 		it('should handle deeply nested properties', async () => {
-			await mockTemplateKV.put('nested-deep@latest', '<p>{{user.profile.address.city}}</p>');
+			await mockTemplateKV.put('components/templates/nested-deep/latest', '<p>{{user.profile.address.city}}</p>');
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://nested-deep@latest',
+				template: 'templates/nested-deep@latest',
 				data: {
 					user: {
 						profile: {
@@ -1195,12 +1196,12 @@ describe('EmailMember', () => {
 		});
 
 		it('should handle variables with special characters', async () => {
-			await mockTemplateKV.put('special@latest', '<p>Price: {{price}}</p>');
+			await mockTemplateKV.put('components/templates/special/latest', '<p>Price: {{price}}</p>');
 
 			const input: EmailMemberInput = {
 				to: 'recipient@example.com',
 				subject: 'Test',
-				template: 'kv://special@latest',
+				template: 'templates/special@latest',
 				data: { price: '$99.99' },
 			};
 
