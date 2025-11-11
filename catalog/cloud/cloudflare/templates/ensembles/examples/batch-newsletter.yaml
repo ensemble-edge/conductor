@@ -36,7 +36,7 @@ flow:
           data:
             name: Charlie
             lastArticle: "Modern Web Development"
-      template: kv://templates/email/newsletter@v1.0.0
+      template: templates/email/newsletter@v1.0.0
       subject: ${input.subject || "Your Weekly Newsletter"}
       commonData:
         companyName: Your Company
