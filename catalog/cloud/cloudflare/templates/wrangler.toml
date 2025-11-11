@@ -1,5 +1,5 @@
 name = "my-conductor-project"
-main = "dist/index.js"
+main = "dist/index.mjs"
 compatibility_date = "2025-10-29"
 compatibility_flags = ["nodejs_compat"]
 

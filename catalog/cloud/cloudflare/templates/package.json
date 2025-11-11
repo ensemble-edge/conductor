@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"build": "vite build",
-		"dev": "vite dev",
+		"dev": "node scripts/watch-pages.js & vite dev",
 		"dev:wrangler": "wrangler dev",
 		"deploy": "npm run build && wrangler deploy",
 		"cf-typegen": "wrangler types",
@@ -25,7 +25,7 @@
 		"wrangler": "^4.45.2"
 	},
 	"dependencies": {
-		"@ensemble-edge/conductor": "file:../../../../",
+		"@ensemble-edge/conductor": "^__CONDUCTOR_VERSION__",
 		"yaml": "^2.4.0"
 	}
 }
