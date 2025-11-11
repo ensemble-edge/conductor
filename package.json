@@ -1,6 +1,6 @@
 {
 	"name": "@ensemble-edge/conductor",
-	"version": "1.1.15",
+	"version": "1.1.16",
 	"type": "module",
 	"description": "Edge-native orchestration for AI members. Built on Cloudflare Workers.",
 	"main": "./dist/index.js",
