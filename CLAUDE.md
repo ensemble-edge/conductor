@@ -2,6 +2,92 @@
 
 This file provides guidance to Claude Code (claude.ai/code) and other AI assistants when working with code in this repository.
 
+---
+
+# 🚨 CRITICAL: RELEASE WORKFLOW - READ THIS FIRST 🚨
+
+## ❌ WHEN PUSH IS REJECTED: NEVER PULL, REBASE, OR TRY TO FIX CONFLICTS
+
+When `git push` is rejected because remote has new commits, **THIS MEANS A NEW RELEASE WAS JUST PUBLISHED**.
+
+### ✅ CORRECT Workflow When Push Rejected:
+
+1. **Reset to origin/master** (get the new release):
+   ```bash
+   git fetch
+   git reset --hard origin/master
+   ```
+
+2. **Re-apply your changes manually** (don't cherry-pick - causes conflicts)
+
+3. **Create NEW changeset** for your changes:
+   ```bash
+   cat > .changeset/fix-name.md << 'EOF'
+   ---
+   "@ensemble-edge/conductor": patch
+   ---
+   Description of your fix
+   EOF
+   ```
+
+4. **Commit and push**:
+   ```bash
+   git add -A
+   git commit -m "fix: your fix description"
+   git push  # This will now work
+   ```
+
+### ❌ NEVER DO THESE THINGS:
+- ❌ **DO NOT run `git pull`** - This creates merge commits
+- ❌ **DO NOT run `git rebase`** - This rewrites history
+- ❌ **DO NOT run `git cherry-pick`** - Causes changeset conflicts
+- ❌ **DO NOT try to "fix" version conflicts**
+- ❌ **DO NOT manually edit package.json version**
+- ❌ **DO NOT manually edit CHANGELOG.md**
+- ❌ **DO NOT create git tags yourself**
+- ❌ **DO NOT run `npm run version-packages` locally**
+- ❌ **DO NOT run `npm run release` locally**
+
+### ✅ CORRECT Release Workflow (Normal Case):
+
+1. **Create changeset file** in `.changeset/`:
+   ```bash
+   cat > .changeset/my-feature.md << 'EOF'
+   ---
+   "@ensemble-edge/conductor": minor
+   ---
+   Description of changes
+   EOF
+   ```
+
+2. **Commit changes + changeset**:
+   ```bash
+   git add -A
+   git commit -m "feat: description"
+   ```
+
+3. **Push** (GitHub Actions handles everything else):
+   ```bash
+   git push
+   ```
+
+4. **GitHub Actions will automatically**:
+   - Detect changeset
+   - Run tests and build
+   - Run `changeset version` to bump version
+   - Update CHANGELOG.md
+   - Commit and tag the new version
+   - Publish to npm
+   - Create GitHub release
+
+### Why This Matters:
+
+**This happened 25+ times in one session because I kept forgetting this workflow.**
+
+Every time I tried to "fix" a rejected push by pulling or rebasing, I created conflicts and wasted hours. The correct approach is simple: reset to the new release, manually re-apply changes, create a new changeset, and push.
+
+---
+
 ## ⚠️ Important: Local Planning Directory
 
 **When creating planning documents, phase summaries, TODO lists, or any working notes, ALWAYS place them in the `.planning/` directory.**
