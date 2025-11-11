@@ -82,15 +82,47 @@ export class PageMember extends BaseMember {
                     };
                 }
             }
+            // Call handler function if provided
+            let handlerData = {};
+            if (this.pageConfig.handler) {
+                try {
+                    const handlerContext = {
+                        request: input.request || input.request,
+                        env: context.env,
+                        ctx: context.ctx,
+                        params: input.params || {},
+                        query: input.query || {},
+                        headers: input.headers || {},
+                    };
+                    handlerData = await this.pageConfig.handler(handlerContext);
+                }
+                catch (error) {
+                    console.error('Handler error:', error);
+                    // Continue rendering with empty handler data
+                }
+            }
             // Get page component
             const component = await this.loadComponent(context);
-            // Merge props - include default input from page config, then runtime data
+            // Merge props - include default input from page config, handler data, then runtime data
             const props = {
                 ...(this.pageConfig.input || {}), // Default input from YAML
+                ...handlerData, // Handler data
                 ...input.data, // Runtime data
                 ...input.props, // Runtime props
-                request: input.request,
             };
+            // Only add params, query, headers if they exist (for dynamic pages)
+            if (input.params) {
+                props.params = input.params;
+            }
+            if (input.query) {
+                props.query = input.query;
+            }
+            if (input.headers) {
+                props.headers = input.headers;
+            }
+            if (input.request) {
+                props.request = input.request;
+            }
             // Render component
             const renderMode = this.pageConfig.renderMode || 'ssr';
             let bodyHtml;

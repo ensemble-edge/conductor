@@ -216,6 +216,34 @@ export interface PageRouteConfig {
     cors?: CORSConfig;
 }
 /**
+ * Handler function context
+ * Provides access to request data, route params, query params, headers, and env
+ */
+export interface HandlerContext {
+    /** Request object */
+    request: Request;
+    /** Cloudflare Workers environment bindings */
+    env: any;
+    /** Execution context */
+    ctx: ExecutionContext;
+    /** Route parameters (e.g., { slug: "hello-world" } from /blog/:slug) */
+    params: Record<string, string>;
+    /** Query parameters (e.g., { page: "2" } from ?page=2) */
+    query: Record<string, string>;
+    /** Request headers (as Record for easy access) */
+    headers: Record<string, string>;
+}
+/**
+ * Handler function result
+ * Data returned by handler will be merged into template context
+ */
+export type HandlerResult = Record<string, any> | Promise<Record<string, any>>;
+/**
+ * Handler function signature
+ * Receives context and returns data for the template
+ */
+export type HandlerFunction = (context: HandlerContext) => HandlerResult;
+/**
  * Page member configuration
  */
 export interface PageMemberConfig extends MemberConfig {
@@ -249,6 +277,8 @@ export interface PageMemberConfig extends MemberConfig {
     input?: Record<string, unknown>;
     /** Template engine to use for rendering (default: 'handlebars') */
     templateEngine?: 'handlebars' | 'liquid' | 'simple' | 'mjml';
+    /** Handler function for fetching data based on route params */
+    handler?: HandlerFunction;
 }
 /**
  * Page member input
