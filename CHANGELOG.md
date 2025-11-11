@@ -4,8 +4,8 @@
 
 ### Patch Changes
 
-- Fix Worker initialization blocking by implementing comprehensive lazy initialization for pages and members
 - 4a99154: Fix Worker initialization hang by moving page discovery to lazy initialization. The top-level await in src/index.ts template was blocking Worker startup. Pages are now initialized on first request instead.
+- Fix Worker initialization blocking by implementing comprehensive lazy initialization for pages and members. All YAML parsing and PageMember creation now happens on first request rather than at module scope.
 
 ## 1.1.12
 
