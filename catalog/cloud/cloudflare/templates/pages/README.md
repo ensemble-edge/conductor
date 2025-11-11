@@ -31,31 +31,30 @@ name: my-page
 type: Page
 description: My page description
 
-config:
-  # Render mode: ssr, static, or hybrid
-  renderMode: ssr
+# Component source (inline HTML/Handlebars for now)
+component: |
+  <div>
+    <h1>{{title}}</h1>
+    <p>{{content}}</p>
+  </div>
 
-  # Component source (inline HTML/Handlebars for now)
-  component: |
-    <div>
-      <h1>{{title}}</h1>
-      <p>{{content}}</p>
-    </div>
+# Render mode: ssr, static, or hybrid
+renderMode: ssr
 
-  # Hydration strategy
-  hydration:
-    strategy: htmx  # none, htmx, progressive, or islands
+# Hydration strategy
+hydration:
+  strategy: htmx  # none, htmx, progressive, or islands
 
-  # SEO configuration
-  seo:
-    title: Page Title
-    description: Page description
-    canonical: /my-page
+# SEO configuration
+seo:
+  title: Page Title
+  description: Page description
+  canonical: /my-page
 
-  # Caching
-  cache:
-    enabled: true
-    ttl: 3600
+# Caching
+cache:
+  enabled: true
+  ttl: 3600
 
 # Default input props
 input:
