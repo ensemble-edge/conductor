@@ -1,28 +1,15 @@
 {
-  "../node_modules/mjml/lib/index.js": {
-    "file": "lib-Dz6lV0oJ.js",
-    "name": "lib",
-    "src": "../node_modules/mjml/lib/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_chunk-CjLZ-eKX.js"
-    ]
-  },
-  "_chunk-CjLZ-eKX.js": {
-    "file": "chunk-CjLZ-eKX.js",
-    "name": "chunk"
-  },
-  "_error-types-Cw-0x1qe.js": {
-    "file": "error-types-Cw-0x1qe.js",
+  "_error-types-GY-n8ams.js": {
+    "file": "error-types-GY-n8ams.js",
     "name": "error-types"
   },
   "src/cache/cache.ts": {
-    "file": "cache-DHXdVKNV.js",
+    "file": "cache-kMbkUKC-.js",
     "name": "cache",
     "src": "src/cache/cache.ts",
     "isDynamicEntry": true,
     "imports": [
-      "_error-types-Cw-0x1qe.js"
+      "_error-types-GY-n8ams.js"
     ]
   },
   "virtual:cloudflare/worker-entry": {
@@ -31,11 +18,9 @@
     "src": "virtual:cloudflare/worker-entry",
     "isEntry": true,
     "imports": [
-      "_error-types-Cw-0x1qe.js",
-      "_chunk-CjLZ-eKX.js"
+      "_error-types-GY-n8ams.js"
     ],
     "dynamicImports": [
-      "../node_modules/mjml/lib/index.js",
       "src/cache/cache.ts"
     ]
   }
