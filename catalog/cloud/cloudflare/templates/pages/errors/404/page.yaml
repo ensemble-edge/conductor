@@ -57,21 +57,21 @@ component: |
     </div>
 
 seo:
-title: "404 - Page Not Found"
+  title: "404 - Page Not Found"
 description: "The page you're looking for could not be found"
 robots: noindex, nofollow
 
 cache:
-enabled: true
+  enabled: true
 ttl: 3600
 
 head:
-meta:
+  meta:
     - name: viewport
       content: width=device-width, initial-scale=1
     - http-equiv: status
       content: "404"
-
+  
 styles:
     - |
         body {
@@ -205,7 +205,7 @@ styles:
         }
 
 input:
-message: null
+  message: null
 searchEnabled: false
 helpfulLinks:
     - title: Home

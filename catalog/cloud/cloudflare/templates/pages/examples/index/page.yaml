@@ -32,13 +32,13 @@ component: |
 renderMode: ssr
 
 hydration:
-strategy: htmx
+  strategy: htmx
 htmx:
     enabled: true
     version: "1.9.10"
 
 seo:
-title: Home
+  title: Home
 description: Welcome to our application
 canonical: /
 jsonLd:
@@ -48,12 +48,12 @@ jsonLd:
     url: "https://myapp.com"
 
 cache:
-enabled: true
+  enabled: true
 ttl: 3600  # 1 hour
 vary: []
 
 head:
-meta:
+  meta:
     - name: viewport
       content: width=device-width, initial-scale=1
 links:
@@ -152,7 +152,7 @@ styles:
 
 # Default props (can be overridden at runtime)
 input:
-siteName: Conductor
+  siteName: Conductor
 tagline: Edge-native orchestration for AI members
 features:
     - icon: "⚡"

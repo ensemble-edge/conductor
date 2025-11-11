@@ -26,9 +26,9 @@ Sitemap: {{sitemap}}
 
 # Page configuration (all properties at root level, no config wrapper)
 route:
-path: /robots.txt
-methods: [GET]
-auth: none
+  path: /robots.txt
+  methods: [GET]
+  auth: none
 
 renderMode: static
 
@@ -36,15 +36,15 @@ renderMode: static
 contentType: text/plain
 
 cache:
-enabled: true
-ttl: 86400  # 24 hours
+  enabled: true
+  ttl: 86400  # 24 hours
 
 # Default configuration
 input:
-disallowAll: false
-disallowPaths:
+  disallowAll: false
+  disallowPaths:
     - /api/*
     - /admin/*
     - /_*
-crawlDelay: null
-sitemap: ${env.PUBLIC_URL}/sitemap.xml
+  crawlDelay: null
+  sitemap: ${env.PUBLIC_URL}/sitemap.xml

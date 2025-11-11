@@ -24,21 +24,21 @@ component: |
 
 # Page configuration (all properties at root level, no config wrapper)
 route:
-path: /sitemap.xml
-methods: [GET]
-auth: none
+  path: /sitemap.xml
+  methods: [GET]
+  auth: none
 
 renderMode: static
 
 contentType: application/xml
 
 cache:
-enabled: true
-ttl: 3600  # 1 hour
+  enabled: true
+  ttl: 3600  # 1 hour
 
 # Default URLs - typically generated dynamically from your pages/content
 input:
-urls:
+  urls:
     - loc: ${env.PUBLIC_URL}/
       lastmod: ${new Date().toISOString().split('T')[0]}
       changefreq: daily

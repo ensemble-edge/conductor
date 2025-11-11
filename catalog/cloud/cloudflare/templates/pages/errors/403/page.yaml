@@ -19,8 +19,8 @@ head:
   meta:
     - name: robots
       content: noindex, nofollow
-
-# Cache for performance
+  
+  # Cache for performance
 cache:
   enabled: true
   ttl: 3600  # 1 hour
