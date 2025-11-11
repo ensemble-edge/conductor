@@ -1,5 +1,19 @@
 # @ensemble-edge/conductor
 
+## 1.1.14
+
+### Patch Changes
+
+- Comprehensive lazy initialization to prevent Worker blocking
+
+  Moved ALL module-scope initialization to lazy functions:
+  - YAML parsing for all pages deferred to first request
+  - PageRouter instantiation deferred to first request
+  - PageMember creation deferred to first request
+  - greetConfig parsing deferred to first use
+
+  This fixes the HTTP request hanging issue where top-level operations blocked the fetch handler from being reached.
+
 ## 1.1.13
 
 ### Patch Changes
