@@ -276,6 +276,8 @@ export interface PageMemberConfig extends MemberConfig {
 	dev?: boolean;
 	/** Default input props for the page component */
 	input?: Record<string, unknown>;
+	/** Template engine to use for rendering (default: 'handlebars') */
+	templateEngine?: 'handlebars' | 'liquid' | 'simple' | 'mjml';
 }
 
 /**
