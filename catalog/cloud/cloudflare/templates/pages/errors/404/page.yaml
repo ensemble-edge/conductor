@@ -57,22 +57,22 @@ component: |
     </div>
 
 seo:
-  title: "404 - Page Not Found"
-  description: "The page you're looking for could not be found"
-  robots: noindex, nofollow
+title: "404 - Page Not Found"
+description: "The page you're looking for could not be found"
+robots: noindex, nofollow
 
 cache:
-  enabled: true
-  ttl: 3600
+enabled: true
+ttl: 3600
 
 head:
-  meta:
+meta:
     - name: viewport
       content: width=device-width, initial-scale=1
     - http-equiv: status
       content: "404"
 
-  styles:
+styles:
     - |
         body {
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -205,9 +205,9 @@ head:
         }
 
 input:
-  message: null
-  searchEnabled: false
-  helpfulLinks:
+message: null
+searchEnabled: false
+helpfulLinks:
     - title: Home
       url: /
     - title: Documentation

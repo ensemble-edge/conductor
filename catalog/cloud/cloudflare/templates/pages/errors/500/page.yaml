@@ -53,21 +53,21 @@ component: |
     </div>
 
 seo:
-  title: "500 - Internal Server Error"
-  description: "An error occurred while processing your request"
-  robots: noindex, nofollow
+title: "500 - Internal Server Error"
+description: "An error occurred while processing your request"
+robots: noindex, nofollow
 
 cache:
-  enabled: false  # Never cache error pages
+enabled: false  # Never cache error pages
 
 head:
-  meta:
+meta:
     - name: viewport
       content: width=device-width, initial-scale=1
     - http-equiv: status
       content: "500"
 
-  styles:
+styles:
     - |
         body {
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -202,8 +202,8 @@ head:
         }
 
 input:
-  message: null
-  errorId: null
-  errorStack: null
-  dev: false
-  supportEmail: support@example.com
+message: null
+errorId: null
+errorStack: null
+dev: false
+supportEmail: support@example.com
