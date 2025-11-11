@@ -57,19 +57,10 @@ import greetFunction from '../members/hello';
 // Import your ensembles (add more as you create them)
 import helloWorldYAML from '../ensembles/hello-world.yaml';
 
-// Import page configurations (as raw strings from wrangler text loader)
-import indexPageConfigRaw from '../pages/examples/index/page.yaml';
-import dashboardPageConfigRaw from '../pages/examples/dashboard/page.yaml';
-import loginPageConfigRaw from '../pages/examples/login/page.yaml';
-import blogPostPageConfigRaw from '../pages/examples/blog-post/page.yaml';
-
-// Import error pages
-import error404PageConfigRaw from '../pages/errors/404/page.yaml';
-import error500PageConfigRaw from '../pages/errors/500/page.yaml';
-
-// Import static pages
-import robotsPageConfigRaw from '../pages/static/robots/page.yaml';
-import sitemapPageConfigRaw from '../pages/static/sitemap/page.yaml';
+// ==================== Auto-Discovery: Pages via Virtual Module ====================
+// Pages are automatically discovered from the pages/ directory at build time
+// No need to manually import each page - Vite plugin handles this!
+import { pages as discoveredPages } from 'virtual:conductor-pages';
 
 // ==================== Lazy Initialization for Pages ====================
 // All page parsing and initialization happens on first request
@@ -81,38 +72,20 @@ let pagesInitialized = false;
 async function initializePages(): Promise<void> {
 	if (pagesInitialized) return;
 
-	// Parse YAML strings into config objects
-	const indexPageConfig = parseYAML(indexPageConfigRaw as unknown as string) as MemberConfig;
-	const dashboardPageConfig = parseYAML(dashboardPageConfigRaw as unknown as string) as MemberConfig;
-	const loginPageConfig = parseYAML(loginPageConfigRaw as unknown as string) as MemberConfig;
-	const blogPostPageConfig = parseYAML(blogPostPageConfigRaw as unknown as string) as MemberConfig;
-	const error404PageConfig = parseYAML(error404PageConfigRaw as unknown as string) as MemberConfig;
-	const error500PageConfig = parseYAML(error500PageConfigRaw as unknown as string) as MemberConfig;
-	const robotsPageConfig = parseYAML(robotsPageConfigRaw as unknown as string) as MemberConfig;
-	const sitemapPageConfig = parseYAML(sitemapPageConfigRaw as unknown as string) as MemberConfig;
-
 	// Initialize PageRouter with pages
 	pageRouter = new PageRouter({
 		indexFiles: ['index'],
 		notFoundPage: 'error-404' // Use custom 404 page
 	});
 
-	// Register pages
-	pagesMap = new Map([
-		// Example pages
-		['index', { config: indexPageConfig as MemberConfig, member: new PageMember(indexPageConfig as MemberConfig) }],
-		['dashboard', { config: dashboardPageConfig as MemberConfig, member: new PageMember(dashboardPageConfig as MemberConfig) }],
-		['login', { config: loginPageConfig as MemberConfig, member: new PageMember(loginPageConfig as MemberConfig) }],
-		['blog-post', { config: blogPostPageConfig as MemberConfig, member: new PageMember(blogPostPageConfig as MemberConfig) }],
-
-		// Error pages
-		['error-404', { config: error404PageConfig as MemberConfig, member: new PageMember(error404PageConfig as MemberConfig) }],
-		['error-500', { config: error500PageConfig as MemberConfig, member: new PageMember(error500PageConfig as MemberConfig) }],
-
-		// Static pages
-		['robots', { config: robotsPageConfig as MemberConfig, member: new PageMember(robotsPageConfig as MemberConfig) }],
-		['sitemap', { config: sitemapPageConfig as MemberConfig, member: new PageMember(sitemapPageConfig as MemberConfig) }]
-	]);
+	// Auto-discovered pages are already parsed and ready to use!
+	// Convert the discovered pages array into the pagesMap format
+	pagesMap = new Map(
+		discoveredPages.map((page) => {
+			const config = parseYAML(page.config) as MemberConfig;
+			return [page.name, { config, member: new PageMember(config) }];
+		})
+	);
 
 	// Discover pages
 	await pageRouter.discoverPages(pagesMap);

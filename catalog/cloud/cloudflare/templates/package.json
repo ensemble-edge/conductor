@@ -3,22 +3,29 @@
 	"version": "0.0.1",
 	"private": true,
 	"scripts": {
-		"dev": "wrangler dev",
-		"deploy": "wrangler deploy",
+		"build": "vite build",
+		"dev": "vite dev",
+		"dev:wrangler": "wrangler dev",
+		"deploy": "npm run build && wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"test": "vitest",
 		"test:watch": "vitest --watch",
 		"test:coverage": "vitest --coverage"
 	},
 	"devDependencies": {
+		"@cloudflare/vite-plugin": "^1.14.1",
 		"@cloudflare/workers-types": "^4.20241127.0",
 		"@rollup/plugin-yaml": "^4.1.2",
 		"@types/node": "^20.11.0",
+		"fast-glob": "^3.3.3",
+		"rolldown-vite": "^7.2.4",
 		"typescript": "^5.5.2",
+		"vite": "^7.2.2",
 		"vitest": "~3.2.0",
 		"wrangler": "^4.45.2"
 	},
 	"dependencies": {
-		"@ensemble-edge/conductor": "^__CONDUCTOR_VERSION__"
+		"@ensemble-edge/conductor": "file:../../../../",
+		"yaml": "^2.4.0"
 	}
 }

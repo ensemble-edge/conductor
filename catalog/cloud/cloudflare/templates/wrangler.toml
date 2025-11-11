@@ -1,9 +1,14 @@
 name = "my-conductor-project"
-main = "src/index.ts"
+main = "dist/index.js"
 compatibility_date = "2025-10-29"
 compatibility_flags = ["nodejs_compat"]
 
-# Module rules for file imports
+# Build configuration for Vite
+[build]
+command = "npm run build"
+watch_dirs = ["src", "pages", "members", "ensembles"]
+
+# Module rules for file imports (kept for backward compatibility)
 [[rules]]
 type = "Text"
 globs = ["**/*.yaml", "**/*.yml"]
