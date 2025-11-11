@@ -5,7 +5,7 @@ description: XML sitemap for search engines
 # The component content (must be at root level, not nested in config)
 component: |
   <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     {{#each urls}}
     <url>
       <loc>{{this.loc}}</loc>
