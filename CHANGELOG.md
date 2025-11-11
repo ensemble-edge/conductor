@@ -1,5 +1,99 @@
 # @ensemble-edge/conductor
 
+## 1.2.1
+
+### Patch Changes
+
+- Add universal cache warming and advanced caching for all member types
+
+  **Universal Cache Support:**
+
+  New `BaseCacheConfig` interface that works with **any member type**: Page, API, Data, Think, Queue, and future members. All members now support the same caching features.
+
+  **New Cache Features:**
+  1. **Cache Tags** - Smart cache invalidation with tags
+     ```yaml
+     cache:
+       enabled: true
+       ttl: 3600
+       tags: [pages, blog, user-123]
+     ```
+  2. **Cache Warming** - Pre-populate edge cache on deployment
+     ```yaml
+     cache:
+       enabled: true
+       ttl: 3600
+       warming: true # or prewarm: true
+     ```
+  3. **Stale-While-Revalidate** - Already supported, now with enhanced type safety
+
+  **New Files:**
+  - `src/types/cache.ts` - Universal `BaseCacheConfig` interface
+    - `hasCacheConfig()` - Type guard for cache support
+    - `isCacheWarmingEnabled()` - Check warming status
+    - `getCacheConfig()` - Extract cache config
+  - `src/utils/cache-warming.ts` - Cache warming utility (works with any member type)
+    - `warmCache()` - Warm routes with concurrency control
+    - `extractWarmableRoutes()` - Auto-discover warmable members
+    - `scheduledCacheRefresh()` - Cron-based cache refresh
+  - `scripts/warm-cache.js` - Deploy-time cache warming script
+    - Auto-discovers all members with `cache.warming: true`
+    - Supports Pages, APIs, Data members, and more
+    - Sorts by priority, shows real-time progress
+  - `src/utils/__tests__/cache-warming.test.ts` - 16 comprehensive tests
+
+  **New NPM Scripts:**
+  - `npm run warm-cache` - Warm cache after deployment
+  - `npm run deploy:warm` - Deploy + automatic cache warming
+
+  **Usage (works with any member type):**
+
+  ```yaml
+  # Page caching
+  name: homepage
+  type: Page
+  cache:
+    enabled: true
+    ttl: 3600
+    warming: true
+    tags: [pages, homepage]
+
+  # API caching
+  name: products-api
+  type: API
+  cache:
+    enabled: true
+    ttl: 1800
+    warming: true
+    tags: [api, products]
+
+  # Data caching
+  name: user-profile
+  type: Data
+  cache:
+    enabled: true
+    ttl: 600
+    warming: true
+    tags: [data, users]
+  ```
+
+  **Deploy with cache warming:**
+
+  ```bash
+  # Deploy and warm cache for all members
+  npm run deploy:warm -- --url https://myapp.com
+  ```
+
+  **Benefits:**
+  - **Universal** - Same caching features for all member types
+  - **Faster first requests** - Cache pre-populated on deploy
+  - **Zero downtime** - Stale-while-revalidate ensures availability
+  - **Smart invalidation** - Cache tags enable surgical purging
+  - **Scheduled refresh** - Keep popular routes warm via Cron
+  - **Type-safe** - Shared `BaseCacheConfig` prevents inconsistencies
+
+  All existing functionality preserved. Cache warming is opt-in per member. PageCacheConfig now extends BaseCacheConfig for consistency.
+
 ## 1.2.0
 
 ### Minor Changes
@@ -62,7 +156,6 @@
   - Industry-proven at scale (Shopify processes billions of requests/day)
 
   All example pages in the catalog have been updated to use Liquid.
-
 
 ## 1.1.15
 

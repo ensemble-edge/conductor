@@ -6,6 +6,7 @@
  */
 import type { MemberConfig } from '../../../runtime/parser.js';
 import type { RouteAuthConfig, CORSConfig } from '../../../routing/config.js';
+import type { BaseCacheConfig } from '../../../types/cache.js';
 /**
  * Page rendering mode
  */
@@ -189,18 +190,9 @@ export interface AlternateLink {
 }
 /**
  * Page caching configuration
+ * Extends base cache config with page-specific options
  */
-export interface PageCacheConfig {
-    /** Enable caching */
-    enabled: boolean;
-    /** Cache TTL (seconds) */
-    ttl?: number;
-    /** Cache key generator function */
-    keyGenerator?: string;
-    /** Vary headers */
-    vary?: string[];
-    /** Enable stale-while-revalidate */
-    staleWhileRevalidate?: number;
+export interface PageCacheConfig extends BaseCacheConfig {
 }
 /**
  * Page route configuration

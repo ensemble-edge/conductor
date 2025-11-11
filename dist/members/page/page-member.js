@@ -285,11 +285,17 @@ export class PageMember extends BaseMember {
         if (this.pageConfig.cache?.enabled) {
             const ttl = this.pageConfig.cache.ttl || 3600;
             headers['Cache-Control'] = `public, max-age=${ttl}`;
+            // Add stale-while-revalidate support
             if (this.pageConfig.cache.staleWhileRevalidate) {
                 headers['Cache-Control'] += `, stale-while-revalidate=${this.pageConfig.cache.staleWhileRevalidate}`;
             }
+            // Add Vary headers for cache key variation
             if (this.pageConfig.cache.vary) {
                 headers['Vary'] = this.pageConfig.cache.vary.join(', ');
+            }
+            // Add cache tags for smart invalidation
+            if (this.pageConfig.cache.tags?.length) {
+                headers['Cache-Tag'] = this.pageConfig.cache.tags.join(',');
             }
         }
         return headers;
