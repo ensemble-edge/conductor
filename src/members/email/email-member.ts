@@ -201,8 +201,8 @@ export class EmailMember extends BaseMember {
 		// Render template if provided
 		if (input.template) {
 			const data = input.data || {};
-			// Use template loader to load and render template (handles KV, files, inline)
-			html = await this.templateLoader.render(input.template, data);
+			// Use template loader to load and render template (handles KV, files, inline, and component references)
+			html = await this.templateLoader.render(input.template, data, context.env);
 
 			// If no text version provided, strip HTML for plain text
 			if (!text) {
