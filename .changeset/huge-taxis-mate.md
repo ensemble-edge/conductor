@@ -16,11 +16,14 @@
 - Prevents accidental commits of secrets (.dev.vars, .env files)
 - Includes build outputs, OS files, IDE configs
 
-**Package Version Reference Updated**
-- Updated template package.json from `^1.1.0` to `^1.1.1`
-- Ensures generated projects reference correct Conductor version
+**Dynamic Version Injection** (Automation)
+- `conductor init` now dynamically injects the correct version into package.json
+- Template uses `__CONDUCTOR_VERSION__` placeholder
+- No more manual version updates needed in template
+- Generated projects always reference the installed Conductor version
 
 ### Testing
 - ✅ All 712 tests passing
 - ✅ Dev server validation fixed
 - ✅ Template structure corrected
+- ✅ Dynamic version injection working

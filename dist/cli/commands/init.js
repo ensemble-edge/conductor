@@ -119,8 +119,13 @@ export function createInitCommand() {
             console.log(chalk.cyan(`Target: ${targetDir}`));
             console.log(chalk.cyan(`Examples: ${options.examples !== false ? 'included' : 'excluded'}`));
             console.log('');
+            // Read Conductor version from package.json
+            const pkgPath = path.join(packageRoot, 'package.json');
+            const pkgContent = await fs.readFile(pkgPath, 'utf-8');
+            const pkg = JSON.parse(pkgContent);
+            const conductorVersion = pkg.version;
             // Copy template files
-            await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false);
+            await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false, conductorVersion);
             console.log(chalk.green('✓ Project initialized successfully'));
             console.log('');
             // Show next steps
@@ -157,7 +162,7 @@ export function createInitCommand() {
 /**
  * Recursively copy a directory
  */
-async function copyDirectory(src, dest, force, includeExamples = true) {
+async function copyDirectory(src, dest, force, includeExamples = true, conductorVersion) {
     await fs.mkdir(dest, { recursive: true });
     const entries = await fs.readdir(src, { withFileTypes: true });
     for (const entry of entries) {
@@ -169,7 +174,7 @@ async function copyDirectory(src, dest, force, includeExamples = true) {
             continue;
         }
         if (entry.isDirectory()) {
-            await copyDirectory(srcPath, destPath, force, includeExamples);
+            await copyDirectory(srcPath, destPath, force, includeExamples, conductorVersion);
         }
         else {
             // Check if file exists
@@ -183,8 +188,17 @@ async function copyDirectory(src, dest, force, includeExamples = true) {
                     // File doesn't exist, continue with copy
                 }
             }
-            await fs.copyFile(srcPath, destPath);
-            console.log(chalk.dim(`  ✓ Created ${path.relative(dest, destPath)}`));
+            // Process template files that need version substitution
+            if (conductorVersion && entry.name === 'package.json') {
+                let content = await fs.readFile(srcPath, 'utf-8');
+                content = content.replace(/__CONDUCTOR_VERSION__/g, conductorVersion);
+                await fs.writeFile(destPath, content, 'utf-8');
+                console.log(chalk.dim(`  ✓ Created ${path.relative(dest, destPath)} (version: ${conductorVersion})`));
+            }
+            else {
+                await fs.copyFile(srcPath, destPath);
+                console.log(chalk.dim(`  ✓ Created ${path.relative(dest, destPath)}`));
+            }
         }
     }
 }
