@@ -183,12 +183,26 @@ export class PageRouter {
       }
     }
 
-    // Prepare input with route params
-    let input: Record<string, any> = { ...params }
-
-    // Add query params
+    // Extract query parameters
+    const query: Record<string, string> = {}
     for (const [key, value] of url.searchParams) {
-      input[key] = value
+      query[key] = value
+    }
+
+    // Extract headers as Record
+    const headers: Record<string, string> = {}
+    request.headers.forEach((value, key) => {
+      headers[key] = value
+    })
+
+    // Prepare input with route params, query params, and headers
+    let input: Record<string, any> = {
+      params,
+      query,
+      headers,
+      request,
+      env,
+      ctx,
     }
 
     // Add custom data from beforeRender hook
