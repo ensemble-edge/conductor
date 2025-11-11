@@ -117,7 +117,10 @@ export const pages = [];
 
     // Import handler if exists (no need to import config - we embed it)
     if (handlerExists) {
-      imports.push(`import * as ${handlerVarName} from '${path.relative(root, handlerPath)}'`)
+      const relativePath = path.relative(root, handlerPath)
+      // Ensure path starts with ./ for proper module resolution
+      const importPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`
+      imports.push(`import * as ${handlerVarName} from '${importPath}'`)
     }
 
     // Parse name from YAML config
