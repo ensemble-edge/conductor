@@ -76,9 +76,19 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           CHANGELOG=$(awk '/^## / {if (p) exit; p=1; next} p' CHANGELOG.md)
-          gh release create "v${VERSION}" \
-            --title "v${VERSION}" \
-            --notes "${CHANGELOG}" \
-            --latest
+          # Create release, or update if it already exists
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists, updating..."
+            gh release edit "v${VERSION}" \
+              --title "v${VERSION}" \
+              --notes "${CHANGELOG}" \
+              --latest
+          else
+            echo "Creating release v${VERSION}..."
+            gh release create "v${VERSION}" \
+              --title "v${VERSION}" \
+              --notes "${CHANGELOG}" \
+              --latest
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
