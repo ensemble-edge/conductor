@@ -1,11 +1,43 @@
-import { a as __toCommonJS, i as __require, n as __esmMin, o as __toDynamicImportESM, r as __export, s as __toESM, t as __commonJSMin } from "./chunk-CjLZ-eKX.js";
-import { i as Result, n as Errors, r as MemberExecutionError, t as EnsembleExecutionError } from "./error-types-Cw-0x1qe.js";
+import { i as Result, n as Errors, r as MemberExecutionError, t as EnsembleExecutionError } from "./error-types-GY-n8ams.js";
+import { createRequire } from "node:module";
 import * as fs$1 from "fs/promises";
 import * as path from "path";
 import { dirname, extname, resolve, sep } from "path";
 import { readFile, readFileSync, stat, statSync } from "fs";
 import { PassThrough } from "stream";
-import { createRequire } from "module";
+import { createRequire as createRequire$1 } from "module";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esmMin = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
+var __commonJSMin = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
+var __export = (all) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	return target;
+};
+var __copyProps = (to, from, except, desc) => {
+	if (from && typeof from === "object" || typeof from === "function") for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {
+		key = keys[i];
+		if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
+			get: ((k) => from[k]).bind(null, key),
+			enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
+		});
+	}
+	return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+	value: mod,
+	enumerable: true
+}) : target, mod));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+var __require = /* @__PURE__ */ createRequire(import.meta.url);
 var ALIAS = Symbol.for("yaml.alias");
 var DOC = Symbol.for("yaml.document");
 var MAP = Symbol.for("yaml.map");
@@ -18604,7 +18636,7 @@ var LRU = class {
 	}
 };
 function requireResolve(file) {
-	return createRequire(process.cwd() + "/").resolve(file);
+	return createRequire$1(process.cwd() + "/").resolve(file);
 }
 var statAsync = promisify(stat);
 var readFileAsync = promisify(readFile);
@@ -21570,7 +21602,7 @@ var MJMLTemplateEngine = class extends BaseTemplateEngine {
 		}
 		mjmlLoadAttempted = true;
 		try {
-			mjml2html = (await import("./lib-Dz6lV0oJ.js").then(__toDynamicImportESM(1))).default;
+			mjml2html = (await import("mjml")).default;
 		} catch (error) {
 			mjml2html = null;
 			throw new Error("MJML template engine is not available in this environment. This is typically a test environment limitation due to Node.js dependencies. MJML works fine in production Cloudflare Workers.");
@@ -23468,7 +23500,7 @@ var HtmlMember = class extends BaseMember {
 		if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
 			let cache;
 			if (context.env.CACHE) {
-				const { MemoryCache } = await import("./cache-DHXdVKNV.js");
+				const { MemoryCache } = await import("./cache-kMbkUKC-.js");
 				cache = new MemoryCache({ defaultTTL: 3600 });
 			}
 			const componentLoader = createComponentLoader({
@@ -23538,7 +23570,7 @@ var HtmlMember = class extends BaseMember {
 			if (context.env.COMPONENTS) {
 				let cache;
 				if (context.env.CACHE) {
-					const { MemoryCache } = await import("./cache-DHXdVKNV.js");
+					const { MemoryCache } = await import("./cache-kMbkUKC-.js");
 					cache = new MemoryCache({ defaultTTL: 3600 });
 				}
 				const componentLoader = createComponentLoader({
