@@ -21,7 +21,7 @@ flow:
     input:
       to: ${input.email}
       subject: Welcome to ${input.appName}!
-      template: kv://templates/email/welcome@latest
+      template: templates/email/welcome@latest
       data:
         name: ${input.name}
         appName: ${input.appName}
