@@ -23012,13 +23012,31 @@ var PageMember = class extends BaseMember {
 					cacheStatus: "hit"
 				};
 			}
+			let handlerData = {};
+			if (this.pageConfig.handler) try {
+				const handlerContext = {
+					request: input.request || input.request,
+					env: context.env,
+					ctx: context.ctx,
+					params: input.params || {},
+					query: input.query || {},
+					headers: input.headers || {}
+				};
+				handlerData = await this.pageConfig.handler(handlerContext);
+			} catch (error) {
+				console.error("Handler error:", error);
+			}
 			const component = await this.loadComponent(context);
 			const props = {
 				...this.pageConfig.input || {},
+				...handlerData,
 				...input.data,
-				...input.props,
-				request: input.request
+				...input.props
 			};
+			if (input.params) props.params = input.params;
+			if (input.query) props.query = input.query;
+			if (input.headers) props.headers = input.headers;
+			if (input.request) props.request = input.request;
 			const renderMode = this.pageConfig.renderMode || "ssr";
 			let bodyHtml;
 			switch (renderMode) {
@@ -26029,8 +26047,20 @@ var PageRouter = class {
 		if (route.rateLimit) {
 			if (!await this.checkRateLimit(request, route.rateLimit, env)) return new Response("Too Many Requests", { status: 429 });
 		}
-		let input = { ...params };
-		for (const [key, value] of url.searchParams) input[key] = value;
+		const query = {};
+		for (const [key, value] of url.searchParams) query[key] = value;
+		const headers = {};
+		request.headers.forEach((value, key) => {
+			headers[key] = value;
+		});
+		let input = {
+			params,
+			query,
+			headers,
+			request,
+			env,
+			ctx
+		};
 		if (this.config.beforeRender) {
 			const customData = await this.config.beforeRender(route.page, request, env);
 			input = {

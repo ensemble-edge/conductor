@@ -126,12 +126,25 @@ export class PageRouter {
                 return new Response('Too Many Requests', { status: 429 });
             }
         }
-        // Prepare input with route params
-        let input = { ...params };
-        // Add query params
+        // Extract query parameters
+        const query = {};
         for (const [key, value] of url.searchParams) {
-            input[key] = value;
+            query[key] = value;
         }
+        // Extract headers as Record
+        const headers = {};
+        request.headers.forEach((value, key) => {
+            headers[key] = value;
+        });
+        // Prepare input with route params, query params, and headers
+        let input = {
+            params,
+            query,
+            headers,
+            request,
+            env,
+            ctx,
+        };
         // Add custom data from beforeRender hook
         if (this.config.beforeRender) {
             const customData = await this.config.beforeRender(route.page, request, env);
