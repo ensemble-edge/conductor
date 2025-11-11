@@ -38,7 +38,7 @@ export declare class TemplateLoader {
     /**
      * Load and render template
      */
-    render(template: string, data?: TemplateData): Promise<string>;
+    render(template: string, data?: TemplateData, env?: any): Promise<string>;
     /**
      * Parse template reference
      */
