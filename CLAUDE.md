@@ -155,7 +155,69 @@ conductor/
 - No AI attribution in any git operations
 - See [Git Commit Standards](#git-commit-standards) section for detailed requirements
 
-## Common Tasks
+## Release Process
+
+### Automated Release Workflow
+
+This repository uses an automated release workflow powered by [Changesets](https://github.com/changesets/changesets). Version bumping, tagging, and npm publishing are fully automated via GitHub Actions.
+
+#### How to Release
+
+**Step 1: Create a Changeset** (manual)
+```bash
+cd /workspace/ensemble/conductor
+npx changeset add
+```
+
+You'll be prompted to:
+- Select the bump type (patch/minor/major)
+- Write a description of the changes
+
+This creates a markdown file in `.changeset/` documenting your changes.
+
+**Step 2: Commit and Push** (triggers automation)
+```bash
+git add .changeset/
+git commit -m "feat: add new feature X"
+git push
+```
+
+**Step 3: Automation Takes Over** (GitHub Actions)
+
+Once you push to main/master, the release workflow automatically:
+1. ✅ Runs tests, lint, typecheck, and build
+2. ✅ Detects changeset exists
+3. ✅ Runs `changeset version` (bumps package.json, updates CHANGELOG.md)
+4. ✅ Rebuilds with new version
+5. ✅ Commits with message: `chore: release v1.2.0`
+6. ✅ Creates git tag: `v1.2.0`
+7. ✅ Pushes commit and tag to GitHub
+8. ✅ Publishes to npm automatically
+
+#### Complete Example
+
+```bash
+# Create changeset for a new feature
+npx changeset add
+# → Select: minor
+# → Description: "Add email batch sending support"
+
+# Commit and push
+git add .changeset/
+git commit -m "feat: add batch email sending"
+git push
+
+# GitHub Actions does the rest!
+# → Version bumps to 1.2.0
+# → Publishes to npm
+# → Done! 🎉
+```
+
+#### Notes
+- No manual version bumps needed
+- No manual tagging needed
+- No manual `npm publish` needed
+- Just create the changeset and push!
 
 ### Deploying to Cloudflare Workers
 

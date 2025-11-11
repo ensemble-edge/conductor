@@ -2,14 +2,9 @@ name: index
 type: Page
 description: Homepage - automatically serves at /
 
-config:
-  # No route config needed - "index" automatically routes to /
-  # This demonstrates convention-based routing
-
-  renderMode: ssr
-
-  component: |
-    <div class="hero">
+# The component content (must be at root level, not nested in config)
+component: |
+  <div class="hero">
       <div class="hero-content">
         <h1>Welcome to {{siteName}}</h1>
         <p class="tagline">{{tagline}}</p>
@@ -32,6 +27,10 @@ config:
         </div>
       </div>
     </div>
+
+# Configuration for the page
+config:
+  renderMode: ssr
 
   hydration:
     strategy: htmx
