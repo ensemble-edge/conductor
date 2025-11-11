@@ -253,6 +253,8 @@ export interface PageMemberConfig extends MemberConfig {
     errorComponent?: string;
     /** Enable development mode (hot reload, etc.) */
     dev?: boolean;
+    /** Default input props for the page component */
+    input?: Record<string, unknown>;
 }
 /**
  * Page member input

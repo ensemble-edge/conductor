@@ -151,12 +151,11 @@ export class PageRouter {
                 return new Response('Internal Server Error', { status: 500 });
             }
             const pageOutput = (result.output || result.data);
+            // Use headers from PageMember - it already includes Content-Type
+            // Don't duplicate the header or it causes "Unknown character encoding" error
             return new Response(pageOutput.html, {
                 status: 200,
-                headers: {
-                    'content-type': 'text/html; charset=utf-8',
-                    ...pageOutput.headers,
-                },
+                headers: pageOutput.headers,
             });
         }
         catch (error) {
@@ -305,12 +304,11 @@ export class PageRouter {
                 return new Response('Not Found', { status: 404 });
             }
             const pageOutput = (result.output || result.data);
+            // Use headers from PageMember - it already includes Content-Type
+            // Don't duplicate the header or it causes "Unknown character encoding" error
             return new Response(pageOutput.html, {
                 status: 404,
-                headers: {
-                    'content-type': 'text/html; charset=utf-8',
-                    ...pageOutput.headers,
-                },
+                headers: pageOutput.headers,
             });
         }
         catch (error) {

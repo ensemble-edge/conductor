@@ -207,12 +207,12 @@ export class PageRouter {
       }
 
       const pageOutput = (result.output || result.data) as any;
+
+      // Use headers from PageMember - it already includes Content-Type
+      // Don't duplicate the header or it causes "Unknown character encoding" error
       return new Response(pageOutput.html, {
         status: 200,
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          ...pageOutput.headers,
-        },
+        headers: pageOutput.headers,
       })
     } catch (error) {
       console.error('Page execution error:', error)
@@ -398,12 +398,12 @@ export class PageRouter {
       }
 
       const pageOutput = (result.output || result.data) as any;
+
+      // Use headers from PageMember - it already includes Content-Type
+      // Don't duplicate the header or it causes "Unknown character encoding" error
       return new Response(pageOutput.html, {
         status: 404,
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          ...pageOutput.headers,
-        },
+        headers: pageOutput.headers,
       })
     } catch (error) {
       console.error('404 page execution error:', error)
