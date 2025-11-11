@@ -8388,7 +8388,7 @@ function createHistoryCommand() {
 }
 
 // src/cli/index.ts
-var version = "1.1.15";
+var version = "1.1.16";
 var program = new Command10();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",
