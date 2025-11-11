@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.1.2
+
+### Patch Changes
+
+- b0f7468: Test automated release workflow
+
 ## 1.1.1
 
 ### Patch Changes
