@@ -19,173 +19,188 @@ export function createInitCommand(): Command {
     .option('--template <name>', 'Template to use (cloudflare)', 'cloudflare')
     .option('--force', 'Overwrite existing files')
     .option('--no-examples', 'Skip example files (only include minimal starter files)')
-    .action(async (directory: string, options: { template: string; force?: boolean; examples?: boolean }) => {
-      try {
-        console.log('')
-        console.log(chalk.bold('🎯 Initializing Conductor project...'))
-        console.log('')
-
-        const targetDir = path.resolve(process.cwd(), directory)
-
-        // Check if directory exists and what's in it
-        let directoryExists = false
-        let isConductorProject = false
-        let hasFiles = false
-
+    .action(
+      async (
+        directory: string,
+        options: { template: string; force?: boolean; examples?: boolean }
+      ) => {
         try {
-          const files = await fs.readdir(targetDir)
-          directoryExists = true
-          hasFiles = files.length > 0
+          console.log('')
+          console.log(chalk.bold('🎯 Initializing Conductor project...'))
+          console.log('')
 
-          // Check for Conductor project markers
-          const conductorMarkers = [
-            'conductor.config.ts',
-            'conductor.config.js',
-            'ensembles',
-            'members',
-          ]
+          const targetDir = path.resolve(process.cwd(), directory)
 
-          for (const marker of conductorMarkers) {
-            try {
-              await fs.access(path.join(targetDir, marker))
-              isConductorProject = true
-              break
-            } catch {
-              // Marker doesn't exist
-            }
-          }
-        } catch (error) {
-          // Directory doesn't exist, create it
-          await fs.mkdir(targetDir, { recursive: true })
-        }
+          // Check if directory exists and what's in it
+          let directoryExists = false
+          let isConductorProject = false
+          let hasFiles = false
 
-        // Handle existing Conductor project
-        if (isConductorProject && !options.force) {
-          console.error(chalk.yellow('⚠ Detected existing Conductor project'))
-          console.error('')
-          console.error(chalk.dim('This directory appears to already have Conductor files.'))
-          console.error(chalk.dim('Initializing will overwrite:'))
-          console.error(chalk.dim('  - conductor.config.ts'))
-          console.error(chalk.dim('  - ensembles/'))
-          console.error(chalk.dim('  - members/'))
-          console.error(chalk.dim('  - prompts/'))
-          console.error(chalk.dim('  - configs/'))
-          console.error(chalk.dim('  - tests/'))
-          console.error('')
-          console.error(chalk.dim('Use --force to overwrite existing Conductor files'))
-          console.error('')
-          process.exit(1)
-        }
-
-        // Handle non-empty directory that's not a Conductor project
-        if (hasFiles && !isConductorProject && !options.force) {
-          console.error(chalk.yellow('⚠ Directory is not empty'))
-          console.error('')
-          console.error(chalk.dim('This directory contains files but is not a Conductor project.'))
-          console.error(
-            chalk.dim('Initializing will add Conductor structure alongside existing files.')
-          )
-          console.error('')
-          console.error(chalk.dim('Use --force to proceed'))
-          console.error('')
-          process.exit(1)
-        }
-
-        // Determine template path
-        // The catalog directory is at the package root
-        // When installed: node_modules/@ensemble-edge/conductor/catalog
-        // When in development: conductor/catalog
-
-        // Find package root by looking for package.json
-        let packageRoot = process.cwd()
-        let currentDir = fileURLToPath(import.meta.url)
-
-        // Walk up the directory tree to find package.json
-        while (currentDir !== path.dirname(currentDir)) {
-          currentDir = path.dirname(currentDir)
           try {
-            const pkgPath = path.join(currentDir, 'package.json')
-            await fs.access(pkgPath)
-            const pkgContent = await fs.readFile(pkgPath, 'utf-8')
-            const pkg = JSON.parse(pkgContent)
-            if (pkg.name === '@ensemble-edge/conductor') {
-              packageRoot = currentDir
-              break
+            const files = await fs.readdir(targetDir)
+            directoryExists = true
+            hasFiles = files.length > 0
+
+            // Check for Conductor project markers
+            const conductorMarkers = [
+              'conductor.config.ts',
+              'conductor.config.js',
+              'ensembles',
+              'members',
+            ]
+
+            for (const marker of conductorMarkers) {
+              try {
+                await fs.access(path.join(targetDir, marker))
+                isConductorProject = true
+                break
+              } catch {
+                // Marker doesn't exist
+              }
             }
-          } catch {
-            // Continue searching
+          } catch (error) {
+            // Directory doesn't exist, create it
+            await fs.mkdir(targetDir, { recursive: true })
           }
-        }
 
-        const templatePath = path.join(
-          packageRoot,
-          'catalog',
-          'cloud',
-          options.template,
-          'templates'
-        )
+          // Handle existing Conductor project
+          if (isConductorProject && !options.force) {
+            console.error(chalk.yellow('⚠ Detected existing Conductor project'))
+            console.error('')
+            console.error(chalk.dim('This directory appears to already have Conductor files.'))
+            console.error(chalk.dim('Initializing will overwrite:'))
+            console.error(chalk.dim('  - conductor.config.ts'))
+            console.error(chalk.dim('  - ensembles/'))
+            console.error(chalk.dim('  - members/'))
+            console.error(chalk.dim('  - prompts/'))
+            console.error(chalk.dim('  - configs/'))
+            console.error(chalk.dim('  - tests/'))
+            console.error('')
+            console.error(chalk.dim('Use --force to overwrite existing Conductor files'))
+            console.error('')
+            process.exit(1)
+          }
 
-        try {
-          await fs.access(templatePath)
-        } catch {
-          console.error(chalk.red(`Error: Template '${options.template}' not found`))
+          // Handle non-empty directory that's not a Conductor project
+          if (hasFiles && !isConductorProject && !options.force) {
+            console.error(chalk.yellow('⚠ Directory is not empty'))
+            console.error('')
+            console.error(
+              chalk.dim('This directory contains files but is not a Conductor project.')
+            )
+            console.error(
+              chalk.dim('Initializing will add Conductor structure alongside existing files.')
+            )
+            console.error('')
+            console.error(chalk.dim('Use --force to proceed'))
+            console.error('')
+            process.exit(1)
+          }
+
+          // Determine template path
+          // The catalog directory is at the package root
+          // When installed: node_modules/@ensemble-edge/conductor/catalog
+          // When in development: conductor/catalog
+
+          // Find package root by looking for package.json
+          let packageRoot = process.cwd()
+          let currentDir = fileURLToPath(import.meta.url)
+
+          // Walk up the directory tree to find package.json
+          while (currentDir !== path.dirname(currentDir)) {
+            currentDir = path.dirname(currentDir)
+            try {
+              const pkgPath = path.join(currentDir, 'package.json')
+              await fs.access(pkgPath)
+              const pkgContent = await fs.readFile(pkgPath, 'utf-8')
+              const pkg = JSON.parse(pkgContent)
+              if (pkg.name === '@ensemble-edge/conductor') {
+                packageRoot = currentDir
+                break
+              }
+            } catch {
+              // Continue searching
+            }
+          }
+
+          const templatePath = path.join(
+            packageRoot,
+            'catalog',
+            'cloud',
+            options.template,
+            'templates'
+          )
+
+          try {
+            await fs.access(templatePath)
+          } catch {
+            console.error(chalk.red(`Error: Template '${options.template}' not found`))
+            console.error('')
+            console.error(chalk.dim(`Searched at: ${templatePath}`))
+            console.error(chalk.dim('Available templates:'))
+            console.error(chalk.dim('  - cloudflare (default)'))
+            console.error('')
+            process.exit(1)
+          }
+
+          console.log(chalk.cyan(`Template: ${options.template}`))
+          console.log(chalk.cyan(`Target: ${targetDir}`))
+          console.log(
+            chalk.cyan(`Examples: ${options.examples !== false ? 'included' : 'excluded'}`)
+          )
+          console.log('')
+
+          // Read Conductor version from package.json
+          const pkgPath = path.join(packageRoot, 'package.json')
+          const pkgContent = await fs.readFile(pkgPath, 'utf-8')
+          const pkg = JSON.parse(pkgContent)
+          const conductorVersion = pkg.version
+
+          // Copy template files
+          await copyDirectory(
+            templatePath,
+            targetDir,
+            options.force || false,
+            options.examples !== false,
+            conductorVersion
+          )
+
+          console.log(chalk.green('✓ Project initialized successfully'))
+          console.log('')
+
+          // Show next steps
+          console.log(chalk.bold('Next steps:'))
+          console.log('')
+          if (directory !== '.') {
+            console.log(chalk.dim(`  1. cd ${directory}`))
+          }
+          console.log(chalk.dim(`  ${directory !== '.' ? '2' : '1'}. npm install`))
+          console.log(chalk.dim(`  ${directory !== '.' ? '3' : '2'}. Review the generated files:`))
+          console.log(chalk.dim('     - ensembles/    : Your workflows'))
+          console.log(chalk.dim('     - members/      : AI members, functions, and agents'))
+          console.log(chalk.dim('     - prompts/      : Prompt templates'))
+          console.log(chalk.dim('     - configs/      : Configuration files'))
+          console.log(
+            chalk.dim(
+              `  ${directory !== '.' ? '4' : '3'}. npx wrangler dev  : Start local development`
+            )
+          )
+          console.log('')
+          console.log(chalk.dim('Documentation: https://docs.ensemble-edge.com/conductor'))
+          console.log('')
+        } catch (error) {
           console.error('')
-          console.error(chalk.dim(`Searched at: ${templatePath}`))
-          console.error(chalk.dim('Available templates:'))
-          console.error(chalk.dim('  - cloudflare (default)'))
+          console.error(chalk.red('✗ Failed to initialize project'))
+          console.error('')
+          console.error(chalk.dim((error as Error).message))
+          if ((error as Error).stack) {
+            console.error(chalk.dim((error as Error).stack))
+          }
           console.error('')
           process.exit(1)
         }
-
-        console.log(chalk.cyan(`Template: ${options.template}`))
-        console.log(chalk.cyan(`Target: ${targetDir}`))
-        console.log(chalk.cyan(`Examples: ${options.examples !== false ? 'included' : 'excluded'}`))
-        console.log('')
-
-        // Read Conductor version from package.json
-        const pkgPath = path.join(packageRoot, 'package.json')
-        const pkgContent = await fs.readFile(pkgPath, 'utf-8')
-        const pkg = JSON.parse(pkgContent)
-        const conductorVersion = pkg.version
-
-        // Copy template files
-        await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false, conductorVersion)
-
-        console.log(chalk.green('✓ Project initialized successfully'))
-        console.log('')
-
-        // Show next steps
-        console.log(chalk.bold('Next steps:'))
-        console.log('')
-        if (directory !== '.') {
-          console.log(chalk.dim(`  1. cd ${directory}`))
-        }
-        console.log(chalk.dim(`  ${directory !== '.' ? '2' : '1'}. npm install`))
-        console.log(chalk.dim(`  ${directory !== '.' ? '3' : '2'}. Review the generated files:`))
-        console.log(chalk.dim('     - ensembles/    : Your workflows'))
-        console.log(chalk.dim('     - members/      : AI members, functions, and agents'))
-        console.log(chalk.dim('     - prompts/      : Prompt templates'))
-        console.log(chalk.dim('     - configs/      : Configuration files'))
-        console.log(
-          chalk.dim(
-            `  ${directory !== '.' ? '4' : '3'}. npx wrangler dev  : Start local development`
-          )
-        )
-        console.log('')
-        console.log(chalk.dim('Documentation: https://docs.ensemble-edge.com/conductor'))
-        console.log('')
-      } catch (error) {
-        console.error('')
-        console.error(chalk.red('✗ Failed to initialize project'))
-        console.error('')
-        console.error(chalk.dim((error as Error).message))
-        if ((error as Error).stack) {
-          console.error(chalk.dim((error as Error).stack))
-        }
-        console.error('')
-        process.exit(1)
       }
-    })
+    )
 
   return init
 }
@@ -193,7 +208,13 @@ export function createInitCommand(): Command {
 /**
  * Recursively copy a directory
  */
-async function copyDirectory(src: string, dest: string, force: boolean, includeExamples: boolean = true, conductorVersion?: string): Promise<void> {
+async function copyDirectory(
+  src: string,
+  dest: string,
+  force: boolean,
+  includeExamples: boolean = true,
+  conductorVersion?: string
+): Promise<void> {
   await fs.mkdir(dest, { recursive: true })
 
   const entries = await fs.readdir(src, { withFileTypes: true })
@@ -227,7 +248,9 @@ async function copyDirectory(src: string, dest: string, force: boolean, includeE
         let content = await fs.readFile(srcPath, 'utf-8')
         content = content.replace(/__CONDUCTOR_VERSION__/g, conductorVersion)
         await fs.writeFile(destPath, content, 'utf-8')
-        console.log(chalk.dim(`  ✓ Created ${path.relative(dest, destPath)} (version: ${conductorVersion})`))
+        console.log(
+          chalk.dim(`  ✓ Created ${path.relative(dest, destPath)} (version: ${conductorVersion})`)
+        )
       } else {
         await fs.copyFile(srcPath, destPath)
         console.log(chalk.dim(`  ✓ Created ${path.relative(dest, destPath)}`))

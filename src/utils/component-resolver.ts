@@ -11,39 +11,39 @@
  * @module component-resolver
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as fs from 'fs/promises'
+import * as path from 'path'
 
 /**
  * Context for component resolution
  */
 export interface ComponentResolutionContext {
-	/** Cloudflare environment bindings */
-	env?: {
-		/** Edgit KV store for component versioning */
-		EDGIT?: KVNamespace;
-		[key: string]: any;
-	};
-	/** Base directory for relative file paths */
-	baseDir?: string;
+  /** Cloudflare environment bindings */
+  env?: {
+    /** Edgit KV store for component versioning */
+    EDGIT?: KVNamespace
+    [key: string]: any
+  }
+  /** Base directory for relative file paths */
+  baseDir?: string
 }
 
 /**
  * Result of component resolution
  */
 export interface ResolvedComponent {
-	/** The resolved content */
-	content: any;
-	/** How it was resolved */
-	source: 'inline' | 'file' | 'component';
-	/** Original reference (for debugging) */
-	originalRef: any;
-	/** Component metadata (if from Edgit) */
-	metadata?: {
-		path: string;
-		version: string;
-		fromEdgit: boolean;
-	};
+  /** The resolved content */
+  content: any
+  /** How it was resolved */
+  source: 'inline' | 'file' | 'component'
+  /** Original reference (for debugging) */
+  originalRef: any
+  /** Component metadata (if from Edgit) */
+  metadata?: {
+    path: string
+    version: string
+    fromEdgit: boolean
+  }
 }
 
 /**
@@ -60,10 +60,10 @@ export interface ResolvedComponent {
  * isComponentReference("user@server") // false (no path)
  */
 function isComponentReference(value: string): boolean {
-	// Component pattern: word/word@version or word/word/word@version
-	// Must have at least one / before the @
-	const componentPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i;
-	return componentPattern.test(value);
+  // Component pattern: word/word@version or word/word/word@version
+  // Must have at least one / before the @
+  const componentPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i
+  return componentPattern.test(value)
 }
 
 /**
@@ -77,9 +77,9 @@ function isComponentReference(value: string): boolean {
  * isUnversionedComponent("prompts/extraction@v1.0.0") // false (has version)
  */
 function isUnversionedComponent(value: string): boolean {
-	// Must have path structure but no @
-	const pathPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+$/i;
-	return pathPattern.test(value) && !value.includes('@');
+  // Must have path structure but no @
+  const pathPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+$/i
+  return pathPattern.test(value) && !value.includes('@')
 }
 
 /**
@@ -90,21 +90,19 @@ function isUnversionedComponent(value: string): boolean {
  * @returns File content as string
  */
 async function loadFromFile(
-	filePath: string,
-	context: ComponentResolutionContext
+  filePath: string,
+  context: ComponentResolutionContext
 ): Promise<string> {
-	const baseDir = context.baseDir || process.cwd();
-	const absolutePath = path.isAbsolute(filePath)
-		? filePath
-		: path.resolve(baseDir, filePath);
+  const baseDir = context.baseDir || process.cwd()
+  const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath)
 
-	try {
-		return await fs.readFile(absolutePath, 'utf-8');
-	} catch (error) {
-		throw new Error(
-			`Failed to load file: ${filePath}\nResolved to: ${absolutePath}\nError: ${error}`
-		);
-	}
+  try {
+    return await fs.readFile(absolutePath, 'utf-8')
+  } catch (error) {
+    throw new Error(
+      `Failed to load file: ${filePath}\nResolved to: ${absolutePath}\nError: ${error}`
+    )
+  }
 }
 
 /**
@@ -114,55 +112,49 @@ async function loadFromFile(
  * @param context - Resolution context
  * @returns Resolved component content
  */
-async function resolveComponentRef(
-	ref: string,
-	context: ComponentResolutionContext
-): Promise<any> {
-	const [pathPart, version] = ref.split('@');
+async function resolveComponentRef(ref: string, context: ComponentResolutionContext): Promise<any> {
+  const [pathPart, version] = ref.split('@')
 
-	// Try Edgit first (if available)
-	if (context.env?.EDGIT) {
-		const edgitPath = `components/${pathPart}/${version}`;
+  // Try Edgit first (if available)
+  if (context.env?.EDGIT) {
+    const edgitPath = `components/${pathPart}/${version}`
 
-		try {
-			const content = await context.env.EDGIT.get(edgitPath);
-			if (content) {
-				// Parse if it's YAML/JSON, otherwise return as string
-				try {
-					return JSON.parse(content);
-				} catch {
-					return content;
-				}
-			}
-		} catch (error) {
-			console.warn(
-				`Failed to fetch from Edgit: ${edgitPath}`,
-				error
-			);
-			// Fall through to local fallback
-		}
-	}
+    try {
+      const content = await context.env.EDGIT.get(edgitPath)
+      if (content) {
+        // Parse if it's YAML/JSON, otherwise return as string
+        try {
+          return JSON.parse(content)
+        } catch {
+          return content
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch from Edgit: ${edgitPath}`, error)
+      // Fall through to local fallback
+    }
+  }
 
-	// Local fallback: path/to/component@version → ./path/to/component.yaml
-	const localPath = `./${pathPart}.yaml`;
+  // Local fallback: path/to/component@version → ./path/to/component.yaml
+  const localPath = `./${pathPart}.yaml`
 
-	try {
-		const content = await loadFromFile(localPath, context);
+  try {
+    const content = await loadFromFile(localPath, context)
 
-		// Try parsing as YAML (simple parse, just JSON for now)
-		try {
-			return JSON.parse(content);
-		} catch {
-			return content;
-		}
-	} catch (error) {
-		throw new Error(
-			`Component not found: ${ref}\n` +
-				`Tried Edgit: components/${pathPart}/${version}\n` +
-				`Tried local: ${localPath}\n` +
-				`Error: ${error}`
-		);
-	}
+    // Try parsing as YAML (simple parse, just JSON for now)
+    try {
+      return JSON.parse(content)
+    } catch {
+      return content
+    }
+  } catch (error) {
+    throw new Error(
+      `Component not found: ${ref}\n` +
+        `Tried Edgit: components/${pathPart}/${version}\n` +
+        `Tried local: ${localPath}\n` +
+        `Error: ${error}`
+    )
+  }
 }
 
 /**
@@ -200,81 +192,81 @@ async function resolveComponentRef(
  * // → { content: "hello@example.com", source: "inline", ... }
  */
 export async function resolveValue(
-	value: any,
-	context: ComponentResolutionContext
+  value: any,
+  context: ComponentResolutionContext
 ): Promise<ResolvedComponent> {
-	// CASE 1: Non-string (object, array, number, boolean, null)
-	// → Use as-is (inline value)
-	if (typeof value !== 'string') {
-		return {
-			content: value,
-			source: 'inline',
-			originalRef: value,
-		};
-	}
+  // CASE 1: Non-string (object, array, number, boolean, null)
+  // → Use as-is (inline value)
+  if (typeof value !== 'string') {
+    return {
+      content: value,
+      source: 'inline',
+      originalRef: value,
+    }
+  }
 
-	// CASE 2: Multi-line string
-	// → Inline content (prompt text, markdown, etc.)
-	if (value.includes('\n')) {
-		return {
-			content: value,
-			source: 'inline',
-			originalRef: value,
-		};
-	}
+  // CASE 2: Multi-line string
+  // → Inline content (prompt text, markdown, etc.)
+  if (value.includes('\n')) {
+    return {
+      content: value,
+      source: 'inline',
+      originalRef: value,
+    }
+  }
 
-	// CASE 3: File path (starts with ./ or ../ or /)
-	// → Load from filesystem
-	if (value.match(/^\.{0,2}\//)) {
-		const content = await loadFromFile(value, context);
-		return {
-			content,
-			source: 'file',
-			originalRef: value,
-		};
-	}
+  // CASE 3: File path (starts with ./ or ../ or /)
+  // → Load from filesystem
+  if (value.match(/^\.{0,2}\//)) {
+    const content = await loadFromFile(value, context)
+    return {
+      content,
+      source: 'file',
+      originalRef: value,
+    }
+  }
 
-	// CASE 4: Component reference (path/name@version)
-	// → Resolve from Edgit or local
-	if (isComponentReference(value)) {
-		const content = await resolveComponentRef(value, context);
-		const [pathPart, version] = value.split('@');
-		return {
-			content,
-			source: 'component',
-			originalRef: value,
-			metadata: {
-				path: pathPart,
-				version,
-				fromEdgit: !!context.env?.EDGIT,
-			},
-		};
-	}
+  // CASE 4: Component reference (path/name@version)
+  // → Resolve from Edgit or local
+  if (isComponentReference(value)) {
+    const content = await resolveComponentRef(value, context)
+    const [pathPart, version] = value.split('@')
+    return {
+      content,
+      source: 'component',
+      originalRef: value,
+      metadata: {
+        path: pathPart,
+        version,
+        fromEdgit: !!context.env?.EDGIT,
+      },
+    }
+  }
 
-	// CASE 5: Unversioned component (path/name without @)
-	// → Resolve with @latest
-	if (isUnversionedComponent(value)) {
-		const versionedRef = `${value}@latest`;
-		const content = await resolveComponentRef(versionedRef, context);
-		return {
-			content,
-			source: 'component',
-			originalRef: value,
-			metadata: {
-				path: value,
-				version: 'latest',
-				fromEdgit: !!context.env?.EDGIT,
-			},
-		};
-	}
+  // CASE 5: Unversioned component (path/name without @)
+  // → Resolve with @latest
+  if (isUnversionedComponent(value)) {
+    const versionedRef = `${value}@latest`
+    const content = await resolveComponentRef(versionedRef, context)
+    return {
+      content,
+      source: 'component',
+      originalRef: value,
+      metadata: {
+        path: value,
+        version: 'latest',
+        fromEdgit: !!context.env?.EDGIT,
+      },
+    }
+  }
 
-	// CASE 6: Everything else
-	// → Inline string value
-	return {
-		content: value,
-		source: 'inline',
-		originalRef: value,
-	};
+  // CASE 6: Everything else
+  // → Inline string value
+  return {
+    content: value,
+    source: 'inline',
+    originalRef: value,
+  }
 }
 
 /**
@@ -285,19 +277,19 @@ export async function resolveValue(
  * @returns True if value needs async resolution
  */
 export function needsResolution(value: any): boolean {
-	if (typeof value !== 'string') {
-		return false;
-	}
+  if (typeof value !== 'string') {
+    return false
+  }
 
-	// File path
-	if (value.match(/^\.{0,2}\//)) {
-		return true;
-	}
+  // File path
+  if (value.match(/^\.{0,2}\//)) {
+    return true
+  }
 
-	// Component reference
-	if (isComponentReference(value) || isUnversionedComponent(value)) {
-		return true;
-	}
+  // Component reference
+  if (isComponentReference(value) || isUnversionedComponent(value)) {
+    return true
+  }
 
-	return false;
+  return false
 }

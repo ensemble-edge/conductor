@@ -5,163 +5,154 @@
  * Works with any member type that has cache configuration
  */
 
-import { isCacheWarmingEnabled, getCacheConfig } from '../types/cache.js';
+import { isCacheWarmingEnabled, getCacheConfig } from '../types/cache.js'
 
 export interface CacheWarmingConfig {
-	/** Routes to warm (with optional priority) */
-	routes: RouteToWarm[];
-	/** Base URL of the deployed application */
-	baseUrl: string;
-	/** Maximum concurrent requests */
-	concurrency?: number;
-	/** Timeout per request (ms) */
-	timeout?: number;
-	/** Retry failed requests */
-	retry?: boolean;
-	/** Maximum retries */
-	maxRetries?: number;
+  /** Routes to warm (with optional priority) */
+  routes: RouteToWarm[]
+  /** Base URL of the deployed application */
+  baseUrl: string
+  /** Maximum concurrent requests */
+  concurrency?: number
+  /** Timeout per request (ms) */
+  timeout?: number
+  /** Retry failed requests */
+  retry?: boolean
+  /** Maximum retries */
+  maxRetries?: number
 }
 
 export interface RouteToWarm {
-	/** Route path */
-	path: string;
-	/** Priority (higher = warmed first) */
-	priority?: number;
-	/** HTTP method */
-	method?: string;
-	/** Custom headers */
-	headers?: Record<string, string>;
-	/** Query parameters */
-	query?: Record<string, string>;
+  /** Route path */
+  path: string
+  /** Priority (higher = warmed first) */
+  priority?: number
+  /** HTTP method */
+  method?: string
+  /** Custom headers */
+  headers?: Record<string, string>
+  /** Query parameters */
+  query?: Record<string, string>
 }
 
 export interface WarmingResult {
-	/** Route that was warmed */
-	route: string;
-	/** Success status */
-	success: boolean;
-	/** Response status code */
-	status?: number;
-	/** Response time (ms) */
-	responseTime?: number;
-	/** Error message if failed */
-	error?: string;
-	/** Cache status from response */
-	cacheStatus?: string;
+  /** Route that was warmed */
+  route: string
+  /** Success status */
+  success: boolean
+  /** Response status code */
+  status?: number
+  /** Response time (ms) */
+  responseTime?: number
+  /** Error message if failed */
+  error?: string
+  /** Cache status from response */
+  cacheStatus?: string
 }
 
 /**
  * Warm cache for specified routes
  */
 export async function warmCache(config: CacheWarmingConfig): Promise<WarmingResult[]> {
-	const {
-		routes,
-		baseUrl,
-		concurrency = 5,
-		timeout = 30000,
-		retry = true,
-		maxRetries = 3
-	} = config;
+  const { routes, baseUrl, concurrency = 5, timeout = 30000, retry = true, maxRetries = 3 } = config
 
-	// Sort routes by priority (highest first)
-	const sortedRoutes = [...routes].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+  // Sort routes by priority (highest first)
+  const sortedRoutes = [...routes].sort((a, b) => (b.priority || 0) - (a.priority || 0))
 
-	// Warm routes with concurrency control
-	const results: WarmingResult[] = [];
+  // Warm routes with concurrency control
+  const results: WarmingResult[] = []
 
-	for (let i = 0; i < sortedRoutes.length; i += concurrency) {
-		const batch = sortedRoutes.slice(i, i + concurrency);
-		const batchResults = await Promise.all(
-			batch.map(route => warmRoute(baseUrl, route, timeout, retry, maxRetries))
-		);
-		results.push(...batchResults);
-	}
+  for (let i = 0; i < sortedRoutes.length; i += concurrency) {
+    const batch = sortedRoutes.slice(i, i + concurrency)
+    const batchResults = await Promise.all(
+      batch.map((route) => warmRoute(baseUrl, route, timeout, retry, maxRetries))
+    )
+    results.push(...batchResults)
+  }
 
-	return results;
+  return results
 }
 
 /**
  * Warm a single route
  */
 async function warmRoute(
-	baseUrl: string,
-	route: RouteToWarm,
-	timeout: number,
-	retry: boolean,
-	maxRetries: number
+  baseUrl: string,
+  route: RouteToWarm,
+  timeout: number,
+  retry: boolean,
+  maxRetries: number
 ): Promise<WarmingResult> {
-	const url = buildUrl(baseUrl, route);
-	const method = route.method || 'GET';
+  const url = buildUrl(baseUrl, route)
+  const method = route.method || 'GET'
 
-	let lastError: Error | null = null;
-	let attempts = 0;
+  let lastError: Error | null = null
+  let attempts = 0
 
-	while (attempts < maxRetries) {
-		attempts++;
+  while (attempts < maxRetries) {
+    attempts++
 
-		try {
-			const startTime = Date.now();
+    try {
+      const startTime = Date.now()
 
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), timeout);
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-			const response = await fetch(url, {
-				method,
-				headers: {
-					'User-Agent': 'Conductor-Cache-Warmer',
-					...route.headers
-				},
-				signal: controller.signal
-			});
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'User-Agent': 'Conductor-Cache-Warmer',
+          ...route.headers,
+        },
+        signal: controller.signal,
+      })
 
-			clearTimeout(timeoutId);
+      clearTimeout(timeoutId)
 
-			const responseTime = Date.now() - startTime;
-			const cacheStatus = response.headers.get('cf-cache-status') ||
-			                   response.headers.get('x-cache') ||
-			                   'unknown';
+      const responseTime = Date.now() - startTime
+      const cacheStatus =
+        response.headers.get('cf-cache-status') || response.headers.get('x-cache') || 'unknown'
 
-			return {
-				route: route.path,
-				success: response.ok,
-				status: response.status,
-				responseTime,
-				cacheStatus
-			};
+      return {
+        route: route.path,
+        success: response.ok,
+        status: response.status,
+        responseTime,
+        cacheStatus,
+      }
+    } catch (error) {
+      lastError = error as Error
 
-		} catch (error) {
-			lastError = error as Error;
+      // Don't retry if not configured
+      if (!retry || attempts >= maxRetries) {
+        break
+      }
 
-			// Don't retry if not configured
-			if (!retry || attempts >= maxRetries) {
-				break;
-			}
+      // Exponential backoff
+      await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempts) * 1000))
+    }
+  }
 
-			// Exponential backoff
-			await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
-		}
-	}
-
-	return {
-		route: route.path,
-		success: false,
-		error: lastError?.message || 'Unknown error'
-	};
+  return {
+    route: route.path,
+    success: false,
+    error: lastError?.message || 'Unknown error',
+  }
 }
 
 /**
  * Build URL with query parameters
  */
 function buildUrl(baseUrl: string, route: RouteToWarm): string {
-	const url = new URL(route.path, baseUrl);
+  const url = new URL(route.path, baseUrl)
 
-	if (route.query) {
-		Object.entries(route.query).forEach(([key, value]) => {
-			url.searchParams.set(key, value);
-		});
-	}
+  if (route.query) {
+    Object.entries(route.query).forEach(([key, value]) => {
+      url.searchParams.set(key, value)
+    })
+  }
 
-	return url.toString();
+  return url.toString()
 }
 
 /**
@@ -171,37 +162,37 @@ function buildUrl(baseUrl: string, route: RouteToWarm): string {
  * - A cache configuration with warming enabled
  */
 export function extractWarmableRoutes(members: any[]): RouteToWarm[] {
-	const routes: RouteToWarm[] = [];
+  const routes: RouteToWarm[] = []
 
-	for (const member of members) {
-		// Skip if warming not enabled (works for any member type)
-		if (!isCacheWarmingEnabled(member)) {
-			continue;
-		}
+  for (const member of members) {
+    // Skip if warming not enabled (works for any member type)
+    if (!isCacheWarmingEnabled(member)) {
+      continue
+    }
 
-		// Extract route path (supports both member.route and direct path)
-		const path = member.route?.path || member.path || `/${member.name}`;
+    // Extract route path (supports both member.route and direct path)
+    const path = member.route?.path || member.path || `/${member.name}`
 
-		// Default priority based on common patterns
-		let priority = 50;
-		if (path === '/' || path === '/index') priority = 100; // Homepage highest
-		if (path.includes('/api/')) priority = 30; // API routes lower
-		if (path.includes('/:')) priority = 20; // Dynamic routes lowest
+    // Default priority based on common patterns
+    let priority = 50
+    if (path === '/' || path === '/index') priority = 100 // Homepage highest
+    if (path.includes('/api/')) priority = 30 // API routes lower
+    if (path.includes('/:')) priority = 20 // Dynamic routes lowest
 
-		// Extract HTTP methods (default to GET)
-		const methods = member.route?.methods || member.methods || ['GET'];
+    // Extract HTTP methods (default to GET)
+    const methods = member.route?.methods || member.methods || ['GET']
 
-		// Create routes for each HTTP method
-		for (const method of methods) {
-			routes.push({
-				path,
-				priority,
-				method
-			});
-		}
-	}
+    // Create routes for each HTTP method
+    for (const method of methods) {
+      routes.push({
+        path,
+        priority,
+        method,
+      })
+    }
+  }
 
-	return routes;
+  return routes
 }
 
 /**
@@ -221,28 +212,28 @@ export function extractWarmableRoutes(members: any[]): RouteToWarm[] {
  * }
  */
 export async function scheduledCacheRefresh(
-	env: any,
-	config?: Partial<CacheWarmingConfig>
+  env: any,
+  config?: Partial<CacheWarmingConfig>
 ): Promise<WarmingResult[]> {
-	// Get base URL from environment
-	const baseUrl = env.BASE_URL || env.DEPLOYMENT_URL;
+  // Get base URL from environment
+  const baseUrl = env.BASE_URL || env.DEPLOYMENT_URL
 
-	if (!baseUrl) {
-		throw new Error('BASE_URL or DEPLOYMENT_URL environment variable required for cache warming');
-	}
+  if (!baseUrl) {
+    throw new Error('BASE_URL or DEPLOYMENT_URL environment variable required for cache warming')
+  }
 
-	// Load members (pages, API routes, etc.) from KV or environment
-	const members = await loadMembersForWarming(env);
-	const routes = extractWarmableRoutes(members);
+  // Load members (pages, API routes, etc.) from KV or environment
+  const members = await loadMembersForWarming(env)
+  const routes = extractWarmableRoutes(members)
 
-	return warmCache({
-		baseUrl,
-		routes,
-		concurrency: config?.concurrency || 10,
-		timeout: config?.timeout || 15000,
-		retry: config?.retry ?? true,
-		maxRetries: config?.maxRetries || 2
-	});
+  return warmCache({
+    baseUrl,
+    routes,
+    concurrency: config?.concurrency || 10,
+    timeout: config?.timeout || 15000,
+    retry: config?.retry ?? true,
+    maxRetries: config?.maxRetries || 2,
+  })
 }
 
 /**
@@ -250,8 +241,8 @@ export async function scheduledCacheRefresh(
  * Supports any member type with cache configuration
  */
 async function loadMembersForWarming(env: any): Promise<any[]> {
-	// In production, this would load from KV or similar
-	// Could load pages, API routes, data members, etc.
-	// For now, return empty array (to be implemented with actual member discovery)
-	return [];
+  // In production, this would load from KV or similar
+  // Could load pages, API routes, data members, etc.
+  // For now, return empty array (to be implemented with actual member discovery)
+  return []
 }

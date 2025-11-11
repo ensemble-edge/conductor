@@ -18,7 +18,7 @@ export interface PageRoute {
   path: string
   methods: string[]
   page: PageMember
-  params?: string[]  // Extracted parameter names from :param syntax
+  params?: string[] // Extracted parameter names from :param syntax
   aliases?: string[]
   auth?: 'none' | 'required' | 'optional'
   rateLimit?: {
@@ -33,7 +33,11 @@ export interface PageRouterConfig {
   basePath?: string
   indexFiles?: string[]
   notFoundPage?: string
-  beforeRender?: (page: PageMember, request: Request, env: ConductorEnv) => Promise<Record<string, any>>
+  beforeRender?: (
+    page: PageMember,
+    request: Request,
+    env: ConductorEnv
+  ) => Promise<Record<string, any>>
 }
 
 export class PageRouter {
@@ -99,7 +103,9 @@ export class PageRouter {
    * - pages/blog/index.yaml → /blog
    * - pages/blog/[slug].yaml → /blog/:slug
    */
-  async discoverPages(pagesMap: Map<string, { config: MemberConfig; member: PageMember }>): Promise<void> {
+  async discoverPages(
+    pagesMap: Map<string, { config: MemberConfig; member: PageMember }>
+  ): Promise<void> {
     if (!this.config.autoRoute) return
 
     for (const [pageName, { config, member }] of pagesMap) {
@@ -206,7 +212,7 @@ export class PageRouter {
         return new Response('Internal Server Error', { status: 500 })
       }
 
-      const pageOutput = (result.output || result.data) as any;
+      const pageOutput = (result.output || result.data) as any
 
       // Use headers from PageMember - it already includes Content-Type
       // Don't duplicate the header or it causes "Unknown character encoding" error
@@ -306,8 +312,8 @@ export class PageRouter {
 
     // Convert name to path
     let path = name
-      .replace(/\./g, '/')  // dots become slashes
-      .replace(/\[([^\]]+)\]/g, ':$1')  // [param] → :param
+      .replace(/\./g, '/') // dots become slashes
+      .replace(/\[([^\]]+)\]/g, ':$1') // [param] → :param
 
     // Handle directory index files
     // blog-index → /blog
@@ -384,7 +390,7 @@ export class PageRouter {
         input: {
           message: null, // Can be customized
           searchEnabled: false,
-          helpfulLinks: []
+          helpfulLinks: [],
         },
         env,
         ctx,
@@ -397,7 +403,7 @@ export class PageRouter {
         return new Response('Not Found', { status: 404 })
       }
 
-      const pageOutput = (result.output || result.data) as any;
+      const pageOutput = (result.output || result.data) as any
 
       // Use headers from PageMember - it already includes Content-Type
       // Don't duplicate the header or it causes "Unknown character encoding" error
