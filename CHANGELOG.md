@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.1.11
+
+### Patch Changes
+
+- 60faca3: Fix YAML indentation errors in page templates that prevented runtime parsing. All page templates (examples, errors, static) now have proper indentation for nested properties under seo, cache, head, hydration, and input blocks.
+
 ## 1.1.10
 
 ### Patch Changes
