@@ -12,11 +12,26 @@ import { BaseMember } from '../base-member.js';
 import { renderPageHead } from './utils/head-renderer.js';
 import { renderHydrationScript } from './utils/hydration.js';
 import { HandlebarsTemplateEngine } from '../../utils/templates/engines/handlebars.js';
+import { SimpleTemplateEngine } from '../../utils/templates/engines/simple.js';
+import { LiquidTemplateEngine } from '../../utils/templates/engines/liquid.js';
 export class PageMember extends BaseMember {
     constructor(config) {
         super(config);
         this.pageConfig = config;
-        this.templateEngine = new HandlebarsTemplateEngine();
+        // Initialize template engine based on config (default: simple)
+        const engineType = this.pageConfig.templateEngine || 'simple';
+        switch (engineType) {
+            case 'simple':
+                this.templateEngine = new SimpleTemplateEngine();
+                break;
+            case 'liquid':
+                this.templateEngine = new LiquidTemplateEngine();
+                break;
+            case 'handlebars':
+            default:
+                this.templateEngine = new HandlebarsTemplateEngine();
+                break;
+        }
         // Validate configuration
         this.validateConfig();
     }
