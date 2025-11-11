@@ -104,8 +104,8 @@ const pagesMap = new Map([
 	['sitemap', { config: sitemapPageConfig as MemberConfig, member: new PageMember(sitemapPageConfig as MemberConfig) }]
 ]);
 
-// Auto-discover and register all pages
-await pageRouter.discoverPages(pagesMap);
+// Pages will be lazily initialized on first request to avoid blocking Worker initialization
+let pagesInitialized = false;
 
 // ==================== Option 3: Use UnifiedRouter (Authentication & Routing) ====================
 // UnifiedRouter provides:
@@ -224,6 +224,12 @@ export default {
 					{ status: 500 }
 				);
 			}
+		}
+
+		// Initialize pages on first request (lazy initialization to avoid blocking Worker startup)
+		if (!pagesInitialized) {
+			await pageRouter.discoverPages(pagesMap);
+			pagesInitialized = true;
 		}
 
 		// Try page routing (before 404)
