@@ -1,5 +1,38 @@
 # @ensemble-edge/conductor
 
+## 1.1.1
+
+### Patch Changes
+
+- 3d3ef81: ## Conductor 1.1.1 - Critical Template Fixes
+
+  ### P0 - Critical (Blocks Development)
+
+  **nodejs_compat Flag Missing** (Bug #5)
+  - Added `compatibility_flags = ["nodejs_compat"]` to wrangler.toml template
+  - **Fixes dev server startup failure**: "Could not resolve fs/promises"
+  - Conductor's component-resolver requires Node.js built-ins (fs/promises, path)
+  - Without this flag, `npm run dev` fails immediately - completely blocks local development
+
+  ### P1 - High Priority
+
+  **Package Version Mismatch** (Bug #4)
+  - Updated template package.json from `^1.0.10` to `^1.1.0`
+  - Ensures generated projects use correct Conductor version
+  - Prevents confusion during debugging and version-specific issues
+
+  **Improved .gitignore**
+  - Enhanced to explicitly call out secrets with "NEVER COMMIT THESE" comment
+  - Added more comprehensive coverage (.pnpm-store/, .yarn/, worker/)
+  - Better organized with clear sections
+
+  ### Testing
+
+  All fixes verified with fresh `conductor init` installation:
+  - ✅ 9/9 tests passing
+  - ✅ Dev server starts successfully with nodejs_compat flag
+  - ✅ No secrets committed with improved .gitignore
+
 ## 1.1.0
 
 ### Minor Changes
