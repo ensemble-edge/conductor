@@ -141,10 +141,20 @@ export class PageMember extends BaseMember {
         ...handlerData, // Handler data
         ...input.data, // Runtime data
         ...input.props, // Runtime props
-        params: (input as any).params || {}, // Route params available in template
-        query: (input as any).query || {}, // Query params available in template
-        headers: (input as any).headers || {}, // Headers available in template
-        request: input.request,
+      }
+
+      // Only add params, query, headers if they exist (for dynamic pages)
+      if ((input as any).params) {
+        props.params = (input as any).params
+      }
+      if ((input as any).query) {
+        props.query = (input as any).query
+      }
+      if ((input as any).headers) {
+        props.headers = (input as any).headers
+      }
+      if (input.request) {
+        props.request = input.request
       }
 
       // Render component
