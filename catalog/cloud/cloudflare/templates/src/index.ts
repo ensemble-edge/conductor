@@ -51,7 +51,7 @@ import conductorConfig from '../conductor.config';
 
 // Import your members (add more as you create them)
 import greetConfigRaw from '../members/hello/member.yaml';
-const greetConfig = parseYAML(greetConfigRaw as unknown as string) as MemberConfig;
+let greetConfig: MemberConfig | null = null;  // ✅ Lazy initialization
 import greetFunction from '../members/hello';
 
 // Import your ensembles (add more as you create them)
@@ -71,41 +71,53 @@ import error500PageConfigRaw from '../pages/errors/500/page.yaml';
 import robotsPageConfigRaw from '../pages/static/robots/page.yaml';
 import sitemapPageConfigRaw from '../pages/static/sitemap/page.yaml';
 
-// Parse YAML strings into config objects
-const indexPageConfig = parseYAML(indexPageConfigRaw as unknown as string) as MemberConfig;
-const dashboardPageConfig = parseYAML(dashboardPageConfigRaw as unknown as string) as MemberConfig;
-const loginPageConfig = parseYAML(loginPageConfigRaw as unknown as string) as MemberConfig;
-const blogPostPageConfig = parseYAML(blogPostPageConfigRaw as unknown as string) as MemberConfig;
-const error404PageConfig = parseYAML(error404PageConfigRaw as unknown as string) as MemberConfig;
-const error500PageConfig = parseYAML(error500PageConfigRaw as unknown as string) as MemberConfig;
-const robotsPageConfig = parseYAML(robotsPageConfigRaw as unknown as string) as MemberConfig;
-const sitemapPageConfig = parseYAML(sitemapPageConfigRaw as unknown as string) as MemberConfig;
-
-// Initialize PageRouter with pages
-const pageRouter = new PageRouter({
-	indexFiles: ['index'],
-	notFoundPage: 'error-404' // Use custom 404 page
-});
-
-// Register pages
-const pagesMap = new Map([
-	// Example pages
-	['index', { config: indexPageConfig as MemberConfig, member: new PageMember(indexPageConfig as MemberConfig) }],
-	['dashboard', { config: dashboardPageConfig as MemberConfig, member: new PageMember(dashboardPageConfig as MemberConfig) }],
-	['login', { config: loginPageConfig as MemberConfig, member: new PageMember(loginPageConfig as MemberConfig) }],
-	['blog-post', { config: blogPostPageConfig as MemberConfig, member: new PageMember(blogPostPageConfig as MemberConfig) }],
-
-	// Error pages
-	['error-404', { config: error404PageConfig as MemberConfig, member: new PageMember(error404PageConfig as MemberConfig) }],
-	['error-500', { config: error500PageConfig as MemberConfig, member: new PageMember(error500PageConfig as MemberConfig) }],
-
-	// Static pages
-	['robots', { config: robotsPageConfig as MemberConfig, member: new PageMember(robotsPageConfig as MemberConfig) }],
-	['sitemap', { config: sitemapPageConfig as MemberConfig, member: new PageMember(sitemapPageConfig as MemberConfig) }]
-]);
-
-// Pages will be lazily initialized on first request to avoid blocking Worker initialization
+// ==================== Lazy Initialization for Pages ====================
+// All page parsing and initialization happens on first request
+// This prevents blocking Worker initialization
+let pageRouter: PageRouter | null = null;
+let pagesMap: Map<string, { config: MemberConfig; member: PageMember }> | null = null;
 let pagesInitialized = false;
+
+async function initializePages(): Promise<void> {
+	if (pagesInitialized) return;
+
+	// Parse YAML strings into config objects
+	const indexPageConfig = parseYAML(indexPageConfigRaw as unknown as string) as MemberConfig;
+	const dashboardPageConfig = parseYAML(dashboardPageConfigRaw as unknown as string) as MemberConfig;
+	const loginPageConfig = parseYAML(loginPageConfigRaw as unknown as string) as MemberConfig;
+	const blogPostPageConfig = parseYAML(blogPostPageConfigRaw as unknown as string) as MemberConfig;
+	const error404PageConfig = parseYAML(error404PageConfigRaw as unknown as string) as MemberConfig;
+	const error500PageConfig = parseYAML(error500PageConfigRaw as unknown as string) as MemberConfig;
+	const robotsPageConfig = parseYAML(robotsPageConfigRaw as unknown as string) as MemberConfig;
+	const sitemapPageConfig = parseYAML(sitemapPageConfigRaw as unknown as string) as MemberConfig;
+
+	// Initialize PageRouter with pages
+	pageRouter = new PageRouter({
+		indexFiles: ['index'],
+		notFoundPage: 'error-404' // Use custom 404 page
+	});
+
+	// Register pages
+	pagesMap = new Map([
+		// Example pages
+		['index', { config: indexPageConfig as MemberConfig, member: new PageMember(indexPageConfig as MemberConfig) }],
+		['dashboard', { config: dashboardPageConfig as MemberConfig, member: new PageMember(dashboardPageConfig as MemberConfig) }],
+		['login', { config: loginPageConfig as MemberConfig, member: new PageMember(loginPageConfig as MemberConfig) }],
+		['blog-post', { config: blogPostPageConfig as MemberConfig, member: new PageMember(blogPostPageConfig as MemberConfig) }],
+
+		// Error pages
+		['error-404', { config: error404PageConfig as MemberConfig, member: new PageMember(error404PageConfig as MemberConfig) }],
+		['error-500', { config: error500PageConfig as MemberConfig, member: new PageMember(error500PageConfig as MemberConfig) }],
+
+		// Static pages
+		['robots', { config: robotsPageConfig as MemberConfig, member: new PageMember(robotsPageConfig as MemberConfig) }],
+		['sitemap', { config: sitemapPageConfig as MemberConfig, member: new PageMember(sitemapPageConfig as MemberConfig) }]
+	]);
+
+	// Discover pages
+	await pageRouter.discoverPages(pagesMap);
+	pagesInitialized = true;
+}
 
 // ==================== Option 3: Use UnifiedRouter (Authentication & Routing) ====================
 // UnifiedRouter provides:
@@ -203,6 +215,11 @@ export default {
 			try {
 				const input = (await request.json()) as Record<string, any>;
 
+				// Lazy parse greetConfig on first use
+				if (!greetConfig) {
+					greetConfig = parseYAML(greetConfigRaw as unknown as string) as MemberConfig;
+				}
+
 				// Create executor
 				const executor = new Executor({ env, ctx });
 				const loader = new MemberLoader({ env, ctx });
@@ -227,16 +244,15 @@ export default {
 		}
 
 		// Initialize pages on first request (lazy initialization to avoid blocking Worker startup)
-		if (!pagesInitialized) {
-			await pageRouter.discoverPages(pagesMap);
-			pagesInitialized = true;
-		}
+		await initializePages();
 
 		// Try page routing (before 404)
 		// This handles all your page routes automatically
-		const pageResponse = await pageRouter.handle(request, env, ctx);
-		if (pageResponse) {
-			return pageResponse;
+		if (pageRouter) {
+			const pageResponse = await pageRouter.handle(request, env, ctx);
+			if (pageResponse) {
+				return pageResponse;
+			}
 		}
 
 		return new Response('Not Found', { status: 404 });
