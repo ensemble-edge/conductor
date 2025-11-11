@@ -113,14 +113,37 @@ export class PageMember extends BaseMember {
         }
       }
 
+      // Call handler function if provided
+      let handlerData: Record<string, any> = {}
+      if (this.pageConfig.handler) {
+        try {
+          const handlerContext = {
+            request: (input as any).request || input.request,
+            env: context.env,
+            ctx: context.ctx,
+            params: (input as any).params || {},
+            query: (input as any).query || {},
+            headers: (input as any).headers || {},
+          }
+          handlerData = await this.pageConfig.handler(handlerContext)
+        } catch (error) {
+          console.error('Handler error:', error)
+          // Continue rendering with empty handler data
+        }
+      }
+
       // Get page component
       const component = await this.loadComponent(context)
 
-      // Merge props - include default input from page config, then runtime data
+      // Merge props - include default input from page config, handler data, then runtime data
       const props = {
         ...(this.pageConfig.input || {}), // Default input from YAML
+        ...handlerData, // Handler data
         ...input.data, // Runtime data
         ...input.props, // Runtime props
+        params: (input as any).params || {}, // Route params available in template
+        query: (input as any).query || {}, // Query params available in template
+        headers: (input as any).headers || {}, // Headers available in template
         request: input.request,
       }
 

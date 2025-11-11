@@ -13,6 +13,7 @@ renderMode: ssr
 
 component: |
   <div class="blog-post">
+    {% if post %}
     <article>
       <header class="post-header">
         <h1>{{post.title}}</h1>
@@ -49,6 +50,7 @@ component: |
       </footer>
     </article>
 
+    {% if relatedPosts.size > 0 %}
     <aside class="related-posts">
       <h2>Related Posts</h2>
       <div class="related-grid">
@@ -60,6 +62,16 @@ component: |
         {% endfor %}
       </div>
     </aside>
+    {% endif %}
+
+    {% else %}
+    <div class="not-found">
+      <h1>Blog Post Not Found</h1>
+      <p>The blog post you're looking for doesn't exist or has been removed.</p>
+      <p>Requested slug: <code>{{params.slug}}</code></p>
+      <a href="/examples" class="back-link">← Back to Examples</a>
+    </div>
+    {% endif %}
   </div>
 
 hydration:
@@ -217,46 +229,53 @@ head:
         color: #6c757d;
         font-size: 0.9rem;
       }
+      .not-found {
+        background: white;
+        padding: 3rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        text-align: center;
+      }
+      .not-found h1 {
+        color: #e53e3e;
+        margin-bottom: 1rem;
+      }
+      .not-found code {
+        background: #f7fafc;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+      .back-link {
+        display: inline-block;
+        margin-top: 2rem;
+        padding: 0.75rem 1.5rem;
+        background: #667eea;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        transition: background 0.2s;
+      }
+      .back-link:hover {
+        background: #5568d3;
+      }
 
-# This would typically come from a data member or database
-# The :slug parameter is automatically available in the input
-input:
-  # Route parameter :slug will be available as $input.slug
-  post:
-    title: Getting Started with Conductor
-    author: Jane Developer
-    date: December 15, 2024
-    readingTime: 5
-    publishDate: "2024-12-15T10:00:00Z"
-    coverImage: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&h=600&fit=crop
-    excerpt: Learn how to build and deploy edge-native AI applications with Conductor
-    content: |
-      <p>Conductor is a powerful framework for building edge-native AI applications. In this post, we'll explore the basics of getting started.</p>
-
-      <h2>What is Conductor?</h2>
-      <p>Conductor is an orchestration framework that helps you coordinate AI members and build complex workflows that run at the edge.</p>
-
-      <h2>Key Features</h2>
-      <ul>
-        <li>Edge-native deployment on Cloudflare Workers</li>
-        <li>Simple YAML configuration</li>
-        <li>Built-in member types for common tasks</li>
-        <li>Automatic API generation</li>
-      </ul>
-
-      <h2>Getting Started</h2>
-      <p>To get started with Conductor, simply run:</p>
-      <pre><code>npx @ensemble-edge/conductor init my-project</code></pre>
-    tags:
-      - conductor
-      - edge-computing
-      - tutorial
-    url: "/blog/getting-started-with-conductor"
-
-  relatedPosts:
-    - title: "Advanced Conductor Patterns"
-      slug: "advanced-patterns"
-      excerpt: "Deep dive into advanced orchestration patterns and best practices"
-    - title: "Deploying to Production"
-      slug: "deploying-to-production"
-      excerpt: "Learn how to deploy your Conductor apps to production safely"
+# ==================== Dynamic Data via Handler ====================
+# Data is now fetched dynamically via handler.ts
+# The handler receives:
+#   params.slug - The blog post slug from /blog/:slug
+#   query - Query parameters like ?preview=true
+#   headers - All request headers (useful for auth, user-agent, etc.)
+#
+# Handler can fetch from:
+# 1. KV (env.BLOG_POSTS) - Fast key-value storage
+# 2. D1 (env.DB) - SQL database
+# 3. R2 (env.ASSETS) - Object storage
+# 4. External APIs via fetch()
+#
+# See handler.ts for the implementation
+# Try these URLs:
+#   /blog/getting-started-with-conductor
+#   /blog/advanced-patterns
+#   /blog/deploying-to-production
+#   /blog/anything-else (will show 404)

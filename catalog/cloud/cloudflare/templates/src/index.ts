@@ -83,6 +83,13 @@ async function initializePages(): Promise<void> {
 	pagesMap = new Map(
 		discoveredPages.map((page) => {
 			const config = parseYAML(page.config) as MemberConfig;
+
+			// Attach handler function if it exists
+			if (page.handler) {
+				// The handler module exports a 'handler' function
+				(config as any).handler = page.handler.handler || page.handler.default;
+			}
+
 			return [page.name, { config, member: new PageMember(config) }];
 		})
 	);
