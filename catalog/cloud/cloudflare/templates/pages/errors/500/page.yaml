@@ -53,20 +53,20 @@ component: |
     </div>
 
 seo:
-title: "500 - Internal Server Error"
+  title: "500 - Internal Server Error"
 description: "An error occurred while processing your request"
 robots: noindex, nofollow
 
 cache:
-enabled: false  # Never cache error pages
-
+  enabled: false  # Never cache error pages
+  
 head:
-meta:
+  meta:
     - name: viewport
       content: width=device-width, initial-scale=1
     - http-equiv: status
       content: "500"
-
+  
 styles:
     - |
         body {
@@ -202,7 +202,7 @@ styles:
         }
 
 input:
-message: null
+  message: null
 errorId: null
 errorStack: null
 dev: false
