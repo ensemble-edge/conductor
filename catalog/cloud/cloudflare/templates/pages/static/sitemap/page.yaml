@@ -1,25 +1,26 @@
 name: sitemap
 type: Page
+templateEngine: liquid
 description: XML sitemap for search engines
 
 # The component content (must be at root level, not nested in config)
 component: |
   <?xml version="1.0" encoding="UTF-8"?>
   <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    {{#each urls}}
+    {% for url in urls %}
     <url>
-      <loc>{{this.loc}}</loc>
-      {{#if this.lastmod}}
-      <lastmod>{{this.lastmod}}</lastmod>
-      {{/if}}
-      {{#if this.changefreq}}
-      <changefreq>{{this.changefreq}}</changefreq>
-      {{/if}}
-      {{#if this.priority}}
-      <priority>{{this.priority}}</priority>
-      {{/if}}
+      <loc>{{url.loc}}</loc>
+      {% if url.lastmod %}
+      <lastmod>{{url.lastmod}}</lastmod>
+      {% endif %}
+      {% if url.changefreq %}
+      <changefreq>{{url.changefreq}}</changefreq>
+      {% endif %}
+      {% if url.priority %}
+      <priority>{{url.priority}}</priority>
+      {% endif %}
     </url>
-    {{/each}}
+    {% endfor %}
   </urlset>
 
 # Page configuration (all properties at root level, no config wrapper)

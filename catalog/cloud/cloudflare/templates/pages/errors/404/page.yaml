@@ -1,6 +1,7 @@
 name: error-404
 type: page
 description: 404 Not Found error page
+templateEngine: liquid
 
 # Route configuration
 route:
@@ -22,11 +23,11 @@ component: |
         <div class="error-code">404</div>
         <h1>Page Not Found</h1>
         <p class="error-message">
-          {{#if message}}
+          {% if message %}
           {{message}}
-          {{else}}
+          {% else %}
           The page you're looking for doesn't exist or has been moved.
-          {{/if}}
+          {% endif %}
         </p>
 
         <div class="error-actions">
@@ -34,25 +35,25 @@ component: |
           <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
         </div>
 
-        {{#if searchEnabled}}
+        {% if searchEnabled %}
         <div class="error-search">
           <form action="/search" method="get">
             <input type="text" name="q" placeholder="Search for what you need..." />
             <button type="submit">Search</button>
           </form>
         </div>
-        {{/if}}
+        {% endif %}
 
-        {{#if helpfulLinks}}
+        {% if helpfulLinks %}
         <div class="helpful-links">
           <h2>Helpful Links</h2>
           <ul>
-            {{#each helpfulLinks}}
-            <li><a href="{{this.url}}">{{this.title}}</a></li>
-            {{/each}}
+            {% for link in helpfulLinks %}
+            <li><a href="{{link.url}}">{{link.title}}</a></li>
+            {% endfor %}
           </ul>
         </div>
-        {{/if}}
+        {% endif %}
       </div>
     </div>
 

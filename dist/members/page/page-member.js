@@ -18,8 +18,8 @@ export class PageMember extends BaseMember {
     constructor(config) {
         super(config);
         this.pageConfig = config;
-        // Initialize template engine based on config (default: simple)
-        const engineType = this.pageConfig.templateEngine || 'simple';
+        // Initialize template engine based on config (default: liquid)
+        const engineType = this.pageConfig.templateEngine || 'liquid';
         switch (engineType) {
             case 'simple':
                 this.templateEngine = new SimpleTemplateEngine();
@@ -28,8 +28,10 @@ export class PageMember extends BaseMember {
                 this.templateEngine = new LiquidTemplateEngine();
                 break;
             case 'handlebars':
-            default:
                 this.templateEngine = new HandlebarsTemplateEngine();
+                break;
+            default:
+                this.templateEngine = new LiquidTemplateEngine();
                 break;
         }
         // Validate configuration

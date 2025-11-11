@@ -1,222 +1,222 @@
 name: blog-post
 type: Page
 description: Dynamic blog post page - demonstrates route parameters
+templateEngine: liquid
 
-config:
-  # Dynamic route with parameter
-  route:
-    path: /blog/:slug
-    methods: [GET]
-    auth: none
+# Dynamic route with parameter
+route:
+  path: /blog/:slug
+  methods: [GET]
+  auth: none
 
-  renderMode: ssr
+renderMode: ssr
 
-  component: |
-    <div class="blog-post">
-      <article>
-        <header class="post-header">
-          <h1>{{post.title}}</h1>
-          <div class="post-meta">
-            <span class="author">By {{post.author}}</span>
-            <span class="date">{{post.date}}</span>
-            <span class="reading-time">{{post.readingTime}} min read</span>
-          </div>
-        </header>
+component: |
+  <div class="blog-post">
+    <article>
+      <header class="post-header">
+        <h1>{{post.title}}</h1>
+        <div class="post-meta">
+          <span class="author">By {{post.author}}</span>
+          <span class="date">{{post.date}}</span>
+          <span class="reading-time">{{post.readingTime}} min read</span>
+        </div>
+      </header>
 
-        {{#if post.coverImage}}
-        <img src="{{post.coverImage}}" alt="{{post.title}}" class="cover-image">
-        {{/if}}
+      {% if post.coverImage %}
+      <img src="{{post.coverImage}}" alt="{{post.title}}" class="cover-image">
+      {% endif %}
 
-        <div class="post-content">
-          {{{post.content}}}
+      <div class="post-content">
+        {{post.content}}
+      </div>
+
+      <footer class="post-footer">
+        <div class="tags">
+          {% for tag in post.tags %}
+          <a href="/blog/tag/{{tag}}" class="tag">{{tag}}</a>
+          {% endfor %}
         </div>
 
-        <footer class="post-footer">
-          <div class="tags">
-            {{#each post.tags}}
-            <a href="/blog/tag/{{this}}" class="tag">{{this}}</a>
-            {{/each}}
-          </div>
-
-          <div class="share-buttons">
-            <button class="share-btn" hx-post="/api/share/twitter" hx-vals='{"url": "{{post.url}}"}'>
-              Share on Twitter
-            </button>
-            <button class="share-btn" hx-post="/api/share/linkedin" hx-vals='{"url": "{{post.url}}"}'>
-              Share on LinkedIn
-            </button>
-          </div>
-        </footer>
-      </article>
-
-      <aside class="related-posts">
-        <h2>Related Posts</h2>
-        <div class="related-grid">
-          {{#each relatedPosts}}
-          <a href="/blog/{{this.slug}}" class="related-card">
-            <h3>{{this.title}}</h3>
-            <p>{{this.excerpt}}</p>
-          </a>
-          {{/each}}
+        <div class="share-buttons">
+          <button class="share-btn" hx-post="/api/share/twitter" hx-vals='{"url": "{{post.url}}"}'>
+            Share on Twitter
+          </button>
+          <button class="share-btn" hx-post="/api/share/linkedin" hx-vals='{"url": "{{post.url}}"}'>
+            Share on LinkedIn
+          </button>
         </div>
-      </aside>
-    </div>
+      </footer>
+    </article>
 
-  hydration:
-    strategy: htmx
-    htmx:
-      enabled: true
-      version: "1.9.10"
+    <aside class="related-posts">
+      <h2>Related Posts</h2>
+      <div class="related-grid">
+        {% for related in relatedPosts %}
+        <a href="/blog/{{related.slug}}" class="related-card">
+          <h3>{{related.title}}</h3>
+          <p>{{related.excerpt}}</p>
+        </a>
+        {% endfor %}
+      </div>
+    </aside>
+  </div>
 
-  seo:
-    # SEO data will be dynamically set from post data
-    title: "{{post.title}}"
-    description: "{{post.excerpt}}"
-    canonical: "/blog/{{slug}}"
-    jsonLd:
-      "@context": "https://schema.org"
-      "@type": "BlogPosting"
-      headline: "{{post.title}}"
-      author:
-        "@type": "Person"
-        name: "{{post.author}}"
-      datePublished: "{{post.publishDate}}"
-      image: "{{post.coverImage}}"
-
-  cache:
+hydration:
+  strategy: htmx
+  htmx:
     enabled: true
-    ttl: 1800  # 30 minutes
-    vary: []
+    version: "1.9.10"
 
-  head:
-    meta:
-      - name: viewport
-        content: width=device-width, initial-scale=1
-      - property: og:type
-        content: article
-    styles:
-      - |
-        body {
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          margin: 0;
-          padding: 0;
-          background: #f8f9fa;
-        }
-        .blog-post {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 2rem;
-        }
-        article {
-          background: white;
-          padding: 3rem;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .post-header {
-          margin-bottom: 2rem;
-          padding-bottom: 2rem;
-          border-bottom: 2px solid #e9ecef;
-        }
-        .post-header h1 {
-          font-size: 2.5rem;
-          margin: 0 0 1rem 0;
-          color: #212529;
-          line-height: 1.2;
-        }
-        .post-meta {
-          display: flex;
-          gap: 1.5rem;
-          color: #6c757d;
-          font-size: 0.9rem;
-        }
-        .cover-image {
-          width: 100%;
-          height: auto;
-          border-radius: 8px;
-          margin-bottom: 2rem;
-        }
-        .post-content {
-          font-size: 1.125rem;
-          line-height: 1.8;
-          color: #495057;
-        }
-        .post-content p {
-          margin-bottom: 1.5rem;
-        }
-        .post-footer {
-          margin-top: 3rem;
-          padding-top: 2rem;
-          border-top: 2px solid #e9ecef;
-        }
-        .tags {
-          display: flex;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-          margin-bottom: 1.5rem;
-        }
-        .tag {
-          padding: 0.5rem 1rem;
-          background: #e7f3ff;
-          color: #0066cc;
-          text-decoration: none;
-          border-radius: 20px;
-          font-size: 0.875rem;
-          transition: background 0.2s;
-        }
-        .tag:hover {
-          background: #cce5ff;
-        }
-        .share-buttons {
-          display: flex;
-          gap: 1rem;
-        }
-        .share-btn {
-          padding: 0.75rem 1.5rem;
-          background: #667eea;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-weight: 500;
-          transition: background 0.2s;
-        }
-        .share-btn:hover {
-          background: #5568d3;
-        }
-        .related-posts {
-          margin-top: 3rem;
-        }
-        .related-posts h2 {
-          font-size: 1.75rem;
-          margin-bottom: 1.5rem;
-          color: #212529;
-        }
-        .related-grid {
-          display: grid;
-          gap: 1.5rem;
-        }
-        .related-card {
-          background: white;
-          padding: 1.5rem;
-          border-radius: 8px;
-          text-decoration: none;
-          color: inherit;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-          transition: box-shadow 0.2s;
-        }
-        .related-card:hover {
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .related-card h3 {
-          margin: 0 0 0.5rem 0;
-          color: #667eea;
-        }
-        .related-card p {
-          margin: 0;
-          color: #6c757d;
-          font-size: 0.9rem;
-        }
+seo:
+  # SEO data will be dynamically set from post data
+  title: "{{post.title}}"
+  description: "{{post.excerpt}}"
+  canonical: "/blog/{{slug}}"
+  jsonLd:
+    "@context": "https://schema.org"
+    "@type": "BlogPosting"
+    headline: "{{post.title}}"
+    author:
+      "@type": "Person"
+      name: "{{post.author}}"
+    datePublished: "{{post.publishDate}}"
+    image: "{{post.coverImage}}"
+
+cache:
+  enabled: true
+  ttl: 1800  # 30 minutes
+  vary: []
+
+head:
+  meta:
+    - name: viewport
+      content: width=device-width, initial-scale=1
+    - property: og:type
+      content: article
+  styles:
+    - |
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f8f9fa;
+      }
+      .blog-post {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+      article {
+        background: white;
+        padding: 3rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .post-header {
+        margin-bottom: 2rem;
+        padding-bottom: 2rem;
+        border-bottom: 2px solid #e9ecef;
+      }
+      .post-header h1 {
+        font-size: 2.5rem;
+        margin: 0 0 1rem 0;
+        color: #212529;
+        line-height: 1.2;
+      }
+      .post-meta {
+        display: flex;
+        gap: 1.5rem;
+        color: #6c757d;
+        font-size: 0.9rem;
+      }
+      .cover-image {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+      }
+      .post-content {
+        font-size: 1.125rem;
+        line-height: 1.8;
+        color: #495057;
+      }
+      .post-content p {
+        margin-bottom: 1.5rem;
+      }
+      .post-footer {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e9ecef;
+      }
+      .tags {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+      }
+      .tag {
+        padding: 0.5rem 1rem;
+        background: #e7f3ff;
+        color: #0066cc;
+        text-decoration: none;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        transition: background 0.2s;
+      }
+      .tag:hover {
+        background: #cce5ff;
+      }
+      .share-buttons {
+        display: flex;
+        gap: 1rem;
+      }
+      .share-btn {
+        padding: 0.75rem 1.5rem;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      .share-btn:hover {
+        background: #5568d3;
+      }
+      .related-posts {
+        margin-top: 3rem;
+      }
+      .related-posts h2 {
+        font-size: 1.75rem;
+        margin-bottom: 1.5rem;
+        color: #212529;
+      }
+      .related-grid {
+        display: grid;
+        gap: 1.5rem;
+      }
+      .related-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.2s;
+      }
+      .related-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      }
+      .related-card h3 {
+        margin: 0 0 0.5rem 0;
+        color: #667eea;
+      }
+      .related-card p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+      }
 
 # This would typically come from a data member or database
 # The :slug parameter is automatically available in the input
