@@ -4,7 +4,7 @@ Generate dynamic HTML pages with template rendering, components, layouts, and co
 
 ## Features
 
-- **Multiple Template Engines**: Simple (built-in), Handlebars, Liquid, MJML
+- **Edge-Compatible Template Engines**: Liquid (default), Simple, MJML - all work in Cloudflare Workers
 - **Component System**: Reusable components loaded from KV with versioning
 - **Layout Support**: Wrap pages with common layouts (header, footer, etc.)
 - **Cookie Management**: Read, set, delete, and sign cookies
@@ -144,9 +144,55 @@ The `{{content}}` variable is automatically populated with your rendered page te
 
 ## Template Engines
 
-### Simple Engine (Default)
+### Liquid Engine (Default) ⭐ Recommended
 
-Built-in template engine with basic features:
+Edge-compatible, industry-standard template engine from Shopify/Jekyll. Works perfectly in Cloudflare Workers.
+
+**Variables**: `{{variableName}}`
+```html
+<h1>{{title}}</h1>
+<p>{{user.name}}</p>
+```
+
+**Conditionals**: `{% if condition %}...{% else %}...{% endif %}`
+```html
+{% if isLoggedIn %}
+  <p>Welcome back!</p>
+{% else %}
+  <p>Please log in</p>
+{% endif %}
+```
+
+**Loops**: `{% for item in array %}...{% endfor %}`
+```html
+<ul>
+{% for item in items %}
+  <li>{{item.name}}: {{item.price}}</li>
+{% endfor %}
+</ul>
+```
+
+**Filters**: `{{variable | filter}}`
+```html
+<h1>{{title | upcase}}</h1>
+<p>Price: {{price | money}}</p>
+<p>{{content | strip_html | truncate: 100}}</p>
+```
+
+**Usage**:
+```yaml
+template:
+  engine: liquid
+  inline: |
+    <h1>{{ title }}</h1>
+    {% for product in products %}
+      <div>{{ product.name }}: {{ product.price | money }}</div>
+    {% endfor %}
+```
+
+### Simple Engine
+
+Ultra-lightweight template engine with zero dependencies. Good for basic templating.
 
 **Variables**: `{{variableName}}`
 ```html
@@ -172,42 +218,13 @@ Built-in template engine with basic features:
 </ul>
 ```
 
-**Partials**: `{{> partialName}}`
-```html
-{{> template://components/header}}
-{{> myLocalPartial}}
-```
+**Note**: In Simple engine loops, object properties are spread into context. Use `{{property}}` not `{{this.property}}`.
 
-### Handlebars Engine
+### Handlebars Engine ⚠️ Not Recommended
 
-Full Handlebars.js support with helpers and block helpers.
+**Warning**: Handlebars uses `new Function()` which is blocked by Cloudflare Workers Content Security Policy. It will fail with "Code generation from strings disallowed for this context".
 
-```yaml
-template:
-  engine: handlebars
-  inline: |
-    <h1>{{title}}</h1>
-    {{#each products}}
-      <div class="product">
-        <h2>{{this.name}}</h2>
-        <p>{{currency this.price}}</p>
-      </div>
-    {{/each}}
-```
-
-### Liquid Engine
-
-Shopify Liquid template engine.
-
-```yaml
-template:
-  engine: liquid
-  inline: |
-    <h1>{{ title }}</h1>
-    {% for product in products %}
-      <div>{{ product.name }}: {{ product.price | currency }}</div>
-    {% endfor %}
-```
+Use Liquid instead for similar functionality that works in Workers
 
 ### MJML Engine
 

@@ -1,6 +1,7 @@
 name: index
 type: Page
 description: Homepage - automatically serves at /
+templateEngine: liquid
 
 # The component content (must be at root level, not nested in config)
 component: |
@@ -17,13 +18,13 @@ component: |
       <div class="features">
         <h2>Features</h2>
         <div class="features-grid">
-          {{#each features}}
+          {% for feature in features %}
           <div class="feature-card">
-            <div class="feature-icon">{{this.icon}}</div>
-            <h3>{{this.title}}</h3>
-            <p>{{this.description}}</p>
+            <div class="feature-icon">{{feature.icon}}</div>
+            <h3>{{feature.title}}</h3>
+            <p>{{feature.description}}</p>
           </div>
-          {{/each}}
+          {% endfor %}
         </div>
       </div>
     </div>

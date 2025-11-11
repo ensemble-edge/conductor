@@ -1,28 +1,29 @@
 name: robots
 type: Page
+templateEngine: liquid
 description: Robots.txt for search engine crawlers
 
 # The component content (must be at root level, not nested in config)
 component: |
   User-agent: *
-  {{#if disallowAll}}
+  {% if disallowAll %}
   Disallow: /
-  {{else}}
+  {% else %}
   Allow: /
-  {{#if disallowPaths}}
-  {{#each disallowPaths}}
-  Disallow: {{this}}
-  {{/each}}
-  {{/if}}
-  {{/if}}
+  {% if disallowPaths %}
+  {% for path in disallowPaths %}
+  Disallow: {{path}}
+  {% endfor %}
+  {% endif %}
+  {% endif %}
 
-  {{#if crawlDelay}}
+  {% if crawlDelay %}
   Crawl-delay: {{crawlDelay}}
-  {{/if}}
+  {% endif %}
 
-  {{#if sitemap}}
+  {% if sitemap %}
   Sitemap: {{sitemap}}
-  {{/if}}
+  {% endif %}
 
 # Page configuration (all properties at root level, no config wrapper)
 route:

@@ -1,74 +1,73 @@
 name: dashboard
 type: Page
 description: User analytics dashboard with data visualization
+templateEngine: liquid
 
-config:
-  # Route configuration
-  route:
-    path: /dashboard
-    methods: [GET]
-    auth: required  # Requires authentication
+# Route configuration
+route:
+  path: /dashboard
+  methods: [GET]
+  auth: required  # Requires authentication
 
+# Render mode: ssr (server-side), static, or hybrid
+renderMode: ssr
 
-  # Render mode: ssr (server-side), static, or hybrid
-  renderMode: ssr
+# Component source (inline HTML for now, TSX/JSX components coming soon)
+component: |
+  <div class="dashboard">
+    <header>
+      <h1>{{title}}</h1>
+      <p>Welcome back, {{user.name}}!</p>
+    </header>
 
-  # Component source (inline HTML for now, TSX/JSX components coming soon)
-  component: |
-    <div class="dashboard">
-      <header>
-        <h1>{{title}}</h1>
-        <p>Welcome back, {{user.name}}!</p>
-      </header>
-
-      <div class="stats-grid">
-        {{#each metrics}}
-        <div class="stat-card">
-          <h3>{{this.label}}</h3>
-          <p class="stat-value">{{this.value}}</p>
-          <span class="stat-change {{this.trend}}">{{this.change}}</span>
-        </div>
-        {{/each}}
+    <div class="stats-grid">
+      {% for metric in metrics %}
+      <div class="stat-card">
+        <h3>{{metric.label}}</h3>
+        <p class="stat-value">{{metric.value}}</p>
+        <span class="stat-change {{metric.trend}}">{{metric.change}}</span>
       </div>
-
-      <div class="charts">
-        <div class="chart-container" hx-get="/api/chart-data" hx-trigger="load">
-          Loading chart...
-        </div>
-      </div>
+      {% endfor %}
     </div>
 
-  # Client-side hydration strategy
-  hydration:
-    strategy: htmx
-    htmx:
-      enabled: true
-      version: "1.9.10"
-      extensions: []
+    <div class="charts">
+      <div class="chart-container" hx-get="/api/chart-data" hx-trigger="load">
+        Loading chart...
+      </div>
+    </div>
+  </div>
 
-  # SEO configuration
-  seo:
-    title: Dashboard
-    description: User analytics and metrics dashboard
-    canonical: /dashboard
-    jsonLd:
-      "@context": "https://schema.org"
-      "@type": "WebApplication"
-      name: "Dashboard"
-      description: "User analytics dashboard"
-
-  # Page caching
-  cache:
+# Client-side hydration strategy
+hydration:
+  strategy: htmx
+  htmx:
     enabled: true
-    ttl: 300  # 5 minutes
-    vary: ["Cookie"]
+    version: "1.9.10"
+    extensions: []
 
-  # Layout configuration
-  layout:
-    name: main
-    props:
-      sidebar: true
-      header: true
+# SEO configuration
+seo:
+  title: Dashboard
+  description: User analytics and metrics dashboard
+  canonical: /dashboard
+  jsonLd:
+    "@context": "https://schema.org"
+    "@type": "WebApplication"
+    name: "Dashboard"
+    description: "User analytics dashboard"
+
+# Page caching
+cache:
+  enabled: true
+  ttl: 300  # 5 minutes
+  vary: ["Cookie"]
+
+# Layout configuration
+layout:
+  name: main
+  props:
+    sidebar: true
+    header: true
 
 # Default props (can be overridden at runtime)
 input:

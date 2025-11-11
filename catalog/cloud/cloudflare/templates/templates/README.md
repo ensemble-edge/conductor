@@ -164,12 +164,12 @@ flow:
 
 ## Template Variables
 
-Templates use Handlebars syntax for variables:
+Templates use Liquid syntax for variables (edge-compatible):
 
 - `{{variable}}` - Simple variable
-- `{{#each items}}...{{/each}}` - Loop over array
-- `{{#if condition}}...{{/if}}` - Conditional rendering
-- `{{{html}}}` - Unescaped HTML
+- `{% for item in items %}...{% endfor %}` - Loop over array
+- `{% if condition %}...{% endif %}` - Conditional rendering
+- `{{variable | upcase}}` - Filters for transformations
 
 ## Edgit Integration
 
@@ -253,18 +253,19 @@ config:
 
 ## Template Engines
 
-Conductor supports multiple template engines:
+Conductor supports multiple template engines optimized for edge runtime:
 
-- **Handlebars** (default) - Simple, fast, widely used
+- **Liquid** (default) - Edge-compatible, real-time rendering, powerful filters. Industry standard from Shopify/Jekyll.
+- **Simple** - Ultra-lightweight, zero dependencies, perfect for basic templating
 - **MJML** - Email-specific, responsive layouts
-- **Liquid** - Ruby-inspired, powerful filters
-- **Markdown** - Convert to HTML for simple content
+
+**Why Liquid?** Unlike Handlebars which uses `new Function()` (blocked by Cloudflare Workers CSP), Liquid compiles to AST and runs safely at the edge. Perfect for real-time, edge-first applications.
 
 Configure in member YAML:
 ```yaml
 config:
   template: email/welcome
-  engine: handlebars  # or mjml, liquid, markdown
+  engine: liquid  # or simple, mjml
 ```
 
 ## Development Workflow
@@ -276,7 +277,7 @@ touch templates/email/onboarding-day-1.html
 ```
 
 ### 2. Edit Template
-Use your favorite editor. Variables use Handlebars syntax.
+Use your favorite editor. Variables use Liquid syntax.
 
 ### 3. Test Locally
 ```bash
@@ -328,7 +329,7 @@ config:
 
 ### From External Services (SendGrid, Mailchimp)
 Export your templates as HTML and place in `templates/email/`.
-Update variables to Handlebars syntax.
+Update variables to Liquid syntax.
 
 ## Troubleshooting
 
@@ -338,9 +339,9 @@ Update variables to Handlebars syntax.
 - Ensure file extension matches (.html, .mjml, etc.)
 
 ### Variables Not Rendering
-- Check Handlebars syntax: `{{variable}}` not `${variable}`
+- Check Liquid syntax: `{{variable}}` not `${variable}`
 - Ensure data is passed in `input.data`
-- Use triple braces for HTML: `{{{htmlContent}}}`
+- Loop syntax: `{% for item in items %}`...`{% endfor %}`
 
 ### Template Not Updating
 - If using KV version, push new version to KV
@@ -358,5 +359,5 @@ See the included example templates:
 
 - [Conductor Documentation](https://docs.ensemble-edge.com/conductor)
 - [Edgit Versioning](https://docs.ensemble-edge.com/edgit)
-- [Template Syntax (Handlebars)](https://handlebarsjs.com/)
+- [Liquid Template Syntax](https://liquidjs.com/)
 - [MJML Email Framework](https://mjml.io/)

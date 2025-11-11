@@ -1,5 +1,6 @@
 name: error-500
 type: page
+templateEngine: liquid
 description: 500 Internal Server Error page
 
 # Route configuration
@@ -18,37 +19,37 @@ component: |
         <div class="error-code">500</div>
         <h1>Internal Server Error</h1>
         <p class="error-message">
-          {{#if message}}
+          {% if message %}
           {{message}}
-          {{else}}
+          {% else %}
           Something went wrong on our end. We're working to fix it.
-          {{/if}}
+          {% endif %}
         </p>
 
-        {{#if errorId}}
+        {% if errorId %}
         <div class="error-id">
           <strong>Error ID:</strong> <code>{{errorId}}</code>
           <p class="error-id-help">Please reference this ID when contacting support.</p>
         </div>
-        {{/if}}
+        {% endif %}
 
         <div class="error-actions">
           <a href="/" class="btn-primary">Go Home</a>
           <button onclick="location.reload()" class="btn-secondary">Try Again</button>
         </div>
 
-        {{#if dev}}
+        {% if dev %}
         <div class="error-details">
           <h2>Error Details (Dev Mode)</h2>
           <pre>{{errorStack}}</pre>
         </div>
-        {{/if}}
+        {% endif %}
 
-        {{#if supportEmail}}
+        {% if supportEmail %}
         <div class="support-info">
           <p>Need help? Contact us at <a href="mailto:{{supportEmail}}">{{supportEmail}}</a></p>
         </div>
-        {{/if}}
+        {% endif %}
       </div>
     </div>
 
