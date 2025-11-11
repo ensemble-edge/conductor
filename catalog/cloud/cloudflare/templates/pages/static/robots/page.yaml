@@ -2,6 +2,29 @@ name: robots
 type: Page
 description: Robots.txt for search engine crawlers
 
+# The component content (must be at root level, not nested in config)
+component: |
+  User-agent: *
+  {{#if disallowAll}}
+  Disallow: /
+  {{else}}
+  Allow: /
+  {{#if disallowPaths}}
+  {{#each disallowPaths}}
+  Disallow: {{this}}
+  {{/each}}
+  {{/if}}
+  {{/if}}
+
+  {{#if crawlDelay}}
+  Crawl-delay: {{crawlDelay}}
+  {{/if}}
+
+  {{#if sitemap}}
+  Sitemap: {{sitemap}}
+  {{/if}}
+
+# Configuration for the page
 config:
   route:
     path: /robots.txt
@@ -12,27 +35,6 @@ config:
 
   # Return plain text, not HTML
   contentType: text/plain
-
-  component: |
-    User-agent: *
-    {{#if disallowAll}}
-    Disallow: /
-    {{else}}
-    Allow: /
-    {{#if disallowPaths}}
-    {{#each disallowPaths}}
-    Disallow: {{this}}
-    {{/each}}
-    {{/if}}
-    {{/if}}
-
-    {{#if crawlDelay}}
-    Crawl-delay: {{crawlDelay}}
-    {{/if}}
-
-    {{#if sitemap}}
-    Sitemap: {{sitemap}}
-    {{/if}}
 
   cache:
     enabled: true
