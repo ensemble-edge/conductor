@@ -22,9 +22,20 @@ export class PageMember extends BaseMember {
      * Validate member configuration
      */
     validateConfig() {
-        // Must have either component or componentPath
-        if (!this.pageConfig.component && !this.pageConfig.componentPath) {
+        // Check for component at root level OR nested in config (backward compatibility)
+        const component = this.pageConfig.component ||
+            this.pageConfig.config?.component;
+        const componentPath = this.pageConfig.componentPath ||
+            this.pageConfig.config?.componentPath;
+        if (!component && !componentPath) {
             throw new Error('Page member requires either component or componentPath');
+        }
+        // If component/componentPath found in config wrapper, migrate to root level
+        if (this.pageConfig.config?.component && !this.pageConfig.component) {
+            this.pageConfig.component = this.pageConfig.config.component;
+        }
+        if (this.pageConfig.config?.componentPath && !this.pageConfig.componentPath) {
+            this.pageConfig.componentPath = this.pageConfig.config.componentPath;
         }
         // Validate render mode
         if (this.pageConfig.renderMode && !['ssr', 'static', 'hybrid'].includes(this.pageConfig.renderMode)) {
