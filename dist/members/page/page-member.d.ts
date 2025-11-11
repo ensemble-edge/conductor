@@ -13,6 +13,7 @@ import type { MemberConfig } from '../../runtime/parser.js';
 import type { PageMemberOutput } from './types/index.js';
 export declare class PageMember extends BaseMember {
     private pageConfig;
+    private templateEngine;
     constructor(config: MemberConfig);
     /**
      * Validate member configuration

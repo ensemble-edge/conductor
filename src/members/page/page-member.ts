@@ -22,13 +22,16 @@ import type {
 } from './types/index.js';
 import { renderPageHead } from './utils/head-renderer.js';
 import { renderHydrationScript } from './utils/hydration.js';
+import { HandlebarsTemplateEngine } from '../../utils/templates/engines/handlebars.js';
 
 export class PageMember extends BaseMember {
 	private pageConfig: PageMemberConfig;
+	private templateEngine: HandlebarsTemplateEngine;
 
 	constructor(config: MemberConfig) {
 		super(config);
 		this.pageConfig = config as MemberConfig & PageMemberConfig;
+		this.templateEngine = new HandlebarsTemplateEngine();
 
 		// Validate configuration
 		this.validateConfig();
@@ -90,10 +93,11 @@ export class PageMember extends BaseMember {
 			// Get page component
 			const component = await this.loadComponent(context);
 
-			// Merge props
+			// Merge props - include default input from page config, then runtime data
 			const props = {
-				...input.data,
-				...input.props,
+				...(this.pageConfig.input || {}),  // Default input from YAML
+				...input.data,                      // Runtime data
+				...input.props,                     // Runtime props
 				request: input.request
 			};
 
@@ -167,9 +171,12 @@ export class PageMember extends BaseMember {
 	private async loadComponent(context: MemberExecutionContext): Promise<PageComponent> {
 		// If component is provided inline, evaluate it
 		if (this.pageConfig.component) {
-			// For now, return a simple function that returns the component string
-			// In production, this would evaluate the JSX/TSX code
-			return async (props) => this.pageConfig.component || '';
+			// Return a function that renders the Handlebars template with props
+			return async (props) => {
+				const template = this.pageConfig.component || '';
+				// Render the template with Handlebars
+				return await this.templateEngine.render(template, props);
+			};
 		}
 
 		// Load from componentPath
