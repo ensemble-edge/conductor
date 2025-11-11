@@ -33,15 +33,15 @@ renderMode: ssr
 
 hydration:
   strategy: htmx
-htmx:
+  htmx:
     enabled: true
     version: "1.9.10"
 
 seo:
   title: Home
-description: Welcome to our application
-canonical: /
-jsonLd:
+  description: Welcome to our application
+  canonical: /
+  jsonLd:
     "@context": "https://schema.org"
     "@type": "WebSite"
     name: "My Application"
@@ -49,17 +49,17 @@ jsonLd:
 
 cache:
   enabled: true
-ttl: 3600  # 1 hour
-vary: []
+  ttl: 3600  # 1 hour
+  vary: []
 
 head:
   meta:
     - name: viewport
       content: width=device-width, initial-scale=1
-links:
+  links:
     - rel: stylesheet
       href: https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css
-styles:
+  styles:
     - |
       body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -153,8 +153,8 @@ styles:
 # Default props (can be overridden at runtime)
 input:
   siteName: Conductor
-tagline: Edge-native orchestration for AI members
-features:
+  tagline: Edge-native orchestration for AI members
+  features:
     - icon: "⚡"
       title: Lightning Fast
       description: Deploy globally on Cloudflare's edge network for sub-50ms response times

@@ -4,24 +4,24 @@ description: Robots.txt for search engine crawlers
 
 # The component content (must be at root level, not nested in config)
 component: |
-User-agent: *
+  User-agent: *
   {{#if disallowAll}}
-Disallow: /
+  Disallow: /
   {{else}}
-Allow: /
+  Allow: /
   {{#if disallowPaths}}
   {{#each disallowPaths}}
-Disallow: {{this}}
+  Disallow: {{this}}
   {{/each}}
   {{/if}}
   {{/if}}
 
   {{#if crawlDelay}}
-Crawl-delay: {{crawlDelay}}
+  Crawl-delay: {{crawlDelay}}
   {{/if}}
 
   {{#if sitemap}}
-Sitemap: {{sitemap}}
+  Sitemap: {{sitemap}}
   {{/if}}
 
 # Page configuration (all properties at root level, no config wrapper)

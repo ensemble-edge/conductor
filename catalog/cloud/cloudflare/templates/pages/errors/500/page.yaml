@@ -54,20 +54,19 @@ component: |
 
 seo:
   title: "500 - Internal Server Error"
-description: "An error occurred while processing your request"
-robots: noindex, nofollow
+  description: "An error occurred while processing your request"
+  robots: noindex, nofollow
 
 cache:
   enabled: false  # Never cache error pages
-  
+
 head:
   meta:
     - name: viewport
       content: width=device-width, initial-scale=1
     - http-equiv: status
       content: "500"
-  
-styles:
+  styles:
     - |
         body {
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
