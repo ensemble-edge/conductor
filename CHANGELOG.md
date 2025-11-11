@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.1.7
+
+### Patch Changes
+
+- d6a2541: Fix YAML indentation in page templates - properties under parent objects now properly indented with 2 spaces.
+
 ## 1.1.6
 
 ### Patch Changes
