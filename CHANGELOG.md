@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.1.8
+
+### Patch Changes
+
+- 5d035ff: Update Page README documentation to remove config wrapper from examples - matches actual PageMemberConfig interface.
+
 ## 1.1.7
 
 ### Patch Changes
