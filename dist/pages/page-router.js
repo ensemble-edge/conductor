@@ -292,7 +292,7 @@ export class PageRouter {
                 input: {
                     message: null, // Can be customized
                     searchEnabled: false,
-                    helpfulLinks: []
+                    helpfulLinks: [],
                 },
                 env,
                 ctx,

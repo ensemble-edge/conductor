@@ -51,7 +51,7 @@ export class UnkeyValidator {
             return false;
         // If prefixes configured, check for match
         if (this.config.keyPrefix && this.config.keyPrefix.length > 0) {
-            return this.config.keyPrefix.some(prefix => apiKey.startsWith(prefix));
+            return this.config.keyPrefix.some((prefix) => apiKey.startsWith(prefix));
         }
         // Default: any non-empty string
         return true;
@@ -72,7 +72,7 @@ export class UnkeyValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'No API key provided'
+                message: 'No API key provided',
             };
         }
         // Invalid format
@@ -80,7 +80,7 @@ export class UnkeyValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Invalid API key format'
+                message: 'Invalid API key format',
             };
         }
         // Call Unkey verification endpoint
@@ -88,39 +88,40 @@ export class UnkeyValidator {
             const response = await fetch('https://api.unkey.dev/v1/keys.verifyKey', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.config.rootKey}`,
-                    'Content-Type': 'application/json'
+                    Authorization: `Bearer ${this.config.rootKey}`,
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     ...(this.config.apiId && { apiId: this.config.apiId }),
-                    key: apiKey
-                })
+                    key: apiKey,
+                }),
             });
             if (!response.ok) {
                 console.error('Unkey API error:', response.status, response.statusText);
                 return {
                     valid: false,
                     error: 'unknown',
-                    message: 'Authentication service error'
+                    message: 'Authentication service error',
                 };
             }
             const result = await response.json();
             // Check if key is valid
             if (!result.valid) {
                 // Rate limited
-                if (result.code === 'RATE_LIMITED' || (result.ratelimit && result.ratelimit.remaining <= 0)) {
+                if (result.code === 'RATE_LIMITED' ||
+                    (result.ratelimit && result.ratelimit.remaining <= 0)) {
                     return {
                         valid: false,
                         error: 'rate_limited',
                         message: 'Rate limit exceeded',
-                        ratelimit: result.ratelimit
+                        ratelimit: result.ratelimit,
                     };
                 }
                 // Invalid key
                 return {
                     valid: false,
                     error: 'invalid_token',
-                    message: 'Invalid API key'
+                    message: 'Invalid API key',
                 };
             }
             // Build auth context
@@ -131,19 +132,19 @@ export class UnkeyValidator {
                 user: {
                     id: result.ownerId || 'unknown',
                     permissions: result.permissions || [],
-                    metadata: result.meta || {}
+                    metadata: result.meta || {},
                 },
                 unkey: {
                     keyId: result.keyId,
                     ownerId: result.ownerId,
                     isServiceAccount: this.isServiceAccount(apiKey),
-                    ratelimit: result.ratelimit
-                }
+                    ratelimit: result.ratelimit,
+                },
             };
             return {
                 valid: true,
                 context,
-                ratelimit: result.ratelimit
+                ratelimit: result.ratelimit,
             };
         }
         catch (error) {
@@ -151,7 +152,7 @@ export class UnkeyValidator {
             return {
                 valid: false,
                 error: 'unknown',
-                message: 'Authentication validation failed'
+                message: 'Authentication validation failed',
             };
         }
     }
@@ -167,6 +168,6 @@ export function createUnkeyValidator(env) {
         rootKey: env.UNKEY_ROOT_KEY,
         apiId: env.UNKEY_API_ID,
         keyPrefix: env.UNKEY_KEY_PREFIX ? env.UNKEY_KEY_PREFIX.split(',') : ['ownerco_', 'oiq_'],
-        stealthMode: env.UNKEY_STEALTH_MODE === 'true'
+        stealthMode: env.UNKEY_STEALTH_MODE === 'true',
     });
 }

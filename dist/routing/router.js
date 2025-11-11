@@ -3,7 +3,7 @@
  *
  * Central routing system with type-specific defaults and path-based rules
  */
-import { CustomValidatorRegistry, createBearerValidator, createApiKeyValidator, createCookieValidator, createUnkeyValidator, createCustomValidatorRegistry } from '../auth/index.js';
+import { CustomValidatorRegistry, createBearerValidator, createApiKeyValidator, createCookieValidator, createUnkeyValidator, createCustomValidatorRegistry, } from '../auth/index.js';
 /**
  * Unified Router
  */
@@ -64,7 +64,7 @@ export class UnifiedRouter {
             memberName: options.memberName,
             auth: options.auth,
             priority: options.priority,
-            handler: options.handler
+            handler: options.handler,
         };
         this.routes.push(route);
         // Sort by priority (lower = higher priority)
@@ -93,7 +93,15 @@ export class UnifiedRouter {
             .replace(/\.(yaml|yml|ts|js|tsx|jsx)$/, '')
             .replace(/\/(member|page|ensemble|form|api)$/, '');
         // Remove type-specific prefixes
-        const prefixes = ['/pages/', '/members/', '/ensembles/', '/forms/', '/apis/', '/webhooks/', '/docs/'];
+        const prefixes = [
+            '/pages/',
+            '/members/',
+            '/ensembles/',
+            '/forms/',
+            '/apis/',
+            '/webhooks/',
+            '/docs/',
+        ];
         for (const prefix of prefixes) {
             if (path.startsWith(prefix)) {
                 path = path.substring(prefix.length - 1); // Keep leading slash
@@ -122,7 +130,7 @@ export class UnifiedRouter {
             webhook: 60,
             docs: 70,
             page: 80,
-            form: 90
+            form: 90,
         };
         return priorities[memberType] || 100;
     }
@@ -186,7 +194,7 @@ export class UnifiedRouter {
                 params,
                 auth,
                 memberType: route.memberType,
-                priority: route.priority ?? this.getDefaultPriority(route.memberType)
+                priority: route.priority ?? this.getDefaultPriority(route.memberType),
             };
         }
         return null;
@@ -214,7 +222,7 @@ export class UnifiedRouter {
                 docs: 'docs',
                 static: 'pages', // Use pages default for static
                 health: 'api', // Use api default for health
-                auth: 'api' // Use api default for auth
+                auth: 'api', // Use api default for auth
             };
             const typeKey = typeKeyMap[memberType];
             if (typeKey && typeDefaults[typeKey]) {
@@ -254,7 +262,7 @@ export class UnifiedRouter {
             onFailure: resolved.onFailure,
             auditLog: resolved.auditLog,
             source,
-            rateLimit: resolved.rateLimit
+            rateLimit: resolved.rateLimit,
         };
     }
     /**
@@ -267,8 +275,8 @@ export class UnifiedRouter {
                 valid: true,
                 context: {
                     authenticated: false,
-                    method: undefined
-                }
+                    method: undefined,
+                },
             };
         }
         const methods = auth.methods || ['bearer', 'apiKey', 'cookie'];
@@ -295,24 +303,24 @@ export class UnifiedRouter {
                 // Check permissions
                 if (auth.permissions && auth.permissions.length > 0) {
                     const userPerms = result.context?.user?.permissions || [];
-                    const hasPerms = auth.permissions.every(p => userPerms.includes(p));
+                    const hasPerms = auth.permissions.every((p) => userPerms.includes(p));
                     if (!hasPerms) {
                         return {
                             valid: false,
                             error: 'insufficient_permissions',
-                            message: 'Insufficient permissions'
+                            message: 'Insufficient permissions',
                         };
                     }
                 }
                 // Check roles
                 if (auth.roles && auth.roles.length > 0) {
                     const userRoles = result.context?.user?.roles || [];
-                    const hasRoles = auth.roles.some(r => userRoles.includes(r));
+                    const hasRoles = auth.roles.some((r) => userRoles.includes(r));
                     if (!hasRoles) {
                         return {
                             valid: false,
                             error: 'insufficient_permissions',
-                            message: 'Insufficient role'
+                            message: 'Insufficient role',
                         };
                     }
                 }
@@ -325,15 +333,15 @@ export class UnifiedRouter {
                 valid: true,
                 context: {
                     authenticated: false,
-                    method: undefined
-                }
+                    method: undefined,
+                },
             };
         }
         // Required but not provided
         return {
             valid: false,
             error: 'invalid_token',
-            message: 'Authentication required'
+            message: 'Authentication required',
         };
     }
     /**
@@ -354,7 +362,7 @@ export class UnifiedRouter {
             return this.handleAuthFailure(authResult, match.auth);
         }
         // Find registered route handler
-        const route = this.routes.find(r => r.pattern === match.pattern);
+        const route = this.routes.find((r) => r.pattern === match.pattern);
         if (!route?.handler) {
             return null; // No handler, let member handle it
         }
@@ -380,10 +388,10 @@ export class UnifiedRouter {
                 return new Response(JSON.stringify({
                     error: 'auth_failed',
                     page: auth.onFailure.page,
-                    context: auth.onFailure.context
+                    context: auth.onFailure.context,
                 }), {
                     status: 401,
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
                 });
             }
         }
@@ -391,10 +399,10 @@ export class UnifiedRouter {
         const status = authResult.error === 'insufficient_permissions' ? 403 : 401;
         return new Response(JSON.stringify({
             error: authResult.error,
-            message: authResult.message
+            message: authResult.message,
         }), {
             status,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
         });
     }
 }

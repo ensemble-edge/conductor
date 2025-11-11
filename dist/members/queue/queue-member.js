@@ -66,20 +66,20 @@ export class QueueMember extends BaseMember {
             // In Cloudflare Queues, we use the send method
             await queue.send(message.body, {
                 contentType: this.queueConfig.contentType || 'json',
-                delaySeconds: message.delaySeconds
+                delaySeconds: message.delaySeconds,
             });
             return {
                 mode: 'send',
                 success: true,
                 messageId: message.id || this.generateMessageId(),
-                messageCount: 1
+                messageCount: 1,
             };
         }
         catch (error) {
             return {
                 mode: 'send',
                 success: false,
-                error: error.message
+                error: error.message,
             };
         }
     }
@@ -100,7 +100,7 @@ export class QueueMember extends BaseMember {
                 const preparedMsg = this.prepareMessage(msg);
                 await queue.send(preparedMsg.body, {
                     contentType: this.queueConfig.contentType || 'json',
-                    delaySeconds: preparedMsg.delaySeconds
+                    delaySeconds: preparedMsg.delaySeconds,
                 });
                 const msgId = preparedMsg.id || this.generateMessageId();
                 messageIds.push(msgId);
@@ -108,7 +108,7 @@ export class QueueMember extends BaseMember {
             catch (error) {
                 failedMessages.push({
                     message: msg,
-                    error: error.message
+                    error: error.message,
                 });
                 // If atomic, stop on first failure
                 if (atomic) {
@@ -123,7 +123,7 @@ export class QueueMember extends BaseMember {
             messageIds,
             messageCount: messageIds.length,
             failedMessages: failedMessages.length > 0 ? failedMessages : undefined,
-            error: !success ? 'Some messages failed to send' : undefined
+            error: !success ? 'Some messages failed to send' : undefined,
         };
     }
     /**
@@ -142,7 +142,7 @@ export class QueueMember extends BaseMember {
         return {
             mode: 'consume',
             success: true,
-            consumerResults: results
+            consumerResults: results,
         };
     }
     /**
@@ -160,7 +160,7 @@ export class QueueMember extends BaseMember {
                     messageId: message.id,
                     success: true,
                     output,
-                    retryCount: attempt
+                    retryCount: attempt,
                 };
             }
             catch (error) {
@@ -173,8 +173,7 @@ export class QueueMember extends BaseMember {
             }
         }
         // All retries exhausted - check if we should send to DLQ
-        const shouldSendToDLQ = this.queueConfig.dlq &&
-            message.attempts >= this.queueConfig.dlq.maxDeliveryAttempts;
+        const shouldSendToDLQ = this.queueConfig.dlq && message.attempts >= this.queueConfig.dlq.maxDeliveryAttempts;
         if (shouldSendToDLQ) {
             await this.sendToDLQ(message, context);
         }
@@ -183,7 +182,7 @@ export class QueueMember extends BaseMember {
             success: false,
             error: lastError?.message || 'Unknown error',
             retryCount: maxRetries,
-            sentToDLQ: shouldSendToDLQ
+            sentToDLQ: shouldSendToDLQ,
         };
     }
     /**
@@ -206,7 +205,7 @@ export class QueueMember extends BaseMember {
             await dlqBinding.send({
                 originalMessage: message,
                 failedAt: new Date().toISOString(),
-                attempts: message.attempts
+                attempts: message.attempts,
             });
         }
     }
@@ -230,7 +229,7 @@ export class QueueMember extends BaseMember {
      * Sleep utility
      */
     sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
     /**
      * Get queue binding from environment
@@ -252,7 +251,7 @@ export class QueueMember extends BaseMember {
             body: message.body,
             metadata: message.metadata,
             delaySeconds: message.delaySeconds,
-            headers: message.headers
+            headers: message.headers,
         };
     }
     /**

@@ -6,7 +6,7 @@
  */
 import { BaseMember } from '../base-member.js';
 import { createEmailProvider } from './providers/index.js';
-import { createTemplateEngine } from '../../utils/templates/index.js';
+import { createTemplateEngine, } from '../../utils/templates/index.js';
 import { TemplateLoader } from './template-loader.js';
 /**
  * Email Member
@@ -27,8 +27,8 @@ export class EmailMember extends BaseMember {
         // Initialize template loader for KV/file loading
         this.templateLoader = new TemplateLoader({
             engine: this.templateEngine,
-            kv: emailConfig.templatesKv ? (config.env?.[emailConfig.templatesKv] || undefined) : undefined,
-            defaultVersion: 'latest'
+            kv: emailConfig.templatesKv ? config.env?.[emailConfig.templatesKv] || undefined : undefined,
+            defaultVersion: 'latest',
         });
         // Configuration
         this.rateLimit = emailConfig.rateLimit || 10; // emails per second
@@ -172,7 +172,7 @@ export class EmailMember extends BaseMember {
      * Strip HTML tags for plain text version
      */
     stripHtml(html) {
-        return (html
+        return html
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
             .replace(/<[^>]+>/g, '')
@@ -181,7 +181,7 @@ export class EmailMember extends BaseMember {
             .replace(/&gt;/g, '>')
             .replace(/&amp;/g, '&')
             .replace(/\s+/g, ' ')
-            .trim());
+            .trim();
     }
     /**
      * Delay execution

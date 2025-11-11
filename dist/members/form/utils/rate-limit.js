@@ -11,7 +11,7 @@ export async function checkRateLimit(identifier, config, kv) {
             allowed: true,
             remaining: config.max,
             reset: Date.now() + config.window * 1000,
-            limit: config.max
+            limit: config.max,
         };
     }
     const key = `rate-limit:${identifier}`;
@@ -27,7 +27,7 @@ export async function checkRateLimit(identifier, config, kv) {
             // Reset window
             data = {
                 count: 0,
-                resetAt: now + windowMs
+                resetAt: now + windowMs,
             };
         }
     }
@@ -35,7 +35,7 @@ export async function checkRateLimit(identifier, config, kv) {
         // First request in window
         data = {
             count: 0,
-            resetAt: now + windowMs
+            resetAt: now + windowMs,
         };
     }
     // Check if limit exceeded
@@ -44,7 +44,7 @@ export async function checkRateLimit(identifier, config, kv) {
             allowed: false,
             remaining: 0,
             reset: data.resetAt,
-            limit: config.max
+            limit: config.max,
         };
     }
     // Increment count
@@ -52,13 +52,13 @@ export async function checkRateLimit(identifier, config, kv) {
     // Store updated data
     const ttl = Math.ceil((data.resetAt - now) / 1000);
     await kv.put(key, JSON.stringify(data), {
-        expirationTtl: ttl
+        expirationTtl: ttl,
     });
     return {
         allowed: true,
         remaining: config.max - data.count,
         reset: data.resetAt,
-        limit: config.max
+        limit: config.max,
     };
 }
 /**
@@ -70,7 +70,7 @@ export async function getRateLimitStatus(identifier, config, kv) {
             allowed: true,
             remaining: config.max,
             reset: Date.now() + config.window * 1000,
-            limit: config.max
+            limit: config.max,
         };
     }
     const key = `rate-limit:${identifier}`;
@@ -82,7 +82,7 @@ export async function getRateLimitStatus(identifier, config, kv) {
             allowed: true,
             remaining: config.max,
             reset: now + windowMs,
-            limit: config.max
+            limit: config.max,
         };
     }
     const data = stored;
@@ -92,14 +92,14 @@ export async function getRateLimitStatus(identifier, config, kv) {
             allowed: true,
             remaining: config.max,
             reset: now + windowMs,
-            limit: config.max
+            limit: config.max,
         };
     }
     return {
         allowed: data.count < config.max,
         remaining: Math.max(0, config.max - data.count),
         reset: data.resetAt,
-        limit: config.max
+        limit: config.max,
     };
 }
 /**

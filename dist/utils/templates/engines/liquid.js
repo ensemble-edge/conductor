@@ -20,7 +20,7 @@ export class LiquidTemplateEngine extends BaseTemplateEngine {
             trimTagLeft: false,
             trimTagRight: false,
             trimOutputLeft: false,
-            trimOutputRight: false
+            trimOutputRight: false,
         });
         // Register custom filters
         this.registerDefaultFilters();
@@ -54,7 +54,7 @@ export class LiquidTemplateEngine extends BaseTemplateEngine {
         catch (error) {
             return {
                 valid: false,
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     }
@@ -90,7 +90,7 @@ export class LiquidTemplateEngine extends BaseTemplateEngine {
                 return value;
             return new Intl.NumberFormat('en-US', {
                 style: 'currency',
-                currency: currency
+                currency: currency,
             }).format(num);
         });
         // Phone filter - format phone number
@@ -148,7 +148,7 @@ export class LiquidTemplateEngine extends BaseTemplateEngine {
             const k = 1024;
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
         });
         // Time ago filter
         this.liquid.registerFilter('time_ago', (date) => {
@@ -162,7 +162,7 @@ export class LiquidTemplateEngine extends BaseTemplateEngine {
                 { label: 'day', seconds: 86400 },
                 { label: 'hour', seconds: 3600 },
                 { label: 'minute', seconds: 60 },
-                { label: 'second', seconds: 1 }
+                { label: 'second', seconds: 1 },
             ];
             for (const interval of intervals) {
                 const count = Math.floor(seconds / interval.seconds);

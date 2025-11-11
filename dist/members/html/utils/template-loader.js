@@ -48,7 +48,7 @@ export async function loadTemplate(source, env) {
         return {
             content: source.inline,
             engine,
-            source: 'inline'
+            source: 'inline',
         };
     }
     // KV template (Edgit-versioned)
@@ -64,7 +64,7 @@ export async function loadTemplate(source, env) {
         return {
             content,
             engine,
-            source: 'kv'
+            source: 'kv',
         };
     }
     // R2 template (static assets)
@@ -81,7 +81,7 @@ export async function loadTemplate(source, env) {
         return {
             content,
             engine,
-            source: 'r2'
+            source: 'r2',
         };
     }
     // File template (development only - not available in Workers)
@@ -105,7 +105,7 @@ export function validateTemplateSource(source) {
     }
     return {
         valid: errors.length === 0,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
     };
 }
 /**

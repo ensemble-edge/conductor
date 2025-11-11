@@ -104,7 +104,7 @@ export function createDeleteCookie(name, options = {}) {
     return serializeCookie(name, '', {
         ...options,
         expires: new Date(0),
-        maxAge: 0
+        maxAge: 0,
     });
 }
 /**
@@ -146,6 +146,6 @@ export function isValidCookieValue(value) {
 export function mergeCookieOptions(options, defaults) {
     return {
         ...defaults,
-        ...options
+        ...options,
     };
 }

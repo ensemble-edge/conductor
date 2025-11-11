@@ -5,5 +5,5 @@
  * Supports multiple engines and template sources (inline, KV, bundled)
  */
 export * from './engines/index.js';
-export type { TemplateEngine, TemplateContext, TemplateSource, TemplateManagerConfig } from './types.js';
+export type { TemplateEngine, TemplateContext, TemplateSource, TemplateManagerConfig, } from './types.js';
 //# sourceMappingURL=index.d.ts.map

@@ -17,5 +17,5 @@ export const PDF_PAGE_SIZES = {
     A5: { width: 148, height: 210 },
     Letter: { width: 216, height: 279 }, // 8.5" x 11"
     Legal: { width: 216, height: 356 }, // 8.5" x 14"
-    Tabloid: { width: 279, height: 432 } // 11" x 17"
+    Tabloid: { width: 279, height: 432 }, // 11" x 17"
 };

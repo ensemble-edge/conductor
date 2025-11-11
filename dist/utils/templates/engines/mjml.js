@@ -62,11 +62,13 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
             const result = mjml2html(mjmlWithData, {
                 validationLevel: 'soft', // Don't fail on warnings
                 minify: false, // Keep readable for development
-                beautify: true
+                beautify: true,
             });
             // Check for errors
             if (result.errors && result.errors.length > 0) {
-                const errorMessages = result.errors.map((e) => e.formattedMessage || e.message).join(', ');
+                const errorMessages = result.errors
+                    .map((e) => e.formattedMessage || e.message)
+                    .join(', ');
                 throw new Error(`MJML compilation errors: ${errorMessages}`);
             }
             return result.html;
@@ -91,12 +93,12 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
             const testContext = this.createDummyContext(template);
             const mjmlWithData = await this.handlebars.render(template, testContext);
             const result = mjml2html(mjmlWithData, {
-                validationLevel: 'strict'
+                validationLevel: 'strict',
             });
             if (result.errors && result.errors.length > 0) {
                 return {
                     valid: false,
-                    errors: result.errors.map((e) => e.formattedMessage || e.message)
+                    errors: result.errors.map((e) => e.formattedMessage || e.message),
                 };
             }
             return { valid: true };
@@ -104,7 +106,7 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
         catch (error) {
             return {
                 valid: false,
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     }

@@ -90,7 +90,7 @@ export class BearerValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'No bearer token provided'
+                message: 'No bearer token provided',
             };
         }
         // Verify token
@@ -99,7 +99,7 @@ export class BearerValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Invalid or expired bearer token'
+                message: 'Invalid or expired bearer token',
             };
         }
         // Build auth context
@@ -112,9 +112,9 @@ export class BearerValidator {
                 email: payload.email,
                 roles: payload.roles || [],
                 permissions: payload.permissions || [],
-                metadata: {}
+                metadata: {},
             },
-            expiresAt: payload.exp
+            expiresAt: payload.exp,
         };
         // Add custom claims to metadata
         const standardClaims = ['sub', 'email', 'roles', 'permissions', 'exp', 'iat', 'iss', 'aud'];
@@ -125,7 +125,7 @@ export class BearerValidator {
         }
         return {
             valid: true,
-            context
+            context,
         };
     }
 }
@@ -142,6 +142,6 @@ export function createBearerValidator(env) {
         publicKeyUrl: env.JWT_PUBLIC_KEY_URL,
         issuer: env.JWT_ISSUER,
         audience: env.JWT_AUDIENCE,
-        algorithms: env.JWT_ALGORITHMS ? env.JWT_ALGORITHMS.split(',') : ['HS256', 'RS256']
+        algorithms: env.JWT_ALGORITHMS ? env.JWT_ALGORITHMS.split(',') : ['HS256', 'RS256'],
     });
 }

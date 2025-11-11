@@ -18,7 +18,7 @@ export { PageRouter } from './pages/index.js';
 export type { PageRoute, PageRouterConfig } from './pages/index.js';
 export * from './auth/index.js';
 export { UnifiedRouter } from './routing/router.js';
-export type { ConductorConfig, RoutingConfig, RouteConfig, RouteAuthConfig as RoutingAuthConfig, ResolvedRouteAuthConfig, RouteMatch, MemberType, AuthDefaults, RateLimitConfig as RoutingRateLimitConfig, AuthFailureAction } from './routing/config.js';
+export type { ConductorConfig, RoutingConfig, RouteConfig, RouteAuthConfig as RoutingAuthConfig, ResolvedRouteAuthConfig, RouteMatch, MemberType, AuthDefaults, RateLimitConfig as RoutingRateLimitConfig, AuthFailureAction, } from './routing/config.js';
 export type { ConductorConfig as FullConductorConfig } from './config/types.js';
 export type { EnsembleConfig, MemberConfig, FlowStep, WebhookConfig, ScheduleConfig, } from './runtime/parser.js';
 export type { StateConfig, MemberStateConfig, StateContext, AccessReport, } from './runtime/state-manager.js';

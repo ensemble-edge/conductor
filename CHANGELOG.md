@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.2.2
+
+### Patch Changes
+
+- 467fa7b: Release v1.2.1 features: Universal cache warming and advanced caching for all member types
+
 ## 1.2.1
 
 ### Patch Changes

@@ -42,10 +42,8 @@ export class PageMember extends BaseMember {
      */
     validateConfig() {
         // Check for component at root level OR nested in config (backward compatibility)
-        const component = this.pageConfig.component ||
-            this.pageConfig.config?.component;
-        const componentPath = this.pageConfig.componentPath ||
-            this.pageConfig.config?.componentPath;
+        const component = this.pageConfig.component || this.pageConfig.config?.component;
+        const componentPath = this.pageConfig.componentPath || this.pageConfig.config?.componentPath;
         if (!component && !componentPath) {
             throw new Error('Page member requires either component or componentPath');
         }
@@ -57,7 +55,8 @@ export class PageMember extends BaseMember {
             this.pageConfig.componentPath = this.pageConfig.config.componentPath;
         }
         // Validate render mode
-        if (this.pageConfig.renderMode && !['ssr', 'static', 'hybrid'].includes(this.pageConfig.renderMode)) {
+        if (this.pageConfig.renderMode &&
+            !['ssr', 'static', 'hybrid'].includes(this.pageConfig.renderMode)) {
             throw new Error(`Invalid render mode: ${this.pageConfig.renderMode}`);
         }
         // Validate hydration strategy
@@ -79,7 +78,7 @@ export class PageMember extends BaseMember {
                 if (cached) {
                     return {
                         ...cached,
-                        cacheStatus: 'hit'
+                        cacheStatus: 'hit',
                     };
                 }
             }
@@ -90,7 +89,7 @@ export class PageMember extends BaseMember {
                 ...(this.pageConfig.input || {}), // Default input from YAML
                 ...input.data, // Runtime data
                 ...input.props, // Runtime props
-                request: input.request
+                request: input.request,
             };
             // Render component
             const renderMode = this.pageConfig.renderMode || 'ssr';
@@ -129,7 +128,7 @@ export class PageMember extends BaseMember {
                 props,
                 renderTime: Date.now() - startTime,
                 cacheStatus: 'miss',
-                seo: this.buildSEOData(head)
+                seo: this.buildSEOData(head),
             };
             // Cache if enabled
             if (this.pageConfig.cache?.enabled) {
@@ -211,7 +210,7 @@ export class PageMember extends BaseMember {
         // For now, simple slot replacement
         const layoutProps = {
             ...this.pageConfig.layout.props,
-            children: content
+            children: content,
         };
         // Simple layout template
         return `<div class="layout">${content}</div>`;
@@ -223,18 +222,9 @@ export class PageMember extends BaseMember {
         return {
             ...this.pageConfig.head,
             ...inputHead,
-            meta: [
-                ...(this.pageConfig.head?.meta || []),
-                ...(inputHead?.meta || [])
-            ],
-            links: [
-                ...(this.pageConfig.head?.links || []),
-                ...(inputHead?.links || [])
-            ],
-            scripts: [
-                ...(this.pageConfig.head?.scripts || []),
-                ...(inputHead?.scripts || [])
-            ]
+            meta: [...(this.pageConfig.head?.meta || []), ...(inputHead?.meta || [])],
+            links: [...(this.pageConfig.head?.links || []), ...(inputHead?.links || [])],
+            scripts: [...(this.pageConfig.head?.scripts || []), ...(inputHead?.scripts || [])],
         };
     }
     /**
@@ -242,12 +232,12 @@ export class PageMember extends BaseMember {
      */
     mergeHydrationConfig(inputHydration) {
         const defaultConfig = {
-            strategy: this.pageConfig.hydration?.strategy || 'none'
+            strategy: this.pageConfig.hydration?.strategy || 'none',
         };
         return {
             ...defaultConfig,
             ...this.pageConfig.hydration,
-            ...inputHydration
+            ...inputHydration,
         };
     }
     /**
@@ -279,7 +269,7 @@ export class PageMember extends BaseMember {
      */
     buildHeaders(hydrationConfig) {
         const headers = {
-            'Content-Type': 'text/html; charset=utf-8'
+            'Content-Type': 'text/html; charset=utf-8',
         };
         // Add cache headers if configured
         if (this.pageConfig.cache?.enabled) {
@@ -287,7 +277,8 @@ export class PageMember extends BaseMember {
             headers['Cache-Control'] = `public, max-age=${ttl}`;
             // Add stale-while-revalidate support
             if (this.pageConfig.cache.staleWhileRevalidate) {
-                headers['Cache-Control'] += `, stale-while-revalidate=${this.pageConfig.cache.staleWhileRevalidate}`;
+                headers['Cache-Control'] +=
+                    `, stale-while-revalidate=${this.pageConfig.cache.staleWhileRevalidate}`;
             }
             // Add Vary headers for cache key variation
             if (this.pageConfig.cache.vary) {
@@ -304,15 +295,15 @@ export class PageMember extends BaseMember {
      * Build SEO data
      */
     buildSEOData(head) {
-        const titleMeta = head.meta?.find(m => m.name === 'title' || m.property === 'og:title');
-        const descMeta = head.meta?.find(m => m.name === 'description' || m.property === 'og:description');
+        const titleMeta = head.meta?.find((m) => m.name === 'title' || m.property === 'og:title');
+        const descMeta = head.meta?.find((m) => m.name === 'description' || m.property === 'og:description');
         return {
             title: head.title || titleMeta?.content || '',
             description: descMeta?.content,
             canonical: this.pageConfig.seo?.canonical,
             og: head.og,
             twitter: head.twitter,
-            jsonLd: this.pageConfig.seo?.jsonLd
+            jsonLd: this.pageConfig.seo?.jsonLd,
         };
     }
     /**
@@ -397,8 +388,8 @@ export class PageMember extends BaseMember {
             cacheStatus: 'bypass',
             seo: {
                 title: 'Error',
-                description: 'An error occurred while rendering the page'
-            }
+                description: 'An error occurred while rendering the page',
+            },
         };
     }
 }

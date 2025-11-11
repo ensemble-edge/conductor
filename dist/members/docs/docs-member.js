@@ -18,7 +18,7 @@ export class DocsMember extends BaseMember {
         this.docsConfig.paths = this.docsConfig.paths || {
             docs: '/docs',
             yaml: '/openapi.yaml',
-            json: '/openapi.json'
+            json: '/openapi.json',
         };
     }
     /**
@@ -49,7 +49,7 @@ export class DocsMember extends BaseMember {
             content: 'Not Found',
             contentType: 'text/plain',
             status: 404,
-            headers: {}
+            headers: {},
         };
     }
     /**
@@ -86,9 +86,9 @@ export class DocsMember extends BaseMember {
             headers: {
                 'Cache-Control': this.docsConfig.cache?.enabled
                     ? `public, max-age=${this.docsConfig.cache.ttl}`
-                    : 'no-cache'
+                    : 'no-cache',
             },
-            cacheStatus: 'miss'
+            cacheStatus: 'miss',
         };
         // Cache if enabled
         if (this.docsConfig.cache?.enabled) {
@@ -120,9 +120,9 @@ export class DocsMember extends BaseMember {
             headers: {
                 'Cache-Control': this.docsConfig.cache?.enabled
                     ? `public, max-age=${this.docsConfig.cache.ttl}`
-                    : 'no-cache'
+                    : 'no-cache',
             },
-            cacheStatus: 'miss'
+            cacheStatus: 'miss',
         };
         // Cache if enabled
         if (this.docsConfig.cache?.enabled) {
@@ -149,15 +149,15 @@ export class DocsMember extends BaseMember {
             info: {
                 title: this.docsConfig.branding?.title || 'API Documentation',
                 description: this.docsConfig.branding?.description || 'API Documentation',
-                version: '1.0.0'
+                version: '1.0.0',
             },
             servers: this.docsConfig.servers || [
                 {
                     url: '/',
-                    description: 'Current server'
-                }
+                    description: 'Current server',
+                },
             ],
-            paths: {}
+            paths: {},
         };
     }
     /**
@@ -172,7 +172,7 @@ export class DocsMember extends BaseMember {
             info: {
                 title: this.docsConfig.branding?.title || 'API Documentation',
                 description: this.docsConfig.branding?.description || 'Auto-generated API documentation',
-                version: '1.0.0'
+                version: '1.0.0',
             },
             servers: this.docsConfig.servers || [],
             paths: {
@@ -188,11 +188,11 @@ export class DocsMember extends BaseMember {
                                         type: 'object',
                                         properties: {
                                             ensemble: { type: 'string' },
-                                            input: { type: 'object' }
-                                        }
-                                    }
-                                }
-                            }
+                                            input: { type: 'object' },
+                                        },
+                                    },
+                                },
+                            },
                         },
                         responses: {
                             '200': {
@@ -203,16 +203,16 @@ export class DocsMember extends BaseMember {
                                             type: 'object',
                                             properties: {
                                                 success: { type: 'boolean' },
-                                                result: { type: 'object' }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+                                                result: { type: 'object' },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
         };
     }
     /**

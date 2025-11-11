@@ -6,7 +6,7 @@
  */
 import { BaseMember } from '../base-member.js';
 import { createSmsProvider } from './providers/index.js';
-import { createTemplateEngine } from '../../utils/templates/index.js';
+import { createTemplateEngine, } from '../../utils/templates/index.js';
 /**
  * SMS Member
  */
