@@ -9,7 +9,7 @@
 import { BaseMember } from './base-member.js';
 import { KVRepository, D1Repository, R2Repository, JSONSerializer } from '../storage/index.js';
 import { StorageType } from '../types/constants.js';
-import { exportData, createStreamingExport } from './data/export-formats.js';
+import { exportData, createStreamingExport, } from './data/export-formats.js';
 /**
  * Data Member performs storage operations via Repository pattern
  *

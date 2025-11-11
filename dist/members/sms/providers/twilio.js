@@ -88,12 +88,12 @@ export class TwilioProvider extends BaseSmsProvider {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Authorization': `Basic ${auth}`,
+                Authorization: `Basic ${auth}`,
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: body.toString(),
         });
-        const data = await response.json();
+        const data = (await response.json());
         if (!response.ok) {
             return {
                 messageId: '',

@@ -13,7 +13,7 @@ export async function generateCsrfToken(config, env) {
     // Create token payload
     const payload = {
         value: tokenValue,
-        expiresAt
+        expiresAt,
     };
     // Sign the token
     const signature = await signData(JSON.stringify(payload), secret);
@@ -22,7 +22,7 @@ export async function generateCsrfToken(config, env) {
     const kv = env.CSRF_TOKENS;
     if (kv) {
         await kv.put(tokenValue, JSON.stringify(payload), {
-            expirationTtl: expiresIn
+            expirationTtl: expiresIn,
         });
     }
     return token;

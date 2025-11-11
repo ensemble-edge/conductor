@@ -88,7 +88,7 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
         }
         return {
             valid: errors.length === 0,
-            errors: errors.length > 0 ? errors : undefined
+            errors: errors.length > 0 ? errors : undefined,
         };
     }
     /**
@@ -155,8 +155,20 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
             const renderedItems = await Promise.all(array.map(async (item, index) => {
                 // Build item context
                 const itemData = typeof item === 'object' && item !== null
-                    ? { ...data, ...item, '@index': index, '@first': index === 0, '@last': index === array.length - 1 }
-                    : { ...data, 'this': item, '@index': index, '@first': index === 0, '@last': index === array.length - 1 };
+                    ? {
+                        ...data,
+                        ...item,
+                        '@index': index,
+                        '@first': index === 0,
+                        '@last': index === array.length - 1,
+                    }
+                    : {
+                        ...data,
+                        this: item,
+                        '@index': index,
+                        '@first': index === 0,
+                        '@last': index === array.length - 1,
+                    };
                 // Recursively render content with item context
                 return await this.render(content, { ...context, data: itemData });
             }));
@@ -234,8 +246,7 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
                 if (partialRef.includes('://')) {
                     // Load from ComponentLoader
                     if (!this.componentLoader) {
-                        throw new Error(`Component loader not configured. ` +
-                            `Cannot load component: ${partialRef}`);
+                        throw new Error(`Component loader not configured. ` + `Cannot load component: ${partialRef}`);
                     }
                     partialContent = await this.componentLoader.load(partialRef);
                 }
@@ -249,7 +260,7 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
                 // Recursively render the partial with its data
                 const rendered = await this.render(partialContent, {
                     ...context,
-                    data: partialData
+                    data: partialData,
                 });
                 result = result.replace(fullMatch, rendered);
             }

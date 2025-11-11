@@ -4,6 +4,6 @@
  * PDF generation from HTML with R2 storage.
  */
 export { PdfMember } from './pdf-member.js';
-export { generatePdf, validatePageConfig, createDefaultHeader, createDefaultFooter } from './utils/pdf-generator.js';
+export { generatePdf, validatePageConfig, createDefaultHeader, createDefaultFooter, } from './utils/pdf-generator.js';
 export { storePdfToR2, generateFilename, createContentDisposition } from './utils/storage.js';
 export { PDF_PAGE_SIZES } from './types/index.js';

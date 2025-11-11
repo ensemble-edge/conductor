@@ -12,7 +12,7 @@ import { BaseMember } from '../base-member.js';
 import { loadTemplate, normalizeTemplateSource } from './utils/template-loader.js';
 import { createTemplateEngine, SimpleTemplateEngine } from '../../utils/templates/index.js';
 import { createComponentLoader } from '../../runtime/component-loader.js';
-import { createSetCookieHeader, createDeleteCookie, parseSignedCookies, isValidCookieName, mergeCookieOptions } from './utils/cookies.js';
+import { createSetCookieHeader, createDeleteCookie, parseSignedCookies, isValidCookieName, mergeCookieOptions, } from './utils/cookies.js';
 export class HtmlMember extends BaseMember {
     constructor(config) {
         super(config);
@@ -38,7 +38,10 @@ export class HtmlMember extends BaseMember {
         const templateSource = input.template
             ? normalizeTemplateSource(input.template)
             : this.htmlConfig.template;
-        const templateResult = await loadTemplate(templateSource, { TEMPLATES: context.env.KV, ASSETS: context.env.STORAGE });
+        const templateResult = await loadTemplate(templateSource, {
+            TEMPLATES: context.env.KV,
+            ASSETS: context.env.STORAGE,
+        });
         // Parse request cookies if provided
         const requestCookies = input.cookies || {};
         let readCookies = {};
@@ -64,13 +67,13 @@ export class HtmlMember extends BaseMember {
             if (context.env.CACHE) {
                 const { MemoryCache } = await import('../../cache/cache.js');
                 cache = new MemoryCache({
-                    defaultTTL: 3600
+                    defaultTTL: 3600,
                 });
             }
             const componentLoader = createComponentLoader({
                 kv: context.env.COMPONENTS,
                 cache,
-                logger: context.logger
+                logger: context.logger,
             });
             engine.setComponentLoader(componentLoader);
         }
@@ -78,10 +81,10 @@ export class HtmlMember extends BaseMember {
             data: {
                 ...input.data,
                 // Add cookies to template data
-                cookies: readCookies
+                cookies: readCookies,
             },
             helpers: this.getDefaultHelpers(),
-            partials: {}
+            partials: {},
         };
         let html = await engine.render(templateResult.content, templateContext);
         // Apply layout if specified
@@ -92,10 +95,10 @@ export class HtmlMember extends BaseMember {
                 html = await engine.render(layoutContent, {
                     data: {
                         ...templateContext.data,
-                        content: html // Make rendered HTML available as {{content}}
+                        content: html, // Make rendered HTML available as {{content}}
                     },
                     helpers: templateContext.helpers,
-                    partials: templateContext.partials
+                    partials: templateContext.partials,
                 });
             }
         }
@@ -137,8 +140,8 @@ export class HtmlMember extends BaseMember {
                 templateSize: templateResult.content.length,
                 outputSize: html.length,
                 cssInlined: renderOptions?.inlineCss || false,
-                minified: renderOptions?.minify || false
-            }
+                minified: renderOptions?.minify || false,
+            },
         };
     }
     /**
@@ -154,19 +157,22 @@ export class HtmlMember extends BaseMember {
                 if (context.env.CACHE) {
                     const { MemoryCache } = await import('../../cache/cache.js');
                     cache = new MemoryCache({
-                        defaultTTL: 3600
+                        defaultTTL: 3600,
                     });
                 }
                 const componentLoader = createComponentLoader({
                     kv: context.env.COMPONENTS,
                     cache,
-                    logger: context.logger
+                    logger: context.logger,
                 });
                 try {
                     return await componentLoader.load(layout);
                 }
                 catch (error) {
-                    context.logger?.warn('Failed to load layout', { layout, error: error instanceof Error ? error.message : String(error) });
+                    context.logger?.warn('Failed to load layout', {
+                        layout,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
                     return null;
                 }
             }
@@ -186,7 +192,7 @@ export class HtmlMember extends BaseMember {
                 return d.toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric'
+                    day: 'numeric',
                 });
             },
             // String helpers
@@ -200,7 +206,7 @@ export class HtmlMember extends BaseMember {
             currency: (amount, currency = 'USD') => {
                 return new Intl.NumberFormat('en-US', {
                     style: 'currency',
-                    currency: String(currency)
+                    currency: String(currency),
                 }).format(Number(amount));
             },
             // Conditional helpers
@@ -209,7 +215,7 @@ export class HtmlMember extends BaseMember {
             lt: (a, b) => Number(a) < Number(b),
             gt: (a, b) => Number(a) > Number(b),
             and: (...args) => args.every(Boolean),
-            or: (...args) => args.some(Boolean)
+            or: (...args) => args.some(Boolean),
         };
     }
     /**
@@ -261,12 +267,12 @@ export class HtmlMember extends BaseMember {
      * Minify HTML (basic implementation)
      */
     minifyHtml(html) {
-        return html
+        return (html
             // Remove comments
             .replace(/<!--[\s\S]*?-->/g, '')
             // Remove whitespace between tags
             .replace(/>\s+</g, '><')
             // Remove leading/trailing whitespace
-            .trim();
+            .trim());
     }
 }

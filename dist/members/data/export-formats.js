@@ -32,7 +32,7 @@ function exportToCSV(data, options) {
             contentType: 'text/csv',
             extension: 'csv',
             size: 0,
-            streaming: false
+            streaming: false,
         };
     }
     // Get fields
@@ -40,12 +40,12 @@ function exportToCSV(data, options) {
     const lines = [];
     // Headers
     if (includeHeaders) {
-        lines.push(fields.map(f => escapeCsvValue(f, delimiter)).join(delimiter));
+        lines.push(fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter));
     }
     // Rows
     for (const row of data) {
         const rowData = row;
-        const values = fields.map(field => {
+        const values = fields.map((field) => {
             const value = rowData[field];
             return escapeCsvValue(String(value ?? ''), delimiter);
         });
@@ -57,36 +57,34 @@ function exportToCSV(data, options) {
         contentType: 'text/csv',
         extension: 'csv',
         size: new Blob([csv]).size,
-        streaming: false
+        streaming: false,
     };
 }
 /**
  * Export to JSON
  */
 function exportToJSON(data, options) {
-    const json = options.pretty
-        ? JSON.stringify(data, null, 2)
-        : JSON.stringify(data);
+    const json = options.pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data);
     return {
         data: json,
         contentType: 'application/json',
         extension: 'json',
         size: new Blob([json]).size,
-        streaming: false
+        streaming: false,
     };
 }
 /**
  * Export to NDJSON (newline-delimited JSON)
  */
 function exportToNDJSON(data, options) {
-    const lines = data.map(item => JSON.stringify(item));
+    const lines = data.map((item) => JSON.stringify(item));
     const ndjson = lines.join('\n');
     return {
         data: ndjson,
         contentType: 'application/x-ndjson',
         extension: 'ndjson',
         size: new Blob([ndjson]).size,
-        streaming: false
+        streaming: false,
     };
 }
 /**
@@ -100,7 +98,7 @@ function exportToExcel(data, options) {
     return {
         ...csv,
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        extension: 'xlsx'
+        extension: 'xlsx',
     };
 }
 /**
@@ -132,7 +130,7 @@ export function createStreamingExport(dataSource, options) {
                         // Write headers for CSV
                         if (options.format === 'csv' && options.headers !== false) {
                             const delimiter = options.delimiter || ',';
-                            const headerLine = fields.map(f => escapeCsvValue(f, delimiter)).join(delimiter) + '\n';
+                            const headerLine = fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter) + '\n';
                             controller.enqueue(encoder.encode(headerLine));
                         }
                         // Write JSON array start
@@ -154,13 +152,13 @@ export function createStreamingExport(dataSource, options) {
             catch (error) {
                 controller.error(error);
             }
-        }
+        },
     });
     return {
         data: stream,
         contentType: getContentType(options.format),
         extension: getExtension(options.format),
-        streaming: true
+        streaming: true,
     };
 }
 /**
@@ -185,7 +183,7 @@ function formatCsvBatch(batch, fields, delimiter) {
     const lines = [];
     for (const row of batch) {
         const rowData = row;
-        const values = fields.map(field => {
+        const values = fields.map((field) => {
             const value = rowData[field];
             return escapeCsvValue(String(value ?? ''), delimiter);
         });
@@ -208,7 +206,7 @@ function formatJsonBatch(batch, isFirst) {
  * Format NDJSON batch
  */
 function formatNdjsonBatch(batch) {
-    return batch.map(item => JSON.stringify(item)).join('\n') + '\n';
+    return batch.map((item) => JSON.stringify(item)).join('\n') + '\n';
 }
 /**
  * Get content type for format

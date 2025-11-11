@@ -16,7 +16,7 @@ export async function warmCache(config) {
     const results = [];
     for (let i = 0; i < sortedRoutes.length; i += concurrency) {
         const batch = sortedRoutes.slice(i, i + concurrency);
-        const batchResults = await Promise.all(batch.map(route => warmRoute(baseUrl, route, timeout, retry, maxRetries)));
+        const batchResults = await Promise.all(batch.map((route) => warmRoute(baseUrl, route, timeout, retry, maxRetries)));
         results.push(...batchResults);
     }
     return results;
@@ -39,21 +39,19 @@ async function warmRoute(baseUrl, route, timeout, retry, maxRetries) {
                 method,
                 headers: {
                     'User-Agent': 'Conductor-Cache-Warmer',
-                    ...route.headers
+                    ...route.headers,
                 },
-                signal: controller.signal
+                signal: controller.signal,
             });
             clearTimeout(timeoutId);
             const responseTime = Date.now() - startTime;
-            const cacheStatus = response.headers.get('cf-cache-status') ||
-                response.headers.get('x-cache') ||
-                'unknown';
+            const cacheStatus = response.headers.get('cf-cache-status') || response.headers.get('x-cache') || 'unknown';
             return {
                 route: route.path,
                 success: response.ok,
                 status: response.status,
                 responseTime,
-                cacheStatus
+                cacheStatus,
             };
         }
         catch (error) {
@@ -63,13 +61,13 @@ async function warmRoute(baseUrl, route, timeout, retry, maxRetries) {
                 break;
             }
             // Exponential backoff
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000));
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempts) * 1000));
         }
     }
     return {
         route: route.path,
         success: false,
-        error: lastError?.message || 'Unknown error'
+        error: lastError?.message || 'Unknown error',
     };
 }
 /**
@@ -114,7 +112,7 @@ export function extractWarmableRoutes(members) {
             routes.push({
                 path,
                 priority,
-                method
+                method,
             });
         }
     }
@@ -151,7 +149,7 @@ export async function scheduledCacheRefresh(env, config) {
         concurrency: config?.concurrency || 10,
         timeout: config?.timeout || 15000,
         retry: config?.retry ?? true,
-        maxRetries: config?.maxRetries || 2
+        maxRetries: config?.maxRetries || 2,
     });
 }
 /**

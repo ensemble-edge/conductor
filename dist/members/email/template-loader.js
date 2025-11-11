@@ -27,9 +27,7 @@ export class TemplateLoader {
         };
         // Resolve template content (supports inline, file paths, and component references)
         const resolved = await resolveValue(template, context);
-        const content = typeof resolved.content === 'string'
-            ? resolved.content
-            : JSON.stringify(resolved.content);
+        const content = typeof resolved.content === 'string' ? resolved.content : JSON.stringify(resolved.content);
         // Render template with template engine
         return await this.engine.render(content, data);
     }

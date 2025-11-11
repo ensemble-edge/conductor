@@ -1,1 +1,1 @@
-{"version":3,"file":"index.d.ts","sourceRoot":"","sources":["../../src/routing/index.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,cAAc,aAAa,CAAC;AAC5B,OAAO,EAAE,aAAa,EAAE,MAAM,aAAa,CAAC;AAC5C,YAAY,EAAE,wBAAwB,EAAE,MAAM,aAAa,CAAC"}
+{"version":3,"file":"index.d.ts","sourceRoot":"","sources":["../../src/routing/index.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,cAAc,aAAa,CAAA;AAC3B,OAAO,EAAE,aAAa,EAAE,MAAM,aAAa,CAAA;AAC3C,YAAY,EAAE,wBAAwB,EAAE,MAAM,aAAa,CAAA"}

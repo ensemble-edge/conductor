@@ -181,7 +181,7 @@ function renderRadioField(field, value, commonAttrs) {
  * Normalize options to SelectOption format
  */
 function normalizeOptions(options) {
-    return options.map((opt) => typeof opt === 'string' ? { label: opt, value: opt } : opt);
+    return options.map((opt) => (typeof opt === 'string' ? { label: opt, value: opt } : opt));
 }
 /**
  * Render CAPTCHA widget
@@ -308,7 +308,7 @@ function escapeHtml(str) {
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
-        "'": '&#39;'
+        "'": '&#39;',
     };
     return str.replace(/[&<>"']/g, (char) => map[char]);
 }

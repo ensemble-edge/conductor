@@ -17,12 +17,12 @@ export async function storePdfToR2(pdf, config, env) {
     // Store to R2
     await bucket.put(r2Key, pdf, {
         httpMetadata: {
-            contentType: 'application/pdf'
+            contentType: 'application/pdf',
         },
         customMetadata: {
             uploadedAt: new Date().toISOString(),
-            generatedBy: 'conductor-pdf-member'
-        }
+            generatedBy: 'conductor-pdf-member',
+        },
     });
     // Generate public URL if requested
     let url;
@@ -87,6 +87,6 @@ export function validateStorageConfig(config) {
     }
     return {
         valid: errors.length === 0,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
     };
 }

@@ -55,9 +55,7 @@ function isUnversionedComponent(value) {
  */
 async function loadFromFile(filePath, context) {
     const baseDir = context.baseDir || process.cwd();
-    const absolutePath = path.isAbsolute(filePath)
-        ? filePath
-        : path.resolve(baseDir, filePath);
+    const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath);
     try {
         return await fs.readFile(absolutePath, 'utf-8');
     }

@@ -25,7 +25,7 @@ export class StripeSignatureValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Missing Stripe signature'
+                message: 'Missing Stripe signature',
             };
         }
         const body = await request.text();
@@ -34,7 +34,7 @@ export class StripeSignatureValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Invalid Stripe signature'
+                message: 'Invalid Stripe signature',
             };
         }
         return {
@@ -44,9 +44,9 @@ export class StripeSignatureValidator {
                 method: 'custom',
                 custom: {
                     provider: 'stripe',
-                    signature
-                }
-            }
+                    signature,
+                },
+            },
         };
     }
     async verifyStripeSignature(payload, signature) {
@@ -65,14 +65,15 @@ export class StripeSignatureValidator {
             }
             // Check timestamp (prevent replay attacks)
             const timestampAge = Math.floor(Date.now() / 1000) - parseInt(timestamp);
-            if (timestampAge > 300) { // 5 minutes
+            if (timestampAge > 300) {
+                // 5 minutes
                 return false;
             }
             // Compute expected signature
             const signedPayload = `${timestamp}.${payload}`;
             const expectedSignature = await this.computeHMAC(signedPayload, this.webhookSecret);
             // Compare signatures
-            return signatures.some(sig => this.secureCompare(sig, expectedSignature));
+            return signatures.some((sig) => this.secureCompare(sig, expectedSignature));
         }
         catch (error) {
             console.error('Stripe signature verification error:', error);
@@ -86,7 +87,7 @@ export class StripeSignatureValidator {
         const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         const signature = await crypto.subtle.sign('HMAC', key, messageData);
         return Array.from(new Uint8Array(signature))
-            .map(b => b.toString(16).padStart(2, '0'))
+            .map((b) => b.toString(16).padStart(2, '0'))
             .join('');
     }
     secureCompare(a, b) {
@@ -115,7 +116,7 @@ export class GitHubSignatureValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Missing GitHub signature'
+                message: 'Missing GitHub signature',
             };
         }
         const body = await request.text();
@@ -124,7 +125,7 @@ export class GitHubSignatureValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Invalid GitHub signature'
+                message: 'Invalid GitHub signature',
             };
         }
         return {
@@ -134,9 +135,9 @@ export class GitHubSignatureValidator {
                 method: 'custom',
                 custom: {
                     provider: 'github',
-                    signature
-                }
-            }
+                    signature,
+                },
+            },
         };
     }
     async verifyGitHubSignature(payload, signature) {
@@ -161,7 +162,7 @@ export class GitHubSignatureValidator {
         const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         const signature = await crypto.subtle.sign('HMAC', key, messageData);
         return Array.from(new Uint8Array(signature))
-            .map(b => b.toString(16).padStart(2, '0'))
+            .map((b) => b.toString(16).padStart(2, '0'))
             .join('');
     }
     secureCompare(a, b) {
@@ -190,7 +191,7 @@ export class TwilioSignatureValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Missing Twilio signature'
+                message: 'Missing Twilio signature',
             };
         }
         const url = request.url;
@@ -200,7 +201,7 @@ export class TwilioSignatureValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Invalid Twilio signature'
+                message: 'Invalid Twilio signature',
             };
         }
         return {
@@ -210,9 +211,9 @@ export class TwilioSignatureValidator {
                 method: 'custom',
                 custom: {
                     provider: 'twilio',
-                    signature
-                }
-            }
+                    signature,
+                },
+            },
         };
     }
     async verifyTwilioSignature(url, body, signature) {

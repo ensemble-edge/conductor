@@ -59,13 +59,17 @@ export async function validateField(field, value, allData, context) {
     // Min/Max for numbers
     if (field.type === 'number' && typeof value === 'number') {
         if (validation.min !== undefined) {
-            const min = typeof validation.min === 'number' ? { value: validation.min, message: `Minimum value is ${validation.min}` } : validation.min;
+            const min = typeof validation.min === 'number'
+                ? { value: validation.min, message: `Minimum value is ${validation.min}` }
+                : validation.min;
             if (value < min.value) {
                 errors.push({ field: field.name, message: min.message, rule: 'min' });
             }
         }
         if (validation.max !== undefined) {
-            const max = typeof validation.max === 'number' ? { value: validation.max, message: `Maximum value is ${validation.max}` } : validation.max;
+            const max = typeof validation.max === 'number'
+                ? { value: validation.max, message: `Maximum value is ${validation.max}` }
+                : validation.max;
             if (value > max.value) {
                 errors.push({ field: field.name, message: max.message, rule: 'max' });
             }

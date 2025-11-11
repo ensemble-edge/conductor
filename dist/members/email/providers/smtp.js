@@ -162,7 +162,7 @@ export class SmtpProvider extends BaseEmailProvider {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'message/rfc822',
-                    'Authorization': `Basic ${btoa(`${this.config.auth.user}:${this.config.auth.pass}`)}`,
+                    Authorization: `Basic ${btoa(`${this.config.auth.user}:${this.config.auth.pass}`)}`,
                 },
                 body: `MAIL FROM:<${from}>\r\nRCPT TO:<${to.join('>,<')}>\r\nDATA\r\n${message}\r\n.\r\n`,
             });

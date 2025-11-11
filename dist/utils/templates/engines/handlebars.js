@@ -46,7 +46,7 @@ export class HandlebarsTemplateEngine extends BaseTemplateEngine {
         catch (error) {
             return {
                 valid: false,
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     }

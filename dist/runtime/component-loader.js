@@ -59,17 +59,22 @@ export class ComponentLoader {
         const [, protocol, path, version] = match;
         // Validate protocol
         const validProtocols = [
-            'template', 'prompt', 'query', 'config', 'component', 'page', 'form'
+            'template',
+            'prompt',
+            'query',
+            'config',
+            'component',
+            'page',
+            'form',
         ];
         if (!validProtocols.includes(protocol)) {
-            throw new Error(`Invalid protocol: ${protocol}\n` +
-                `Valid protocols: ${validProtocols.join(', ')}`);
+            throw new Error(`Invalid protocol: ${protocol}\n` + `Valid protocols: ${validProtocols.join(', ')}`);
         }
         return {
             protocol: protocol,
             path,
             version: version || this.defaultVersion, // Default to "latest"
-            originalURI: uri
+            originalURI: uri,
         };
     }
     /**
@@ -83,7 +88,7 @@ export class ComponentLoader {
             config: 'configs',
             component: 'components',
             page: 'pages',
-            form: 'forms'
+            form: 'forms',
         };
         return prefixMap[protocol];
     }
@@ -150,8 +155,7 @@ export class ComponentLoader {
         catch (error) {
             const err = error instanceof Error ? error : new Error(String(error));
             this.logger?.error('JSON parse error', err, { uri });
-            throw new Error(`Failed to parse JSON component: ${uri}\n` +
-                `Error: ${err.message}`);
+            throw new Error(`Failed to parse JSON component: ${uri}\n` + `Error: ${err.message}`);
         }
     }
     /**
@@ -198,7 +202,7 @@ export class ComponentLoader {
         const prefix = this.getPrefix(protocol);
         const listPrefix = `${prefix}/${path}@`;
         const list = await this.kv.list({ prefix: listPrefix });
-        return list.keys.map(key => {
+        return list.keys.map((key) => {
             // Extract version from key: "templates/components/header@v1.0.0"
             const match = key.name.match(/@(.+)$/);
             return match ? match[1] : 'unknown';

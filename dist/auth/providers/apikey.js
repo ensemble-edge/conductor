@@ -44,7 +44,7 @@ export class ApiKeyValidator {
         if (sources.includes('cookie')) {
             const cookieHeader = request.headers.get('Cookie');
             if (cookieHeader) {
-                const cookies = cookieHeader.split(';').map(c => c.trim());
+                const cookies = cookieHeader.split(';').map((c) => c.trim());
                 for (const cookie of cookies) {
                     const [name, value] = cookie.split('=');
                     if (name === cookieName && value) {
@@ -78,7 +78,7 @@ export class ApiKeyValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'No API key provided'
+                message: 'No API key provided',
             };
         }
         // Invalid format
@@ -86,7 +86,7 @@ export class ApiKeyValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Invalid API key format'
+                message: 'Invalid API key format',
             };
         }
         // Get KV namespace
@@ -96,7 +96,7 @@ export class ApiKeyValidator {
             return {
                 valid: false,
                 error: 'unknown',
-                message: 'Authentication service error'
+                message: 'Authentication service error',
             };
         }
         // Look up key in KV
@@ -106,7 +106,7 @@ export class ApiKeyValidator {
                 return {
                     valid: false,
                     error: 'invalid_token',
-                    message: 'Invalid API key'
+                    message: 'Invalid API key',
                 };
             }
             const metadata = JSON.parse(metadataJson);
@@ -115,7 +115,7 @@ export class ApiKeyValidator {
                 return {
                     valid: false,
                     error: 'expired',
-                    message: 'API key has expired'
+                    message: 'API key has expired',
                 };
             }
             // Build auth context
@@ -130,19 +130,21 @@ export class ApiKeyValidator {
                     metadata: {
                         ...metadata.metadata,
                         keyId: metadata.keyId,
-                        keyName: metadata.name
-                    }
+                        keyName: metadata.name,
+                    },
                 },
-                expiresAt: metadata.expiresAt
+                expiresAt: metadata.expiresAt,
             };
             return {
                 valid: true,
                 context,
-                ratelimit: metadata.rateLimit ? {
-                    limit: metadata.rateLimit.requests,
-                    remaining: metadata.rateLimit.requests, // TODO: Implement actual rate limiting
-                    reset: Math.floor(Date.now() / 1000) + metadata.rateLimit.window
-                } : undefined
+                ratelimit: metadata.rateLimit
+                    ? {
+                        limit: metadata.rateLimit.requests,
+                        remaining: metadata.rateLimit.requests, // TODO: Implement actual rate limiting
+                        reset: Math.floor(Date.now() / 1000) + metadata.rateLimit.window,
+                    }
+                    : undefined,
             };
         }
         catch (error) {
@@ -150,7 +152,7 @@ export class ApiKeyValidator {
             return {
                 valid: false,
                 error: 'unknown',
-                message: 'Authentication validation failed'
+                message: 'Authentication validation failed',
             };
         }
     }
@@ -167,11 +169,13 @@ export function createApiKeyValidator(env) {
     }
     return new ApiKeyValidator({
         kvNamespace,
-        sources: env.API_KEY_SOURCES ? env.API_KEY_SOURCES.split(',') : ['header', 'query'],
+        sources: env.API_KEY_SOURCES
+            ? env.API_KEY_SOURCES.split(',')
+            : ['header', 'query'],
         headerName: env.API_KEY_HEADER_NAME || 'X-API-Key',
         queryName: env.API_KEY_QUERY_NAME || 'api_key',
         cookieName: env.API_KEY_COOKIE_NAME || 'api_key',
         prefix: env.API_KEY_PREFIX,
-        stealthMode: env.API_KEY_STEALTH_MODE === 'true'
+        stealthMode: env.API_KEY_STEALTH_MODE === 'true',
     });
 }

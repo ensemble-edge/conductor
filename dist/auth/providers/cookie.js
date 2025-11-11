@@ -29,7 +29,7 @@ export class CookieValidator {
             return null;
         }
         // Parse cookies
-        const cookies = cookieHeader.split(';').map(c => c.trim());
+        const cookies = cookieHeader.split(';').map((c) => c.trim());
         for (const cookie of cookies) {
             const [name, value] = cookie.split('=');
             if (name === cookieName && value) {
@@ -55,7 +55,7 @@ export class CookieValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'No session token provided'
+                message: 'No session token provided',
             };
         }
         // Invalid format
@@ -63,7 +63,7 @@ export class CookieValidator {
             return {
                 valid: false,
                 error: 'invalid_token',
-                message: 'Invalid session token format'
+                message: 'Invalid session token format',
             };
         }
         // Get KV namespace
@@ -73,7 +73,7 @@ export class CookieValidator {
             return {
                 valid: false,
                 error: 'unknown',
-                message: 'Authentication service error'
+                message: 'Authentication service error',
             };
         }
         // Look up session in KV
@@ -83,7 +83,7 @@ export class CookieValidator {
                 return {
                     valid: false,
                     error: 'invalid_token',
-                    message: 'Invalid or expired session'
+                    message: 'Invalid or expired session',
                 };
             }
             const session = JSON.parse(sessionJson);
@@ -94,7 +94,7 @@ export class CookieValidator {
                 return {
                     valid: false,
                     error: 'expired',
-                    message: 'Session has expired'
+                    message: 'Session has expired',
                 };
             }
             // Build auth context
@@ -110,14 +110,14 @@ export class CookieValidator {
                     metadata: {
                         ...session.metadata,
                         sessionId: session.sessionId,
-                        sessionCreated: session.createdAt
-                    }
+                        sessionCreated: session.createdAt,
+                    },
                 },
-                expiresAt: session.expiresAt
+                expiresAt: session.expiresAt,
             };
             return {
                 valid: true,
-                context
+                context,
             };
         }
         catch (error) {
@@ -125,7 +125,7 @@ export class CookieValidator {
             return {
                 valid: false,
                 error: 'unknown',
-                message: 'Authentication validation failed'
+                message: 'Authentication validation failed',
             };
         }
     }
@@ -134,9 +134,7 @@ export class CookieValidator {
      */
     createCookie(sessionToken, options) {
         const cookieName = this.config.cookieName || 'session_token';
-        const parts = [
-            `${cookieName}=${encodeURIComponent(sessionToken)}`
-        ];
+        const parts = [`${cookieName}=${encodeURIComponent(sessionToken)}`];
         if (this.config.domain) {
             parts.push(`Domain=${this.config.domain}`);
         }
@@ -171,12 +169,12 @@ export class CookieValidator {
         const sessionId = crypto.randomUUID();
         const now = Date.now();
         const ttl = this.config.sessionTTL || 86400; // 24 hours default
-        const expiresAt = sessionData.expiresAt || (now + ttl * 1000);
+        const expiresAt = sessionData.expiresAt || now + ttl * 1000;
         const session = {
             ...sessionData,
             sessionId,
             createdAt: now,
-            expiresAt
+            expiresAt,
         };
         // Store in KV with TTL
         await kv.put(`session:${sessionToken}`, JSON.stringify(session), { expirationTtl: ttl });
@@ -207,6 +205,6 @@ export function createCookieValidator(env) {
         secure: env.SESSION_COOKIE_SECURE !== 'false',
         httpOnly: env.SESSION_COOKIE_HTTP_ONLY !== 'false',
         sameSite: env.SESSION_COOKIE_SAME_SITE || 'lax',
-        sessionTTL: env.SESSION_TTL ? parseInt(env.SESSION_TTL) : 86400
+        sessionTTL: env.SESSION_TTL ? parseInt(env.SESSION_TTL) : 86400,
     });
 }

@@ -127,10 +127,7 @@ function renderMetaTag(meta) {
  * Render link tag
  */
 function renderLinkTag(link) {
-    const attrs = [
-        `rel="${escapeHtml(link.rel)}"`,
-        `href="${escapeHtml(link.href)}"`
-    ];
+    const attrs = [`rel="${escapeHtml(link.rel)}"`, `href="${escapeHtml(link.href)}"`];
     if (link.type) {
         attrs.push(`type="${escapeHtml(link.type)}"`);
     }
@@ -184,7 +181,7 @@ function escapeHtml(str) {
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
-        "'": '&#39;'
+        "'": '&#39;',
     };
     return str.replace(/[&<>"']/g, (char) => map[char]);
 }

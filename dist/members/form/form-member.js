@@ -62,13 +62,13 @@ export class FormMember extends BaseMember {
                         {
                             field: '_form',
                             message: 'Rate limit exceeded. Please try again later.',
-                            rule: 'rate_limit'
-                        }
+                            rule: 'rate_limit',
+                        },
                     ],
                     rateLimit: {
                         remaining: rateLimitResult.remaining,
-                        reset: rateLimitResult.reset
-                    }
+                        reset: rateLimitResult.reset,
+                    },
                 };
             }
         }
@@ -103,13 +103,13 @@ export class FormMember extends BaseMember {
             csrfToken,
             currentStep: currentStep?.id,
             stepInfo: currentStep || undefined,
-            errors: []
+            errors: [],
         });
         return {
             html,
             currentStep: currentStep?.id,
             csrfToken,
-            valid: true
+            valid: true,
         };
     }
     /**
@@ -123,7 +123,7 @@ export class FormMember extends BaseMember {
             // Bot detected - fail silently with generic error
             return {
                 valid: false,
-                errors: [{ field: '_form', message: 'Form submission failed', rule: 'honeypot' }]
+                errors: [{ field: '_form', message: 'Form submission failed', rule: 'honeypot' }],
             };
         }
         // Validate CSRF token if enabled
@@ -134,7 +134,7 @@ export class FormMember extends BaseMember {
                 errors.push({
                     field: '_csrf',
                     message: 'Invalid or expired security token',
-                    rule: 'csrf'
+                    rule: 'csrf',
                 });
             }
         }
@@ -153,7 +153,7 @@ export class FormMember extends BaseMember {
             valid: errors.length === 0,
             errors: errors.length > 0 ? errors : undefined,
             data: sanitizedData,
-            currentStep: currentStep?.id
+            currentStep: currentStep?.id,
         };
     }
     /**
@@ -173,13 +173,13 @@ export class FormMember extends BaseMember {
                 ...validationResult,
                 currentStep: input.currentStep,
                 nextStep: nextStep?.id,
-                isLastStep: !nextStep
+                isLastStep: !nextStep,
             };
         }
         // Single-step form - submission complete
         return {
             ...validationResult,
-            isLastStep: true
+            isLastStep: true,
         };
     }
     /**

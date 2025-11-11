@@ -13,7 +13,7 @@ import { BaseMember } from '../base-member.js';
 import { MemberType } from '../../types/constants.js';
 import { HtmlMember } from '../html/html-member.js';
 import { generatePdf, validatePageConfig } from './utils/pdf-generator.js';
-import { storePdfToR2, generateFilename, createContentDisposition, validateStorageConfig } from './utils/storage.js';
+import { storePdfToR2, generateFilename, createContentDisposition, validateStorageConfig, } from './utils/storage.js';
 import { createTemplateEngine } from '../../utils/templates/index.js';
 export class PdfMember extends BaseMember {
     constructor(config) {
@@ -87,16 +87,16 @@ export class PdfMember extends BaseMember {
                     renderOptions: {
                         // Don't inline CSS for PDF - browser can handle it
                         inlineCss: false,
-                        minify: false
-                    }
-                }
+                        minify: false,
+                    },
+                },
             };
             const htmlMember = new HtmlMember(htmlMemberConfig);
             const htmlContext = {
                 input: { data: htmlSource.data || {} },
                 env: context.env,
                 ctx: context.ctx,
-                previousOutputs: context.previousOutputs
+                previousOutputs: context.previousOutputs,
             };
             const htmlResponse = await htmlMember.execute(htmlContext);
             if (!htmlResponse.success) {
@@ -115,7 +115,7 @@ export class PdfMember extends BaseMember {
             html,
             page: pageConfig,
             headerFooter: renderedHeaderFooter,
-            metadata
+            metadata,
         }, context.env);
         // Store to R2 if configured
         let r2Key;
@@ -139,8 +139,8 @@ export class PdfMember extends BaseMember {
             metadata: {
                 generateTime: Date.now() - startTime,
                 pageCount: pdfResult.pageCount,
-                htmlSize
-            }
+                htmlSize,
+            },
         };
     }
     /**

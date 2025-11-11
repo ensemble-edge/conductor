@@ -33,14 +33,14 @@ function renderHtmxHydration(htmxConfig, props) {
         src: `https://unpkg.com/htmx.org@${version}`,
         defer: true,
         integrity: undefined, // Add integrity hash in production
-        crossorigin: 'anonymous'
+        crossorigin: 'anonymous',
     }));
     // Load extensions
     if (htmxConfig.extensions && htmxConfig.extensions.length > 0) {
         for (const ext of htmxConfig.extensions) {
             parts.push(renderScriptTag({
                 src: `https://unpkg.com/htmx.org@${version}/dist/ext/${ext}.js`,
-                defer: true
+                defer: true,
             }));
         }
     }
@@ -55,7 +55,7 @@ function renderHtmxHydration(htmxConfig, props) {
 		`;
         parts.push(renderScriptTag({
             inline: configScript,
-            defer: true
+            defer: true,
         }));
     }
     return parts.join('\n\t');
@@ -81,7 +81,7 @@ function renderProgressiveHydration(config, props) {
 		`;
         parts.push(renderScriptTag({
             inline: progressiveScript,
-            defer: true
+            defer: true,
         }));
     }
     return parts.join('\n\t');
@@ -217,7 +217,7 @@ function renderIslandsHydration(config, props) {
 	`;
     return renderScriptTag({
         inline: islandsScript,
-        defer: true
+        defer: true,
     });
 }
 /**

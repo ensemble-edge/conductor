@@ -36,8 +36,8 @@ async function generatePdfWithBrowser(options, browser) {
                 top: `${options.page?.margins?.top || 10}mm`,
                 right: `${options.page?.margins?.right || 10}mm`,
                 bottom: `${options.page?.margins?.bottom || 10}mm`,
-                left: `${options.page?.margins?.left || 10}mm`
-            }
+                left: `${options.page?.margins?.left || 10}mm`,
+            },
         };
         // Add header/footer if configured
         if (options.headerFooter?.displayHeaderFooter) {
@@ -52,12 +52,10 @@ async function generatePdfWithBrowser(options, browser) {
         // Generate PDF
         const pdfBuffer = await session.pdf(pdfOptions);
         // Convert ArrayBufferLike to ArrayBuffer if needed
-        const pdf = pdfBuffer instanceof ArrayBuffer
-            ? pdfBuffer
-            : new Uint8Array(pdfBuffer).buffer;
+        const pdf = pdfBuffer instanceof ArrayBuffer ? pdfBuffer : new Uint8Array(pdfBuffer).buffer;
         return {
             pdf,
-            generateTime: Date.now() - startTime
+            generateTime: Date.now() - startTime,
         };
     }
     finally {
@@ -80,7 +78,7 @@ async function generatePdfBasic(options) {
     const pdf = pdfBuffer.buffer.slice(0);
     return {
         pdf,
-        generateTime: Date.now() - startTime
+        generateTime: Date.now() - startTime,
     };
 }
 /**
@@ -92,7 +90,10 @@ function createBasicPdf(options) {
     const author = options.metadata?.author || 'Conductor';
     const creationDate = options.metadata?.creationDate || new Date();
     // Strip HTML tags for text content
-    const textContent = options.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const textContent = options.html
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
     // Basic PDF structure
     return `%PDF-1.4
 1 0 obj
@@ -214,7 +215,7 @@ export function validatePageConfig(page) {
     }
     return {
         valid: errors.length === 0,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
     };
 }
 /**
