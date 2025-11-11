@@ -6,9 +6,11 @@
  */
 
 import { Plugin } from 'vite'
-import { globSync } from 'fast-glob'
+import fg from 'fast-glob'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
+
+const { globSync } = fg
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-pages'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
