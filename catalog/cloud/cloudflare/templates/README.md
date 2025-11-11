@@ -61,6 +61,8 @@ my-conductor-project/
    ```
    Starts local development server at `http://localhost:8787`
 
+   **Note:** Always use `npm run dev` instead of `wrangler dev` directly. The `npm run dev` command includes automatic page detection that watches the `pages/` directory and triggers rebuilds when you add new pages. This is necessary due to a Wrangler limitation where `watch_dirs` doesn't detect new files being added.
+
 5. **Test the hello-world ensemble:**
    ```bash
    curl -X POST http://localhost:8787/ensemble/hello-world \
