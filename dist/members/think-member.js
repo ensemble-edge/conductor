@@ -10,6 +10,7 @@
 import { BaseMember } from './base-member.js';
 import { getProviderRegistry } from './think-providers/index.js';
 import { AIProvider } from '../types/constants.js';
+import { resolveValue } from '../utils/component-resolver.js';
 /**
  * Think Member - Executes AI reasoning via provider system
  */
@@ -71,12 +72,28 @@ export class ThinkMember extends BaseMember {
      * Resolve prompt from Edgit if needed
      */
     async resolvePrompt(env) {
+        // If systemPrompt already set inline, use it
         if (this.thinkConfig.systemPrompt)
             return;
+        // If prompt reference configured, resolve it
         if (this.thinkConfig.prompt) {
-            throw new Error(`Cannot load versioned prompt "${this.thinkConfig.prompt}". ` +
-                `Edgit integration not yet available. ` +
-                `Use inline systemPrompt in config for now.`);
+            const context = {
+                env,
+                baseDir: process.cwd(),
+            };
+            try {
+                const resolved = await resolveValue(this.thinkConfig.prompt, context);
+                // Set resolved content as systemPrompt
+                if (typeof resolved.content === 'string') {
+                    this.thinkConfig.systemPrompt = resolved.content;
+                }
+                else {
+                    throw new Error(`Prompt must resolve to a string, got ${typeof resolved.content}`);
+                }
+            }
+            catch (error) {
+                throw new Error(`Failed to resolve prompt "${this.thinkConfig.prompt}": ${error instanceof Error ? error.message : String(error)}`);
+            }
         }
     }
     /**

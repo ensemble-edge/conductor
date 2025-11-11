@@ -4,6 +4,7 @@
  * Loads and renders email templates from local files or KV storage
  * Supports Handlebars templating and Edgit versioning
  */
+import { resolveValue } from '../../utils/component-resolver.js';
 /**
  * Email Template Loader
  */
@@ -18,11 +19,17 @@ export class TemplateLoader {
     /**
      * Load and render template
      */
-    async render(template, data = {}) {
-        // Parse template reference
-        const ref = this.parseTemplateRef(template);
-        // Load template content
-        const content = await this.loadTemplate(ref);
+    async render(template, data = {}, env) {
+        // Use component resolver for unified handling
+        const context = {
+            env,
+            baseDir: process.cwd(),
+        };
+        // Resolve template content (supports inline, file paths, and component references)
+        const resolved = await resolveValue(template, context);
+        const content = typeof resolved.content === 'string'
+            ? resolved.content
+            : JSON.stringify(resolved.content);
         // Render template with template engine
         return await this.engine.render(content, data);
     }
