@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.1.13
+
+### Patch Changes
+
+- 4a99154: Fix Worker initialization hang by moving page discovery to lazy initialization. The top-level await in src/index.ts template was blocking Worker startup. Pages are now initialized on first request instead.
+
 ## 1.1.12
 
 ### Patch Changes
