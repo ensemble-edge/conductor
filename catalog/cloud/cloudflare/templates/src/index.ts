@@ -46,28 +46,40 @@ export default app;
 // Use this approach if you want complete control over your API structure
 
 import { Executor, MemberLoader, PageRouter, UnifiedRouter, PageMember, type MemberConfig } from '@ensemble-edge/conductor';
+import { parse as parseYAML } from 'yaml';
 import conductorConfig from '../conductor.config';
 
 // Import your members (add more as you create them)
-import greetConfig from '../members/hello/member.yaml';
+import greetConfigRaw from '../members/hello/member.yaml';
+const greetConfig = parseYAML(greetConfigRaw as unknown as string) as MemberConfig;
 import greetFunction from '../members/hello';
 
 // Import your ensembles (add more as you create them)
 import helloWorldYAML from '../ensembles/hello-world.yaml';
 
-// Import page configurations
-import indexPageConfig from '../pages/examples/index/page.yaml';
-import dashboardPageConfig from '../pages/examples/dashboard/page.yaml';
-import loginPageConfig from '../pages/examples/login/page.yaml';
-import blogPostPageConfig from '../pages/examples/blog-post/page.yaml';
+// Import page configurations (as raw strings from wrangler text loader)
+import indexPageConfigRaw from '../pages/examples/index/page.yaml';
+import dashboardPageConfigRaw from '../pages/examples/dashboard/page.yaml';
+import loginPageConfigRaw from '../pages/examples/login/page.yaml';
+import blogPostPageConfigRaw from '../pages/examples/blog-post/page.yaml';
 
 // Import error pages
-import error404PageConfig from '../pages/errors/404/page.yaml';
-import error500PageConfig from '../pages/errors/500/page.yaml';
+import error404PageConfigRaw from '../pages/errors/404/page.yaml';
+import error500PageConfigRaw from '../pages/errors/500/page.yaml';
 
 // Import static pages
-import robotsPageConfig from '../pages/static/robots/page.yaml';
-import sitemapPageConfig from '../pages/static/sitemap/page.yaml';
+import robotsPageConfigRaw from '../pages/static/robots/page.yaml';
+import sitemapPageConfigRaw from '../pages/static/sitemap/page.yaml';
+
+// Parse YAML strings into config objects
+const indexPageConfig = parseYAML(indexPageConfigRaw as unknown as string) as MemberConfig;
+const dashboardPageConfig = parseYAML(dashboardPageConfigRaw as unknown as string) as MemberConfig;
+const loginPageConfig = parseYAML(loginPageConfigRaw as unknown as string) as MemberConfig;
+const blogPostPageConfig = parseYAML(blogPostPageConfigRaw as unknown as string) as MemberConfig;
+const error404PageConfig = parseYAML(error404PageConfigRaw as unknown as string) as MemberConfig;
+const error500PageConfig = parseYAML(error500PageConfigRaw as unknown as string) as MemberConfig;
+const robotsPageConfig = parseYAML(robotsPageConfigRaw as unknown as string) as MemberConfig;
+const sitemapPageConfig = parseYAML(sitemapPageConfigRaw as unknown as string) as MemberConfig;
 
 // Initialize PageRouter with pages
 const pageRouter = new PageRouter({
@@ -76,7 +88,6 @@ const pageRouter = new PageRouter({
 });
 
 // Register pages
-// Note: YAML imports are typed as Record<string, unknown>, so we assert them as MemberConfig
 const pagesMap = new Map([
 	// Example pages
 	['index', { config: indexPageConfig as MemberConfig, member: new PageMember(indexPageConfig as MemberConfig) }],
