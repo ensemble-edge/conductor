@@ -7,6 +7,7 @@
 
 import type { KVNamespace } from '@cloudflare/workers-types';
 import type { BaseTemplateEngine } from '../../utils/templates/index.js';
+import { resolveValue, type ComponentResolutionContext } from '../../utils/component-resolver.js';
 
 /**
  * Template data for rendering
@@ -62,12 +63,18 @@ export class TemplateLoader {
 	/**
 	 * Load and render template
 	 */
-	async render(template: string, data: TemplateData = {}): Promise<string> {
-		// Parse template reference
-		const ref = this.parseTemplateRef(template);
+	async render(template: string, data: TemplateData = {}, env?: any): Promise<string> {
+		// Use component resolver for unified handling
+		const context: ComponentResolutionContext = {
+			env,
+			baseDir: process.cwd(),
+		};
 
-		// Load template content
-		const content = await this.loadTemplate(ref);
+		// Resolve template content (supports inline, file paths, and component references)
+		const resolved = await resolveValue(template, context);
+		const content = typeof resolved.content === 'string'
+			? resolved.content
+			: JSON.stringify(resolved.content);
 
 		// Render template with template engine
 		return await this.engine.render(content, data);
