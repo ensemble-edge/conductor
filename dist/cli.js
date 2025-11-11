@@ -1860,11 +1860,11 @@ function createInitCommand() {
       while (currentDir !== path.dirname(currentDir)) {
         currentDir = path.dirname(currentDir);
         try {
-          const pkgPath = path.join(currentDir, "package.json");
-          await fs.access(pkgPath);
-          const pkgContent = await fs.readFile(pkgPath, "utf-8");
-          const pkg = JSON.parse(pkgContent);
-          if (pkg.name === "@ensemble-edge/conductor") {
+          const pkgPath2 = path.join(currentDir, "package.json");
+          await fs.access(pkgPath2);
+          const pkgContent2 = await fs.readFile(pkgPath2, "utf-8");
+          const pkg2 = JSON.parse(pkgContent2);
+          if (pkg2.name === "@ensemble-edge/conductor") {
             packageRoot = currentDir;
             break;
           }
@@ -1893,7 +1893,11 @@ function createInitCommand() {
       console.log(chalk.cyan(`Target: ${targetDir}`));
       console.log(chalk.cyan(`Examples: ${options.examples !== false ? "included" : "excluded"}`));
       console.log("");
-      await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false);
+      const pkgPath = path.join(packageRoot, "package.json");
+      const pkgContent = await fs.readFile(pkgPath, "utf-8");
+      const pkg = JSON.parse(pkgContent);
+      const conductorVersion = pkg.version;
+      await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false, conductorVersion);
       console.log(chalk.green("\u2713 Project initialized successfully"));
       console.log("");
       console.log(chalk.bold("Next steps:"));
@@ -1929,7 +1933,7 @@ function createInitCommand() {
   });
   return init;
 }
-async function copyDirectory(src, dest, force, includeExamples = true) {
+async function copyDirectory(src, dest, force, includeExamples = true, conductorVersion) {
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
   for (const entry of entries) {
@@ -1940,7 +1944,7 @@ async function copyDirectory(src, dest, force, includeExamples = true) {
       continue;
     }
     if (entry.isDirectory()) {
-      await copyDirectory(srcPath, destPath, force, includeExamples);
+      await copyDirectory(srcPath, destPath, force, includeExamples, conductorVersion);
     } else {
       if (!force) {
         try {
@@ -1950,8 +1954,15 @@ async function copyDirectory(src, dest, force, includeExamples = true) {
         } catch {
         }
       }
-      await fs.copyFile(srcPath, destPath);
-      console.log(chalk.dim(`  \u2713 Created ${path.relative(dest, destPath)}`));
+      if (conductorVersion && entry.name === "package.json") {
+        let content = await fs.readFile(srcPath, "utf-8");
+        content = content.replace(/__CONDUCTOR_VERSION__/g, conductorVersion);
+        await fs.writeFile(destPath, content, "utf-8");
+        console.log(chalk.dim(`  \u2713 Created ${path.relative(dest, destPath)} (version: ${conductorVersion})`));
+      } else {
+        await fs.copyFile(srcPath, destPath);
+        console.log(chalk.dim(`  \u2713 Created ${path.relative(dest, destPath)}`));
+      }
     }
   }
 }
