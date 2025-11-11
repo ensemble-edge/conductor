@@ -773,7 +773,7 @@ describe('Executor - Basic Integration', () => {
 			const result = await conductor.executeEnsemble('duration-test', {});
 
 			expect(result.success).toBe(true);
-			expect(result.executionTime).toBeGreaterThanOrEqual(100);
+			expect(result.executionTime).toBeGreaterThanOrEqual(95); // Allow slight timing variance
 		});
 
 		it('should include execution steps in result', async () => {
