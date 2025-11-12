@@ -6,85 +6,48 @@ This file provides guidance to Claude Code (claude.ai/code) and other AI assista
 
 # 🚨 CRITICAL: RELEASE WORKFLOW - READ THIS FIRST 🚨
 
-## ❌ WHEN PUSH IS REJECTED: NEVER PULL, REBASE, OR TRY TO FIX CONFLICTS
+## Normal Push Workflow
 
-When `git push` is rejected because remote has new commits, **THIS MEANS A NEW RELEASE WAS JUST PUBLISHED**.
-
-### ✅ CORRECT Workflow When Push Rejected:
-
-1. **Reset to origin/master** (get the new release):
-   ```bash
-   git fetch
-   git reset --hard origin/master
-   ```
-
-2. **Re-apply your changes manually** (don't cherry-pick - causes conflicts)
-
-3. **Create NEW changeset** for your changes:
-   ```bash
-   cat > .changeset/fix-name.md << 'EOF'
-   ---
-   "@ensemble-edge/conductor": patch
-   ---
-   Description of your fix
-   EOF
-   ```
-
-4. **Commit and push**:
-   ```bash
-   git add -A
-   git commit -m "fix: your fix description"
-   git push  # This will now work
-   ```
-
-### ❌ NEVER DO THESE THINGS:
-- ❌ **DO NOT run `git pull`** - This creates merge commits
-- ❌ **DO NOT run `git rebase`** - This rewrites history
-- ❌ **DO NOT run `git cherry-pick`** - Causes changeset conflicts
-- ❌ **DO NOT try to "fix" version conflicts**
-- ❌ **DO NOT manually edit package.json version**
-- ❌ **DO NOT manually edit CHANGELOG.md**
-- ❌ **DO NOT create git tags yourself**
-- ❌ **DO NOT run `npm run version-packages` locally**
-- ❌ **DO NOT run `npm run release` locally**
-
-### ✅ CORRECT Release Workflow (Normal Case):
-
-1. **Create changeset file** in `.changeset/`:
+1. **Create changeset** in `.changeset/`:
    ```bash
    cat > .changeset/my-feature.md << 'EOF'
    ---
-   "@ensemble-edge/conductor": minor
+   "@ensemble-edge/conductor": patch
    ---
    Description of changes
    EOF
    ```
 
-2. **Commit changes + changeset**:
+2. **Commit and push**:
    ```bash
    git add -A
    git commit -m "feat: description"
-   ```
-
-3. **Push** (GitHub Actions handles everything else):
-   ```bash
    git push
    ```
 
-4. **GitHub Actions will automatically**:
-   - Detect changeset
-   - Run tests and build
-   - Run `changeset version` to bump version
-   - Update CHANGELOG.md
-   - Commit and tag the new version
-   - Publish to npm
-   - Create GitHub release
+3. **Done!** GitHub Actions handles versioning, CHANGELOG, npm publish, and releases.
 
-### Why This Matters:
+## If Push Is Rejected (Release Just Happened)
 
-**This happened 25+ times in one session because I kept forgetting this workflow.**
+When `git push` fails, it means a release was just published. Here's what to do:
 
-Every time I tried to "fix" a rejected push by pulling or rebasing, I created conflicts and wasted hours. The correct approach is simple: reset to the new release, manually re-apply changes, create a new changeset, and push.
+1. **Check what changed on master**:
+   ```bash
+   git fetch
+   git log HEAD..origin/master --oneline
+   ```
+
+2. **If it's just release files** (package.json, CHANGELOG.md, git tags), force merge:
+   ```bash
+   git push --force-with-lease
+   ```
+
+3. **Done!** Your changeset will be in the next release.
+
+## Never Do These:
+- ❌ **DO NOT run `git pull`** - Creates merge commits
+- ❌ **DO NOT run `git rebase`** - Rewrites history
+- ❌ **DO NOT manually edit package.json or CHANGELOG.md**
 
 ---
 
