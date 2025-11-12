@@ -27,28 +27,22 @@ This file provides guidance to Claude Code (claude.ai/code) and other AI assista
 
 3. **Done!** GitHub Actions:
    - Publishes to npm
-   - Creates GitHub release
-   - Commits version bump to master (AFTER release succeeds)
    - Creates git tag
+   - Creates GitHub release
+   - **Does NOT commit back to master** - changesets stay local to workflow
 
-## NEW: Simplified Workflow (No More Conflicts!)
+## NEW: Truly Conflict-Free Workflow!
 
-The release workflow now commits version bumps AFTER the release succeeds, not before. This means:
+The release workflow does NOT modify the master branch. It only:
+1. Publishes the package to npm
+2. Creates a git tag pointing to your commit
+3. Creates a GitHub release
 
-✅ **No more push rejections** - Version commits happen after your push
-✅ **No more tag conflicts** - Tags are only created after npm publish succeeds
-✅ **No more force-with-lease** - Just push normally
-✅ **Automatic [skip ci]** - Version commits don't trigger recursive workflows
-
-## If You Ever Need to Force-Push (Rare)
-
-Only if something goes wrong and commits get out of sync:
-
-```bash
-git fetch
-git log HEAD..origin/master --oneline  # Check what's different
-git push --force-with-lease            # Merge changes
-```
+Benefits:
+✅ **Zero push conflicts** - Workflow never touches master
+✅ **No version drift** - Next push will have correct version via changesets
+✅ **No force-with-lease needed** - Ever
+✅ **Simpler mental model** - Workflow just publishes artifacts
 
 ## Never Do These:
 - ❌ **DO NOT run `git pull`** - Creates merge commits
@@ -242,12 +236,12 @@ git push
 Once you push to main/master, the release workflow automatically:
 1. ✅ Runs tests, lint, typecheck, and build
 2. ✅ Detects changeset exists
-3. ✅ Runs `changeset version` (bumps package.json, updates CHANGELOG.md locally)
+3. ✅ Runs `changeset version` (bumps package.json, updates CHANGELOG.md locally in workflow)
 4. ✅ Rebuilds with new version
 5. ✅ Publishes to npm
-6. ✅ Creates GitHub release
-7. ✅ Commits with message: `chore: release v1.2.0 [skip ci]` (only after npm publish succeeds)
-8. ✅ Creates git tag: `v1.2.0` and pushes to GitHub
+6. ✅ Creates git tag pointing to your commit
+7. ✅ Creates GitHub release
+8. ✅ Done - no commits back to master!
 
 #### Complete Example
 
