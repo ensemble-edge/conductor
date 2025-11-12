@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.4.6
+
+### Patch Changes
+
+- 44e7c96: Add npm version badge to README
+
 ## 1.4.5
 
 ### Patch Changes
