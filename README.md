@@ -16,7 +16,7 @@
 - 🧪 **Built-in Testing** - 276 tests passing, comprehensive mocks, custom matchers
 - 🔄 **State Management** - Built-in state sharing across member executions
 - 💾 **Integrated Caching** - KV-based caching for performance and cost optimization
-- 🧩 **Composable Members** - Think (AI), Function (JS), Data (KV/D1/R2), API (HTTP)
+- 🧩 **Composable Members** - Nine member types: Think (AI), Function (JS), Data (KV/D1/R2), API (HTTP), Email, SMS, HTML, PDF, Page
 - 🛠️ **CLI Tools** - Project scaffolding, member generation, and upgrades
 - 📦 **SDK** - Client library, testing utilities, and member factories
 - 🔁 **Durable Objects** - Stateful workflows with strong consistency (ExecutionState, HITL)
