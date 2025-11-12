@@ -2,6 +2,7 @@
 
 > Edge-native orchestration for AI members. Built on Cloudflare Workers.
 
+[![npm version](https://img.shields.io/npm/v/@ensemble-edge/conductor.svg)](https://www.npmjs.com/package/@ensemble-edge/conductor)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Overview
