@@ -112,10 +112,15 @@ export class PageRouter {
       // Store page in pages map
       this.pages.set(pageName, member)
 
-      // Skip if already registered with explicit route
-      if ((config.config as any)?.route) continue
+      // Check if page has explicit route configuration
+      const routeConfig = (config.config as any)?.route
+      if (routeConfig) {
+        // Register with explicit route configuration
+        this.registerPage(config, member)
+        continue
+      }
 
-      // Convert page name to route path
+      // Auto-discover route from page name
       let path = this.pageNameToPath(pageName)
       path = this.normalizePath(path)
 
