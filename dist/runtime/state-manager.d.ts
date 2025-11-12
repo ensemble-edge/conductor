@@ -19,7 +19,7 @@ export interface StateContext {
     setState: (updates: Record<string, unknown>) => void;
 }
 export interface AccessLogEntry {
-    member: string;
+    agent: string;
     key: string;
     operation: 'read' | 'write';
     timestamp: number;
@@ -38,10 +38,10 @@ export declare class StateManager {
     private readonly logger;
     constructor(config: StateConfig, existingState?: Readonly<Record<string, unknown>>, existingLog?: ReadonlyArray<AccessLogEntry>);
     /**
-     * Create a state context for a specific member
+     * Create a state context for a specific agent
      * Returns both the context and a function to retrieve accumulated updates
      */
-    getStateForMember(memberName: string, config: MemberStateConfig): {
+    getStateForAgent(agentName: string, config: MemberStateConfig): {
         context: StateContext;
         getPendingUpdates: () => {
             updates: Record<string, unknown>;
@@ -49,15 +49,15 @@ export declare class StateManager {
         };
     };
     /**
-     * Apply pending updates from a member execution (returns new StateManager instance)
-     * This is the preferred method when using getStateForMember with getPendingUpdates
+     * Apply pending updates from a agent execution (returns new StateManager instance)
+     * This is the preferred method when using getStateForAgent with getPendingUpdates
      */
     applyPendingUpdates(updates: Record<string, unknown>, newLog: AccessLogEntry[]): StateManager;
     /**
-     * Update state from a member (returns new StateManager instance)
-     * Use applyPendingUpdates for better performance when using getStateForMember
+     * Update state from a agent (returns new StateManager instance)
+     * Use applyPendingUpdates for better performance when using getStateForAgent
      */
-    setStateFromMember(memberName: string, updates: Record<string, unknown>, config: MemberStateConfig): StateManager;
+    setStateFromMember(agentName: string, updates: Record<string, unknown>, config: MemberStateConfig): StateManager;
     /**
      * Get the full current state snapshot
      */

@@ -1,21 +1,21 @@
 /**
  * Execute Routes
  *
- * Endpoints for executing members synchronously and asynchronously.
+ * Endpoints for executing agents synchronously and asynchronously.
  */
 
 import { Hono } from 'hono'
 import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types.js'
-import { getBuiltInRegistry } from '../../members/built-in/registry.js'
-import { MemberType } from '../../types/constants.js'
-import type { MemberExecutionContext } from '../../members/base-member.js'
+import { getBuiltInRegistry } from '../../agents/built-in/registry.js'
+import { Operation } from '../../types/constants.js'
+import type { AgentExecutionContext } from '../../agents/base-agent.js'
 import { createLogger } from '../../observability/index.js'
 
 const execute = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-execute' })
 
 /**
- * POST /execute - Execute a member synchronously
+ * POST /execute - Execute a agent synchronously
  */
 execute.post('/', async (c: ConductorContext) => {
   const startTime = Date.now()
@@ -26,11 +26,11 @@ execute.post('/', async (c: ConductorContext) => {
   const body = await c.req.json<ExecuteRequest>()
 
   // Validate request
-  if (!body.member) {
+  if (!body.agent) {
     return c.json(
       {
         error: 'ValidationError',
-        message: 'Member name is required',
+        message: 'Agent name is required',
         timestamp: Date.now(),
       },
       400
@@ -52,12 +52,12 @@ execute.post('/', async (c: ConductorContext) => {
     // Get built-in registry
     const builtInRegistry = getBuiltInRegistry()
 
-    // Check if member exists
-    if (!builtInRegistry.isBuiltIn(body.member)) {
+    // Check if agent exists
+    if (!builtInRegistry.isBuiltIn(body.agent)) {
       return c.json(
         {
           error: 'MemberNotFound',
-          message: `Member not found: ${body.member}`,
+          message: `Agent not found: ${body.agent}`,
           timestamp: Date.now(),
           requestId,
         },
@@ -65,13 +65,13 @@ execute.post('/', async (c: ConductorContext) => {
       )
     }
 
-    // Get member metadata
-    const metadata = builtInRegistry.getMetadata(body.member)
+    // Get agent metadata
+    const metadata = builtInRegistry.getMetadata(body.agent)
     if (!metadata) {
       return c.json(
         {
           error: 'MemberNotFound',
-          message: `Member metadata not found: ${body.member}`,
+          message: `Agent metadata not found: ${body.agent}`,
           timestamp: Date.now(),
           requestId,
         },
@@ -79,24 +79,24 @@ execute.post('/', async (c: ConductorContext) => {
       )
     }
 
-    // Create member instance
-    const memberConfig = {
-      name: body.member,
-      type: metadata.type,
+    // Create agent instance
+    const agentConfig = {
+      name: body.agent,
+      operation: metadata.operation,
       config: body.config || {},
     }
 
-    const member = builtInRegistry.create(body.member, memberConfig, c.env)
+    const agent = builtInRegistry.create(body.agent, agentConfig, c.env)
 
     // Create execution context
-    const memberContext: MemberExecutionContext = {
+    const memberContext: AgentExecutionContext = {
       input: body.input,
       env: c.env,
       ctx: c.executionCtx,
     }
 
-    // Execute member
-    const result = await member.execute(memberContext)
+    // Execute agent
+    const result = await agent.execute(memberContext)
 
     // Check if execution was successful
     if (!result.success) {
@@ -124,9 +124,9 @@ execute.post('/', async (c: ConductorContext) => {
 
     return c.json(response)
   } catch (error) {
-    logger.error('Member execution failed', error instanceof Error ? error : undefined, {
+    logger.error('Agent execution failed', error instanceof Error ? error : undefined, {
       requestId,
-      memberName: body?.member || 'unknown',
+      agentName: body?.agent || 'unknown',
     })
 
     return c.json(

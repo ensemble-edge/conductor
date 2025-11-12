@@ -45,14 +45,14 @@ export default app;
 // ==================== Option 2: Custom Endpoints (Full Control) ====================
 // Use this approach if you want complete control over your API structure
 
-import { Executor, MemberLoader, PageRouter, UnifiedRouter, PageMember, type MemberConfig } from '@ensemble-edge/conductor';
+import { Executor, MemberLoader, PageRouter, UnifiedRouter, PageAgent, type AgentConfig } from '@ensemble-edge/conductor';
 import { parse as parseYAML } from 'yaml';
 import conductorConfig from '../conductor.config';
 
-// Import your members (add more as you create them)
-import greetConfigRaw from '../members/hello/member.yaml';
-let greetConfig: MemberConfig | null = null;  // ✅ Lazy initialization
-import greetFunction from '../members/hello';
+// Import your agents (add more as you create them)
+import greetConfigRaw from '../agents/hello/agent.yaml';
+let greetConfig: AgentConfig | null = null;  // ✅ Lazy initialization
+import greetFunction from '../agents/hello';
 
 // Import your ensembles (add more as you create them)
 import helloWorldYAML from '../ensembles/hello-world.yaml';
@@ -66,7 +66,7 @@ import { pages as discoveredPages } from 'virtual:conductor-pages';
 // All page parsing and initialization happens on first request
 // This prevents blocking Worker initialization
 let pageRouter: PageRouter | null = null;
-let pagesMap: Map<string, { config: MemberConfig; member: PageMember }> | null = null;
+let pagesMap: Map<string, { config: AgentConfig; agent: PageAgent }> | null = null;
 let pagesInitialized = false;
 
 async function initializePages(): Promise<void> {
@@ -82,7 +82,7 @@ async function initializePages(): Promise<void> {
 	// Convert the discovered pages array into the pagesMap format
 	pagesMap = new Map(
 		discoveredPages.map((page) => {
-			const config = parseYAML(page.config) as MemberConfig;
+			const config = parseYAML(page.config) as AgentConfig;
 
 			// Attach handler function if it exists
 			if (page.handler) {
@@ -90,7 +90,7 @@ async function initializePages(): Promise<void> {
 				(config as any).handler = page.handler.handler || page.handler.default;
 			}
 
-			return [page.name, { config, member: new PageMember(config) }];
+			return [page.name, { config, agent: new PageAgent(config) }];
 		})
 	);
 
@@ -108,7 +108,7 @@ async function initializePages(): Promise<void> {
 // - Permission & role checks
 //
 // See conductor.config.ts for routing configuration
-// See members/docs-*.yaml for examples of route configuration in member YAML files
+// See agents/docs-*.yaml for examples of route configuration in agent YAML files
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -172,8 +172,8 @@ export default {
 				pattern: '/api/v1/protected',
 				path: '/api/v1/protected',
 				methods: ['GET'],
-				memberType: 'api',
-				memberName: 'protected-api',
+				operation: 'api',
+				agentName: 'protected-api',
 				handler: async (req, env, ctx, auth) => {
 					return Response.json({
 						message: 'Protected endpoint',
@@ -197,16 +197,16 @@ export default {
 
 				// Lazy parse greetConfig on first use
 				if (!greetConfig) {
-					greetConfig = parseYAML(greetConfigRaw as unknown as string) as MemberConfig;
+					greetConfig = parseYAML(greetConfigRaw as unknown as string) as AgentConfig;
 				}
 
 				// Create executor
 				const executor = new Executor({ env, ctx });
 				const loader = new MemberLoader({ env, ctx });
 
-				// Register your members
-				const greetMember = loader.registerMember(greetConfig as MemberConfig, greetFunction);
-				executor.registerMember(greetMember);
+				// Register your agents
+				const greetMember = loader.registerAgent(greetConfig as AgentConfig, greetFunction);
+				executor.registerAgent(greetMember);
 
 				// Execute ensemble
 				const result = await executor.executeFromYAML(helloWorldYAML as unknown as string, input);

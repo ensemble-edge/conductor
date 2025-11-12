@@ -44,7 +44,7 @@ export const TTL = {
 export const RETRY = {
     /** Default number of retries for failed operations */
     DEFAULT_MAX: 3,
-    /** Max retries for scoring member execution */
+    /** Max retries for scoring agent execution */
     SCORING_MAX: 3,
 };
 /**

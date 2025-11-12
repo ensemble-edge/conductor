@@ -33,11 +33,11 @@ export class ConductorClient {
         return response;
     }
     async listMembers() {
-        const response = await this.request('GET', '/api/v1/members');
-        return response.members;
+        const response = await this.request('GET', '/api/v1/agents');
+        return response.agents;
     }
-    async getMember(name) {
-        const response = await this.request('GET', `/api/v1/members/${name}`);
+    async getAgent(name) {
+        const response = await this.request('GET', `/api/v1/agents/${name}`);
         return response;
     }
     async health() {

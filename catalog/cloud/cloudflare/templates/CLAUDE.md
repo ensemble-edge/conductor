@@ -4,7 +4,7 @@ This document provides context for AI assistants (Claude, Copilot, etc.) working
 
 ## Project Overview
 
-This is a Conductor orchestration system built on Cloudflare Workers. Conductor enables you to build AI-powered workflows by composing reusable "members" (AI agents, functions, APIs) into "ensembles" (workflows).
+This is a Conductor orchestration system built on Cloudflare Workers. Conductor enables you to build AI-powered workflows by composing reusable "agents" (AI agents, functions, APIs) into "ensembles" (workflows).
 
 ## Project Structure
 
@@ -13,18 +13,18 @@ This is a Conductor orchestration system built on Cloudflare Workers. Conductor 
 ├── src/
 │   ├── index.ts              # Worker entry point (fetch/scheduled handlers)
 │   └── lib/                  # Shared utilities
-├── members/                  # Reusable workflow components
-│   ├── greet/                # Example: greeting member
-│   │   ├── member.yaml       # Member configuration
+├── agents/                  # Reusable workflow components
+│   ├── greet/                # Example: greeting agent
+│   │   ├── agent.yaml       # Agent configuration
 │   │   └── index.ts          # Optional: custom logic
 │   └── docs-writer/          # Example: AI documentation writer
 ├── ensembles/                # Workflow definitions
 │   ├── hello-world.yaml      # Simple greeting workflow
 │   └── parallel-workflow.yaml # Parallel execution example
 ├── prompts/                  # AI prompt templates
-│   └── hello.md           # Used by greet member
-├── configs/                  # Member configurations
-│   └── hello-settings.yaml   # Settings for greet member
+│   └── hello.md           # Used by greet agent
+├── configs/                  # Agent configurations
+│   └── hello-settings.yaml   # Settings for greet agent
 ├── tests/                    # Test files
 │   └── hello-world.test.ts   # Ensemble tests
 ├── wrangler.toml             # Cloudflare Workers config
@@ -43,7 +43,7 @@ Individual components that do one thing well:
 - **Built-in**: Scraping, RAG, validation, HITL, etc.
 
 ### Ensembles
-Workflows that compose members together:
+Workflows that compose agents together:
 - Define execution flow in YAML
 - Support sequential and parallel execution
 - Handle state management
@@ -51,19 +51,19 @@ Workflows that compose members together:
 
 ## Common Tasks
 
-### Adding a New Member
+### Adding a New Agent
 
-1. Create directory: `members/my-member/`
-2. Create config: `members/my-member/member.yaml`
+1. Create directory: `agents/my-agent/`
+2. Create config: `agents/my-agent/agent.yaml`
    ```yaml
-   name: my-member
+   name: my-agent
    type: think  # or function, api, data
-   description: What this member does
+   description: What this agent does
    config:
-     # Member-specific config
+     # Agent-specific config
    ```
-3. (Optional) Add custom logic: `members/my-member/index.ts`
-4. (For Think members) Add prompt: `prompts/my-prompt.md`
+3. (Optional) Add custom logic: `agents/my-agent/index.ts`
+4. (For Think agents) Add prompt: `prompts/my-prompt.md`
 
 ### Creating an Ensemble
 
@@ -72,12 +72,12 @@ Workflows that compose members together:
    name: my-workflow
    description: What this workflow does
    flow:
-     - member: member-1
+     - agent: agent-1
        input:
          key: value
-     - member: member-2
+     - agent: agent-2
        input:
-         data: ${member-1.output.result}
+         data: ${agent-1.output.result}
    ```
 
 ### Testing
@@ -120,7 +120,7 @@ Conductor supports stateful workflows:
 
 ## AI Providers
 
-Supported providers (configured in member.yaml):
+Supported providers (configured in agent.yaml):
 - **Anthropic**: Claude models (default)
 - **OpenAI**: GPT models
 - **Cloudflare**: Workers AI (env.AI binding)
@@ -131,15 +131,15 @@ Supported providers (configured in member.yaml):
 Reference data in ensemble YAML:
 - `${input.key}` - Input data
 - `${state.key}` - Workflow state
-- `${member-name.output.key}` - Previous member output
+- `${agent-name.output.key}` - Previous agent output
 
 ## Common Patterns
 
 ### Sequential Flow
 ```yaml
 flow:
-  - member: step-1
-  - member: step-2
+  - agent: step-1
+  - agent: step-2
     input:
       data: ${step-1.output}
 ```
@@ -147,16 +147,16 @@ flow:
 ### Parallel Execution
 ```yaml
 flow:
-  - member: task-1
-  - member: task-2  # Runs in parallel with task-1
-  - member: task-3  # Runs in parallel with task-1 and task-2
+  - agent: task-1
+  - agent: task-2  # Runs in parallel with task-1
+  - agent: task-3  # Runs in parallel with task-1 and task-2
 ```
 
 ### Conditional Execution
 ```yaml
 flow:
-  - member: check
-  - member: action
+  - agent: check
+  - agent: action
     condition: ${check.output.shouldRun}
 ```
 

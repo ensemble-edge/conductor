@@ -14,14 +14,14 @@ describe('Parser', () => {
 			const yaml = `
 name: test-ensemble
 flow:
-  - member: greeter
+  - agent: greeter
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
 
 			expect(result.name).toBe('test-ensemble');
 			expect(result.flow).toHaveLength(1);
-			expect(result.flow[0].member).toBe('greeter');
+			expect(result.flow[0].agent).toBe('greeter');
 		});
 
 		it('should parse ensemble with description', () => {
@@ -29,7 +29,7 @@ flow:
 name: test
 description: Test ensemble for unit tests
 flow:
-  - member: greeter
+  - agent: greeter
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -44,7 +44,7 @@ state:
     count: 0
     items: []
 flow:
-  - member: counter
+  - agent: counter
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -59,7 +59,7 @@ flow:
 			const yaml = `
 name: mapped
 flow:
-  - member: processor
+  - agent: processor
     input:
       data: \${input.rawData}
       mode: process
@@ -78,7 +78,7 @@ webhooks:
   - path: /trigger
     method: POST
 flow:
-  - member: handler
+  - agent: handler
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -93,7 +93,7 @@ schedules:
   - cron: "0 0 * * *"
     enabled: true
 flow:
-  - member: daily-task
+  - agent: daily-task
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -110,7 +110,7 @@ scoring:
     minimum: 0.7
     target: 0.85
 flow:
-  - member: evaluator
+  - agent: evaluator
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -125,7 +125,7 @@ flow:
 name: test
 # Define flow
 flow:
-  - member: greeter  # Greeting step
+  - agent: greeter  # Greeting step
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -144,7 +144,7 @@ flow: [[[
 		it('should reject ensemble without name', () => {
 			const yaml = `
 flow:
-  - member: greeter
+  - agent: greeter
 			`;
 
 			expect(() => Parser.parseEnsemble(yaml)).toThrow(/name/i);
@@ -158,14 +158,14 @@ name: test
 			expect(() => Parser.parseEnsemble(yaml)).toThrow(/flow/i);
 		});
 
-		it('should reject flow step without member', () => {
+		it('should reject flow step without agent', () => {
 			const yaml = `
 name: test
 flow:
   - input: { data: test }
 			`;
 
-			expect(() => Parser.parseEnsemble(yaml)).toThrow(/member/i);
+			expect(() => Parser.parseEnsemble(yaml)).toThrow(/agent/i);
 		});
 
 		it('should reject invalid scoring threshold', () => {
@@ -176,7 +176,7 @@ scoring:
   defaultThresholds:
     minimum: 1.5
 flow:
-  - member: test
+  - agent: test
 			`;
 
 			expect(() => Parser.parseEnsemble(yaml)).toThrow();
@@ -189,7 +189,7 @@ webhooks:
   - path: /test
     method: DELETE
 flow:
-  - member: test
+  - agent: test
 			`;
 
 			expect(() => Parser.parseEnsemble(yaml)).toThrow();
@@ -201,7 +201,7 @@ name: test
 webhooks:
   - path: ""
 flow:
-  - member: test
+  - agent: test
 			`;
 
 			expect(() => Parser.parseEnsemble(yaml)).toThrow(/path/i);
@@ -213,81 +213,81 @@ name: test
 schedules:
   - cron: ""
 flow:
-  - member: test
+  - agent: test
 			`;
 
 			expect(() => Parser.parseEnsemble(yaml)).toThrow(/cron/i);
 		});
 	});
 
-	describe('Member Parsing', () => {
-		it('should parse think member', () => {
+	describe('Agent Parsing', () => {
+		it('should parse think agent', () => {
 			const yaml = `
 name: thinker
-type: Think
+operation: think
 config:
   model: gpt-4
   systemPrompt: You are helpful
 			`;
 
-			const result = Parser.parseMember(yaml);
-			expect(result.type).toBe('Think');
+			const result = Parser.parseAgent(yaml);
+			expect(result.operation).toBe('think');
 			expect(result.name).toBe('thinker');
 		});
 
-		it('should parse data member', () => {
+		it('should parse data agent', () => {
 			const yaml = `
 name: transformer
-type: Data
+operation: storage
 config:
   query: SELECT * FROM users
 			`;
 
-			const result = Parser.parseMember(yaml);
-			expect(result.type).toBe('Data');
+			const result = Parser.parseAgent(yaml);
+			expect(result.operation).toBe('storage');
 		});
 
-		it('should parse function member', () => {
+		it('should parse function agent', () => {
 			const yaml = `
 name: calculator
-type: Function
+operation: code
 config:
   handler: ./handlers/calculate.js
 			`;
 
-			const result = Parser.parseMember(yaml);
-			expect(result.type).toBe('Function');
+			const result = Parser.parseAgent(yaml);
+			expect(result.operation).toBe('code');
 		});
 
-		it('should parse member with description', () => {
+		it('should parse agent with description', () => {
 			const yaml = `
 name: greeter
-type: Think
+operation: think
 description: Generates friendly greetings
 			`;
 
-			const result = Parser.parseMember(yaml);
+			const result = Parser.parseAgent(yaml);
 			expect(result.description).toBe('Generates friendly greetings');
 		});
 
-		it('should reject member without name', () => {
+		it('should reject agent without name', () => {
 			const yaml = `
-type: Think
+operation: think
 config:
   model: gpt-4
 			`;
 
-			expect(() => Parser.parseMember(yaml)).toThrow(/name/i);
+			expect(() => Parser.parseAgent(yaml)).toThrow(/name/i);
 		});
 
-		it('should reject member without type', () => {
+		it('should reject agent without operation', () => {
 			const yaml = `
 name: thinker
 config:
   model: gpt-4
 			`;
 
-			expect(() => Parser.parseMember(yaml)).toThrow(/type/i);
+			expect(() => Parser.parseAgent(yaml)).toThrow(/operation/i);
 		});
 	});
 
@@ -311,7 +311,7 @@ config:
 			const yaml = `
 name: ${longName}
 flow:
-  - member: test
+  - agent: test
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -322,7 +322,7 @@ flow:
 			const yaml = `
 name: test-émoji-🎉
 flow:
-  - member: greeter
+  - agent: greeter
 			`;
 
 			const result = Parser.parseEnsemble(yaml);
@@ -333,7 +333,7 @@ flow:
 			const yaml = `
 name: test
 flow:
-  - member: greeter
+  - agent: greeter
     input:
       message: "Hello \\"world\\" with 'quotes'"
 			`;
@@ -346,7 +346,7 @@ flow:
 			const yaml = `
 name: test
 flow:
-  - member: test
+  - agent: test
 			`;
 
 			const result = Parser.parseEnsemble(yaml);

@@ -6,8 +6,8 @@
 
 import { Hono } from 'hono'
 import type { ConductorContext, AsyncExecuteRequest, AsyncExecuteResponse } from '../types.js'
-import { getBuiltInRegistry } from '../../members/built-in/registry.js'
-import type { MemberExecutionContext } from '../../members/base-member.js'
+import { getBuiltInRegistry } from '../../agents/built-in/registry.js'
+import type { AgentExecutionContext } from '../../agents/base-agent.js'
 import { createLogger } from '../../observability/index.js'
 
 const async = new Hono<{ Bindings: Env }>()
@@ -27,18 +27,18 @@ const executions = new Map<
 >()
 
 /**
- * POST /async - Execute a member asynchronously
+ * POST /async - Execute a agent asynchronously
  */
 async.post('/', async (c: ConductorContext) => {
   const body = await c.req.json<AsyncExecuteRequest>()
   const requestId = c.get('requestId') || generateExecutionId()
 
   // Validate request
-  if (!body.member || !body.input) {
+  if (!body.agent || !body.input) {
     return c.json(
       {
         error: 'ValidationError',
-        message: 'Member name and input are required',
+        message: 'Agent name and input are required',
         timestamp: Date.now(),
       },
       400
@@ -159,28 +159,28 @@ async function executeAsync(
     // Get built-in registry
     const builtInRegistry = getBuiltInRegistry()
 
-    // Check if member exists
-    if (!builtInRegistry.isBuiltIn(request.member)) {
-      throw new Error(`Member not found: ${request.member}`)
+    // Check if agent exists
+    if (!builtInRegistry.isBuiltIn(request.agent)) {
+      throw new Error(`Agent not found: ${request.agent}`)
     }
 
-    // Get member metadata
-    const metadata = builtInRegistry.getMetadata(request.member)
+    // Get agent metadata
+    const metadata = builtInRegistry.getMetadata(request.agent)
     if (!metadata) {
-      throw new Error(`Member metadata not found: ${request.member}`)
+      throw new Error(`Agent metadata not found: ${request.agent}`)
     }
 
-    // Create member instance
-    const memberConfig = {
-      name: request.member,
-      type: metadata.type,
+    // Create agent instance
+    const agentConfig = {
+      name: request.agent,
+      operation: metadata.operation,
       config: request.config || {},
     }
 
-    const member = builtInRegistry.create(request.member, memberConfig, env)
+    const agent = builtInRegistry.create(request.agent, agentConfig, env)
 
     // Create execution context (simplified - no real ctx available)
-    const memberContext: MemberExecutionContext = {
+    const memberContext: AgentExecutionContext = {
       input: request.input,
       env: env,
       ctx: {
@@ -189,8 +189,8 @@ async function executeAsync(
       } as unknown as ExecutionContext,
     }
 
-    // Execute member
-    const result = await member.execute(memberContext)
+    // Execute agent
+    const result = await agent.execute(memberContext)
 
     // Update status
     if (result.success) {

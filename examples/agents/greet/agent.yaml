@@ -1,0 +1,9 @@
+name: greet
+operation: code
+description: Greet the user with a friendly welcome message
+
+schema:
+  input:
+    name: string
+  output:
+    message: string

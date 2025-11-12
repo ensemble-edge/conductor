@@ -1,7 +1,7 @@
 /**
  * Shared Utility Functions
  *
- * These utilities can be imported and used across your members.
+ * These utilities can be imported and used across your agents.
  * Example: import { formatMessage, sanitizeInput } from '../../lib/formatting';
  */
 

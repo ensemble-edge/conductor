@@ -7,16 +7,16 @@ description: |
   - Multiple providers with fallback
   - Conditional logic based on email result
 
-members:
+agents:
   - name: send-primary
-    type: email
+    operation: email
     config:
       provider:
         provider: cloudflare
         from: transactional@example.com
 
   - name: send-fallback
-    type: email
+    operation: email
     config:
       provider:
         provider: smtp
@@ -33,7 +33,7 @@ flow:
   # Try primary email provider
   - type: try
     steps:
-      - member: send-primary
+      - agent: send-primary
         input:
           to: ${input.email}
           subject: ${input.subject}
@@ -56,7 +56,7 @@ flow:
 
     # Fallback to SMTP if Cloudflare fails
     catch:
-      - member: send-fallback
+      - agent: send-fallback
         input:
           to: ${input.email}
           subject: ${input.subject}

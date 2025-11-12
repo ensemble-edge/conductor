@@ -172,9 +172,9 @@ export interface ValidationResult {
     warnings: string[];
 }
 /**
- * Member reference parsed components
+ * Agent reference parsed components
  */
-export interface MemberReference {
+export interface AgentReference {
     name: string;
     version?: string;
 }

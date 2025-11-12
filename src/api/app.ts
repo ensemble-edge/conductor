@@ -11,7 +11,7 @@ import type { ConductorContext } from './types.js'
 import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js'
 import {
   execute,
-  members,
+  agents,
   health,
   stream,
   async,
@@ -97,7 +97,7 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 
   // API routes (authenticated)
   app.route('/api/v1/execute', execute)
-  app.route('/api/v1/members', members)
+  app.route('/api/v1/agents', agents)
   app.route('/api/v1/stream', stream)
   app.route('/api/v1/async', async)
   app.route('/api/v1/executions', executions)
@@ -116,7 +116,7 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
       endpoints: {
         health: '/health',
         execute: '/api/v1/execute',
-        members: '/api/v1/members',
+        agents: '/api/v1/agents',
       },
     })
   })

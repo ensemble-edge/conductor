@@ -39,7 +39,7 @@ export class ResumptionManager {
                 resumeFromStep,
                 metrics: {
                     startTime: metrics.startTime || Date.now(),
-                    members: metrics.members || [],
+                    agents: metrics.agents || [],
                     cacheHits: metrics.cacheHits || 0,
                 },
                 metadata: {

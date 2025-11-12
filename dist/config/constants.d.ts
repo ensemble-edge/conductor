@@ -44,7 +44,7 @@ export declare const TTL: {
 export declare const RETRY: {
     /** Default number of retries for failed operations */
     readonly DEFAULT_MAX: 3;
-    /** Max retries for scoring member execution */
+    /** Max retries for scoring agent execution */
     readonly SCORING_MAX: 3;
 };
 /**
@@ -120,7 +120,7 @@ export declare const ConductorConfig: {
     readonly retry: {
         /** Default number of retries for failed operations */
         readonly DEFAULT_MAX: 3;
-        /** Max retries for scoring member execution */
+        /** Max retries for scoring agent execution */
         readonly SCORING_MAX: 3;
     };
     readonly thresholds: {

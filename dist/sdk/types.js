@@ -1,5 +1,5 @@
 /**
  * SDK Type Definitions
  */
-import { MemberType } from '../types/constants.js';
-export { MemberType };
+import { Operation } from '../types/constants.js';
+export { Operation };

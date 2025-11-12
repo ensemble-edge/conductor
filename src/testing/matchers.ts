@@ -9,11 +9,11 @@ import { expect } from 'vitest'
 export interface CustomMatchers<R = unknown> {
   toBeSuccessful(): R
   toHaveFailed(): R
-  toHaveExecutedMember(memberName: string): R
+  toHaveExecutedMember(agentName: string): R
   toHaveExecutedSteps(count: number): R
   toHaveCompletedIn(ms: number): R
   toHaveState(key: string, value?: unknown): R
-  toHaveCalledAI(memberName?: string): R
+  toHaveCalledAI(agentName?: string): R
   toHaveUsedTokens(count: number): R
   toHaveCostLessThan(dollars: number): R
   toHaveOutput(expected: unknown): R
@@ -49,18 +49,18 @@ export function toHaveFailed(received: TestExecutionResult) {
 }
 
 /**
- * Check if a specific member was executed
+ * Check if a specific agent was executed
  */
-export function toHaveExecutedMember(received: TestExecutionResult, memberName: string) {
-  const executedMembers = received.stepsExecuted.map((s) => s.member)
-  const pass = executedMembers.includes(memberName)
+export function toHaveExecutedMember(received: TestExecutionResult, agentName: string) {
+  const executedMembers = received.stepsExecuted.map((s) => s.agent)
+  const pass = executedMembers.includes(agentName)
 
   return {
     pass,
     message: () =>
       pass
-        ? `Expected ${memberName} not to be executed`
-        : `Expected ${memberName} to be executed. Executed members: ${executedMembers.join(', ') || 'none'}`,
+        ? `Expected ${agentName} not to be executed`
+        : `Expected ${agentName} to be executed. Executed agents: ${executedMembers.join(', ') || 'none'}`,
   }
 }
 
@@ -125,11 +125,11 @@ export function toHaveState(received: TestExecutionResult, key: string, value?: 
 }
 
 /**
- * Check if AI was called (optionally for a specific member)
+ * Check if AI was called (optionally for a specific agent)
  */
-export function toHaveCalledAI(received: TestExecutionResult, memberName?: string) {
-  const aiCalls = memberName
-    ? received.aiCalls.filter((call) => call.member === memberName)
+export function toHaveCalledAI(received: TestExecutionResult, agentName?: string) {
+  const aiCalls = agentName
+    ? received.aiCalls.filter((call) => call.agent === agentName)
     : received.aiCalls
 
   const pass = aiCalls.length > 0
@@ -137,10 +137,10 @@ export function toHaveCalledAI(received: TestExecutionResult, memberName?: strin
   return {
     pass,
     message: () => {
-      if (memberName) {
+      if (agentName) {
         return pass
-          ? `Expected AI not to be called for member '${memberName}'`
-          : `Expected AI to be called for member '${memberName}' but it wasn't`
+          ? `Expected AI not to be called for agent '${agentName}'`
+          : `Expected AI to be called for agent '${agentName}' but it wasn't`
       }
       return pass ? 'Expected AI not to be called' : "Expected AI to be called but it wasn't"
     },

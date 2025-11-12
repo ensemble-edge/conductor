@@ -1,9 +1,9 @@
 name: html-email-template
-description: Render HTML email template (can be used with Email member)
+description: Render HTML email template (can be used with Email agent)
 
-members:
+agents:
   - name: render-email-html
-    type: HTML
+    operation: html
     config:
       template:
         inline: |
@@ -136,7 +136,7 @@ members:
         minify: false
 
 flow:
-  - member: render-email-html
+  - agent: render-email-html
     input:
       data:
         subject: ${input.subject}

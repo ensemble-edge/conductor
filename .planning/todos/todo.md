@@ -18,3 +18,5 @@
     @ensemble-edge/conductor/cloudflare - Cloudflare-specific import
     DOES include Durable Objects
     Only use in your Cloudflare Workers src/index.ts
+- Consider Cloudflare remote bindings
+- Add appeal to self respecting engineers in ensemble-edge intros. you should be in control, not a buisness analyst who does not know how to spell sql or some black box agent platform the head of sales purchssed.

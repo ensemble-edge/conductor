@@ -8,12 +8,12 @@ export type {
   ClientConfig,
   ExecuteOptions,
   ExecuteResult,
-  Member,
+  Agent,
   MemberDetail,
   HealthStatus,
 } from './client.js'
 
-export { MemberHelpers, createMemberHelpers } from './members.js'
+export { MemberHelpers, createMemberHelpers } from './agents.js'
 
 export type {
   FetchInput,
@@ -38,19 +38,19 @@ export type {
   QueriesInput,
   QueriesOutput,
   QueriesConfig,
-} from './members.js'
+} from './agents.js'
 
-// Member factory functions
+// Agent factory functions
 export {
-  createMember,
+  createAgent,
   createThinkMember,
   createFunctionMember,
   createDataMember,
   createAPIMember,
   generateMemberConfig,
-} from './member-factory.js'
+} from './agent-factory.js'
 
-export type { CreateMemberOptions, MemberHandler } from './types.js'
+export type { CreateAgentOptions, MemberHandler } from './types.js'
 
 // Edgit integration (planned)
 export { loadComponent, loadMemberConfig } from './edgit.js'

@@ -1,5 +1,5 @@
 name: index
-type: Page
+operation: page
 description: Homepage - automatically serves at /
 templateEngine: liquid
 
@@ -154,14 +154,14 @@ head:
 # Default props (can be overridden at runtime)
 input:
   siteName: Conductor
-  tagline: Edge-native orchestration for AI members
+  tagline: Edge-native orchestration for AI agents
   features:
     - icon: "⚡"
       title: Lightning Fast
       description: Deploy globally on Cloudflare's edge network for sub-50ms response times
     - icon: "🔗"
       title: Easy Integration
-      description: Connect AI members with a simple YAML configuration
+      description: Connect AI agents with a simple YAML configuration
     - icon: "🚀"
       title: Zero Config Deploy
       description: One command to deploy your entire application stack

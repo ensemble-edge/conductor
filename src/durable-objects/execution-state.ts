@@ -214,7 +214,7 @@ export class ExecutionState extends DurableObject {
       metrics: {
         ensemble: body.ensembleName,
         totalDuration: 0,
-        members: [],
+        agents: [],
         cacheHits: 0,
       },
       events: [],

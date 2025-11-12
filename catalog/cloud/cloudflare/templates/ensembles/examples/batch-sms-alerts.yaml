@@ -6,9 +6,9 @@ description: |
   - Personalized data per recipient
   - Error handling for failed sends
 
-members:
+agents:
   - name: send-alerts
-    type: SMS
+    operation: sms
     config:
       provider:
         provider: twilio
@@ -19,7 +19,7 @@ members:
       rateLimit: 3  # 3 SMS per second (Twilio limit)
 
 flow:
-  - member: send-alerts
+  - agent: send-alerts
     input:
       recipients:
         - phone: "+1234567890"

@@ -1,11 +1,11 @@
 /**
  * Members Routes
  *
- * Endpoints for listing and discovering members.
+ * Endpoints for listing and discovering agents.
  */
 import { Hono } from 'hono';
-declare const members: Hono<{
+declare const agents: Hono<{
     Bindings: Env;
 }, import("hono/types").BlankSchema, "/">;
-export default members;
+export default agents;
 //# sourceMappingURL=members.d.ts.map

@@ -1,14 +1,14 @@
 /**
  * CLI Exec Command
  *
- * Execute members locally or remotely.
+ * Execute agents locally or remotely.
  */
 
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { getBuiltInRegistry } from '../../members/built-in/registry.js'
+import { getBuiltInRegistry } from '../../agents/built-in/registry.js'
 import { createClient, type ExecuteResult } from '../../sdk/client.js'
-import type { MemberExecutionContext } from '../../members/base-member.js'
+import type { AgentExecutionContext } from '../../agents/base-agent.js'
 import type { ConductorEnv } from '../../types/env.js'
 
 /**
@@ -26,8 +26,8 @@ interface ExecOptions {
 
 export function createExecCommand(): Command {
   const exec = new Command('exec')
-    .description('Execute a member')
-    .argument('<member>', 'Member name to execute')
+    .description('Execute a agent')
+    .argument('<agent>', 'Agent name to execute')
     .option('-i, --input <json>', 'Input data as JSON string')
     .option('-c, --config <json>', 'Configuration as JSON string')
     .option('-f, --file <path>', 'Input data from JSON file')
@@ -35,7 +35,7 @@ export function createExecCommand(): Command {
     .option('--api-url <url>', 'API URL (default: from CONDUCTOR_API_URL env)')
     .option('--api-key <key>', 'API key (default: from CONDUCTOR_API_KEY env)')
     .option('--output <format>', 'Output format: json, pretty, or raw (default: pretty)', 'pretty')
-    .action(async (memberName: string, options: ExecOptions) => {
+    .action(async (agentName: string, options: ExecOptions) => {
       try {
         // Parse input
         let input: Record<string, unknown> = {}
@@ -64,7 +64,7 @@ export function createExecCommand(): Command {
           // Try local execution
           console.log(chalk.dim('→ Executing locally...'))
           executionMode = 'local'
-          result = await executeLocal(memberName, input, config)
+          result = await executeLocal(agentName, input, config)
         } else {
           // Fall back to remote execution
           const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL
@@ -79,7 +79,7 @@ export function createExecCommand(): Command {
 
           console.log(chalk.dim(`→ Executing remotely via ${apiUrl}...`))
           executionMode = 'remote'
-          result = await executeRemote(memberName, input, config, apiUrl, apiKey)
+          result = await executeRemote(agentName, input, config, apiUrl, apiKey)
         }
 
         // Output result
@@ -134,10 +134,10 @@ function canExecuteLocal(): boolean {
 }
 
 /**
- * Execute member locally
+ * Execute agent locally
  */
 async function executeLocal(
-  memberName: string,
+  agentName: string,
   input: Record<string, unknown>,
   config: Record<string, unknown>
 ): Promise<ExecuteResult> {
@@ -146,31 +146,31 @@ async function executeLocal(
   // Get built-in registry
   const registry = getBuiltInRegistry()
 
-  // Check if member exists
-  if (!registry.isBuiltIn(memberName)) {
-    throw new Error(`Member not found: ${memberName}`)
+  // Check if agent exists
+  if (!registry.isBuiltIn(agentName)) {
+    throw new Error(`Agent not found: ${agentName}`)
   }
 
-  // Get member metadata
-  const metadata = registry.getMetadata(memberName)
+  // Get agent metadata
+  const metadata = registry.getMetadata(agentName)
   if (!metadata) {
-    throw new Error(`Member metadata not found: ${memberName}`)
+    throw new Error(`Agent metadata not found: ${agentName}`)
   }
 
-  // Create member instance
-  const memberConfig = {
-    name: memberName,
-    type: metadata.type,
+  // Create agent instance
+  const agentConfig = {
+    name: agentName,
+    operation: metadata.operation,
     config,
   }
 
   // Create mock env (no real bindings in CLI)
   const mockEnv = {} as unknown as ConductorEnv
 
-  const member = registry.create(memberName, memberConfig, mockEnv)
+  const agent = registry.create(agentName, agentConfig, mockEnv)
 
   // Create execution context
-  const context: MemberExecutionContext = {
+  const context: AgentExecutionContext = {
     input,
     env: mockEnv,
     ctx: {
@@ -179,8 +179,8 @@ async function executeLocal(
     } as unknown as ExecutionContext,
   }
 
-  // Execute member
-  const result = await member.execute(context)
+  // Execute agent
+  const result = await agent.execute(context)
 
   return {
     success: result.success,
@@ -195,10 +195,10 @@ async function executeLocal(
 }
 
 /**
- * Execute member remotely via API
+ * Execute agent remotely via API
  */
 async function executeRemote(
-  memberName: string,
+  agentName: string,
   input: Record<string, unknown>,
   config: Record<string, unknown>,
   apiUrl: string,
@@ -210,7 +210,7 @@ async function executeRemote(
   })
 
   const result = await client.execute({
-    member: memberName,
+    agent: agentName,
     input,
     config,
   })

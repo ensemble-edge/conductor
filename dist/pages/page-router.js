@@ -1,7 +1,7 @@
 /**
  * Page Router
  *
- * Automatic routing system for Page members:
+ * Automatic routing system for Page agents:
  * - Auto-discovery of pages from /pages directory
  * - Convention-based routing (directory structure = routes)
  * - Explicit route configuration in YAML
@@ -66,20 +66,24 @@ export class PageRouter {
     async discoverPages(pagesMap) {
         if (!this.config.autoRoute)
             return;
-        for (const [pageName, { config, member }] of pagesMap) {
+        for (const [pageName, { config, agent }] of pagesMap) {
             // Store page in pages map
-            this.pages.set(pageName, member);
-            // Skip if already registered with explicit route
-            if (config.config?.route)
+            this.pages.set(pageName, agent);
+            // Check if page has explicit route configuration
+            const routeConfig = config.config?.route;
+            if (routeConfig) {
+                // Register with explicit route configuration
+                this.registerPage(config, agent);
                 continue;
-            // Convert page name to route path
+            }
+            // Auto-discover route from page name
             let path = this.pageNameToPath(pageName);
             path = this.normalizePath(path);
             const params = this.extractParams(path);
             this.routes.push({
                 path,
                 methods: ['GET'],
-                page: member,
+                page: agent,
                 params,
             });
         }
@@ -164,7 +168,7 @@ export class PageRouter {
                 return new Response('Internal Server Error', { status: 500 });
             }
             const pageOutput = (result.output || result.data);
-            // Use headers from PageMember - it already includes Content-Type
+            // Use headers from PageAgent - it already includes Content-Type
             // Don't duplicate the header or it causes "Unknown character encoding" error
             return new Response(pageOutput.html, {
                 status: 200,
@@ -317,7 +321,7 @@ export class PageRouter {
                 return new Response('Not Found', { status: 404 });
             }
             const pageOutput = (result.output || result.data);
-            // Use headers from PageMember - it already includes Content-Type
+            // Use headers from PageAgent - it already includes Content-Type
             // Don't duplicate the header or it causes "Unknown character encoding" error
             return new Response(pageOutput.html, {
                 status: 404,

@@ -153,7 +153,7 @@ const config: ConductorConfig = {
 	 */
 	// docs: {
 	// 	useAI: true,
-	// 	aiMember: 'docs-writer',
+	// 	aiAgent: 'docs-writer',
 	// 	format: 'yaml' as 'yaml' | 'json',
 	// 	includeExamples: true,
 	// 	includeSecurity: true,

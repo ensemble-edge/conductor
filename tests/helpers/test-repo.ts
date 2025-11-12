@@ -2,13 +2,13 @@
  * TestRepo - Helper for creating isolated test environments
  *
  * Similar to edgit's TestGitRepo but for Conductor projects.
- * Creates temporary directories with ensemble/member definitions for testing.
+ * Creates temporary directories with ensemble/agent definitions for testing.
  */
 
 import { mkdtemp, rm, writeFile, readFile, access, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
-import type { EnsembleConfig, MemberConfig } from '../../src/runtime/parser';
+import type { EnsembleConfig, AgentConfig } from '../../src/runtime/parser';
 import YAML from 'yaml';
 
 export class TestRepo {
@@ -43,11 +43,11 @@ export class TestRepo {
 	}
 
 	/**
-	 * Write a member configuration as YAML
+	 * Write a agent configuration as YAML
 	 */
-	async writeMember(name: string, config: MemberConfig): Promise<void> {
+	async writeMember(name: string, config: AgentConfig): Promise<void> {
 		const yamlContent = YAML.stringify(config);
-		await this.writeFile(`members/${name}.yaml`, yamlContent);
+		await this.writeFile(`agents/${name}.yaml`, yamlContent);
 	}
 
 	/**

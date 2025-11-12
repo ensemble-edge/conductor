@@ -122,7 +122,7 @@ Email: hello@example.com
 			expect(needsResolution('prompts/extraction@v1.0.0')).toBe(
 				true
 			);
-			expect(needsResolution('members/analyzer@latest')).toBe(true);
+			expect(needsResolution('agents/analyzer@latest')).toBe(true);
 			expect(needsResolution('pages/dashboard@production')).toBe(
 				true
 			);
@@ -136,7 +136,7 @@ Email: hello@example.com
 				needsResolution('ai/prompts/extraction@v1.0.0')
 			).toBe(true);
 			expect(
-				needsResolution('shared/members/analyzer@latest')
+				needsResolution('shared/agents/analyzer@latest')
 			).toBe(true);
 		});
 
@@ -177,7 +177,7 @@ Email: hello@example.com
 	describe('CASE 5: Unversioned Components (path/name)', () => {
 		it('should detect unversioned component paths', () => {
 			expect(needsResolution('prompts/extraction')).toBe(true);
-			expect(needsResolution('members/analyzer')).toBe(true);
+			expect(needsResolution('agents/analyzer')).toBe(true);
 			expect(needsResolution('pages/dashboard')).toBe(true);
 		});
 
@@ -286,7 +286,7 @@ Email: hello@example.com
 			expect(needsResolution('prompts/my-prompt_v2@v1.0.0')).toBe(
 				true
 			);
-			expect(needsResolution('members/analyzer_new@latest')).toBe(
+			expect(needsResolution('agents/analyzer_new@latest')).toBe(
 				true
 			);
 		});
@@ -301,7 +301,7 @@ Email: hello@example.com
 					expected: { needsRes: true, shouldBeComponent: true },
 				},
 				{
-					input: 'members/analyzer@latest',
+					input: 'agents/analyzer@latest',
 					expected: { needsRes: true, shouldBeComponent: true },
 				},
 

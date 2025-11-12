@@ -1,21 +1,21 @@
 /**
  * SDK Type Definitions
  */
-import type { MemberExecutionContext, MemberResponse } from '../members/base-member.js';
-import type { MemberConfig } from '../runtime/parser.js';
-import { MemberType } from '../types/constants.js';
-export type { MemberExecutionContext, MemberResponse, MemberConfig };
-export { MemberType };
+import type { AgentExecutionContext, AgentResponse } from '../agents/base-agent.js';
+import type { AgentConfig } from '../runtime/parser.js';
+import { Operation } from '../types/constants.js';
+export type { AgentExecutionContext, AgentResponse, AgentConfig };
+export { Operation };
 /**
- * Member handler function signature
+ * Agent handler function signature
  */
-export type MemberHandler<TInput = unknown, TOutput = unknown> = (context: MemberExecutionContext) => Promise<TOutput> | TOutput;
+export type MemberHandler<TInput = unknown, TOutput = unknown> = (context: AgentExecutionContext) => Promise<TOutput> | TOutput;
 /**
- * Options for creating a member
+ * Options for creating an agent
  */
-export interface CreateMemberOptions {
+export interface CreateAgentOptions {
     name: string;
-    type: MemberType.Function | MemberType.Think | MemberType.Data | MemberType.API | MemberType.Email | MemberType.SMS;
+    operation: Operation.code | Operation.think | Operation.storage | Operation.http | Operation.email | Operation.sms;
     description?: string;
     config?: Record<string, unknown>;
     schema?: {
@@ -43,7 +43,7 @@ export interface ExecutionResult {
     metrics: {
         ensemble: string;
         totalDuration: number;
-        members: Array<{
+        agents: Array<{
             name: string;
             duration: number;
             cached: boolean;
@@ -53,7 +53,7 @@ export interface ExecutionResult {
     };
 }
 /**
- * Member execution result
+ * Agent execution result
  */
 export interface MemberResult {
     success: boolean;

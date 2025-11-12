@@ -64,47 +64,47 @@ export interface ErrorJSON {
     stack?: string;
 }
 /**
- * Member not found in registry
+ * Agent not found in registry
  */
 export declare class MemberNotFoundError extends ConductorError {
-    readonly memberName: string;
+    readonly agentName: string;
     readonly code = ErrorCode.MEMBER_NOT_FOUND;
     readonly isOperational = true;
-    constructor(memberName: string);
+    constructor(agentName: string);
     toUserMessage(): string;
 }
 /**
- * Member configuration is invalid
+ * Agent configuration is invalid
  */
 export declare class MemberConfigurationError extends ConductorError {
-    readonly memberName: string;
+    readonly agentName: string;
     readonly reason: string;
     readonly code = ErrorCode.MEMBER_INVALID_CONFIG;
     readonly isOperational = true;
-    constructor(memberName: string, reason: string);
+    constructor(agentName: string, reason: string);
     toUserMessage(): string;
 }
 /**
- * Member execution failed
+ * Agent execution failed
  */
-export declare class MemberExecutionError extends ConductorError {
-    readonly memberName: string;
+export declare class AgentExecutionError extends ConductorError {
+    readonly agentName: string;
     readonly reason: string;
     readonly cause?: Error | undefined;
     readonly code = ErrorCode.MEMBER_EXECUTION_FAILED;
     readonly isOperational = true;
-    constructor(memberName: string, reason: string, cause?: Error | undefined);
+    constructor(agentName: string, reason: string, cause?: Error | undefined);
     toUserMessage(): string;
 }
 /**
- * Member validation failed
+ * Agent validation failed
  */
 export declare class MemberValidationError extends ConductorError {
-    readonly memberName: string;
+    readonly agentName: string;
     readonly errors: string[];
     readonly code = ErrorCode.MEMBER_VALIDATION_FAILED;
     readonly isOperational = true;
-    constructor(memberName: string, errors: string[]);
+    constructor(agentName: string, errors: string[]);
     toUserMessage(): string;
 }
 /**
@@ -309,9 +309,11 @@ export declare class InternalError extends ConductorError {
  * Error factory for common error scenarios
  */
 export declare const Errors: {
+    /** @deprecated Use agentNotFound instead */
     memberNotFound: (name: string) => MemberNotFoundError;
-    memberConfig: (name: string, reason: string) => MemberConfigurationError;
-    memberExecution: (name: string, reason: string, cause?: Error) => MemberExecutionError;
+    agentNotFound: (name: string) => MemberNotFoundError;
+    agentConfig: (name: string, reason: string) => MemberConfigurationError;
+    memberExecution: (name: string, reason: string, cause?: Error) => AgentExecutionError;
     providerNotFound: (id: string) => ProviderNotFoundError;
     providerAuth: (id: string, reason: string) => ProviderAuthError;
     providerAPI: (id: string, status: number, response: string) => ProviderAPIError;

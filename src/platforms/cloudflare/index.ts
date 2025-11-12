@@ -112,7 +112,7 @@ export class CloudflarePlatform extends BasePlatform {
     if (this.isExternalProvider(provider)) {
       recommendations.push('Use Cloudflare AI Gateway for caching, analytics, and cost controls')
 
-      recommendations.push(`Configure routing in member.yaml: routing: "cloudflare-gateway"`)
+      recommendations.push(`Configure routing in agent.yaml: routing: "cloudflare-gateway"`)
     }
 
     // Context window recommendations

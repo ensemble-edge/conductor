@@ -1,10 +1,10 @@
 name: user-registration
 description: Multi-step user registration form with validation, CAPTCHA, and welcome email
 
-members:
+agents:
   # Multi-step registration form
   - name: registration-form
-    type: Form
+    operation: form
     config:
       title: Create Your Account
       description: Join thousands of users already enjoying our platform
@@ -15,7 +15,7 @@ members:
           description: Choose your username and password
           fields:
             - name: username
-              type: text
+              operation: text
               label: Username
               placeholder: johndoe
               autocomplete: username
@@ -33,7 +33,7 @@ members:
                   message: Username can only contain letters and numbers
 
             - name: email
-              type: email
+              operation: email
               label: Email Address
               placeholder: john@example.com
               autocomplete: email
@@ -42,7 +42,7 @@ members:
                 email: true
 
             - name: password
-              type: password
+              operation: password
               label: Password
               autocomplete: new-password
               help: Must be at least 8 characters with at least one number
@@ -56,7 +56,7 @@ members:
                   message: Password must contain at least one number
 
             - name: confirmPassword
-              type: password
+              operation: password
               label: Confirm Password
               autocomplete: new-password
               validation:
@@ -71,7 +71,7 @@ members:
           description: Tell us a bit about yourself
           fields:
             - name: firstName
-              type: text
+              operation: text
               label: First Name
               placeholder: John
               autocomplete: given-name
@@ -80,7 +80,7 @@ members:
                 minLength: 2
 
             - name: lastName
-              type: text
+              operation: text
               label: Last Name
               placeholder: Doe
               autocomplete: family-name
@@ -89,7 +89,7 @@ members:
                 minLength: 2
 
             - name: dateOfBirth
-              type: date
+              operation: date
               label: Date of Birth
               autocomplete: bday
               max: ${TODAY}
@@ -97,7 +97,7 @@ members:
                 required: true
 
             - name: country
-              type: select
+              operation: select
               label: Country
               autocomplete: country
               options:
@@ -124,18 +124,18 @@ members:
           description: Customize your experience
           fields:
             - name: notifications
-              type: checkbox
+              operation: checkbox
               label: Email notifications
               default: true
               help: Receive updates about your account activity
 
             - name: newsletter
-              type: checkbox
+              operation: checkbox
               label: Subscribe to newsletter
               help: Get weekly tips and product updates
 
             - name: interests
-              type: select
+              operation: select
               label: Interests
               multiple: true
               options:
@@ -148,7 +148,7 @@ members:
               help: Select all that apply (optional)
 
             - name: howDidYouHear
-              type: radio
+              operation: radio
               label: How did you hear about us?
               options:
                 - label: Search Engine
@@ -169,7 +169,7 @@ members:
       submitText: Create Account
       honeypot: _url
       captcha:
-        type: turnstile
+        operation: turnstile
         siteKey: ${TURNSTILE_SITE_KEY}
         secretKey: ${TURNSTILE_SECRET_KEY}
         theme: auto
@@ -185,9 +185,9 @@ members:
           form: registration-form
           button: btn btn-primary btn-lg
 
-  # Validate username availability (simulated with Data member)
+  # Validate username availability (simulated with Data agent)
   - name: check-username
-    type: Data
+    operation: storage
     config:
       data:
         username: $registration-form.data.username
@@ -196,7 +196,7 @@ members:
 
   # Create user account (simulated)
   - name: create-account
-    type: Function
+    operation: code
     config:
       function: |
         async function createAccount(input) {
@@ -224,7 +224,7 @@ members:
 
   # Send welcome email
   - name: send-welcome-email
-    type: Email
+    operation: email
     config:
       from:
         email: welcome@example.com
@@ -284,7 +284,7 @@ members:
 
   # Send admin notification
   - name: notify-admin
-    type: Email
+    operation: email
     config:
       from:
         email: system@example.com

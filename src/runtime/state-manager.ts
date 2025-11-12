@@ -24,7 +24,7 @@ export interface StateContext {
 }
 
 export interface AccessLogEntry {
-  member: string
+  agent: string
   key: string
   operation: 'read' | 'write'
   timestamp: number
@@ -56,11 +56,11 @@ export class StateManager {
   }
 
   /**
-   * Create a state context for a specific member
+   * Create a state context for a specific agent
    * Returns both the context and a function to retrieve accumulated updates
    */
-  getStateForMember(
-    memberName: string,
+  getStateForAgent(
+    agentName: string,
     config: MemberStateConfig
   ): {
     context: StateContext
@@ -76,7 +76,7 @@ export class StateManager {
       if (this.state && key in this.state) {
         viewState[key] = this.state[key]
         newLog.push({
-          member: memberName,
+          agent: agentName,
           key,
           operation: 'read',
           timestamp: Date.now(),
@@ -93,14 +93,14 @@ export class StateManager {
         if (set.includes(key)) {
           pendingUpdates[key] = value
           newLog.push({
-            member: memberName,
+            agent: agentName,
             key,
             operation: 'write',
             timestamp: Date.now(),
           })
         } else {
-          this.logger.warn('Member attempted to set undeclared state key', {
-            memberName,
+          this.logger.warn('Agent attempted to set undeclared state key', {
+            agentName,
             key,
             declaredKeys: set,
           })
@@ -118,8 +118,8 @@ export class StateManager {
   }
 
   /**
-   * Apply pending updates from a member execution (returns new StateManager instance)
-   * This is the preferred method when using getStateForMember with getPendingUpdates
+   * Apply pending updates from a agent execution (returns new StateManager instance)
+   * This is the preferred method when using getStateForAgent with getPendingUpdates
    */
   applyPendingUpdates(updates: Record<string, unknown>, newLog: AccessLogEntry[]): StateManager {
     // If no updates, return this instance (optimization)
@@ -139,11 +139,11 @@ export class StateManager {
   }
 
   /**
-   * Update state from a member (returns new StateManager instance)
-   * Use applyPendingUpdates for better performance when using getStateForMember
+   * Update state from a agent (returns new StateManager instance)
+   * Use applyPendingUpdates for better performance when using getStateForAgent
    */
   setStateFromMember(
-    memberName: string,
+    agentName: string,
     updates: Record<string, unknown>,
     config: MemberStateConfig
   ): StateManager {
@@ -157,14 +157,14 @@ export class StateManager {
       if (set.includes(key)) {
         newState[key] = value
         newLog.push({
-          member: memberName,
+          agent: agentName,
           key,
           operation: 'write',
           timestamp: Date.now(),
         })
       } else {
-        this.logger.warn('Member attempted to set undeclared state key', {
-          memberName,
+        this.logger.warn('Agent attempted to set undeclared state key', {
+          agentName,
           key,
           declaredKeys: set,
         })
@@ -201,13 +201,13 @@ export class StateManager {
     // Find unused keys
     const unusedKeys = allKeys.filter((key) => !usedKeys.has(key))
 
-    // Group access log by member
+    // Group access log by agent
     const accessPatterns: Record<string, AccessLogEntry[]> = {}
     for (const access of this.accessLog) {
-      if (!accessPatterns[access.member]) {
-        accessPatterns[access.member] = []
+      if (!accessPatterns[access.agent]) {
+        accessPatterns[access.agent] = []
       }
-      accessPatterns[access.member].push(access)
+      accessPatterns[access.agent].push(access)
     }
 
     return {

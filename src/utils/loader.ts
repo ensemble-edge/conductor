@@ -1,21 +1,21 @@
 /**
- * Member Loader Utility
+ * Agent Loader Utility
  *
- * Dynamically loads user-created members from their project directory
+ * Dynamically loads user-created agents from their project directory
  * This runs in the user's project context, not in the conductor package
  */
 
-import { Parser, type MemberConfig } from '../runtime/parser.js'
-import { BaseMember } from '../members/base-member.js'
-import { FunctionMember, type FunctionImplementation } from '../members/function-member.js'
-import { ThinkMember } from '../members/think-member.js'
-import { DataMember } from '../members/data-member.js'
-import { APIMember } from '../members/api-member.js'
+import { Parser, type AgentConfig } from '../runtime/parser.js'
+import { BaseAgent } from '../agents/base-agent.js'
+import { FunctionAgent, type FunctionImplementation } from '../agents/function-agent.js'
+import { ThinkAgent } from '../agents/think-agent.js'
+import { DataAgent } from '../agents/data-agent.js'
+import { APIAgent } from '../agents/api-agent.js'
 
 export interface LoaderConfig {
   /**
-   * Base directory where members are located
-   * @default './members'
+   * Base directory where agents are located
+   * @default './agents'
    */
   membersDir?: string
 
@@ -37,17 +37,17 @@ export interface LoaderConfig {
 }
 
 export interface LoadedMember {
-  config: MemberConfig
-  instance: BaseMember
+  config: AgentConfig
+  instance: BaseAgent
 }
 
 /**
- * MemberLoader handles dynamic loading of user-created members
+ * MemberLoader handles dynamic loading of user-created agents
  *
  * Note: In Cloudflare Workers, we can't use Node.js fs module.
  * Members must be bundled at build time using wrangler's module imports.
  *
- * For now, users will need to manually import and register their members.
+ * For now, users will need to manually import and register their agents.
  * Future: We can build a CLI tool that generates the registration code.
  */
 export class MemberLoader {
@@ -56,7 +56,7 @@ export class MemberLoader {
 
   constructor(config: LoaderConfig) {
     this.config = {
-      membersDir: config.membersDir || './members',
+      membersDir: config.membersDir || './agents',
       ensemblesDir: config.ensemblesDir || './ensembles',
       env: config.env,
       ctx: config.ctx,
@@ -65,25 +65,25 @@ export class MemberLoader {
   }
 
   /**
-   * Register a member manually
+   * Register a agent manually
    *
    * @example
    * ```typescript
-   * import greetConfig from './members/greet/member.yaml.js';
-   * import greetFunction from './members/greet/index.js';
+   * import greetConfig from './agents/greet/agent.yaml.js';
+   * import greetFunction from './agents/greet/index.js';
    *
-   * loader.registerMember(greetConfig, greetFunction);
+   * loader.registerAgent(greetConfig, greetFunction);
    * ```
    */
-  registerMember(
-    memberConfig: MemberConfig | string,
+  registerAgent(
+    agentConfig: AgentConfig | string,
     implementation?: FunctionImplementation
-  ): BaseMember {
+  ): BaseAgent {
     // Parse config if it's a string (YAML)
     const config =
-      typeof memberConfig === 'string' ? Parser.parseMember(memberConfig) : memberConfig
+      typeof agentConfig === 'string' ? Parser.parseAgent(agentConfig) : agentConfig
 
-    // Create member instance based on type
+    // Create agent instance based on type
     const instance = this.createMemberInstance(config, implementation)
 
     // Store in registry
@@ -96,9 +96,9 @@ export class MemberLoader {
   }
 
   /**
-   * Load a member from Edgit by version reference
+   * Load a agent from Edgit by version reference
    *
-   * This enables loading versioned member configs at runtime for A/B testing,
+   * This enables loading versioned agent configs at runtime for A/B testing,
    * environment-specific configs, and config-only deployments.
    *
    * @example
@@ -110,11 +110,11 @@ export class MemberLoader {
    * await loader.loadMemberFromEdgit('analyze-company@production');
    * ```
    */
-  async loadMemberFromEdgit(memberRef: string): Promise<BaseMember> {
-    const { name, version } = Parser.parseMemberReference(memberRef)
+  async loadMemberFromEdgit(memberRef: string): Promise<BaseAgent> {
+    const { name, version } = Parser.parseAgentReference(memberRef)
 
     if (!version) {
-      throw new Error(`Member reference must include version: ${memberRef}`)
+      throw new Error(`Agent reference must include version: ${memberRef}`)
     }
 
     // Check if already loaded
@@ -132,76 +132,76 @@ export class MemberLoader {
     // return instance;
 
     throw new Error(
-      `Cannot load versioned member from Edgit: ${memberRef}. ` +
+      `Cannot load versioned agent from Edgit: ${memberRef}. ` +
         `Edgit integration not yet available. ` +
-        `Use loader.registerMember() for now.`
+        `Use loader.registerAgent() for now.`
     )
   }
 
   /**
-   * Create a member instance based on type
+   * Create a agent instance based on type
    */
   private createMemberInstance(
-    config: MemberConfig,
+    config: AgentConfig,
     implementation?: FunctionImplementation
-  ): BaseMember {
-    switch (config.type) {
-      case 'Function':
+  ): BaseAgent {
+    switch (config.operation) {
+      case 'code':
         if (!implementation) {
-          throw new Error(`Function member "${config.name}" requires an implementation function`)
+          throw new Error(`Code agent "${config.name}" requires an implementation function`)
         }
-        return new FunctionMember(config, implementation)
+        return new FunctionAgent(config, implementation)
 
-      case 'Think':
-        return new ThinkMember(config)
+      case 'think':
+        return new ThinkAgent(config)
 
-      case 'Data':
-        return new DataMember(config)
+      case 'storage':
+        return new DataAgent(config)
 
-      case 'API':
-        return new APIMember(config)
+      case 'http':
+        return new APIAgent(config)
 
-      case 'MCP':
-        throw new Error('MCP member type not yet implemented')
+      case 'tools':
+        throw new Error('Tools agent type not yet implemented')
 
-      case 'Scoring':
-        throw new Error('Scoring member type not yet implemented')
+      case 'scoring':
+        throw new Error('Scoring agent type not yet implemented')
 
       default:
-        throw new Error(`Unknown member type: ${config.type}`)
+        throw new Error(`Unknown agent type: ${config.operation}`)
     }
   }
 
   /**
-   * Get a loaded member by name
+   * Get a loaded agent by name
    */
-  getMember(name: string): BaseMember | undefined {
+  getAgent(name: string): BaseAgent | undefined {
     return this.loadedMembers.get(name)?.instance
   }
 
   /**
-   * Get all loaded members
+   * Get all loaded agents
    */
-  getAllMembers(): BaseMember[] {
+  getAllMembers(): BaseAgent[] {
     return Array.from(this.loadedMembers.values()).map((m) => m.instance)
   }
 
   /**
-   * Get all member names
+   * Get all agent names
    */
   getMemberNames(): string[] {
     return Array.from(this.loadedMembers.keys())
   }
 
   /**
-   * Check if a member is loaded
+   * Check if a agent is loaded
    */
   hasMember(name: string): boolean {
     return this.loadedMembers.has(name)
   }
 
   /**
-   * Clear all loaded members
+   * Clear all loaded agents
    */
   clear(): void {
     this.loadedMembers.clear()

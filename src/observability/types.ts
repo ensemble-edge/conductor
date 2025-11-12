@@ -28,7 +28,7 @@ export interface LogContext {
 
   // Execution context
   ensembleName?: string
-  memberName?: string
+  agentName?: string
   stepIndex?: number
   attemptNumber?: number
 

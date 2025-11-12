@@ -191,9 +191,9 @@ export class GraphExecutor {
      * Execute a single step
      */
     async executeStep(step, context, results) {
-        // TODO: Implement actual member execution
+        // TODO: Implement actual agent execution
         // This is a simplified placeholder
-        return { success: true, member: step.member };
+        return { success: true, agent: step.agent };
     }
     /**
      * Execute step with retry, timeout, and conditional execution

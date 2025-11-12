@@ -1,5 +1,35 @@
 {
 	"files.associations": {
-		"wrangler.json": "jsonc"
-	}
+		"wrangler.json": "jsonc",
+		"**/agents/**/agent.yaml": "yaml",
+		"**/ensembles/**/*.yaml": "yaml"
+	},
+	"yaml.schemas": {
+		"./schema/agent.schema.json": [
+			"**/agents/**/agent.yaml",
+			"catalog/**/agents/**/*.yaml"
+		],
+		"./schema/ensemble.schema.json": [
+			"**/ensembles/**/*.yaml",
+			"catalog/**/ensembles/**/*.yaml"
+		]
+	},
+	"yaml.customTags": [
+		"!include scalar",
+		"!ref scalar"
+	],
+	"[yaml]": {
+		"editor.defaultFormatter": "redhat.vscode-yaml",
+		"editor.formatOnSave": true,
+		"editor.tabSize": 2
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true,
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "explicit"
+		}
+	},
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"typescript.enablePromptUseWorkspaceTsdk": true
 }

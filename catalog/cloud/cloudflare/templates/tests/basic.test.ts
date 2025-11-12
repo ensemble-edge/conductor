@@ -7,11 +7,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { Executor, MemberLoader } from '@ensemble-edge/conductor';
-import type { MemberConfig } from '@ensemble-edge/conductor';
+import type { AgentConfig } from '@ensemble-edge/conductor';
 import { stringify as stringifyYAML } from 'yaml';
 import helloWorldYAML from '../ensembles/hello-world.yaml';
-import greetConfig from '../members/hello/member.yaml';
-import greetFunction from '../members/hello';
+import greetConfig from '../agents/hello/agent.yaml';
+import greetFunction from '../agents/hello';
 
 describe('Basic Hello World Test', () => {
 	it('should execute hello-world ensemble successfully', async () => {
@@ -21,9 +21,9 @@ describe('Basic Hello World Test', () => {
 		const executor = new Executor({ env, ctx });
 		const loader = new MemberLoader({ env, ctx });
 
-		// Register the hello member
-		const greetMember = loader.registerMember(greetConfig as MemberConfig, greetFunction);
-		executor.registerMember(greetMember);
+		// Register the hello agent
+		const greetMember = loader.registerAgent(greetConfig as AgentConfig, greetFunction);
+		executor.registerAgent(greetMember);
 
 		// Execute the ensemble
 		// Note: @rollup/plugin-yaml imports YAML as objects, so we stringify it back
@@ -42,10 +42,10 @@ describe('Basic Hello World Test', () => {
 		expect(result.value.output).toBeDefined();
 		expect(result.value.output.greeting).toContain('Hello');
 
-		// Check that the hello member executed successfully
-		expect(result.value.metrics.members).toHaveLength(1);
-		expect(result.value.metrics.members[0].name).toBe('hello');
-		expect(result.value.metrics.members[0].success).toBe(true);
+		// Check that the hello agent executed successfully
+		expect(result.value.metrics.agents).toHaveLength(1);
+		expect(result.value.metrics.agents[0].name).toBe('hello');
+		expect(result.value.metrics.agents[0].success).toBe(true);
 	});
 
 	it('should handle different input names', async () => {
@@ -55,8 +55,8 @@ describe('Basic Hello World Test', () => {
 		const executor = new Executor({ env, ctx });
 		const loader = new MemberLoader({ env, ctx });
 
-		const greetMember = loader.registerMember(greetConfig as MemberConfig, greetFunction);
-		executor.registerMember(greetMember);
+		const greetMember = loader.registerAgent(greetConfig as AgentConfig, greetFunction);
+		executor.registerAgent(greetMember);
 
 		const result = await executor.executeFromYAML(stringifyYAML(helloWorldYAML), {
 			name: 'Alice',
@@ -67,7 +67,7 @@ describe('Basic Hello World Test', () => {
 		if (!result.success) return;
 
 		expect(result.value.output.greeting).toContain('Hello');
-		expect(result.value.metrics.members[0].name).toBe('hello');
+		expect(result.value.metrics.agents[0].name).toBe('hello');
 	});
 
 	it('should complete within reasonable time', async () => {
@@ -77,8 +77,8 @@ describe('Basic Hello World Test', () => {
 		const executor = new Executor({ env, ctx });
 		const loader = new MemberLoader({ env, ctx });
 
-		const greetMember = loader.registerMember(greetConfig as MemberConfig, greetFunction);
-		executor.registerMember(greetMember);
+		const greetMember = loader.registerAgent(greetConfig as AgentConfig, greetFunction);
+		executor.registerAgent(greetMember);
 
 		const startTime = Date.now();
 		const result = await executor.executeFromYAML(stringifyYAML(helloWorldYAML), {

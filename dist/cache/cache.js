@@ -1,5 +1,5 @@
 /**
- * Cache System - Generic caching layer for member executions
+ * Cache System - Generic caching layer for agent executions
  *
  * Uses Repository pattern for storage-agnostic caching.
  * Supports TTL, cache keys, and invalidation strategies.

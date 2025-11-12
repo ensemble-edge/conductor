@@ -59,11 +59,11 @@ const agentConfig = {
 		}
 	},
 
-	// Workflow with queries member
+	// Workflow with queries agent
 	steps: [
 		{
 			name: 'get-user-analytics',
-			member: 'queries',
+			agent: 'queries',
 			input: {
 				queryName: 'user-analytics', // From catalog
 				input: {
@@ -81,7 +81,7 @@ const agentConfig = {
 		},
 		{
 			name: 'get-active-users',
-			member: 'queries',
+			agent: 'queries',
 			input: {
 				sql: 'SELECT id, email, name, last_active_at FROM users WHERE last_active_at >= $1 ORDER BY last_active_at DESC LIMIT $2',
 				input: ['{{ context.sinceDate }}', 100]
@@ -94,7 +94,7 @@ const agentConfig = {
 		},
 		{
 			name: 'federated-query',
-			member: 'queries',
+			agent: 'queries',
 			input: {
 				queryName: 'cross-database-report'
 			},

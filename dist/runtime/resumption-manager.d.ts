@@ -7,7 +7,7 @@
 import type { EnsembleConfig } from './parser.js';
 import { type AsyncResult } from '../types/result.js';
 import { type ConductorError } from '../errors/error-types.js';
-import type { MemberMetric } from './executor.js';
+import type { AgentMetric } from './executor.js';
 import type { ScoringState } from './scoring/types.js';
 /**
  * Suspended execution state
@@ -42,7 +42,7 @@ export interface SuspendedExecutionState {
      */
     metrics: {
         startTime: number;
-        members: MemberMetric[];
+        agents: AgentMetric[];
         cacheHits: number;
     };
     /**
@@ -85,7 +85,7 @@ export declare class ResumptionManager {
      */
     suspend(ensemble: EnsembleConfig, executionContext: Record<string, unknown>, resumeFromStep: number, suspendedBy: string, metrics: {
         startTime: number;
-        members: MemberMetric[];
+        agents: AgentMetric[];
         cacheHits: number;
     }, options?: ResumptionOptions): AsyncResult<string, ConductorError>;
     /**

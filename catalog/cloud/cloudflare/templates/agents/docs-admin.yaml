@@ -1,0 +1,49 @@
+# Admin-Only API Documentation
+# Requires authentication AND admin role
+# Perfect for documenting sensitive admin endpoints
+name: docs-admin
+operation: docs
+description: Admin-only API documentation
+
+# Route configuration
+route:
+  path: /docs/admin
+  methods: [GET]
+  auth:
+    requirement: required
+    methods: [bearer, apiKey, cookie]  # Support multiple auth methods
+    roles: [admin]  # Must have admin role
+    onFailure:
+      action: page  # Show custom error page instead of JSON
+      page: error-403  # Custom 403 page
+  priority: 10  # Higher priority (lower number) to match before other docs routes
+
+# Documentation UI settings
+ui: redoc  # Clean, professional UI for admin docs
+openApiVersion: '3.1'
+
+# Auto-generate OpenAPI spec
+autoGenerate:
+  enabled: true
+  useAI: true
+  aiAgent: docs-writer
+  include:
+    - /api/admin/*  # Only admin endpoints
+    - /api/internal/admin/*
+
+# Branding
+branding:
+  title: Admin API Documentation
+  description: Admin-only API endpoints
+  primaryColor: '#dc3545'
+
+# Caching
+cache:
+  enabled: true
+  ttl: 600  # 10 minutes
+
+# Paths
+paths:
+  docs: /docs/admin
+  yaml: /docs/admin/openapi.yaml
+  json: /docs/admin/openapi.json

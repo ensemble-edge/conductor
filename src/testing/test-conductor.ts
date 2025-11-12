@@ -3,14 +3,14 @@
  */
 
 import type { ConductorEnv } from '../types/env.js'
-import type { EnsembleConfig, MemberConfig } from '../runtime/parser.js'
-import { MemberType } from '../types/constants.js'
+import type { EnsembleConfig, AgentConfig } from '../runtime/parser.js'
+import { Operation } from '../types/constants.js'
 import { Executor } from '../runtime/executor.js'
 import { Parser } from '../runtime/parser.js'
-import { FunctionMember } from '../members/function-member.js'
-import { ThinkMember } from '../members/think-member.js'
-import { APIMember } from '../members/api-member.js'
-import { DataMember } from '../members/data-member.js'
+import { FunctionAgent } from '../agents/function-agent.js'
+import { ThinkAgent } from '../agents/think-agent.js'
+import { APIAgent } from '../agents/api-agent.js'
+import { DataAgent } from '../agents/data-agent.js'
 import type {
   TestConductorOptions,
   TestExecutionResult,
@@ -25,7 +25,7 @@ import type {
 } from './types.js'
 import { MockAIProvider, MockDatabase, MockHTTPClient, MockVectorize } from './mocks.js'
 import { createLogger } from '../observability/index.js'
-import { ProviderRegistry } from '../members/think-providers/index.js'
+import { ProviderRegistry } from '../agents/think-providers/index.js'
 
 /**
  * Test helper for executing and testing Conductor ensembles
@@ -45,7 +45,7 @@ export class TestConductor {
   private executionHistory: ExecutionRecord[] = []
   private catalog: {
     ensembles: Map<string, EnsembleConfig>
-    members: Map<string, MemberConfig>
+    agents: Map<string, AgentConfig>
   }
 
   private constructor(options: TestConductorOptions = {}) {
@@ -61,7 +61,7 @@ export class TestConductor {
       // Only track if we have an active execution
       if (this.executionHistory.length > 0) {
         this.executionHistory[this.executionHistory.length - 1]?.aiCalls.push({
-          member: call.memberName || 'unknown',
+          agent: call.agentName || 'unknown',
           model: call.response.model,
           prompt: JSON.stringify(call.request.messages),
           response: call.response.content,
@@ -107,7 +107,7 @@ export class TestConductor {
     // Initialize catalog
     this.catalog = {
       ensembles: new Map(),
-      members: new Map(),
+      agents: new Map(),
     }
 
     // Initialize parser and executor
@@ -182,7 +182,7 @@ export class TestConductor {
       if (result.success && ensemble.flow) {
         for (const step of ensemble.flow) {
           stepsExecuted.push({
-            member: step.member,
+            agent: step.agent,
             input: {}, // Not tracked yet
             output: {}, // Not tracked yet
             duration: 0,
@@ -233,44 +233,44 @@ export class TestConductor {
   }
 
   /**
-   * Execute a member directly
+   * Execute a agent directly
    */
-  async executeMember(name: string, input: unknown): Promise<TestMemberResult> {
-    const config = this.catalog.members.get(name)
+  async executeAgent(name: string, input: unknown): Promise<TestMemberResult> {
+    const config = this.catalog.agents.get(name)
     if (!config) {
-      throw new Error(`Member '${name}' not found in catalog`)
+      throw new Error(`Agent '${name}' not found in catalog`)
     }
 
     const startTime = Date.now()
 
     try {
-      // Instantiate the member based on its type
+      // Instantiate the agent based on its type
       const normalizedType =
-        String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
-      let member
+        String(config.operation).charAt(0).toUpperCase() + String(config.operation).slice(1)
+      let agent
 
-      if (normalizedType === MemberType.Think) {
-        member = new ThinkMember(config, this.mockProviderRegistry)
-      } else if (normalizedType === MemberType.API) {
-        member = new APIMember(config)
-      } else if (normalizedType === MemberType.Data) {
-        member = new DataMember(config)
-      } else if (normalizedType === MemberType.Function) {
-        throw new Error('Function members not yet supported in executeMember')
+      if (normalizedType === Operation.think) {
+        agent = new ThinkAgent(config, this.mockProviderRegistry)
+      } else if (normalizedType === Operation.http) {
+        agent = new APIAgent(config)
+      } else if (normalizedType === Operation.storage) {
+        agent = new DataAgent(config)
+      } else if (normalizedType === Operation.code) {
+        throw new Error('Function agents not yet supported in executeAgent')
       } else {
-        throw new Error(`Unknown member type: ${config.type}`)
+        throw new Error(`Unknown agent type: ${config.operation}`)
       }
 
-      // Execute the member
-      const result = await member.execute({
+      // Execute the agent
+      const result = await agent.execute({
         input: input as Record<string, unknown>,
         env: this.env as ConductorEnv,
         ctx: this.ctx,
       })
 
-      // If member execution failed, throw the error
+      // If agent execution failed, throw the error
       if (!result.success) {
-        throw new Error(result.error || 'Member execution failed')
+        throw new Error(result.error || 'Agent execution failed')
       }
 
       return {
@@ -286,12 +286,12 @@ export class TestConductor {
   /**
    * Mock AI provider responses
    */
-  mockAI(memberName: string, response: unknown | Error): void {
+  mockAI(agentName: string, response: unknown | Error): void {
     if (!this.mocks.ai) {
       this.mocks.ai = new MockAIProvider({})
       this.mockProviderRegistry.register(this.mocks.ai)
     }
-    this.mocks.ai.setResponse(memberName, response)
+    this.mocks.ai.setResponse(agentName, response)
   }
 
   /**
@@ -346,16 +346,16 @@ export class TestConductor {
   }
 
   /**
-   * Add member to catalog programmatically
+   * Add agent to catalog programmatically
    */
-  addMember(name: string, config: MemberConfig): void {
-    this.catalog.members.set(name, config)
+  addAgent(name: string, config: AgentConfig): void {
+    this.catalog.agents.set(name, config)
 
-    // If it's a Function member with an inline handler, register it with the executor
-    if (config.type === 'Function') {
-      const functionMember = FunctionMember.fromConfig(config)
+    // If it's a code agent with an inline handler, register it with the executor
+    if (config.operation === 'code') {
+      const functionMember = FunctionAgent.fromConfig(config)
       if (functionMember) {
-        this.executor.registerMember(functionMember)
+        this.executor.registerAgent(functionMember)
       }
     }
   }
@@ -368,10 +368,10 @@ export class TestConductor {
   }
 
   /**
-   * Get member from catalog
+   * Get agent from catalog
    */
-  getMember(name: string): MemberConfig | undefined {
-    return this.catalog.members.get(name)
+  getAgent(name: string): AgentConfig | undefined {
+    return this.catalog.agents.get(name)
   }
 
   /**
@@ -427,35 +427,35 @@ export class TestConductor {
       // Ensembles directory doesn't exist or is empty
     }
 
-    // Load members
-    const membersPath = path.join(absoluteProjectPath, 'members')
+    // Load agents
+    const membersPath = path.join(absoluteProjectPath, 'agents')
     try {
       const memberEntries = await fs.readdir(membersPath, { withFileTypes: true })
       for (const entry of memberEntries) {
-        // Case 1: Direct YAML file (e.g., members/greet.yaml)
+        // Case 1: Direct YAML file (e.g., agents/greet.yaml)
         if (entry.isFile() && (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))) {
           const content = await fs.readFile(path.join(membersPath, entry.name), 'utf-8')
-          const config = YAML.parse(content) as MemberConfig
+          const config = YAML.parse(content) as AgentConfig
           const name = entry.name.replace(/\.(yaml|yml)$/, '')
-          this.catalog.members.set(name, config)
+          this.catalog.agents.set(name, config)
         }
-        // Case 2: Subdirectory with member.yaml (e.g., members/greet/member.yaml)
+        // Case 2: Subdirectory with agent.yaml (e.g., agents/greet/agent.yaml)
         else if (entry.isDirectory()) {
-          const memberFilePath = path.join(membersPath, entry.name, 'member.yaml')
+          const memberFilePath = path.join(membersPath, entry.name, 'agent.yaml')
           try {
             const content = await fs.readFile(memberFilePath, 'utf-8')
-            const config = YAML.parse(content) as MemberConfig
-            // Use the member name from the config, not the directory name
-            this.catalog.members.set(config.name, config)
+            const config = YAML.parse(content) as AgentConfig
+            // Use the agent name from the config, not the directory name
+            this.catalog.agents.set(config.name, config)
           } catch {
-            // Try member.yml as fallback
+            // Try agent.yml as fallback
             try {
-              const memberFilePathYml = path.join(membersPath, entry.name, 'member.yml')
+              const memberFilePathYml = path.join(membersPath, entry.name, 'agent.yml')
               const content = await fs.readFile(memberFilePathYml, 'utf-8')
-              const config = YAML.parse(content) as MemberConfig
-              this.catalog.members.set(config.name, config)
+              const config = YAML.parse(content) as AgentConfig
+              this.catalog.agents.set(config.name, config)
             } catch {
-              // No member.yaml or member.yml in this directory, skip it
+              // No agent.yaml or agent.yml in this directory, skip it
             }
           }
         }
@@ -464,43 +464,43 @@ export class TestConductor {
       // Members directory doesn't exist or is empty - silently skip
     }
 
-    // Register loaded members with the executor
+    // Register loaded agents with the executor
     await this.registerLoadedMembers()
   }
 
   /**
-   * Register loaded members with the executor
+   * Register loaded agents with the executor
    */
   private async registerLoadedMembers(): Promise<void> {
-    for (const [name, config] of this.catalog.members.entries()) {
+    for (const [name, config] of this.catalog.agents.entries()) {
       try {
-        let member
+        let agent
 
-        // Instantiate appropriate member type based on config
+        // Instantiate appropriate agent type based on config
         // Normalize type comparison (YAML uses lowercase, enum uses capitalized)
         const normalizedType =
-          String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1)
+          String(config.operation).charAt(0).toUpperCase() + String(config.operation).slice(1)
 
-        if (normalizedType === MemberType.Think) {
-          // Pass mock provider registry to ThinkMember for testing
-          member = new ThinkMember(config, this.mockProviderRegistry)
-        } else if (normalizedType === MemberType.API) {
-          member = new APIMember(config)
-        } else if (normalizedType === MemberType.Data) {
-          member = new DataMember(config)
-        } else if (normalizedType === MemberType.Function) {
-          // For function members, we'd need to load the actual function
-          // For now, skip registration - function members need special handling
+        if (normalizedType === Operation.think) {
+          // Pass mock provider registry to ThinkAgent for testing
+          agent = new ThinkAgent(config, this.mockProviderRegistry)
+        } else if (normalizedType === Operation.http) {
+          agent = new APIAgent(config)
+        } else if (normalizedType === Operation.storage) {
+          agent = new DataAgent(config)
+        } else if (normalizedType === Operation.code) {
+          // For function agents, we'd need to load the actual function
+          // For now, skip registration - function agents need special handling
           continue
         } else {
-          // Skip unknown types - they might be built-in members that don't need registration
+          // Skip unknown types - they might be built-in agents that don't need registration
           continue
         }
 
         // Register with executor
-        this.executor.registerMember(member)
+        this.executor.registerAgent(agent)
       } catch (error) {
-        console.error(`Failed to register member '${name}':`, error)
+        console.error(`Failed to register agent '${name}':`, error)
       }
     }
   }

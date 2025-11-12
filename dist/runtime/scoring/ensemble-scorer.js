@@ -15,7 +15,7 @@ export class EnsembleScorer {
             return 0;
         }
         if (!weights) {
-            // Simple average of latest scores per member
+            // Simple average of latest scores per agent
             const latestScores = this.getLatestScoresPerMember(history);
             const sum = Array.from(latestScores.values()).reduce((acc, score) => acc + score, 0);
             return sum / latestScores.size;
@@ -24,15 +24,15 @@ export class EnsembleScorer {
         const latestScores = this.getLatestScoresPerMember(history);
         let weightedSum = 0;
         let totalWeight = 0;
-        for (const [member, score] of latestScores.entries()) {
-            const weight = weights[member] || 1;
+        for (const [agent, score] of latestScores.entries()) {
+            const weight = weights[agent] || 1;
             weightedSum += score * weight;
             totalWeight += weight;
         }
         return totalWeight > 0 ? weightedSum / totalWeight : 0;
     }
     /**
-     * Get latest score for each member
+     * Get latest score for each agent
      */
     getLatestScoresPerMember(history) {
         const scores = new Map();
@@ -40,7 +40,7 @@ export class EnsembleScorer {
         for (const entry of history) {
             if (entry.passed) {
                 // Only use passing scores
-                scores.set(entry.member, entry.score);
+                scores.set(entry.agent, entry.score);
             }
         }
         return scores;
@@ -116,7 +116,7 @@ export class EnsembleScorer {
         // Update retry count
         const retryCount = { ...state.retryCount };
         if (entry.attempt > 1) {
-            retryCount[entry.member] = (retryCount[entry.member] || 0) + 1;
+            retryCount[entry.agent] = (retryCount[entry.agent] || 0) + 1;
         }
         // Calculate metrics
         const qualityMetrics = this.calculateQualityMetrics(newHistory);
@@ -162,11 +162,11 @@ export class EnsembleScorer {
         const recommendations = [];
         // Low overall score
         if (metrics.ensembleScore < 0.7) {
-            recommendations.push('Overall ensemble score is low. Review member configurations and criteria.');
+            recommendations.push('Overall ensemble score is low. Review agent configurations and criteria.');
         }
         // High retry rate
         if (metrics.totalRetries > metrics.totalEvaluations * 0.5) {
-            recommendations.push('High retry rate detected. Consider adjusting thresholds or improving member quality.');
+            recommendations.push('High retry rate detected. Consider adjusting thresholds or improving agent quality.');
         }
         // Low pass rate
         if (metrics.passRate < 0.8) {

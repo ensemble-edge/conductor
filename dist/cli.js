@@ -21,21 +21,21 @@ var __copyProps = (to, from, except, desc) => {
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/members/base-member.ts
-var BaseMember;
-var init_base_member = __esm({
-  "src/members/base-member.ts"() {
+// src/agents/base-agent.ts
+var BaseAgent;
+var init_base_agent = __esm({
+  "src/agents/base-agent.ts"() {
     "use strict";
-    BaseMember = class {
+    BaseAgent = class {
       constructor(config) {
         this.config = config;
         this.name = config.name;
-        this.type = config.type;
+        this.type = config.operation;
       }
       /**
-       * Execute the member with given input and context
+       * Execute the agent with given input and context
        * @param context - Execution context
-       * @returns Member response
+       * @returns Agent response
        */
       async execute(context) {
         const startTime = Date.now();
@@ -63,7 +63,7 @@ var init_base_member = __esm({
           cached,
           executionTime,
           metadata: {
-            member: this.name,
+            agent: this.name,
             type: this.type
           }
         };
@@ -83,20 +83,20 @@ var init_base_member = __esm({
           cached: false,
           executionTime,
           metadata: {
-            member: this.name,
+            agent: this.name,
             type: this.type
           }
         };
       }
       /**
-       * Generate cache key for this member's execution
+       * Generate cache key for this agent's execution
        * @param input - Input data
        * @returns Cache key string
        */
       async generateCacheKey(input) {
         const inputString = JSON.stringify(this.sortObjectKeys(input));
         const hash = await this.hashString(inputString);
-        return `member:${this.name}:${hash}`;
+        return `agent:${this.name}:${hash}`;
       }
       /**
        * Sort object keys recursively for stable stringification
@@ -131,22 +131,22 @@ var init_base_member = __esm({
         return hashHex.substring(0, 16);
       }
       /**
-       * Get member configuration
-       * @returns Member configuration
+       * Get agent configuration
+       * @returns Agent configuration
        */
       getConfig() {
         return this.config;
       }
       /**
-       * Get member name
-       * @returns Member name
+       * Get agent name
+       * @returns Agent name
        */
       getName() {
         return this.name;
       }
       /**
-       * Get member type
-       * @returns Member type
+       * Get agent type
+       * @returns Agent type
        */
       getType() {
         return this.type;
@@ -155,7 +155,7 @@ var init_base_member = __esm({
   }
 });
 
-// src/members/built-in/scrape/bot-detection.ts
+// src/agents/built-in/scrape/bot-detection.ts
 function detectBotProtection(content) {
   const reasons = [];
   const lowercaseContent = content.toLowerCase();
@@ -178,7 +178,7 @@ function isContentSuccessful(content) {
 }
 var BOT_PROTECTION_KEYWORDS, MIN_CONTENT_LENGTH;
 var init_bot_detection = __esm({
-  "src/members/built-in/scrape/bot-detection.ts"() {
+  "src/agents/built-in/scrape/bot-detection.ts"() {
     "use strict";
     BOT_PROTECTION_KEYWORDS = [
       "cloudflare",
@@ -198,7 +198,7 @@ var init_bot_detection = __esm({
   }
 });
 
-// src/members/built-in/scrape/html-parser.ts
+// src/agents/built-in/scrape/html-parser.ts
 function extractTextFromHTML(html) {
   let text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
   text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
@@ -254,7 +254,7 @@ ${markdown}`;
   return markdown;
 }
 var init_html_parser = __esm({
-  "src/members/built-in/scrape/html-parser.ts"() {
+  "src/agents/built-in/scrape/html-parser.ts"() {
     "use strict";
   }
 });
@@ -465,17 +465,17 @@ var init_observability = __esm({
   }
 });
 
-// src/members/built-in/scrape/scrape-member.ts
+// src/agents/built-in/scrape/scrape-agent.ts
 var logger, ScrapeMember;
-var init_scrape_member = __esm({
-  "src/members/built-in/scrape/scrape-member.ts"() {
+var init_scrape_agent = __esm({
+  "src/agents/built-in/scrape/scrape-agent.ts"() {
     "use strict";
-    init_base_member();
+    init_base_agent();
     init_bot_detection();
     init_html_parser();
     init_observability();
-    logger = createLogger({ serviceName: "scrape-member" });
-    ScrapeMember = class extends BaseMember {
+    logger = createLogger({ serviceName: "scrape-agent" });
+    ScrapeMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
         this.env = env;
@@ -491,7 +491,7 @@ var init_scrape_member = __esm({
       async run(context) {
         const input = context.input;
         if (!input.url) {
-          throw new Error('Scrape member requires "url" in input');
+          throw new Error('Scrape agent requires "url" in input');
         }
         const startTime = Date.now();
         const strategy = this.scrapeConfig.strategy;
@@ -610,7 +610,7 @@ var init_scrape_member = __esm({
   }
 });
 
-// src/members/built-in/scrape/index.ts
+// src/agents/built-in/scrape/index.ts
 var scrape_exports = {};
 __export(scrape_exports, {
   ScrapeMember: () => ScrapeMember,
@@ -621,18 +621,18 @@ __export(scrape_exports, {
   isContentSuccessful: () => isContentSuccessful
 });
 var init_scrape = __esm({
-  "src/members/built-in/scrape/index.ts"() {
+  "src/agents/built-in/scrape/index.ts"() {
     "use strict";
-    init_scrape_member();
+    init_scrape_agent();
     init_bot_detection();
     init_html_parser();
   }
 });
 
-// src/members/built-in/validate/evaluators/base-evaluator.ts
+// src/agents/built-in/validate/evaluators/base-evaluator.ts
 var BaseEvaluator;
 var init_base_evaluator = __esm({
-  "src/members/built-in/validate/evaluators/base-evaluator.ts"() {
+  "src/agents/built-in/validate/evaluators/base-evaluator.ts"() {
     "use strict";
     BaseEvaluator = class {
       /**
@@ -658,10 +658,10 @@ var init_base_evaluator = __esm({
   }
 });
 
-// src/members/built-in/validate/evaluators/rule-evaluator.ts
+// src/agents/built-in/validate/evaluators/rule-evaluator.ts
 var RuleEvaluator;
 var init_rule_evaluator = __esm({
-  "src/members/built-in/validate/evaluators/rule-evaluator.ts"() {
+  "src/agents/built-in/validate/evaluators/rule-evaluator.ts"() {
     "use strict";
     init_base_evaluator();
     RuleEvaluator = class extends BaseEvaluator {
@@ -731,10 +731,10 @@ var init_rule_evaluator = __esm({
   }
 });
 
-// src/members/built-in/validate/evaluators/judge-evaluator.ts
+// src/agents/built-in/validate/evaluators/judge-evaluator.ts
 var JudgeEvaluator;
 var init_judge_evaluator = __esm({
-  "src/members/built-in/validate/evaluators/judge-evaluator.ts"() {
+  "src/agents/built-in/validate/evaluators/judge-evaluator.ts"() {
     "use strict";
     init_base_evaluator();
     JudgeEvaluator = class extends BaseEvaluator {
@@ -765,10 +765,10 @@ var init_judge_evaluator = __esm({
   }
 });
 
-// src/members/built-in/validate/evaluators/nlp-evaluator.ts
+// src/agents/built-in/validate/evaluators/nlp-evaluator.ts
 var NLPEvaluator;
 var init_nlp_evaluator = __esm({
-  "src/members/built-in/validate/evaluators/nlp-evaluator.ts"() {
+  "src/agents/built-in/validate/evaluators/nlp-evaluator.ts"() {
     "use strict";
     init_base_evaluator();
     NLPEvaluator = class extends BaseEvaluator {
@@ -862,10 +862,10 @@ var init_nlp_evaluator = __esm({
   }
 });
 
-// src/members/built-in/validate/evaluators/embedding-evaluator.ts
+// src/agents/built-in/validate/evaluators/embedding-evaluator.ts
 var EmbeddingEvaluator;
 var init_embedding_evaluator = __esm({
-  "src/members/built-in/validate/evaluators/embedding-evaluator.ts"() {
+  "src/agents/built-in/validate/evaluators/embedding-evaluator.ts"() {
     "use strict";
     init_base_evaluator();
     EmbeddingEvaluator = class extends BaseEvaluator {
@@ -923,17 +923,17 @@ var init_embedding_evaluator = __esm({
   }
 });
 
-// src/members/built-in/validate/validate-member.ts
+// src/agents/built-in/validate/validate-agent.ts
 var ValidateMember;
-var init_validate_member = __esm({
-  "src/members/built-in/validate/validate-member.ts"() {
+var init_validate_agent = __esm({
+  "src/agents/built-in/validate/validate-agent.ts"() {
     "use strict";
-    init_base_member();
+    init_base_agent();
     init_rule_evaluator();
     init_judge_evaluator();
     init_nlp_evaluator();
     init_embedding_evaluator();
-    ValidateMember = class extends BaseMember {
+    ValidateMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
         this.env = env;
@@ -951,7 +951,7 @@ var init_validate_member = __esm({
       async run(context) {
         const input = context.input;
         if (!input.content) {
-          throw new Error('Validate member requires "content" in input');
+          throw new Error('Validate agent requires "content" in input');
         }
         const evalType = this.validateConfig.evalType;
         const evaluator = this.getEvaluator(evalType);
@@ -991,7 +991,7 @@ var init_validate_member = __esm({
   }
 });
 
-// src/members/built-in/validate/index.ts
+// src/agents/built-in/validate/index.ts
 var validate_exports = {};
 __export(validate_exports, {
   BaseEvaluator: () => BaseEvaluator,
@@ -1002,9 +1002,9 @@ __export(validate_exports, {
   ValidateMember: () => ValidateMember
 });
 var init_validate = __esm({
-  "src/members/built-in/validate/index.ts"() {
+  "src/agents/built-in/validate/index.ts"() {
     "use strict";
-    init_validate_member();
+    init_validate_agent();
     init_base_evaluator();
     init_rule_evaluator();
     init_judge_evaluator();
@@ -1013,10 +1013,10 @@ var init_validate = __esm({
   }
 });
 
-// src/members/built-in/rag/chunker.ts
+// src/agents/built-in/rag/chunker.ts
 var Chunker;
 var init_chunker = __esm({
-  "src/members/built-in/rag/chunker.ts"() {
+  "src/agents/built-in/rag/chunker.ts"() {
     "use strict";
     Chunker = class {
       /**
@@ -1147,14 +1147,14 @@ var init_chunker = __esm({
   }
 });
 
-// src/members/built-in/rag/rag-member.ts
+// src/agents/built-in/rag/rag-agent.ts
 var RAGMember;
-var init_rag_member = __esm({
-  "src/members/built-in/rag/rag-member.ts"() {
+var init_rag_agent = __esm({
+  "src/agents/built-in/rag/rag-agent.ts"() {
     "use strict";
-    init_base_member();
+    init_base_agent();
     init_chunker();
-    RAGMember = class extends BaseMember {
+    RAGMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
         this.env = env;
@@ -1252,29 +1252,29 @@ var init_rag_member = __esm({
   }
 });
 
-// src/members/built-in/rag/index.ts
+// src/agents/built-in/rag/index.ts
 var rag_exports = {};
 __export(rag_exports, {
   Chunker: () => Chunker,
   RAGMember: () => RAGMember
 });
 var init_rag = __esm({
-  "src/members/built-in/rag/index.ts"() {
+  "src/agents/built-in/rag/index.ts"() {
     "use strict";
-    init_rag_member();
+    init_rag_agent();
     init_chunker();
   }
 });
 
-// src/members/built-in/hitl/hitl-member.ts
+// src/agents/built-in/hitl/hitl-agent.ts
 var logger2, HITLMember;
-var init_hitl_member = __esm({
-  "src/members/built-in/hitl/hitl-member.ts"() {
+var init_hitl_agent = __esm({
+  "src/agents/built-in/hitl/hitl-agent.ts"() {
     "use strict";
-    init_base_member();
+    init_base_agent();
     init_observability();
-    logger2 = createLogger({ serviceName: "hitl-member" });
-    HITLMember = class extends BaseMember {
+    logger2 = createLogger({ serviceName: "hitl-agent" });
+    HITLMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
         this.env = env;
@@ -1500,25 +1500,25 @@ var init_hitl_member = __esm({
   }
 });
 
-// src/members/built-in/hitl/index.ts
+// src/agents/built-in/hitl/index.ts
 var hitl_exports = {};
 __export(hitl_exports, {
   HITLMember: () => HITLMember
 });
 var init_hitl = __esm({
-  "src/members/built-in/hitl/index.ts"() {
+  "src/agents/built-in/hitl/index.ts"() {
     "use strict";
-    init_hitl_member();
+    init_hitl_agent();
   }
 });
 
-// src/members/built-in/fetch/fetch-member.ts
+// src/agents/built-in/fetch/fetch-agent.ts
 var FetchMember;
-var init_fetch_member = __esm({
-  "src/members/built-in/fetch/fetch-member.ts"() {
+var init_fetch_agent = __esm({
+  "src/agents/built-in/fetch/fetch-agent.ts"() {
     "use strict";
-    init_base_member();
-    FetchMember = class extends BaseMember {
+    init_base_agent();
+    FetchMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
         this.env = env;
@@ -1534,7 +1534,7 @@ var init_fetch_member = __esm({
       async run(context) {
         const input = context.input;
         if (!input.url) {
-          throw new Error('Fetch member requires "url" in input');
+          throw new Error('Fetch agent requires "url" in input');
         }
         const startTime = Date.now();
         const maxRetries = this.fetchConfig.retry || 0;
@@ -1607,25 +1607,25 @@ var init_fetch_member = __esm({
   }
 });
 
-// src/members/built-in/fetch/index.ts
+// src/agents/built-in/fetch/index.ts
 var fetch_exports = {};
 __export(fetch_exports, {
   FetchMember: () => FetchMember
 });
 var init_fetch = __esm({
-  "src/members/built-in/fetch/index.ts"() {
+  "src/agents/built-in/fetch/index.ts"() {
     "use strict";
-    init_fetch_member();
+    init_fetch_agent();
   }
 });
 
-// src/members/built-in/queries/queries-member.ts
+// src/agents/built-in/queries/queries-agent.ts
 var QueriesMember;
-var init_queries_member = __esm({
-  "src/members/built-in/queries/queries-member.ts"() {
+var init_queries_agent = __esm({
+  "src/agents/built-in/queries/queries-agent.ts"() {
     "use strict";
-    init_base_member();
-    QueriesMember = class extends BaseMember {
+    init_base_agent();
+    QueriesMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
         this.env = env;
@@ -1771,15 +1771,15 @@ var init_queries_member = __esm({
   }
 });
 
-// src/members/built-in/queries/index.ts
+// src/agents/built-in/queries/index.ts
 var queries_exports = {};
 __export(queries_exports, {
   QueriesMember: () => QueriesMember
 });
 var init_queries = __esm({
-  "src/members/built-in/queries/index.ts"() {
+  "src/agents/built-in/queries/index.ts"() {
     "use strict";
-    init_queries_member();
+    init_queries_agent();
   }
 });
 
@@ -1815,7 +1815,7 @@ function createInitCommand() {
             "conductor.config.ts",
             "conductor.config.js",
             "ensembles",
-            "members"
+            "agents"
           ];
           for (const marker of conductorMarkers) {
             try {
@@ -1835,7 +1835,7 @@ function createInitCommand() {
           console.error(chalk.dim("Initializing will overwrite:"));
           console.error(chalk.dim("  - conductor.config.ts"));
           console.error(chalk.dim("  - ensembles/"));
-          console.error(chalk.dim("  - members/"));
+          console.error(chalk.dim("  - agents/"));
           console.error(chalk.dim("  - prompts/"));
           console.error(chalk.dim("  - configs/"));
           console.error(chalk.dim("  - tests/"));
@@ -1919,7 +1919,7 @@ function createInitCommand() {
         console.log(chalk.dim(`  ${directory !== "." ? "2" : "1"}. npm install`));
         console.log(chalk.dim(`  ${directory !== "." ? "3" : "2"}. Review the generated files:`));
         console.log(chalk.dim("     - ensembles/    : Your workflows"));
-        console.log(chalk.dim("     - members/      : AI members, functions, and agents"));
+        console.log(chalk.dim("     - agents/      : AI agents, functions, and agents"));
         console.log(chalk.dim("     - prompts/      : Prompt templates"));
         console.log(chalk.dim("     - configs/      : Configuration files"));
         console.log(
@@ -1985,66 +1985,66 @@ async function copyDirectory(src, dest, force, includeExamples = true, conductor
 import { Command as Command2 } from "commander";
 import chalk2 from "chalk";
 
-// src/members/built-in/registry.ts
+// src/agents/built-in/registry.ts
 var BuiltInMemberRegistry = class {
   constructor() {
-    this.members = /* @__PURE__ */ new Map();
+    this.agents = /* @__PURE__ */ new Map();
   }
   /**
-   * Register a built-in member
+   * Register a built-in agent
    */
   register(metadata, factory) {
-    this.members.set(metadata.name, {
+    this.agents.set(metadata.name, {
       metadata,
       factory,
       loaded: false
     });
   }
   /**
-   * Check if a member is built-in
+   * Check if a agent is built-in
    */
   isBuiltIn(name) {
-    return this.members.has(name);
+    return this.agents.has(name);
   }
   /**
-   * Get a built-in member instance (lazy loading)
+   * Get a built-in agent instance (lazy loading)
    */
   create(name, config, env) {
-    const entry = this.members.get(name);
+    const entry = this.agents.get(name);
     if (!entry) {
       throw new Error(
-        `Built-in member "${name}" not found. Available: ${this.getAvailableNames().join(", ")}`
+        `Built-in agent "${name}" not found. Available: ${this.getAvailableNames().join(", ")}`
       );
     }
     entry.loaded = true;
     return entry.factory(config, env);
   }
   /**
-   * Get metadata for a built-in member
+   * Get metadata for a built-in agent
    */
   getMetadata(name) {
-    return this.members.get(name)?.metadata;
+    return this.agents.get(name)?.metadata;
   }
   /**
-   * List all built-in members
+   * List all built-in agents
    */
   list() {
-    return Array.from(this.members.values()).map((entry) => entry.metadata);
+    return Array.from(this.agents.values()).map((entry) => entry.metadata);
   }
   /**
-   * Get available member names
+   * Get available agent names
    */
   getAvailableNames() {
-    return Array.from(this.members.keys());
+    return Array.from(this.agents.keys());
   }
   /**
-   * Get members by type
+   * Get agents by type
    */
   listByType(type) {
-    return this.list().filter((m) => m.type === type);
+    return this.list().filter((m) => m.operation === type);
   }
   /**
-   * Get members by tag
+   * Get agents by tag
    */
   listByTag(tag) {
     return this.list().filter((m) => m.tags?.includes(tag));
@@ -2064,7 +2064,7 @@ function registerAllBuiltInMembers(registry2) {
       name: "scrape",
       version: "1.0.0",
       description: "3-tier web scraping with bot protection and fallback strategies",
-      type: "Function" /* Function */,
+      operation: "code" /* code */,
       tags: ["web", "scraping", "cloudflare", "browser-rendering"],
       examples: [
         {
@@ -2082,7 +2082,7 @@ function registerAllBuiltInMembers(registry2) {
           output: { markdown: "...", tier: 3, duration: 4500 }
         }
       ],
-      documentation: "https://docs.conductor.dev/built-in-members/scrape"
+      documentation: "https://docs.conductor.dev/built-in-agents/scrape"
     },
     (config, env) => {
       const { ScrapeMember: ScrapeMember2 } = (init_scrape(), __toCommonJS(scrape_exports));
@@ -2094,7 +2094,7 @@ function registerAllBuiltInMembers(registry2) {
       name: "validate",
       version: "1.0.0",
       description: "Validation and evaluation with pluggable evaluators (judge, NLP, embedding, rule)",
-      type: "Scoring" /* Scoring */,
+      operation: "scoring" /* scoring */,
       tags: ["validation", "evaluation", "scoring", "quality"],
       examples: [
         {
@@ -2122,7 +2122,7 @@ function registerAllBuiltInMembers(registry2) {
           }
         }
       ],
-      documentation: "https://docs.conductor.dev/built-in-members/validate"
+      documentation: "https://docs.conductor.dev/built-in-agents/validate"
     },
     (config, env) => {
       const { ValidateMember: ValidateMember2 } = (init_validate(), __toCommonJS(validate_exports));
@@ -2134,7 +2134,7 @@ function registerAllBuiltInMembers(registry2) {
       name: "rag",
       version: "1.0.0",
       description: "RAG system using Cloudflare Vectorize and AI embeddings",
-      type: "Data" /* Data */,
+      operation: "storage" /* storage */,
       tags: ["rag", "vectorize", "embeddings", "search", "ai"],
       examples: [
         {
@@ -2164,7 +2164,7 @@ function registerAllBuiltInMembers(registry2) {
           output: { results: [], count: 5 }
         }
       ],
-      documentation: "https://docs.conductor.dev/built-in-members/rag"
+      documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     (config, env) => {
       const { RAGMember: RAGMember2 } = (init_rag(), __toCommonJS(rag_exports));
@@ -2176,7 +2176,7 @@ function registerAllBuiltInMembers(registry2) {
       name: "hitl",
       version: "1.0.0",
       description: "Human-in-the-loop workflows with approval gates and notifications",
-      type: "Function" /* Function */,
+      operation: "code" /* code */,
       tags: ["workflow", "approval", "human-in-loop", "durable-objects"],
       examples: [
         {
@@ -2200,7 +2200,7 @@ function registerAllBuiltInMembers(registry2) {
           }
         }
       ],
-      documentation: "https://docs.conductor.dev/built-in-members/hitl"
+      documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     (config, env) => {
       const { HITLMember: HITLMember2 } = (init_hitl(), __toCommonJS(hitl_exports));
@@ -2212,7 +2212,7 @@ function registerAllBuiltInMembers(registry2) {
       name: "fetch",
       version: "1.0.0",
       description: "HTTP client with retry logic and exponential backoff",
-      type: "Function" /* Function */,
+      operation: "code" /* code */,
       tags: ["http", "api", "fetch", "retry"],
       examples: [
         {
@@ -2237,7 +2237,7 @@ function registerAllBuiltInMembers(registry2) {
           }
         }
       ],
-      documentation: "https://docs.conductor.dev/built-in-members/fetch"
+      documentation: "https://docs.conductor.dev/built-in-agents/fetch"
     },
     (config, env) => {
       const { FetchMember: FetchMember2 } = (init_fetch(), __toCommonJS(fetch_exports));
@@ -2249,7 +2249,7 @@ function registerAllBuiltInMembers(registry2) {
       name: "queries",
       version: "1.0.0",
       description: "Execute SQL queries across Hyperdrive-connected databases with query catalog support",
-      type: "Data" /* Data */,
+      operation: "storage" /* storage */,
       tags: ["sql", "database", "queries", "hyperdrive", "analytics"],
       examples: [
         {
@@ -2324,7 +2324,7 @@ function registerAllBuiltInMembers(registry2) {
           includeMetadata: { type: "boolean" }
         }
       },
-      documentation: "https://docs.conductor.dev/built-in-members/queries"
+      documentation: "https://docs.conductor.dev/built-in-agents/queries"
     },
     (config, env) => {
       const { QueriesMember: QueriesMember2 } = (init_queries(), __toCommonJS(queries_exports));
@@ -2363,12 +2363,12 @@ var ConductorClient = class {
   async listMembers() {
     const response = await this.request(
       "GET",
-      "/api/v1/members"
+      "/api/v1/agents"
     );
-    return response.members;
+    return response.agents;
   }
-  async getMember(name) {
-    const response = await this.request("GET", `/api/v1/members/${name}`);
+  async getAgent(name) {
+    const response = await this.request("GET", `/api/v1/agents/${name}`);
     return response;
   }
   async health() {
@@ -2423,7 +2423,7 @@ function createClient(config) {
 
 // src/cli/commands/exec.ts
 function createExecCommand() {
-  const exec = new Command2("exec").description("Execute a member").argument("<member>", "Member name to execute").option("-i, --input <json>", "Input data as JSON string").option("-c, --config <json>", "Configuration as JSON string").option("-f, --file <path>", "Input data from JSON file").option("--remote", "Force remote execution via API").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json, pretty, or raw (default: pretty)", "pretty").action(async (memberName, options) => {
+  const exec = new Command2("exec").description("Execute a agent").argument("<agent>", "Agent name to execute").option("-i, --input <json>", "Input data as JSON string").option("-c, --config <json>", "Configuration as JSON string").option("-f, --file <path>", "Input data from JSON file").option("--remote", "Force remote execution via API").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json, pretty, or raw (default: pretty)", "pretty").action(async (agentName, options) => {
     try {
       let input = {};
       if (options.input) {
@@ -2444,7 +2444,7 @@ function createExecCommand() {
       if (canExecuteLocally) {
         console.log(chalk2.dim("\u2192 Executing locally..."));
         executionMode = "local";
-        result = await executeLocal(memberName, input, config);
+        result = await executeLocal(agentName, input, config);
       } else {
         const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;
         const apiKey = options.apiKey || process.env.CONDUCTOR_API_KEY;
@@ -2456,7 +2456,7 @@ function createExecCommand() {
         }
         console.log(chalk2.dim(`\u2192 Executing remotely via ${apiUrl}...`));
         executionMode = "remote";
-        result = await executeRemote(memberName, input, config, apiUrl, apiKey);
+        result = await executeRemote(agentName, input, config, apiUrl, apiKey);
       }
       if (options.output === "json") {
         console.log(JSON.stringify(result, null, 2));
@@ -2498,23 +2498,23 @@ function canExecuteLocal() {
     return false;
   }
 }
-async function executeLocal(memberName, input, config) {
+async function executeLocal(agentName, input, config) {
   const startTime = Date.now();
   const registry2 = getBuiltInRegistry();
-  if (!registry2.isBuiltIn(memberName)) {
-    throw new Error(`Member not found: ${memberName}`);
+  if (!registry2.isBuiltIn(agentName)) {
+    throw new Error(`Agent not found: ${agentName}`);
   }
-  const metadata = registry2.getMetadata(memberName);
+  const metadata = registry2.getMetadata(agentName);
   if (!metadata) {
-    throw new Error(`Member metadata not found: ${memberName}`);
+    throw new Error(`Agent metadata not found: ${agentName}`);
   }
-  const memberConfig = {
-    name: memberName,
-    type: metadata.type,
+  const agentConfig = {
+    name: agentName,
+    operation: metadata.operation,
     config
   };
   const mockEnv = {};
-  const member = registry2.create(memberName, memberConfig, mockEnv);
+  const agent = registry2.create(agentName, agentConfig, mockEnv);
   const context = {
     input,
     env: mockEnv,
@@ -2525,7 +2525,7 @@ async function executeLocal(memberName, input, config) {
       }
     }
   };
-  const result = await member.execute(context);
+  const result = await agent.execute(context);
   return {
     success: result.success,
     data: result.data,
@@ -2537,25 +2537,25 @@ async function executeLocal(memberName, input, config) {
     }
   };
 }
-async function executeRemote(memberName, input, config, apiUrl, apiKey) {
+async function executeRemote(agentName, input, config, apiUrl, apiKey) {
   const client = createClient({
     baseUrl: apiUrl,
     apiKey
   });
   const result = await client.execute({
-    member: memberName,
+    agent: agentName,
     input,
     config
   });
   return result;
 }
 
-// src/cli/commands/members.ts
+// src/cli/commands/agents.ts
 import { Command as Command3 } from "commander";
 import chalk3 from "chalk";
 function createMembersCommand() {
-  const members = new Command3("members").description("Manage and inspect members");
-  members.command("list").description("List all available members").option("--remote", "List from API instead of local").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json, table, or simple (default: table)", "table").action(async (options) => {
+  const agents = new Command3("agents").description("Manage and inspect agents");
+  agents.command("list").description("List all available agents").option("--remote", "List from API instead of local").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json, table, or simple (default: table)", "table").action(async (options) => {
     try {
       let membersList;
       if (options.remote) {
@@ -2574,7 +2574,7 @@ function createMembersCommand() {
         const builtInMembers = registry2.list();
         membersList = builtInMembers.map((m) => ({
           name: m.name,
-          type: m.type,
+          operation: m.operation,
           version: m.version,
           description: m.description,
           builtIn: true
@@ -2594,14 +2594,14 @@ function createMembersCommand() {
           );
         });
         console.log("");
-        console.log(chalk3.dim(`Total: ${membersList.length} members`));
+        console.log(chalk3.dim(`Total: ${membersList.length} agents`));
       }
     } catch (error) {
       console.error(chalk3.red("Error:"), error.message);
       process.exit(1);
     }
   });
-  members.command("info").description("Get detailed information about a member").argument("<name>", "Member name").option("--remote", "Get info from API instead of local").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json or pretty (default: pretty)", "pretty").action(async (memberName, options) => {
+  agents.command("info").description("Get detailed information about a agent").argument("<name>", "Agent name").option("--remote", "Get info from API instead of local").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").option("--api-key <key>", "API key (default: from CONDUCTOR_API_KEY env)").option("--output <format>", "Output format: json or pretty (default: pretty)", "pretty").action(async (agentName, options) => {
     try {
       let memberInfo;
       if (options.remote) {
@@ -2614,17 +2614,17 @@ function createMembersCommand() {
           process.exit(1);
         }
         const client = createClient({ baseUrl: apiUrl, apiKey });
-        memberInfo = await client.getMember(memberName);
+        memberInfo = await client.getAgent(agentName);
       } else {
         const registry2 = getBuiltInRegistry();
-        if (!registry2.isBuiltIn(memberName)) {
-          console.error(chalk3.red(`Error: Member not found: ${memberName}`));
+        if (!registry2.isBuiltIn(agentName)) {
+          console.error(chalk3.red(`Error: Agent not found: ${agentName}`));
           process.exit(1);
         }
-        const metadata = registry2.getMetadata(memberName);
+        const metadata = registry2.getMetadata(agentName);
         memberInfo = {
           name: metadata.name,
-          type: metadata.type,
+          operation: metadata.operation,
           version: metadata.version,
           description: metadata.description,
           builtIn: true,
@@ -2691,7 +2691,7 @@ function createMembersCommand() {
       process.exit(1);
     }
   });
-  return members;
+  return agents;
 }
 
 // src/cli/commands/docs.ts
@@ -6899,7 +6899,7 @@ var EnsembleSchema = external_exports.object({
   ).optional(),
   flow: external_exports.array(
     external_exports.object({
-      member: external_exports.string().min(1, "Member name is required"),
+      agent: external_exports.string().min(1, "Agent name is required"),
       input: external_exports.record(external_exports.unknown()).optional(),
       state: external_exports.object({
         use: external_exports.array(external_exports.string()).optional(),
@@ -6927,21 +6927,21 @@ var EnsembleSchema = external_exports.object({
   ),
   output: external_exports.record(external_exports.unknown()).optional()
 });
-var MemberSchema = external_exports.object({
-  name: external_exports.string().min(1, "Member name is required"),
-  type: external_exports.enum([
-    "Think" /* Think */,
-    "Function" /* Function */,
-    "Data" /* Data */,
-    "API" /* API */,
-    "MCP" /* MCP */,
-    "Scoring" /* Scoring */,
-    "Email" /* Email */,
-    "SMS" /* SMS */,
-    "Form" /* Form */,
-    "Page" /* Page */,
-    "HTML" /* HTML */,
-    "PDF" /* PDF */
+var AgentSchema = external_exports.object({
+  name: external_exports.string().min(1, "Agent name is required"),
+  operation: external_exports.enum([
+    "think" /* think */,
+    "code" /* code */,
+    "storage" /* storage */,
+    "http" /* http */,
+    "tools" /* tools */,
+    "scoring" /* scoring */,
+    "email" /* email */,
+    "sms" /* sms */,
+    "form" /* form */,
+    "page" /* page */,
+    "html" /* html */,
+    "pdf" /* pdf */
   ]),
   description: external_exports.string().optional(),
   config: external_exports.record(external_exports.unknown()).optional(),
@@ -6977,31 +6977,31 @@ var Parser = class {
     }
   }
   /**
-   * Parse and validate a member YAML file
+   * Parse and validate an agent YAML file
    */
-  static parseMember(yamlContent) {
+  static parseAgent(yamlContent) {
     try {
       const parsed = YAML.parse(yamlContent);
       if (!parsed) {
         throw new Error("Empty or invalid YAML content");
       }
-      const validated = MemberSchema.parse(parsed);
+      const validated = AgentSchema.parse(parsed);
       return validated;
     } catch (error) {
       if (error instanceof external_exports.ZodError) {
         throw new Error(
-          `Member validation failed: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`
+          `Agent validation failed: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`
         );
       }
       throw new Error(
-        `Failed to parse member YAML: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to parse agent YAML: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
   /**
    * Resolve input interpolations using composition-based resolver chain
    *
-   * Supports: ${input.x}, ${state.y}, ${member.output.z}
+   * Supports: ${input.x}, ${state.y}, ${agent.output.z}
    *
    * Reduced from 42 lines of nested if/else to 1 line via chain of responsibility
    */
@@ -7009,15 +7009,15 @@ var Parser = class {
     return this.interpolator.resolve(template, context);
   }
   /**
-   * Parse a member reference that may include version
+   * Parse an agent reference that may include version
    * Supports formats:
-   * - "member-name" (no version)
-   * - "member-name@v1.0.0" (semver version)
-   * - "member-name@production" (deployment tag)
-   * - "member-name@latest" (latest tag)
+   * - "agent-name" (no version)
+   * - "agent-name@v1.0.0" (semver version)
+   * - "agent-name@production" (deployment tag)
+   * - "agent-name@latest" (latest tag)
    */
-  static parseMemberReference(memberRef) {
-    const parts = memberRef.split("@");
+  static parseAgentReference(agentRef) {
+    const parts = agentRef.split("@");
     if (parts.length === 1) {
       return { name: parts[0] };
     }
@@ -7028,23 +7028,23 @@ var Parser = class {
       };
     }
     throw new Error(
-      `Invalid member reference format: ${memberRef}. Expected "name" or "name@version"`
+      `Invalid agent reference format: ${agentRef}. Expected "name" or "name@version"`
     );
   }
   /**
-   * Validate that all required members exist
+   * Validate that all required agents exist
    */
-  static validateMemberReferences(ensemble, availableMembers) {
-    const missingMembers = [];
+  static validateAgentReferences(ensemble, availableAgents) {
+    const missingAgents = [];
     for (const step of ensemble.flow) {
-      const { name } = this.parseMemberReference(step.member);
-      if (!availableMembers.has(name)) {
-        missingMembers.push(step.member);
+      const { name } = this.parseAgentReference(step.agent);
+      if (!availableAgents.has(name)) {
+        missingAgents.push(step.agent);
       }
     }
-    if (missingMembers.length > 0) {
+    if (missingAgents.length > 0) {
       throw new Error(
-        `Ensemble "${ensemble.name}" references missing members: ${missingMembers.join(", ")}`
+        `Ensemble "${ensemble.name}" references missing agents: ${missingAgents.join(", ")}`
       );
     }
   }
@@ -7055,7 +7055,7 @@ import YAML2 from "yaml";
 var OpenAPIGenerator = class {
   constructor(projectPath) {
     this.ensembles = /* @__PURE__ */ new Map();
-    this.members = /* @__PURE__ */ new Map();
+    this.agents = /* @__PURE__ */ new Map();
     this.projectPath = projectPath;
     this.parser = new Parser();
   }
@@ -7066,12 +7066,12 @@ var OpenAPIGenerator = class {
     await this.loadCatalog();
     const spec = await this.generateBaseSpec();
     if (options.useAI) {
-      return await this.enhanceWithAI(spec, options.aiMember);
+      return await this.enhanceWithAI(spec, options.aiAgent);
     }
     return spec;
   }
   /**
-   * Load project catalog (ensembles and members)
+   * Load project catalog (ensembles and agents)
    */
   async loadCatalog() {
     const ensemblesPath = path2.join(this.projectPath, "ensembles");
@@ -7088,17 +7088,17 @@ var OpenAPIGenerator = class {
       }
     } catch (error) {
     }
-    const membersPath = path2.join(this.projectPath, "members");
+    const membersPath = path2.join(this.projectPath, "agents");
     try {
       const dirs = await fs2.readdir(membersPath, { withFileTypes: true });
       for (const dir of dirs) {
         if (dir.name === "examples") continue;
         if (dir.isDirectory()) {
-          const memberYamlPath = path2.join(membersPath, dir.name, "member.yaml");
+          const memberYamlPath = path2.join(membersPath, dir.name, "agent.yaml");
           try {
             const content = await fs2.readFile(memberYamlPath, "utf-8");
-            const member = YAML2.parse(content);
-            this.members.set(member.name, member);
+            const agent = YAML2.parse(content);
+            this.agents.set(agent.name, agent);
           } catch {
           }
         }
@@ -7192,7 +7192,7 @@ var OpenAPIGenerator = class {
   /**
    * Enhance documentation with AI
    */
-  async enhanceWithAI(spec, aiMember) {
+  async enhanceWithAI(spec, aiAgent) {
     console.log("AI enhancement not yet implemented");
     return spec;
   }
@@ -7219,7 +7219,7 @@ var OpenAPIGenerator = class {
       return ensemble.description;
     }
     const stepCount = ensemble.flow.length;
-    const memberNames = ensemble.flow.map((step) => step.member).join(", ");
+    const memberNames = ensemble.flow.map((step) => step.agent).join(", ");
     return `Executes ${stepCount} step${stepCount > 1 ? "s" : ""}: ${memberNames}`;
   }
   /**
@@ -7315,7 +7315,7 @@ var OpenAPIGenerator = class {
 var DEFAULT_CONFIG = {
   docs: {
     useAI: false,
-    aiMember: "docs-writer",
+    aiAgent: "docs-writer",
     format: "yaml",
     includeExamples: true,
     includeSecurity: true,
@@ -7742,7 +7742,7 @@ import * as fs4 from "fs/promises";
 import YAML3 from "yaml";
 function createDocsCommand() {
   const docs = new Command4("docs");
-  docs.description("Generate OpenAPI documentation for your project").option("--ai", "Use AI to enhance documentation (requires docs-writer member)").option("-o, --output <path>", "Output file path", "./openapi.yaml").option("--json", "Output as JSON instead of YAML").action(async (options) => {
+  docs.description("Generate OpenAPI documentation for your project").option("--ai", "Use AI to enhance documentation (requires docs-writer agent)").option("-o, --output <path>", "Output file path", "./openapi.yaml").option("--json", "Output as JSON instead of YAML").action(async (options) => {
     const projectPath = process.cwd();
     try {
       console.log("");
@@ -7757,7 +7757,7 @@ function createDocsCommand() {
       const spec = await generator.generate({
         projectPath,
         useAI,
-        aiMember: "docs-writer"
+        aiAgent: "docs-writer"
       });
       const outputPath = options.output;
       const isJson = options.json || outputPath.endsWith(".json");
@@ -8192,7 +8192,7 @@ function createReplayCommand() {
           console.error("");
           console.error(chalk8.red("\u2717 Can only replay ensemble executions"));
           console.error("");
-          console.error(chalk8.dim("Member executions cannot be replayed independently"));
+          console.error(chalk8.dim("Agent executions cannot be replayed independently"));
           console.error("");
           process.exit(1);
         }
@@ -8322,7 +8322,7 @@ function createReplayCommand() {
 import { Command as Command9 } from "commander";
 import chalk9 from "chalk";
 function createHistoryCommand() {
-  const history = new Command9("history").description("List past execution history").option("--limit <number>", "Limit number of results", "20").option("--type <type>", "Filter by type: ensemble or member").option("--status <status>", "Filter by status: success or failure").option("--json", "Output as JSON").action(
+  const history = new Command9("history").description("List past execution history").option("--limit <number>", "Limit number of results", "20").option("--type <type>", "Filter by type: ensemble or agent").option("--status <status>", "Filter by status: success or failure").option("--json", "Output as JSON").action(
     async (options) => {
       const projectPath = process.cwd();
       try {
@@ -8402,7 +8402,7 @@ function createHistoryCommand() {
 }
 
 // src/cli/index.ts
-var version = "1.4.0";
+var version = "1.5.0";
 var program = new Command10();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

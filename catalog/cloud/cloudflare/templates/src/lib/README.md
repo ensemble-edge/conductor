@@ -1,11 +1,11 @@
 # Shared Utilities
 
-This folder contains **your shared utility functions and helpers** that can be used across your members.
+This folder contains **your shared utility functions and helpers** that can be used across your agents.
 
 ## Why Shared Utilities?
 
 Utilities in `src/lib/` are:
-- **Reusable**: Import from any member or worker code
+- **Reusable**: Import from any agent or worker code
 - **Testable**: Write unit tests for shared logic
 - **Maintainable**: Change once, update everywhere
 - **Type-safe**: Full TypeScript support
@@ -36,9 +36,9 @@ Utilities in `src/lib/` are:
    }
    ```
 
-3. Import and use in your members:
+3. Import and use in your agents:
    ```typescript
-   // members/my-member/index.ts
+   // agents/my-agent/index.ts
    import { formatCurrency, formatDate } from '../../lib/formatting';
 
    export default async function(input: any, context: MemberContext) {
@@ -240,7 +240,7 @@ export function calculateConfidence(factors: {
 
 ## Next Steps
 
-1. Create utilities as you find repeated code across members
+1. Create utilities as you find repeated code across agents
 2. Extract common logic into this folder
 3. Write tests for critical utilities
 4. Document complex utilities with examples

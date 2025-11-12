@@ -7,9 +7,9 @@ description: |
   - Template rendering with common and per-recipient data
   - Error handling for failed sends
 
-members:
+agents:
   - name: send-newsletter
-    type: email
+    operation: email
     config:
       provider:
         provider: resend
@@ -21,7 +21,7 @@ members:
       tracking: true
 
 flow:
-  - member: send-newsletter
+  - agent: send-newsletter
     input:
       recipients:
         - email: user1@example.com

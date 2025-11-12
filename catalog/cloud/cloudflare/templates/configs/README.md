@@ -1,12 +1,12 @@
 # Shared Configs
 
-This folder contains **shared, versioned configuration files** that can be used across multiple members and ensembles.
+This folder contains **shared, versioned configuration files** that can be used across multiple agents and ensembles.
 
 ## 🚧 Status: Coming Soon
 
 **File-based component loading is not yet implemented.** This folder structure demonstrates the intended architecture.
 
-For now, define configs inline in your member.yaml:
+For now, define configs inline in your agent.yaml:
 ```yaml
 config:
   model: "@cf/meta/llama-3.1-8b-instruct"
@@ -23,9 +23,9 @@ config:
 ## Why Shared Configs?
 
 Configs are Edgit components, which means:
-- **Reusable**: Multiple members can reference the same config
+- **Reusable**: Multiple agents can reference the same config
 - **Versioned**: Each config has independent version history
-- **Flexible**: Change settings without changing member code
+- **Flexible**: Change settings without changing agent code
 - **Environment-specific**: Different configs for dev/staging/prod
 
 ## Adding a Config
@@ -50,7 +50,7 @@ Configs are Edgit components, which means:
      ttl: 3600
    ```
 
-3. Reference it in a member's `member.yaml`:
+3. Reference it in a agent's `agent.yaml`:
    ```yaml
    type: think
    name: analyzer
@@ -66,7 +66,7 @@ Configs are Edgit components, which means:
 
 ## Accessing Config Values
 
-In your member code:
+In your agent code:
 ```typescript
 export default async function(input: any, context: MemberContext) {
   const config = context.config;
@@ -90,8 +90,8 @@ export default async function(input: any, context: MemberContext) {
 ## Using Different Versions
 
 ```yaml
-# Different members use different config versions
-members:
+# Different agents use different config versions
+agents:
   - name: analyzer-prod
     type: think
     config:
@@ -105,18 +105,18 @@ members:
 
 ## Co-located Alternative
 
-For rapid development, you can put configs directly in member folders:
+For rapid development, you can put configs directly in agent folders:
 ```
-members/
-  my-member/
-    member.yaml
+agents/
+  my-agent/
+    agent.yaml
     config.yaml      # Co-located config
     index.ts
 ```
 
 **When to use shared vs co-located:**
-- **Co-located**: Early development, member-specific settings
-- **Shared**: Production use, configs used by multiple members, version control needed
+- **Co-located**: Early development, agent-specific settings
+- **Shared**: Production use, configs used by multiple agents, version control needed
 
 ## Environment-Specific Configs
 
@@ -180,4 +180,4 @@ validation:
 
 ## Examples
 
-See how the `greet` member uses shared configs in the hello-world ensemble.
+See how the `greet` agent uses shared configs in the hello-world ensemble.

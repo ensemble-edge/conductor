@@ -10,7 +10,7 @@ import type {
   RouteAuthConfig,
   ResolvedRouteAuthConfig,
   RouteMatch,
-  MemberType,
+  Operation,
 } from './config.js'
 import type { AuthValidator, AuthValidationResult, AuthContext } from '../auth/types.js'
 import {
@@ -33,8 +33,8 @@ interface RegisteredRoute {
   pattern: string
   path: string
   methods: string[]
-  memberType: MemberType
-  memberName: string
+  operation: Operation
+  agentName: string
   auth?: Partial<RouteAuthConfig>
   priority?: number
   handler?: (
@@ -52,8 +52,8 @@ export interface RouteRegistrationOptions {
   pattern: string | 'default'
   path?: string
   methods: string[]
-  memberType: MemberType
-  memberName: string
+  operation: Operation
+  agentName: string
   auth?: Partial<RouteAuthConfig>
   priority?: number
   handler?: (
@@ -110,16 +110,16 @@ export class UnifiedRouter {
     let path = options.path || options.pattern
 
     if (pattern === 'default' || pattern === 'auto') {
-      // Use member path as the route
+      // Use agent path as the route
       // For /pages/login/page.yaml -> /login
-      // For /members/api/users/member.yaml -> /api/users
+      // For /agents/api/users/agent.yaml -> /api/users
       // For /ensembles/workflows/invoice/ensemble.yaml -> /ensembles/workflows/invoice
       if (options.memberPath) {
-        pattern = this.resolveDefaultPath(options.memberPath, options.memberType)
+        pattern = this.resolveDefaultPath(options.memberPath, options.operation)
         path = pattern
       } else {
-        // Fallback to member name if no path provided
-        pattern = `/${options.memberType}s/${options.memberName}`
+        // Fallback to agent name if no path provided
+        pattern = `/${options.operation}s/${options.agentName}`
         path = pattern
       }
     }
@@ -128,8 +128,8 @@ export class UnifiedRouter {
       pattern,
       path,
       methods: options.methods,
-      memberType: options.memberType,
-      memberName: options.memberName,
+      operation: options.operation,
+      agentName: options.agentName,
       auth: options.auth,
       priority: options.priority,
       handler: options.handler,
@@ -139,8 +139,8 @@ export class UnifiedRouter {
 
     // Sort by priority (lower = higher priority)
     this.routes.sort((a, b) => {
-      const aPrio = a.priority ?? this.getDefaultPriority(a.memberType)
-      const bPrio = b.priority ?? this.getDefaultPriority(b.memberType)
+      const aPrio = a.priority ?? this.getDefaultPriority(a.operation)
+      const bPrio = b.priority ?? this.getDefaultPriority(b.operation)
       if (aPrio !== bPrio) return aPrio - bPrio
 
       // Static routes before dynamic (both : params and * wildcards)
@@ -155,18 +155,18 @@ export class UnifiedRouter {
   }
 
   /**
-   * Resolve default path from member directory structure
+   * Resolve default path from agent directory structure
    */
-  private resolveDefaultPath(memberPath: string, memberType: MemberType): string {
+  private resolveDefaultPath(memberPath: string, operation: Operation): string {
     // Remove file extensions and standard names
     let path = memberPath
       .replace(/\.(yaml|yml|ts|js|tsx|jsx)$/, '')
-      .replace(/\/(member|page|ensemble|form|api)$/, '')
+      .replace(/\/(agent|page|ensemble|form|api)$/, '')
 
     // Remove type-specific prefixes
     const prefixes = [
       '/pages/',
-      '/members/',
+      '/agents/',
       '/ensembles/',
       '/forms/',
       '/apis/',
@@ -194,10 +194,10 @@ export class UnifiedRouter {
   }
 
   /**
-   * Get default priority for member type
+   * Get default priority for agent type
    */
-  private getDefaultPriority(memberType: MemberType): number {
-    const priorities: Record<MemberType, number> = {
+  private getDefaultPriority(operation: Operation): number {
+    const priorities: Record<Operation, number> = {
       static: 1,
       health: 2,
       auth: 3,
@@ -207,7 +207,7 @@ export class UnifiedRouter {
       page: 80,
       form: 90,
     }
-    return priorities[memberType] || 100
+    return priorities[operation] || 100
   }
 
   /**
@@ -274,14 +274,14 @@ export class UnifiedRouter {
       }
 
       // Resolve auth config
-      const auth = this.resolveAuthConfig(route.pattern, route.memberType, route.auth)
+      const auth = this.resolveAuthConfig(route.pattern, route.operation, route.auth)
 
       return {
         pattern: route.pattern,
         params,
         auth,
-        memberType: route.memberType,
-        priority: route.priority ?? this.getDefaultPriority(route.memberType),
+        operation: route.operation,
+        priority: route.priority ?? this.getDefaultPriority(route.operation),
       }
     }
 
@@ -293,13 +293,13 @@ export class UnifiedRouter {
    */
   private resolveAuthConfig(
     path: string,
-    memberType: MemberType,
+    operation: Operation,
     memberAuth?: Partial<RouteAuthConfig>
   ): ResolvedRouteAuthConfig {
-    // Priority: member > path rule > type default > global default
+    // Priority: agent > path rule > type default > global default
 
     let resolved: Partial<RouteAuthConfig> = {}
-    let source: 'member' | 'rule' | 'type-default' | 'global-default' = 'global-default'
+    let source: 'agent' | 'rule' | 'type-default' | 'global-default' = 'global-default'
 
     // 1. Global default
     if (this.config.routing?.auth?.global) {
@@ -309,8 +309,8 @@ export class UnifiedRouter {
     // 2. Type default
     const typeDefaults = this.config.routing?.auth?.defaults
     if (typeDefaults) {
-      // Map member types to config keys (handle singular/plural variations)
-      const typeKeyMap: Record<MemberType, keyof typeof typeDefaults> = {
+      // Map agent types to config keys (handle singular/plural variations)
+      const typeKeyMap: Record<Operation, keyof typeof typeDefaults> = {
         page: 'pages',
         api: 'api',
         webhook: 'webhooks',
@@ -320,7 +320,7 @@ export class UnifiedRouter {
         health: 'api', // Use api default for health
         auth: 'api', // Use api default for auth
       }
-      const typeKey = typeKeyMap[memberType]
+      const typeKey = typeKeyMap[operation]
       if (typeKey && typeDefaults[typeKey]) {
         resolved = { ...resolved, ...typeDefaults[typeKey] }
         source = 'type-default'
@@ -340,10 +340,10 @@ export class UnifiedRouter {
       }
     }
 
-    // 4. Member-specific
+    // 4. Agent-specific
     if (memberAuth) {
       resolved = { ...resolved, ...memberAuth }
-      source = 'member'
+      source = 'agent'
     }
 
     // Ensure requirement is set
@@ -481,7 +481,7 @@ export class UnifiedRouter {
     // Find registered route handler
     const route = this.routes.find((r) => r.pattern === match.pattern)
     if (!route?.handler) {
-      return null // No handler, let member handle it
+      return null // No handler, let agent handle it
     }
 
     // Call handler with auth context

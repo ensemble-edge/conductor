@@ -1,7 +1,7 @@
 /**
  * CLI Exec Command
  *
- * Execute members locally or remotely.
+ * Execute agents locally or remotely.
  */
 import { Command } from 'commander';
 export declare function createExecCommand(): Command;

@@ -1,11 +1,11 @@
 /**
  * Scoring Executor
  *
- * Handles member execution with scoring, retry logic, and backoff strategies.
+ * Handles agent execution with scoring, retry logic, and backoff strategies.
  */
 
 import type {
-  MemberScoringConfig,
+  AgentScoringConfig,
   ScoringResult,
   ScoredExecutionResult,
   BackoffStrategy,
@@ -18,16 +18,16 @@ const logger = createLogger({ serviceName: 'scoring-executor' })
 
 export class ScoringExecutor {
   /**
-   * Execute a member with scoring and retry logic
+   * Execute a agent with scoring and retry logic
    */
   async executeWithScoring<T = any>(
-    executeMember: () => Promise<T>,
+    executeAgent: () => Promise<T>,
     evaluateOutput: (
       output: T,
       attempt: number,
       previousScore?: ScoringResult
     ) => Promise<ScoringResult>,
-    config: MemberScoringConfig
+    config: AgentScoringConfig
   ): Promise<ScoredExecutionResult<T>> {
     const startTime = Date.now()
     let attempts = 0
@@ -40,8 +40,8 @@ export class ScoringExecutor {
       attempts++
 
       try {
-        // Execute the member
-        const output = await executeMember()
+        // Execute the agent
+        const output = await executeAgent()
         lastOutput = output
 
         // Evaluate the output

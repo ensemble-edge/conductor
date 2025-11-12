@@ -19,7 +19,7 @@ export interface AuthFailureAction {
   /** Preserve return URL in query (for redirect action) */
   preserveReturn?: boolean
 
-  /** Page member name (for page action) */
+  /** Page agent name (for page action) */
   page?: string
 
   /** Context to pass to error/page */
@@ -182,16 +182,16 @@ export interface ConductorConfig {
 }
 
 /**
- * Member type for route resolution
+ * Agent type for route resolution
  */
-export type MemberType = 'page' | 'api' | 'webhook' | 'form' | 'docs' | 'static' | 'health' | 'auth'
+export type Operation = 'page' | 'api' | 'webhook' | 'form' | 'docs' | 'static' | 'health' | 'auth'
 
 /**
  * Resolved route auth config (after applying defaults and rules)
  */
 export interface ResolvedRouteAuthConfig extends RouteAuthConfig {
   /** Source of config (for debugging) */
-  source: 'member' | 'rule' | 'type-default' | 'global-default'
+  source: 'agent' | 'rule' | 'type-default' | 'global-default'
 
   /** Rate limit config */
   rateLimit?: RateLimitConfig
@@ -210,8 +210,8 @@ export interface RouteMatch {
   /** Resolved auth config */
   auth: ResolvedRouteAuthConfig
 
-  /** Member type */
-  memberType: MemberType
+  /** Agent type */
+  operation: Operation
 
   /** Priority */
   priority: number

@@ -11,13 +11,13 @@ export function createHistoryCommand(): Command {
   const history = new Command('history')
     .description('List past execution history')
     .option('--limit <number>', 'Limit number of results', '20')
-    .option('--type <type>', 'Filter by type: ensemble or member')
+    .option('--type <type>', 'Filter by type: ensemble or agent')
     .option('--status <status>', 'Filter by status: success or failure')
     .option('--json', 'Output as JSON')
     .action(
       async (options: {
         limit: string
-        type?: 'ensemble' | 'member'
+        type?: 'ensemble' | 'agent'
         status?: 'success' | 'failure'
         json?: boolean
       }) => {

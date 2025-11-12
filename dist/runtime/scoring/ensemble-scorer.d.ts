@@ -12,7 +12,7 @@ export declare class EnsembleScorer {
      */
     calculateEnsembleScore(history: ScoreHistoryEntry[], weights?: Record<string, number>): number;
     /**
-     * Get latest score for each member
+     * Get latest score for each agent
      */
     private getLatestScoresPerMember;
     /**

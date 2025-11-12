@@ -2,7 +2,7 @@
  * Cache Warming Utility
  *
  * Enables pre-population of edge cache after deployment for improved performance
- * Works with any member type that has cache configuration
+ * Works with any agent type that has cache configuration
  */
 export interface CacheWarmingConfig {
     /** Routes to warm (with optional priority) */
@@ -49,12 +49,12 @@ export interface WarmingResult {
  */
 export declare function warmCache(config: CacheWarmingConfig): Promise<WarmingResult[]>;
 /**
- * Extract routes from member configurations for cache warming
- * Works with any member type (Page, API, Data, etc.) that has:
+ * Extract routes from agent configurations for cache warming
+ * Works with any agent type (Page, API, Data, etc.) that has:
  * - A route configuration
  * - A cache configuration with warming enabled
  */
-export declare function extractWarmableRoutes(members: any[]): RouteToWarm[];
+export declare function extractWarmableRoutes(agents: any[]): RouteToWarm[];
 /**
  * Schedule cache refresh via Cloudflare Cron
  *

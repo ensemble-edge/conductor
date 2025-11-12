@@ -3,7 +3,7 @@
  *
  * Helpers for loading components from Edgit
  */
-import { type MemberConfig } from '../runtime/parser.js';
+import { type AgentConfig } from '../runtime/parser.js';
 /**
  * Load a component from Edgit (prompts, queries, templates, etc.)
  *
@@ -14,9 +14,9 @@ import { type MemberConfig } from '../runtime/parser.js';
  */
 export declare function loadComponent(componentRef: string, env: Env): Promise<string>;
 /**
- * Load a member configuration from Edgit
+ * Load a agent configuration from Edgit
  *
- * This loads versioned member.yaml files, enabling configuration-only deployments
+ * This loads versioned agent.yaml files, enabling configuration-only deployments
  * and A/B testing without code changes.
  *
  * @example
@@ -28,7 +28,7 @@ export declare function loadComponent(componentRef: string, env: Env): Promise<s
  * const config = await loadMemberConfig('analyze-company@production', env);
  * ```
  */
-export declare function loadMemberConfig(memberRef: string, env: Env): Promise<MemberConfig>;
+export declare function loadMemberConfig(memberRef: string, env: Env): Promise<AgentConfig>;
 /**
  * Load component metadata
  */

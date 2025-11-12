@@ -4,7 +4,7 @@
  * Helpers for loading components from Edgit
  */
 
-import { Parser, type MemberConfig } from '../runtime/parser.js'
+import { Parser, type AgentConfig } from '../runtime/parser.js'
 
 /**
  * Load a component from Edgit (prompts, queries, templates, etc.)
@@ -36,9 +36,9 @@ export async function loadComponent(componentRef: string, env: Env): Promise<str
 }
 
 /**
- * Load a member configuration from Edgit
+ * Load a agent configuration from Edgit
  *
- * This loads versioned member.yaml files, enabling configuration-only deployments
+ * This loads versioned agent.yaml files, enabling configuration-only deployments
  * and A/B testing without code changes.
  *
  * @example
@@ -50,25 +50,25 @@ export async function loadComponent(componentRef: string, env: Env): Promise<str
  * const config = await loadMemberConfig('analyze-company@production', env);
  * ```
  */
-export async function loadMemberConfig(memberRef: string, env: Env): Promise<MemberConfig> {
-  const { name, version } = Parser.parseMemberReference(memberRef)
+export async function loadMemberConfig(memberRef: string, env: Env): Promise<AgentConfig> {
+  const { name, version } = Parser.parseAgentReference(memberRef)
 
   if (!version) {
-    throw new Error(`Member reference must include version: ${memberRef}`)
+    throw new Error(`Agent reference must include version: ${memberRef}`)
   }
 
   // TODO: Integrate with Edgit once it's published
   // Expected flow:
-  // 1. Load member.yaml content from Edgit
-  // 2. Parse YAML to get MemberConfig
+  // 1. Load agent.yaml content from Edgit
+  // 2. Parse YAML to get AgentConfig
   // 3. If config references versioned prompts, load those too
-  // 4. Return complete, resolved MemberConfig
+  // 4. Return complete, resolved AgentConfig
 
   // Expected Edgit integration:
   // import { Edgit } from '@ensemble-edge/edgit';
   // const edgit = new Edgit({ env });
   // const yamlContent = await edgit.getComponent(name, version);
-  // const config = Parser.parseMember(yamlContent);
+  // const config = Parser.parseAgent(yamlContent);
   //
   // // If config has prompt reference, resolve it
   // if (config.config?.prompt) {
@@ -79,7 +79,7 @@ export async function loadMemberConfig(memberRef: string, env: Env): Promise<Mem
   // return config;
 
   throw new Error(
-    `Edgit integration not yet implemented. Cannot load member config: ${memberRef}. ` +
+    `Edgit integration not yet implemented. Cannot load agent config: ${memberRef}. ` +
       `Install @ensemble-edge/edgit when available.`
   )
 }

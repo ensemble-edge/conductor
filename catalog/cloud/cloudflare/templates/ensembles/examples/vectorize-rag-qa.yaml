@@ -22,14 +22,14 @@ description: |
 
 flow:
   # Step 1: Search Vectorize index manually
-  - member: vectorize-search
+  - agent: vectorize-search
     input:
       query: ${input.question}
       topK: 5
 
   # Step 2: Generate answer from retrieved context
-  - member: answer-generator
-    type: think
+  - agent: answer-generator
+    operation: think
     input:
       prompt: |
         Answer the question using ONLY the provided context.

@@ -637,7 +637,7 @@ describe('Interpolation System', () => {
 			});
 		});
 
-		it('should handle dynamic member configuration', () => {
+		it('should handle dynamic agent configuration', () => {
 			const template = {
 				model: '${config.model}',
 				temperature: '${config.temperature}',

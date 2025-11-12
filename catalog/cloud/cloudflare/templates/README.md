@@ -8,10 +8,10 @@ This is an example project showing how to use `@ensemble-edge/conductor` to buil
 my-conductor-project/
 ├── src/
 │   └── index.ts           # Worker entry point
-├── members/               # Your AI members (sacred user space)
+├── agents/               # Your AI agents (sacred user space)
 │   └── greet/
-│       ├── member.yaml    # Member configuration
-│       └── index.ts       # Member implementation
+│       ├── agent.yaml    # Agent configuration
+│       └── index.ts       # Agent implementation
 ├── ensembles/             # Your workflows (sacred user space)
 │   └── hello-world.yaml   # Example ensemble
 ├── templates/             # HTML/Email/PDF templates (sacred user space)
@@ -36,7 +36,7 @@ my-conductor-project/
    ```
    Edit `.dev.vars` to add your API keys (Anthropic, OpenAI, etc.)
 
-   **Note:** This step is only needed if your members require external API keys.
+   **Note:** This step is only needed if your agents require external API keys.
 
 3. **Run tests:**
    ```bash
@@ -49,7 +49,7 @@ my-conductor-project/
    npx wrangler login
    ```
    This opens your browser for OAuth login. Required for:
-   - Cloudflare Workers AI (powers Think members)
+   - Cloudflare Workers AI (powers Think agents)
    - Local development with AI bindings
    - Deploying to production
 
@@ -88,7 +88,7 @@ The generated `wrangler.toml` includes placeholder bindings for additional Cloud
 - **Vectorize** - Vector database for RAG workflows
 - **Hyperdrive** - Connection pooling for external databases
 
-These are **NOT required** for the basic hello-world example. You only need to configure them when your members or ensembles require:
+These are **NOT required** for the basic hello-world example. You only need to configure them when your agents or ensembles require:
 - Persistent storage (KV, D1)
 - Semantic search and RAG workflows (Vectorize)
 - Connections to external PostgreSQL/MySQL databases (Hyperdrive)
@@ -109,13 +109,13 @@ Then update the IDs in `wrangler.toml` with the values returned by these command
 
 ## Creating New Members
 
-Create a new member in `members/your-member/`:
+Create a new agent in `agents/your-agent/`:
 
 ```yaml
-# members/your-member/member.yaml
-name: your-member
+# agents/your-agent/agent.yaml
+name: your-agent
 type: Function  # or Think, Data, API
-description: What your member does
+description: What your agent does
 
 schema:
   input:
@@ -125,7 +125,7 @@ schema:
 ```
 
 ```typescript
-// members/your-member/index.ts
+// agents/your-agent/index.ts
 export default async function yourMember({ input }) {
   return {
     result: `Processed: ${input.param}`
@@ -142,12 +142,12 @@ name: your-ensemble
 description: What your ensemble does
 
 flow:
-  - member: your-member
+  - agent: your-agent
     input:
       param: ${input.value}
 
 output:
-  result: ${your-member.output.result}
+  result: ${your-agent.output.result}
 ```
 
 ## Learn More

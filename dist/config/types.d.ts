@@ -95,8 +95,8 @@ export interface PathAuthRule {
 export interface DocsConfig {
     /** Use AI to enhance documentation */
     useAI?: boolean;
-    /** AI member to use for documentation enhancement */
-    aiMember?: string;
+    /** AI agent to use for documentation enhancement */
+    aiAgent?: string;
     /** Output format */
     format?: 'yaml' | 'json';
     /** Include examples in generated documentation */
@@ -154,7 +154,7 @@ export interface ObservabilityConfig {
  * Execution configuration
  */
 export interface ExecutionConfig {
-    /** Default timeout for members (ms) */
+    /** Default timeout for agents (ms) */
     defaultTimeout?: number;
     /** Enable execution history tracking */
     trackHistory?: boolean;

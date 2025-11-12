@@ -10,7 +10,7 @@ import type { StateManager } from './state-manager.js'
 import { Result, type AsyncResult } from '../types/result.js'
 import { Errors, type ConductorError } from '../errors/error-types.js'
 import { TTL } from '../config/constants.js'
-import type { MemberMetric } from './executor.js'
+import type { AgentMetric } from './executor.js'
 import type { ScoringState } from './scoring/types.js'
 
 /**
@@ -70,7 +70,7 @@ export interface SuspendedExecutionState {
    */
   metrics: {
     startTime: number
-    members: MemberMetric[]
+    agents: AgentMetric[]
     cacheHits: number
   }
 
@@ -79,7 +79,7 @@ export interface SuspendedExecutionState {
    */
   metadata: {
     suspendedAt: number
-    suspendedBy: string // Member name that triggered suspension (e.g., 'hitl')
+    suspendedBy: string // Agent name that triggered suspension (e.g., 'hitl')
     reason?: string
     expiresAt: number
   }
@@ -129,7 +129,7 @@ export class ResumptionManager {
     executionContext: Record<string, unknown>,
     resumeFromStep: number,
     suspendedBy: string,
-    metrics: { startTime: number; members: MemberMetric[]; cacheHits: number },
+    metrics: { startTime: number; agents: AgentMetric[]; cacheHits: number },
     options: ResumptionOptions = {}
   ): AsyncResult<string, ConductorError> {
     try {
@@ -145,7 +145,7 @@ export class ResumptionManager {
         resumeFromStep,
         metrics: {
           startTime: metrics.startTime || Date.now(),
-          members: metrics.members || [],
+          agents: metrics.agents || [],
           cacheHits: metrics.cacheHits || 0,
         },
         metadata: {

@@ -1,9 +1,9 @@
 name: dashboard
 description: Render an analytics dashboard with metrics
 
-members:
+agents:
   - name: render-dashboard
-    type: HTML
+    operation: html
     config:
       template:
         inline: |
@@ -182,7 +182,7 @@ members:
         pretty: true
 
 flow:
-  - member: render-dashboard
+  - agent: render-dashboard
     input:
       data:
         companyName: ${input.companyName}

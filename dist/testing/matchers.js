@@ -27,16 +27,16 @@ export function toHaveFailed(received) {
     };
 }
 /**
- * Check if a specific member was executed
+ * Check if a specific agent was executed
  */
-export function toHaveExecutedMember(received, memberName) {
-    const executedMembers = received.stepsExecuted.map((s) => s.member);
-    const pass = executedMembers.includes(memberName);
+export function toHaveExecutedMember(received, agentName) {
+    const executedMembers = received.stepsExecuted.map((s) => s.agent);
+    const pass = executedMembers.includes(agentName);
     return {
         pass,
         message: () => pass
-            ? `Expected ${memberName} not to be executed`
-            : `Expected ${memberName} to be executed. Executed members: ${executedMembers.join(', ') || 'none'}`,
+            ? `Expected ${agentName} not to be executed`
+            : `Expected ${agentName} to be executed. Executed agents: ${executedMembers.join(', ') || 'none'}`,
     };
 }
 /**
@@ -91,20 +91,20 @@ export function toHaveState(received, key, value) {
     };
 }
 /**
- * Check if AI was called (optionally for a specific member)
+ * Check if AI was called (optionally for a specific agent)
  */
-export function toHaveCalledAI(received, memberName) {
-    const aiCalls = memberName
-        ? received.aiCalls.filter((call) => call.member === memberName)
+export function toHaveCalledAI(received, agentName) {
+    const aiCalls = agentName
+        ? received.aiCalls.filter((call) => call.agent === agentName)
         : received.aiCalls;
     const pass = aiCalls.length > 0;
     return {
         pass,
         message: () => {
-            if (memberName) {
+            if (agentName) {
                 return pass
-                    ? `Expected AI not to be called for member '${memberName}'`
-                    : `Expected AI to be called for member '${memberName}' but it wasn't`;
+                    ? `Expected AI not to be called for agent '${agentName}'`
+                    : `Expected AI to be called for agent '${agentName}' but it wasn't`;
             }
             return pass ? 'Expected AI not to be called' : "Expected AI to be called but it wasn't";
         },

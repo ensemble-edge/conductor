@@ -63,7 +63,7 @@ describe('StateManager', () => {
 		});
 	});
 
-	describe('Member State Access', () => {
+	describe('Agent State Access', () => {
 		it('should provide read access to declared keys', () => {
 			const config: StateConfig = {
 				initial: {
@@ -74,11 +74,11 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const memberConfig: MemberStateConfig = {
+			const agentConfig: MemberStateConfig = {
 				use: ['counter', 'name'],
 			};
 
-			const { context } = manager.getStateForMember('test-member', memberConfig);
+			const { context } = manager.getStateForAgent('test-agent', agentConfig);
 
 			expect(context.state.counter).toBe(10);
 			expect(context.state.name).toBe('Alice');
@@ -91,18 +91,18 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const { context } = manager.getStateForMember('test-member', {});
+			const { context } = manager.getStateForAgent('test-agent', {});
 
 			expect(context.state).toEqual({});
 		});
 
-		it('should freeze member state view', () => {
+		it('should freeze agent state view', () => {
 			const config: StateConfig = {
 				initial: { counter: 0 },
 			};
 
 			const manager = new StateManager(config);
-			const { context } = manager.getStateForMember('test-member', {
+			const { context } = manager.getStateForAgent('test-agent', {
 				use: ['counter'],
 			});
 
@@ -117,7 +117,7 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const { context, getPendingUpdates } = manager.getStateForMember('test-member', {
+			const { context, getPendingUpdates } = manager.getStateForAgent('test-agent', {
 				set: ['counter'],
 			});
 
@@ -133,7 +133,7 @@ describe('StateManager', () => {
 			};
 
 			const manager1 = new StateManager(config);
-			const { context, getPendingUpdates } = manager1.getStateForMember('test-member', {
+			const { context, getPendingUpdates } = manager1.getStateForAgent('test-agent', {
 				set: ['counter'],
 			});
 
@@ -152,7 +152,7 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const { context, getPendingUpdates } = manager.getStateForMember('test-member', {
+			const { context, getPendingUpdates } = manager.getStateForAgent('test-agent', {
 				set: ['a', 'b', 'c'],
 			});
 
@@ -171,7 +171,7 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const { context, getPendingUpdates } = manager.getStateForMember('test-member', {
+			const { context, getPendingUpdates } = manager.getStateForAgent('test-agent', {
 				set: ['allowed'],
 			});
 
@@ -191,7 +191,7 @@ describe('StateManager', () => {
 
 			const manager1 = new StateManager(config);
 			const manager2 = manager1.setStateFromMember(
-				'test-member',
+				'test-agent',
 				{ counter: 5 },
 				{ set: ['counter'] }
 			);
@@ -207,7 +207,7 @@ describe('StateManager', () => {
 
 			const manager1 = new StateManager(config);
 			const manager2 = manager1.setStateFromMember(
-				'test-member',
+				'test-agent',
 				{ allowed: 10, blocked: 20 },
 				{ set: ['allowed'] }
 			);
@@ -238,7 +238,7 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const { getPendingUpdates } = manager.getStateForMember('member1', { use: ['counter'] });
+			const { getPendingUpdates } = manager.getStateForAgent('member1', { use: ['counter'] });
 
 			// Apply pending updates to capture the access log
 			const { newLog } = getPendingUpdates();
@@ -251,7 +251,7 @@ describe('StateManager', () => {
 			expect(member1Access).toHaveLength(1);
 			expect(member1Access[0].operation).toBe('read');
 			expect(member1Access[0].key).toBe('counter');
-			expect(member1Access[0].member).toBe('member1');
+			expect(member1Access[0].agent).toBe('member1');
 		});
 
 		it('should track write access', () => {
@@ -273,7 +273,7 @@ describe('StateManager', () => {
 			expect(member1Access).toHaveLength(1);
 			expect(member1Access[0].operation).toBe('write');
 			expect(member1Access[0].key).toBe('counter');
-			expect(member1Access[0].member).toBe('member1');
+			expect(member1Access[0].agent).toBe('member1');
 		});
 
 		it('should track multiple accesses', () => {
@@ -284,7 +284,7 @@ describe('StateManager', () => {
 			let manager = new StateManager(config);
 
 			// Member1 reads
-			const { getPendingUpdates: getPending1 } = manager.getStateForMember('member1', { use: ['value'] });
+			const { getPendingUpdates: getPending1 } = manager.getStateForAgent('member1', { use: ['value'] });
 			const { newLog: log1 } = getPending1();
 			manager = manager.applyPendingUpdates({}, log1);
 
@@ -292,7 +292,7 @@ describe('StateManager', () => {
 			manager = manager.setStateFromMember('member2', { value: 10 }, { set: ['value'] });
 
 			// Member3 reads
-			const { getPendingUpdates: getPending3 } = manager.getStateForMember('member3', { use: ['value'] });
+			const { getPendingUpdates: getPending3 } = manager.getStateForAgent('member3', { use: ['value'] });
 			const { newLog: log3 } = getPending3();
 			manager = manager.applyPendingUpdates({}, log3);
 
@@ -329,7 +329,7 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const { getPendingUpdates } = manager.getStateForMember('member1', { use: ['used'] });
+			const { getPendingUpdates } = manager.getStateForAgent('member1', { use: ['used'] });
 
 			// Apply pending updates to capture the access log
 			const { newLog } = getPendingUpdates();
@@ -343,7 +343,7 @@ describe('StateManager', () => {
 	});
 
 	describe('Complex Scenarios', () => {
-		it('should handle workflow with multiple members', () => {
+		it('should handle workflow with multiple agents', () => {
 			const config: StateConfig = {
 				initial: {
 					step1Result: null,
@@ -354,15 +354,15 @@ describe('StateManager', () => {
 
 			let manager = new StateManager(config);
 
-			// Step 1: Member writes step1Result
+			// Step 1: Agent writes step1Result
 			manager = manager.setStateFromMember(
 				'step1',
 				{ step1Result: 'data1' },
 				{ set: ['step1Result'] }
 			);
 
-			// Step 2: Member reads step1Result, writes step2Result
-			const { context: ctx2 } = manager.getStateForMember('step2', {
+			// Step 2: Agent reads step1Result, writes step2Result
+			const { context: ctx2 } = manager.getStateForAgent('step2', {
 				use: ['step1Result'],
 				set: ['step2Result'],
 			});
@@ -374,8 +374,8 @@ describe('StateManager', () => {
 				{ set: ['step2Result'] }
 			);
 
-			// Step 3: Member reads all, writes finalResult
-			const { context: ctx3 } = manager.getStateForMember('step3', {
+			// Step 3: Agent reads all, writes finalResult
+			const { context: ctx3 } = manager.getStateForAgent('step3', {
 				use: ['step1Result', 'step2Result'],
 				set: ['finalResult'],
 			});
@@ -391,11 +391,11 @@ describe('StateManager', () => {
 
 			const manager = new StateManager(config);
 
-			// Two members update different keys
-			const { context: ctx1, getPendingUpdates: get1 } = manager.getStateForMember('member1', {
+			// Two agents update different keys
+			const { context: ctx1, getPendingUpdates: get1 } = manager.getStateForAgent('member1', {
 				set: ['a'],
 			});
-			const { context: ctx2, getPendingUpdates: get2 } = manager.getStateForMember('member2', {
+			const { context: ctx2, getPendingUpdates: get2 } = manager.getStateForAgent('member2', {
 				set: ['b'],
 			});
 
@@ -421,7 +421,7 @@ describe('StateManager', () => {
 			for (let i = 1; i <= 10; i++) {
 				const prev = managers[i - 1];
 				const next = prev.setStateFromMember(
-					`member${i}`,
+					`agent${i}`,
 					{ count: i },
 					{ set: ['count'] }
 				);
@@ -454,7 +454,7 @@ describe('StateManager', () => {
 			};
 
 			const manager = new StateManager(config);
-			const { context } = manager.getStateForMember('member', {
+			const { context } = manager.getStateForAgent('agent', {
 				use: ['nonexistent'],
 			});
 
@@ -467,7 +467,7 @@ describe('StateManager', () => {
 			};
 
 			const manager1 = new StateManager(config);
-			const manager2 = manager1.setStateFromMember('member', {}, { set: ['value'] });
+			const manager2 = manager1.setStateFromMember('agent', {}, { set: ['value'] });
 
 			expect(manager1.getState()).toEqual(manager2.getState());
 		});
@@ -479,7 +479,7 @@ describe('StateManager', () => {
 
 			const manager1 = new StateManager(config);
 			const manager2 = manager1.setStateFromMember(
-				'member',
+				'agent',
 				{ value: 42 },
 				{ set: ['value'] }
 			);
@@ -502,7 +502,7 @@ describe('StateManager', () => {
 
 			const manager1 = new StateManager(config);
 			const manager2 = manager1.setStateFromMember(
-				'member',
+				'agent',
 				{
 					user: {
 						name: 'Bob',

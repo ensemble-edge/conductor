@@ -22,7 +22,7 @@ declare module '*.yml' {
 // Cloudflare Workers Environment Bindings
 // Define all your environment variables and bindings here
 interface Env {
-	// Cloudflare AI binding (required by Conductor for Think members)
+	// Cloudflare AI binding (required by Conductor for Think agents)
 	AI: Ai;
 
 	// R2 Buckets for static assets

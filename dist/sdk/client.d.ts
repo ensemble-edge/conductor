@@ -10,7 +10,7 @@ export interface ClientConfig {
     headers?: Record<string, string>;
 }
 export interface ExecuteOptions {
-    member: string;
+    agent: string;
     input: unknown;
     config?: unknown;
     userId?: string;
@@ -27,14 +27,14 @@ export interface ExecuteResult<T = unknown> {
         timestamp: number;
     };
 }
-export interface Member {
+export interface Agent {
     name: string;
     type: string;
     version?: string;
     description?: string;
     builtIn: boolean;
 }
-export interface MemberDetail extends Member {
+export interface MemberDetail extends Agent {
     config?: {
         schema?: Record<string, unknown>;
         defaults?: Record<string, unknown>;
@@ -73,8 +73,8 @@ export declare class ConductorClient {
     private headers;
     constructor(config: ClientConfig);
     execute<T = unknown>(options: ExecuteOptions): Promise<ExecuteResult<T>>;
-    listMembers(): Promise<Member[]>;
-    getMember(name: string): Promise<MemberDetail>;
+    listMembers(): Promise<Agent[]>;
+    getAgent(name: string): Promise<MemberDetail>;
     health(): Promise<HealthStatus>;
     ready(): Promise<boolean>;
     alive(): Promise<boolean>;

@@ -10,17 +10,17 @@ describe('Debug TestConductor', () => {
 		});
 	});
 
-	it('should load members', async () => {
+	it('should load agents', async () => {
 		// @ts-expect-error - accessing private catalog for debugging
-		const members = conductor.catalog.members;
-		console.log('Loaded members:', Array.from(members.keys()));
-		console.log('Members size:', members.size);
+		const agents = conductor.catalog.agents;
+		console.log('Loaded agents:', Array.from(agents.keys()));
+		console.log('Members size:', agents.size);
 
-		// Try to get greet member
+		// Try to get greet agent
 		// @ts-expect-error - accessing private method
-		const greetMember = conductor.catalog.members.get('hello');
-		console.log('Greet member:', greetMember);
+		const greetMember = conductor.catalog.agents.get('hello');
+		console.log('Greet agent:', greetMember);
 
-		expect(members.size).toBeGreaterThan(0);
+		expect(agents.size).toBeGreaterThan(0);
 	});
 });

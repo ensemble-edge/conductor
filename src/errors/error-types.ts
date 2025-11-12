@@ -5,13 +5,13 @@
  * All errors extend ConductorError for consistent handling.
  */
 
-import type { MemberName, ModelId, ProviderId, EnsembleName } from '../types/branded.js'
+import type { AgentName, ModelId, ProviderId, EnsembleName } from '../types/branded.js'
 
 /**
  * Error codes for categorizing errors
  */
 export enum ErrorCode {
-  // Member errors (1xxx)
+  // Agent errors (1xxx)
   MEMBER_NOT_FOUND = 'MEMBER_NOT_FOUND',
   MEMBER_INVALID_CONFIG = 'MEMBER_INVALID_CONFIG',
   MEMBER_EXECUTION_FAILED = 'MEMBER_EXECUTION_FAILED',
@@ -105,80 +105,80 @@ export interface ErrorJSON {
 }
 
 // ============================================================================
-// Member Errors
+// Agent Errors
 // ============================================================================
 
 /**
- * Member not found in registry
+ * Agent not found in registry
  */
 export class MemberNotFoundError extends ConductorError {
   readonly code = ErrorCode.MEMBER_NOT_FOUND
   readonly isOperational = true
 
-  constructor(public readonly memberName: string) {
-    super(`Member "${memberName}" not found in registry`)
+  constructor(public readonly agentName: string) {
+    super(`Agent "${agentName}" not found in registry`)
   }
 
   toUserMessage(): string {
-    return `The member "${this.memberName}" does not exist. Check your ensemble configuration.`
+    return `The agent "${this.agentName}" does not exist. Check your ensemble configuration.`
   }
 }
 
 /**
- * Member configuration is invalid
+ * Agent configuration is invalid
  */
 export class MemberConfigurationError extends ConductorError {
   readonly code = ErrorCode.MEMBER_INVALID_CONFIG
   readonly isOperational = true
 
   constructor(
-    public readonly memberName: string,
+    public readonly agentName: string,
     public readonly reason: string
   ) {
-    super(`Invalid configuration for member "${memberName}": ${reason}`)
+    super(`Invalid configuration for agent "${agentName}": ${reason}`)
   }
 
   toUserMessage(): string {
-    return `Configuration error in member "${this.memberName}": ${this.reason}`
+    return `Configuration error in agent "${this.agentName}": ${this.reason}`
   }
 }
 
 /**
- * Member execution failed
+ * Agent execution failed
  */
-export class MemberExecutionError extends ConductorError {
+export class AgentExecutionError extends ConductorError {
   readonly code = ErrorCode.MEMBER_EXECUTION_FAILED
   readonly isOperational = true
 
   constructor(
-    public readonly memberName: string,
+    public readonly agentName: string,
     public readonly reason: string,
     public readonly cause?: Error
   ) {
-    super(`Member "${memberName}" execution failed: ${reason}`)
+    super(`Agent "${agentName}" execution failed: ${reason}`)
   }
 
   toUserMessage(): string {
-    return `Execution failed for member "${this.memberName}": ${this.reason}`
+    return `Execution failed for agent "${this.agentName}": ${this.reason}`
   }
 }
 
 /**
- * Member validation failed
+ * Agent validation failed
  */
 export class MemberValidationError extends ConductorError {
   readonly code = ErrorCode.MEMBER_VALIDATION_FAILED
   readonly isOperational = true
 
   constructor(
-    public readonly memberName: string,
+    public readonly agentName: string,
     public readonly errors: string[]
   ) {
-    super(`Validation failed for member "${memberName}": ${errors.join(', ')}`)
+    super(`Validation failed for agent "${agentName}": ${errors.join(', ')}`)
   }
 
   toUserMessage(): string {
-    return `Member "${this.memberName}" has validation errors:\n${this.errors.map((e) => `  - ${e}`).join('\n')}`
+    return `Agent "${this.agentName}" has validation errors:\n${this.errors.map((e) => `  - ${e}`).join('\n')}`
   }
 }
 
@@ -558,10 +558,12 @@ export class InternalError extends ConductorError {
  * Error factory for common error scenarios
  */
 export const Errors = {
+  /** @deprecated Use agentNotFound instead */
   memberNotFound: (name: string) => new MemberNotFoundError(name),
-  memberConfig: (name: string, reason: string) => new MemberConfigurationError(name, reason),
+  agentNotFound: (name: string) => new MemberNotFoundError(name),
+  agentConfig: (name: string, reason: string) => new MemberConfigurationError(name, reason),
   memberExecution: (name: string, reason: string, cause?: Error) =>
-    new MemberExecutionError(name, reason, cause),
+    new AgentExecutionError(name, reason, cause),
 
   providerNotFound: (id: string) => new ProviderNotFoundError(id),
   providerAuth: (id: string, reason: string) => new ProviderAuthError(id, reason),

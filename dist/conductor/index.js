@@ -1,43 +1,11 @@
-import { i as Result, n as Errors, r as MemberExecutionError, t as EnsembleExecutionError } from "./error-types-GY-n8ams.js";
-import { createRequire } from "node:module";
+import { a as __toCommonJS, i as __require, n as __esmMin, o as __toDynamicImportESM, r as __export, s as __toESM, t as __commonJSMin } from "./chunk-CjLZ-eKX.js";
+import { i as Result, n as EnsembleExecutionError, r as Errors, t as AgentExecutionError } from "./error-types-CCbRhFX3.js";
 import * as fs$1 from "fs/promises";
 import * as path from "path";
 import { dirname, extname, resolve, sep } from "path";
 import { readFile, readFileSync, stat, statSync } from "fs";
 import { PassThrough } from "stream";
-import { createRequire as createRequire$1 } from "module";
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __esmMin = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
-var __commonJSMin = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
-var __export = (all) => {
-	let target = {};
-	for (var name in all) __defProp(target, name, {
-		get: all[name],
-		enumerable: true
-	});
-	return target;
-};
-var __copyProps = (to, from, except, desc) => {
-	if (from && typeof from === "object" || typeof from === "function") for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {
-		key = keys[i];
-		if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
-			get: ((k) => from[k]).bind(null, key),
-			enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
-		});
-	}
-	return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
-	value: mod,
-	enumerable: true
-}) : target, mod));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-var __require = /* @__PURE__ */ createRequire(import.meta.url);
+import { createRequire } from "module";
 var ALIAS = Symbol.for("yaml.alias");
 var DOC = Symbol.for("yaml.document");
 var MAP = Symbol.for("yaml.map");
@@ -8651,6 +8619,21 @@ function getInterpolator() {
 	if (!globalInterpolator) globalInterpolator = new Interpolator();
 	return globalInterpolator;
 }
+let Operation = /* @__PURE__ */ function(Operation$1) {
+	Operation$1["think"] = "think";
+	Operation$1["code"] = "code";
+	Operation$1["storage"] = "storage";
+	Operation$1["http"] = "http";
+	Operation$1["tools"] = "tools";
+	Operation$1["scoring"] = "scoring";
+	Operation$1["email"] = "email";
+	Operation$1["sms"] = "sms";
+	Operation$1["form"] = "form";
+	Operation$1["page"] = "page";
+	Operation$1["html"] = "html";
+	Operation$1["pdf"] = "pdf";
+	return Operation$1;
+}({});
 let AIProvider = /* @__PURE__ */ function(AIProvider$1) {
 	AIProvider$1["OpenAI"] = "openai";
 	AIProvider$1["Anthropic"] = "anthropic";
@@ -8663,21 +8646,6 @@ let StorageType = /* @__PURE__ */ function(StorageType$1) {
 	StorageType$1["D1"] = "d1";
 	StorageType$1["R2"] = "r2";
 	return StorageType$1;
-}({});
-let MemberType = /* @__PURE__ */ function(MemberType$1) {
-	MemberType$1["Think"] = "Think";
-	MemberType$1["Function"] = "Function";
-	MemberType$1["Data"] = "Data";
-	MemberType$1["API"] = "API";
-	MemberType$1["MCP"] = "MCP";
-	MemberType$1["Scoring"] = "Scoring";
-	MemberType$1["Email"] = "Email";
-	MemberType$1["SMS"] = "SMS";
-	MemberType$1["Form"] = "Form";
-	MemberType$1["Page"] = "Page";
-	MemberType$1["HTML"] = "HTML";
-	MemberType$1["PDF"] = "PDF";
-	return MemberType$1;
 }({});
 var EnsembleSchema = objectType$1({
 	name: stringType().min(1, "Ensemble name is required"),
@@ -8731,7 +8699,7 @@ var EnsembleSchema = objectType$1({
 		metadata: recordType(unknownType()).optional()
 	})).optional(),
 	flow: arrayType(objectType$1({
-		member: stringType().min(1, "Member name is required"),
+		agent: stringType().min(1, "Agent name is required"),
 		input: recordType(unknownType()).optional(),
 		state: objectType$1({
 			use: arrayType(stringType()).optional(),
@@ -8762,21 +8730,21 @@ var EnsembleSchema = objectType$1({
 	})),
 	output: recordType(unknownType()).optional()
 });
-var MemberSchema = objectType$1({
-	name: stringType().min(1, "Member name is required"),
-	type: enumType([
-		MemberType.Think,
-		MemberType.Function,
-		MemberType.Data,
-		MemberType.API,
-		MemberType.MCP,
-		MemberType.Scoring,
-		MemberType.Email,
-		MemberType.SMS,
-		MemberType.Form,
-		MemberType.Page,
-		MemberType.HTML,
-		MemberType.PDF
+var AgentSchema = objectType$1({
+	name: stringType().min(1, "Agent name is required"),
+	operation: enumType([
+		Operation.think,
+		Operation.code,
+		Operation.storage,
+		Operation.http,
+		Operation.tools,
+		Operation.scoring,
+		Operation.email,
+		Operation.sms,
+		Operation.form,
+		Operation.page,
+		Operation.html,
+		Operation.pdf
 	]),
 	description: stringType().optional(),
 	config: recordType(unknownType()).optional(),
@@ -8799,35 +8767,35 @@ var Parser = class {
 			throw new Error(`Failed to parse ensemble YAML: ${error instanceof Error ? error.message : "Unknown error"}`);
 		}
 	}
-	static parseMember(yamlContent) {
+	static parseAgent(yamlContent) {
 		try {
 			const parsed = parse$1(yamlContent);
 			if (!parsed) throw new Error("Empty or invalid YAML content");
-			return MemberSchema.parse(parsed);
+			return AgentSchema.parse(parsed);
 		} catch (error) {
-			if (error instanceof ZodError) throw new Error(`Member validation failed: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`);
-			throw new Error(`Failed to parse member YAML: ${error instanceof Error ? error.message : "Unknown error"}`);
+			if (error instanceof ZodError) throw new Error(`Agent validation failed: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`);
+			throw new Error(`Failed to parse agent YAML: ${error instanceof Error ? error.message : "Unknown error"}`);
 		}
 	}
 	static resolveInterpolation(template$1, context) {
 		return this.interpolator.resolve(template$1, context);
 	}
-	static parseMemberReference(memberRef) {
-		const parts = memberRef.split("@");
+	static parseAgentReference(agentRef) {
+		const parts = agentRef.split("@");
 		if (parts.length === 1) return { name: parts[0] };
 		if (parts.length === 2) return {
 			name: parts[0],
 			version: parts[1]
 		};
-		throw new Error(`Invalid member reference format: ${memberRef}. Expected "name" or "name@version"`);
+		throw new Error(`Invalid agent reference format: ${agentRef}. Expected "name" or "name@version"`);
 	}
-	static validateMemberReferences(ensemble, availableMembers) {
-		const missingMembers = [];
+	static validateAgentReferences(ensemble, availableAgents) {
+		const missingAgents = [];
 		for (const step of ensemble.flow) {
-			const { name } = this.parseMemberReference(step.member);
-			if (!availableMembers.has(name)) missingMembers.push(step.member);
+			const { name } = this.parseAgentReference(step.agent);
+			if (!availableAgents.has(name)) missingAgents.push(step.agent);
 		}
-		if (missingMembers.length > 0) throw new Error(`Ensemble "${ensemble.name}" references missing members: ${missingMembers.join(", ")}`);
+		if (missingAgents.length > 0) throw new Error(`Ensemble "${ensemble.name}" references missing agents: ${missingAgents.join(", ")}`);
 	}
 };
 var LogLevel;
@@ -8967,14 +8935,14 @@ var StateManager = class StateManager {
 		this.accessLog = existingLog || [];
 		this.logger = config.logger || createLogger({ serviceName: "state-manager" });
 	}
-	getStateForMember(memberName, config) {
+	getStateForAgent(agentName, config) {
 		const { use = [], set: set$1 = [] } = config;
 		const viewState = {};
 		const newLog = [...this.accessLog];
 		for (const key of use) if (this.state && key in this.state) {
 			viewState[key] = this.state[key];
 			newLog.push({
-				member: memberName,
+				agent: agentName,
 				key,
 				operation: "read",
 				timestamp: Date.now()
@@ -8985,13 +8953,13 @@ var StateManager = class StateManager {
 			for (const [key, value] of Object.entries(updates)) if (set$1.includes(key)) {
 				pendingUpdates[key] = value;
 				newLog.push({
-					member: memberName,
+					agent: agentName,
 					key,
 					operation: "write",
 					timestamp: Date.now()
 				});
-			} else this.logger.warn("Member attempted to set undeclared state key", {
-				memberName,
+			} else this.logger.warn("Agent attempted to set undeclared state key", {
+				agentName,
 				key,
 				declaredKeys: set$1
 			});
@@ -9019,20 +8987,20 @@ var StateManager = class StateManager {
 			logger: this.logger
 		}, newState, newLog);
 	}
-	setStateFromMember(memberName, updates, config) {
+	setStateFromMember(agentName, updates, config) {
 		const { set: set$1 = [] } = config;
 		const newState = { ...this.state };
 		const newLog = [...this.accessLog];
 		for (const [key, value] of Object.entries(updates)) if (set$1.includes(key)) {
 			newState[key] = value;
 			newLog.push({
-				member: memberName,
+				agent: agentName,
 				key,
 				operation: "write",
 				timestamp: Date.now()
 			});
-		} else this.logger.warn("Member attempted to set undeclared state key", {
-			memberName,
+		} else this.logger.warn("Agent attempted to set undeclared state key", {
+			agentName,
 			key,
 			declaredKeys: set$1
 		});
@@ -9052,8 +9020,8 @@ var StateManager = class StateManager {
 		const unusedKeys = allKeys.filter((key) => !usedKeys.has(key));
 		const accessPatterns = {};
 		for (const access of this.accessLog) {
-			if (!accessPatterns[access.member]) accessPatterns[access.member] = [];
-			accessPatterns[access.member].push(access);
+			if (!accessPatterns[access.agent]) accessPatterns[access.agent] = [];
+			accessPatterns[access.agent].push(access);
 		}
 		return {
 			unusedKeys,
@@ -9086,13 +9054,13 @@ var StateManager = class StateManager {
 		}, newState, this.accessLog);
 	}
 };
-var BaseMember;
-var init_base_member = __esmMin((() => {
-	BaseMember = class {
+var BaseAgent;
+var init_base_agent = __esmMin((() => {
+	BaseAgent = class {
 		constructor(config) {
 			this.config = config;
 			this.name = config.name;
-			this.type = config.type;
+			this.type = config.operation;
 		}
 		async execute(context) {
 			const startTime = Date.now();
@@ -9113,7 +9081,7 @@ var init_base_member = __esmMin((() => {
 				cached,
 				executionTime,
 				metadata: {
-					member: this.name,
+					agent: this.name,
 					type: this.type
 				}
 			};
@@ -9126,7 +9094,7 @@ var init_base_member = __esmMin((() => {
 				cached: false,
 				executionTime,
 				metadata: {
-					member: this.name,
+					agent: this.name,
 					type: this.type
 				}
 			};
@@ -9134,7 +9102,7 @@ var init_base_member = __esmMin((() => {
 		async generateCacheKey(input) {
 			const inputString = JSON.stringify(this.sortObjectKeys(input));
 			const hash = await this.hashString(inputString);
-			return `member:${this.name}:${hash}`;
+			return `agent:${this.name}:${hash}`;
 		}
 		sortObjectKeys(obj) {
 			if (typeof obj !== "object" || obj === null) return obj;
@@ -9352,7 +9320,7 @@ function getProviderRegistry() {
 	if (!globalRegistry) globalRegistry = new ProviderRegistry();
 	return globalRegistry;
 }
-init_base_member();
+init_base_agent();
 function isComponentReference(value) {
 	return /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i.test(value);
 }
@@ -9441,7 +9409,7 @@ async function resolveValue(value, context) {
 		originalRef: value
 	};
 }
-var ThinkMember = class extends BaseMember {
+var ThinkAgent = class extends BaseAgent {
 	constructor(config, providerRegistry) {
 		super(config);
 		this.providerRegistry = providerRegistry || getProviderRegistry();
@@ -9994,8 +9962,8 @@ function getExtension(format$1) {
 		default: return "bin";
 	}
 }
-init_base_member();
-var DataMember = class extends BaseMember {
+init_base_agent();
+var DataAgent = class extends BaseAgent {
 	constructor(config, repository) {
 		super(config);
 		this.repository = repository;
@@ -10006,8 +9974,8 @@ var DataMember = class extends BaseMember {
 			binding: cfg?.binding,
 			ttl: cfg?.ttl
 		};
-		if (!this.dataConfig.storage) throw new Error(`Data member "${config.name}" requires storage type (kv, d1, or r2)`);
-		if (!this.dataConfig.operation) throw new Error(`Data member "${config.name}" requires operation type`);
+		if (!this.dataConfig.storage) throw new Error(`Data agent "${config.name}" requires storage type (kv, d1, or r2)`);
+		if (!this.dataConfig.operation) throw new Error(`Data agent "${config.name}" requires operation type`);
 	}
 	async run(context) {
 		const { input, env } = context;
@@ -10186,8 +10154,8 @@ var DataMember = class extends BaseMember {
 		return { ...this.dataConfig };
 	}
 };
-init_base_member();
-var APIMember = class extends BaseMember {
+init_base_agent();
+var APIAgent = class extends BaseAgent {
 	constructor(config) {
 		super(config);
 		const cfg = config.config;
@@ -10202,7 +10170,7 @@ var APIMember = class extends BaseMember {
 	async run(context) {
 		const { input } = context;
 		const url = this.apiConfig.url || input.url;
-		if (!url) throw new Error(`API member "${this.name}" requires a URL (in config or input)`);
+		if (!url) throw new Error(`API agent "${this.name}" requires a URL (in config or input)`);
 		const requestInit = {
 			method: this.apiConfig.method,
 			headers: this.resolveHeaders(this.apiConfig.headers || {}, context)
@@ -18636,7 +18604,7 @@ var LRU = class {
 	}
 };
 function requireResolve(file) {
-	return createRequire$1(process.cwd() + "/").resolve(file);
+	return createRequire(process.cwd() + "/").resolve(file);
 }
 var statAsync = promisify(stat);
 var readFileAsync = promisify(readFile);
@@ -21602,7 +21570,7 @@ var MJMLTemplateEngine = class extends BaseTemplateEngine {
 		}
 		mjmlLoadAttempted = true;
 		try {
-			mjml2html = (await import("mjml")).default;
+			mjml2html = (await import("./lib-Dz6lV0oJ.js").then(__toDynamicImportESM(1))).default;
 		} catch (error) {
 			mjml2html = null;
 			throw new Error("MJML template engine is not available in this environment. This is typically a test environment limitation due to Node.js dependencies. MJML works fine in production Cloudflare Workers.");
@@ -21756,12 +21724,12 @@ var TemplateLoader = class {
 		await this.loadTemplate(ref);
 	}
 };
-init_base_member();
-var EmailMember = class extends BaseMember {
+init_base_agent();
+var EmailAgent = class extends BaseAgent {
 	constructor(config) {
 		super(config);
 		const emailConfig = config.config;
-		if (!emailConfig?.provider) throw new Error("Email member requires provider configuration");
+		if (!emailConfig?.provider) throw new Error("Email agent requires provider configuration");
 		this.provider = createEmailProvider(emailConfig.provider);
 		this.templateEngine = createTemplateEngine(emailConfig.templateEngine || "simple");
 		this.templateLoader = new TemplateLoader({
@@ -21994,12 +21962,12 @@ function createSmsProvider(config) {
 		default: throw new Error(`Unknown SMS provider: ${config.provider}`);
 	}
 }
-init_base_member();
-var SmsMember = class extends BaseMember {
+init_base_agent();
+var SmsMember = class extends BaseAgent {
 	constructor(config) {
 		super(config);
 		const smsConfig = config.config;
-		if (!smsConfig?.provider) throw new Error("SMS member requires provider configuration");
+		if (!smsConfig?.provider) throw new Error("SMS agent requires provider configuration");
 		this.provider = createSmsProvider(smsConfig.provider);
 		this.templateEngine = createTemplateEngine(smsConfig.templateEngine || "simple");
 		this.rateLimit = smsConfig.rateLimit || 10;
@@ -22562,16 +22530,16 @@ async function checkRateLimit(identifier, config, kv) {
 		limit: config.max
 	};
 }
-init_base_member();
-var FormMember = class extends BaseMember {
+init_base_agent();
+var FormAgent = class extends BaseAgent {
 	constructor(config) {
 		super(config);
 		this.formConfig = config;
 		this.validateConfig();
 	}
 	validateConfig() {
-		if (!this.formConfig.fields && !this.formConfig.steps) throw new Error("Form member requires either fields or steps configuration");
-		if (this.formConfig.fields && this.formConfig.steps) throw new Error("Form member cannot have both fields and steps - use one or the other");
+		if (!this.formConfig.fields && !this.formConfig.steps) throw new Error("Form agent requires either fields or steps configuration");
+		if (this.formConfig.fields && this.formConfig.steps) throw new Error("Form agent cannot have both fields and steps - use one or the other");
 		if (this.formConfig.captcha) {
 			if (!this.formConfig.captcha.siteKey) throw new Error("CAPTCHA configuration requires siteKey");
 		}
@@ -22962,8 +22930,8 @@ function renderIslandsHydration(config, props) {
 		defer: true
 	});
 }
-init_base_member();
-var PageMember = class extends BaseMember {
+init_base_agent();
+var PageAgent = class extends BaseAgent {
 	constructor(config) {
 		super(config);
 		this.pageConfig = config;
@@ -22986,7 +22954,7 @@ var PageMember = class extends BaseMember {
 	validateConfig() {
 		const component = this.pageConfig.component || this.pageConfig.config?.component;
 		const componentPath = this.pageConfig.componentPath || this.pageConfig.config?.componentPath;
-		if (!component && !componentPath) throw new Error("Page member requires either component or componentPath");
+		if (!component && !componentPath) throw new Error("Page agent requires either component or componentPath");
 		if (this.pageConfig.config?.component && !this.pageConfig.component) this.pageConfig.component = this.pageConfig.config.component;
 		if (this.pageConfig.config?.componentPath && !this.pageConfig.componentPath) this.pageConfig.componentPath = this.pageConfig.config.componentPath;
 		if (this.pageConfig.renderMode && ![
@@ -23488,15 +23456,15 @@ function mergeCookieOptions(options, defaults) {
 		...options
 	};
 }
-init_base_member();
-var HtmlMember = class extends BaseMember {
+init_base_agent();
+var HtmlMember = class extends BaseAgent {
 	constructor(config) {
 		super(config);
 		this.htmlConfig = config;
 		this.validateConfig();
 	}
 	validateConfig() {
-		if (!this.htmlConfig.template) throw new Error("HTML member requires a template configuration");
+		if (!this.htmlConfig.template) throw new Error("HTML agent requires a template configuration");
 	}
 	async run(context) {
 		const startTime = Date.now();
@@ -23518,7 +23486,7 @@ var HtmlMember = class extends BaseMember {
 		if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
 			let cache;
 			if (context.env.CACHE) {
-				const { MemoryCache } = await import("./cache-kMbkUKC-.js");
+				const { MemoryCache } = await import("./cache-Cn73T2ra.js");
 				cache = new MemoryCache({ defaultTTL: 3600 });
 			}
 			const componentLoader = createComponentLoader({
@@ -23588,7 +23556,7 @@ var HtmlMember = class extends BaseMember {
 			if (context.env.COMPONENTS) {
 				let cache;
 				if (context.env.CACHE) {
-					const { MemoryCache } = await import("./cache-kMbkUKC-.js");
+					const { MemoryCache } = await import("./cache-Cn73T2ra.js");
 					cache = new MemoryCache({ defaultTTL: 3600 });
 				}
 				const componentLoader = createComponentLoader({
@@ -23833,7 +23801,7 @@ async function storePdfToR2(pdf, config, env) {
 		httpMetadata: { contentType: "application/pdf" },
 		customMetadata: {
 			uploadedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			generatedBy: "conductor-pdf-member"
+			generatedBy: "conductor-pdf-agent"
 		}
 	});
 	let url;
@@ -23871,8 +23839,8 @@ function validateStorageConfig(config) {
 		errors: errors.length > 0 ? errors : void 0
 	};
 }
-init_base_member();
-var PdfMember = class extends BaseMember {
+init_base_agent();
+var PdfMember = class extends BaseAgent {
 	constructor(config) {
 		super(config);
 		this.pdfConfig = config;
@@ -23918,13 +23886,13 @@ var PdfMember = class extends BaseMember {
 			htmlSize = html.length;
 		} else if (htmlSource?.fromMember) {
 			const memberOutput = context.previousOutputs?.[htmlSource.fromMember];
-			if (!memberOutput?.output?.html) throw new Error(`Member "${htmlSource.fromMember}" did not produce HTML output. Make sure it's an HTML member and executed before this PDF member.`);
+			if (!memberOutput?.output?.html) throw new Error(`Agent "${htmlSource.fromMember}" did not produce HTML output. Make sure it's an HTML agent and executed before this PDF agent.`);
 			html = memberOutput.output.html;
 			htmlSize = html.length;
 		} else if (htmlSource?.template) {
 			const htmlMember = new HtmlMember({
 				name: `${this.name}-html-renderer`,
-				type: MemberType.HTML,
+				operation: Operation.html,
 				config: {
 					template: htmlSource.template,
 					templateEngine: this.pdfConfig.templateEngine || "simple",
@@ -24065,13 +24033,13 @@ function convertHTMLToMarkdown(html) {
 }
 var init_html_parser = __esmMin((() => {}));
 var logger$2, ScrapeMember;
-var init_scrape_member = __esmMin((() => {
-	init_base_member();
+var init_scrape_agent = __esmMin((() => {
+	init_base_agent();
 	init_bot_detection();
 	init_html_parser();
 	init_observability();
-	logger$2 = createLogger({ serviceName: "scrape-member" });
-	ScrapeMember = class extends BaseMember {
+	logger$2 = createLogger({ serviceName: "scrape-agent" });
+	ScrapeMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
 			this.env = env;
@@ -24086,7 +24054,7 @@ var init_scrape_member = __esmMin((() => {
 		}
 		async run(context) {
 			const input = context.input;
-			if (!input.url) throw new Error("Scrape member requires \"url\" in input");
+			if (!input.url) throw new Error("Scrape agent requires \"url\" in input");
 			const startTime = Date.now();
 			const strategy = this.scrapeConfig.strategy;
 			try {
@@ -24178,7 +24146,7 @@ var scrape_exports = /* @__PURE__ */ __export({
 	isContentSuccessful: () => isContentSuccessful
 });
 var init_scrape = __esmMin((() => {
-	init_scrape_member();
+	init_scrape_agent();
 	init_bot_detection();
 	init_html_parser();
 }));
@@ -24389,13 +24357,13 @@ var init_embedding_evaluator = __esmMin((() => {
 	};
 }));
 var ValidateMember;
-var init_validate_member = __esmMin((() => {
-	init_base_member();
+var init_validate_agent = __esmMin((() => {
+	init_base_agent();
 	init_rule_evaluator();
 	init_judge_evaluator();
 	init_nlp_evaluator();
 	init_embedding_evaluator();
-	ValidateMember = class extends BaseMember {
+	ValidateMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
 			this.env = env;
@@ -24412,7 +24380,7 @@ var init_validate_member = __esmMin((() => {
 		}
 		async run(context) {
 			const input = context.input;
-			if (!input.content) throw new Error("Validate member requires \"content\" in input");
+			if (!input.content) throw new Error("Validate agent requires \"content\" in input");
 			const evalType = this.validateConfig.evalType;
 			const evaluator = this.getEvaluator(evalType);
 			const evalConfig = {
@@ -24449,7 +24417,7 @@ var validate_exports = /* @__PURE__ */ __export({
 	ValidateMember: () => ValidateMember
 });
 var init_validate = __esmMin((() => {
-	init_validate_member();
+	init_validate_agent();
 	init_base_evaluator();
 	init_rule_evaluator();
 	init_judge_evaluator();
@@ -24559,10 +24527,10 @@ var init_chunker = __esmMin((() => {
 	};
 }));
 var RAGMember;
-var init_rag_member = __esmMin((() => {
-	init_base_member();
+var init_rag_agent = __esmMin((() => {
+	init_base_agent();
 	init_chunker();
-	RAGMember = class extends BaseMember {
+	RAGMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
 			this.env = env;
@@ -24627,15 +24595,15 @@ var rag_exports = /* @__PURE__ */ __export({
 	RAGMember: () => RAGMember
 });
 var init_rag = __esmMin((() => {
-	init_rag_member();
+	init_rag_agent();
 	init_chunker();
 }));
 var logger$1, HITLMember;
-var init_hitl_member = __esmMin((() => {
-	init_base_member();
+var init_hitl_agent = __esmMin((() => {
+	init_base_agent();
 	init_observability();
-	logger$1 = createLogger({ serviceName: "hitl-member" });
-	HITLMember = class extends BaseMember {
+	logger$1 = createLogger({ serviceName: "hitl-agent" });
+	HITLMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
 			this.env = env;
@@ -24805,12 +24773,12 @@ var init_hitl_member = __esmMin((() => {
 }));
 var hitl_exports = /* @__PURE__ */ __export({ HITLMember: () => HITLMember });
 var init_hitl = __esmMin((() => {
-	init_hitl_member();
+	init_hitl_agent();
 }));
 var FetchMember;
-var init_fetch_member = __esmMin((() => {
-	init_base_member();
-	FetchMember = class extends BaseMember {
+var init_fetch_agent = __esmMin((() => {
+	init_base_agent();
+	FetchMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
 			this.env = env;
@@ -24825,7 +24793,7 @@ var init_fetch_member = __esmMin((() => {
 		}
 		async run(context) {
 			const input = context.input;
-			if (!input.url) throw new Error("Fetch member requires \"url\" in input");
+			if (!input.url) throw new Error("Fetch agent requires \"url\" in input");
 			const startTime = Date.now();
 			const maxRetries = this.fetchConfig.retry || 0;
 			for (let attempt = 0; attempt <= maxRetries; attempt++) try {
@@ -24882,12 +24850,12 @@ var init_fetch_member = __esmMin((() => {
 }));
 var fetch_exports = /* @__PURE__ */ __export({ FetchMember: () => FetchMember });
 var init_fetch = __esmMin((() => {
-	init_fetch_member();
+	init_fetch_agent();
 }));
 var QueriesMember;
-var init_queries_member = __esmMin((() => {
-	init_base_member();
-	QueriesMember = class extends BaseMember {
+var init_queries_agent = __esmMin((() => {
+	init_base_agent();
+	QueriesMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
 			this.env = env;
@@ -24994,39 +24962,39 @@ var init_queries_member = __esmMin((() => {
 }));
 var queries_exports = /* @__PURE__ */ __export({ QueriesMember: () => QueriesMember });
 var init_queries = __esmMin((() => {
-	init_queries_member();
+	init_queries_agent();
 }));
 var BuiltInMemberRegistry = class {
 	constructor() {
-		this.members = /* @__PURE__ */ new Map();
+		this.agents = /* @__PURE__ */ new Map();
 	}
 	register(metadata, factory) {
-		this.members.set(metadata.name, {
+		this.agents.set(metadata.name, {
 			metadata,
 			factory,
 			loaded: false
 		});
 	}
 	isBuiltIn(name) {
-		return this.members.has(name);
+		return this.agents.has(name);
 	}
 	create(name, config, env) {
-		const entry = this.members.get(name);
-		if (!entry) throw new Error(`Built-in member "${name}" not found. Available: ${this.getAvailableNames().join(", ")}`);
+		const entry = this.agents.get(name);
+		if (!entry) throw new Error(`Built-in agent "${name}" not found. Available: ${this.getAvailableNames().join(", ")}`);
 		entry.loaded = true;
 		return entry.factory(config, env);
 	}
 	getMetadata(name) {
-		return this.members.get(name)?.metadata;
+		return this.agents.get(name)?.metadata;
 	}
 	list() {
-		return Array.from(this.members.values()).map((entry) => entry.metadata);
+		return Array.from(this.agents.values()).map((entry) => entry.metadata);
 	}
 	getAvailableNames() {
-		return Array.from(this.members.keys());
+		return Array.from(this.agents.keys());
 	}
 	listByType(type) {
-		return this.list().filter((m) => m.type === type);
+		return this.list().filter((m) => m.operation === type);
 	}
 	listByTag(tag) {
 		return this.list().filter((m) => m.tags?.includes(tag));
@@ -25045,7 +25013,7 @@ function registerAllBuiltInMembers(registry$1) {
 		name: "scrape",
 		version: "1.0.0",
 		description: "3-tier web scraping with bot protection and fallback strategies",
-		type: MemberType.Function,
+		operation: Operation.code,
 		tags: [
 			"web",
 			"scraping",
@@ -25079,7 +25047,7 @@ function registerAllBuiltInMembers(registry$1) {
 				duration: 4500
 			}
 		}],
-		documentation: "https://docs.conductor.dev/built-in-members/scrape"
+		documentation: "https://docs.conductor.dev/built-in-agents/scrape"
 	}, (config, env) => {
 		const { ScrapeMember: ScrapeMember$1 } = (init_scrape(), __toCommonJS(scrape_exports));
 		return new ScrapeMember$1(config, env);
@@ -25088,7 +25056,7 @@ function registerAllBuiltInMembers(registry$1) {
 		name: "validate",
 		version: "1.0.0",
 		description: "Validation and evaluation with pluggable evaluators (judge, NLP, embedding, rule)",
-		type: MemberType.Scoring,
+		operation: Operation.scoring,
 		tags: [
 			"validation",
 			"evaluation",
@@ -25132,7 +25100,7 @@ function registerAllBuiltInMembers(registry$1) {
 				threshold: .8
 			}
 		}],
-		documentation: "https://docs.conductor.dev/built-in-members/validate"
+		documentation: "https://docs.conductor.dev/built-in-agents/validate"
 	}, (config, env) => {
 		const { ValidateMember: ValidateMember$1 } = (init_validate(), __toCommonJS(validate_exports));
 		return new ValidateMember$1(config, env);
@@ -25141,7 +25109,7 @@ function registerAllBuiltInMembers(registry$1) {
 		name: "rag",
 		version: "1.0.0",
 		description: "RAG system using Cloudflare Vectorize and AI embeddings",
-		type: MemberType.Data,
+		operation: Operation.storage,
 		tags: [
 			"rag",
 			"vectorize",
@@ -25180,7 +25148,7 @@ function registerAllBuiltInMembers(registry$1) {
 				count: 5
 			}
 		}],
-		documentation: "https://docs.conductor.dev/built-in-members/rag"
+		documentation: "https://docs.conductor.dev/built-in-agents/rag"
 	}, (config, env) => {
 		const { RAGMember: RAGMember$1 } = (init_rag(), __toCommonJS(rag_exports));
 		return new RAGMember$1(config, env);
@@ -25189,7 +25157,7 @@ function registerAllBuiltInMembers(registry$1) {
 		name: "hitl",
 		version: "1.0.0",
 		description: "Human-in-the-loop workflows with approval gates and notifications",
-		type: MemberType.Function,
+		operation: Operation.code,
 		tags: [
 			"workflow",
 			"approval",
@@ -25217,7 +25185,7 @@ function registerAllBuiltInMembers(registry$1) {
 				approvalUrl: "https://app.com/approve/exec-123"
 			}
 		}],
-		documentation: "https://docs.conductor.dev/built-in-members/hitl"
+		documentation: "https://docs.conductor.dev/built-in-agents/hitl"
 	}, (config, env) => {
 		const { HITLMember: HITLMember$1 } = (init_hitl(), __toCommonJS(hitl_exports));
 		return new HITLMember$1(config, env);
@@ -25226,7 +25194,7 @@ function registerAllBuiltInMembers(registry$1) {
 		name: "fetch",
 		version: "1.0.0",
 		description: "HTTP client with retry logic and exponential backoff",
-		type: MemberType.Function,
+		operation: Operation.code,
 		tags: [
 			"http",
 			"api",
@@ -25261,7 +25229,7 @@ function registerAllBuiltInMembers(registry$1) {
 				headers: { "Content-Type": "application/json" }
 			}
 		}],
-		documentation: "https://docs.conductor.dev/built-in-members/fetch"
+		documentation: "https://docs.conductor.dev/built-in-agents/fetch"
 	}, (config, env) => {
 		const { FetchMember: FetchMember$1 } = (init_fetch(), __toCommonJS(fetch_exports));
 		return new FetchMember$1(config, env);
@@ -25270,7 +25238,7 @@ function registerAllBuiltInMembers(registry$1) {
 		name: "queries",
 		version: "1.0.0",
 		description: "Execute SQL queries across Hyperdrive-connected databases with query catalog support",
-		type: MemberType.Data,
+		operation: Operation.storage,
 		tags: [
 			"sql",
 			"database",
@@ -25368,7 +25336,7 @@ function registerAllBuiltInMembers(registry$1) {
 				includeMetadata: { type: "boolean" }
 			}
 		},
-		documentation: "https://docs.conductor.dev/built-in-members/queries"
+		documentation: "https://docs.conductor.dev/built-in-agents/queries"
 	}, (config, env) => {
 		const { QueriesMember: QueriesMember$1 } = (init_queries(), __toCommonJS(queries_exports));
 		return new QueriesMember$1(config, env);
@@ -25377,7 +25345,7 @@ function registerAllBuiltInMembers(registry$1) {
 init_observability();
 var logger = createLogger({ serviceName: "scoring-executor" });
 var ScoringExecutor = class {
-	async executeWithScoring(executeMember, evaluateOutput, config) {
+	async executeWithScoring(executeAgent, evaluateOutput, config) {
 		const startTime = Date.now();
 		let attempts = 0;
 		let lastScore;
@@ -25387,7 +25355,7 @@ var ScoringExecutor = class {
 		while (attempts < maxAttempts) {
 			attempts++;
 			try {
-				const output = await executeMember();
+				const output = await executeAgent();
 				lastOutput = output;
 				const score = await evaluateOutput(output, attempts, lastScore);
 				lastScore = score;
@@ -25493,8 +25461,8 @@ var EnsembleScorer = class {
 		const latestScores = this.getLatestScoresPerMember(history);
 		let weightedSum = 0;
 		let totalWeight = 0;
-		for (const [member, score] of latestScores.entries()) {
-			const weight = weights[member] || 1;
+		for (const [agent, score] of latestScores.entries()) {
+			const weight = weights[agent] || 1;
 			weightedSum += score * weight;
 			totalWeight += weight;
 		}
@@ -25502,7 +25470,7 @@ var EnsembleScorer = class {
 	}
 	getLatestScoresPerMember(history) {
 		const scores = /* @__PURE__ */ new Map();
-		for (const entry of history) if (entry.passed) scores.set(entry.member, entry.score);
+		for (const entry of history) if (entry.passed) scores.set(entry.agent, entry.score);
 		return scores;
 	}
 	calculateQualityMetrics(history) {
@@ -25559,7 +25527,7 @@ var EnsembleScorer = class {
 	updateScoringState(state, entry) {
 		const newHistory = [...state.scoreHistory, entry];
 		const retryCount = { ...state.retryCount };
-		if (entry.attempt > 1) retryCount[entry.member] = (retryCount[entry.member] || 0) + 1;
+		if (entry.attempt > 1) retryCount[entry.agent] = (retryCount[entry.agent] || 0) + 1;
 		const qualityMetrics = this.calculateQualityMetrics(newHistory);
 		return {
 			scoreHistory: newHistory,
@@ -25584,8 +25552,8 @@ var EnsembleScorer = class {
 	}
 	getRecommendations(metrics) {
 		const recommendations = [];
-		if (metrics.ensembleScore < .7) recommendations.push("Overall ensemble score is low. Review member configurations and criteria.");
-		if (metrics.totalRetries > metrics.totalEvaluations * .5) recommendations.push("High retry rate detected. Consider adjusting thresholds or improving member quality.");
+		if (metrics.ensembleScore < .7) recommendations.push("Overall ensemble score is low. Review agent configurations and criteria.");
+		if (metrics.totalRetries > metrics.totalEvaluations * .5) recommendations.push("High retry rate detected. Consider adjusting thresholds or improving agent quality.");
 		if (metrics.passRate < .8) recommendations.push(`Pass rate is ${(metrics.passRate * 100).toFixed(0)}%. Review failing criteria.`);
 		if (metrics.criteriaBreakdown) {
 			for (const [criterion, data] of Object.entries(metrics.criteriaBreakdown)) if (data.passRate < .7) recommendations.push(`Criterion '${criterion}' has low pass rate (${(data.passRate * 100).toFixed(0)}%). Focus improvement efforts here.`);
@@ -25609,71 +25577,71 @@ var Executor = class {
 	constructor(config) {
 		this.env = config.env;
 		this.ctx = config.ctx;
-		this.memberRegistry = /* @__PURE__ */ new Map();
+		this.agentRegistry = /* @__PURE__ */ new Map();
 		this.logger = config.logger || createLogger({ serviceName: "executor" }, this.env.ANALYTICS);
 	}
-	registerMember(member) {
-		this.memberRegistry.set(member.getName(), member);
+	registerAgent(agent) {
+		this.agentRegistry.set(agent.getName(), agent);
 	}
-	async resolveMember(memberRef) {
-		const { name, version } = Parser.parseMemberReference(memberRef);
+	async resolveAgent(agentRef) {
+		const { name, version } = Parser.parseAgentReference(agentRef);
 		if (!version) {
 			const builtInRegistry = getBuiltInRegistry();
 			if (builtInRegistry.isBuiltIn(name)) try {
 				const config = {
 					name,
-					type: builtInRegistry.getMetadata(name)?.type || MemberType.Function,
+					operation: builtInRegistry.getMetadata(name)?.operation || Operation.code,
 					config: {}
 				};
-				const member$1 = builtInRegistry.create(name, config, this.env);
-				return Result.ok(member$1);
+				const agent$1 = builtInRegistry.create(name, config, this.env);
+				return Result.ok(agent$1);
 			} catch (error) {
-				return Result.err(Errors.memberConfig(name, `Failed to load built-in member: ${error instanceof Error ? error.message : "Unknown error"}`));
+				return Result.err(Errors.agentConfig(name, `Failed to load built-in agent: ${error instanceof Error ? error.message : "Unknown error"}`));
 			}
-			const member = this.memberRegistry.get(name);
-			if (!member) return Result.err(Errors.memberNotFound(name));
-			return Result.ok(member);
+			const agent = this.agentRegistry.get(name);
+			if (!agent) return Result.err(Errors.agentNotFound(name));
+			return Result.ok(agent);
 		}
 		const versionedKey = `${name}@${version}`;
-		if (this.memberRegistry.has(versionedKey)) {
-			const member = this.memberRegistry.get(versionedKey);
-			return Result.ok(member);
+		if (this.agentRegistry.has(versionedKey)) {
+			const agent = this.agentRegistry.get(versionedKey);
+			return Result.ok(agent);
 		}
-		const localMember = this.memberRegistry.get(name);
-		if (localMember) {
-			this.memberRegistry.set(versionedKey, localMember);
-			return Result.ok(localMember);
+		const localAgent = this.agentRegistry.get(name);
+		if (localAgent) {
+			this.agentRegistry.set(versionedKey, localAgent);
+			return Result.ok(localAgent);
 		}
-		return Result.err(Errors.memberConfig(memberRef, "Versioned member loading requires Edgit integration. Register members manually using executor.registerMember()"));
+		return Result.err(Errors.agentConfig(agentRef, "Versioned agent loading requires Edgit integration. Register agents manually using executor.registerAgent()"));
 	}
-	createMemberFromConfig(config) {
-		switch (config.type) {
-			case MemberType.Think: return Result.ok(new ThinkMember(config));
-			case MemberType.Data: return Result.ok(new DataMember(config));
-			case MemberType.API: return Result.ok(new APIMember(config));
-			case MemberType.Email: return Result.ok(new EmailMember(config));
-			case MemberType.SMS: return Result.ok(new SmsMember(config));
-			case MemberType.Form: return Result.ok(new FormMember(config));
-			case MemberType.Page: return Result.ok(new PageMember(config));
-			case MemberType.HTML: return Result.ok(new HtmlMember(config));
-			case MemberType.PDF: return Result.ok(new PdfMember(config));
-			case MemberType.Function: return Result.err(Errors.memberConfig(config.name, "Function members require code implementation and must be registered manually"));
-			case MemberType.MCP: return Result.err(Errors.memberConfig(config.name, "MCP member type not yet implemented"));
-			case MemberType.Scoring: return Result.err(Errors.memberConfig(config.name, "Scoring member type not yet implemented"));
-			default: return Result.err(Errors.memberConfig(config.name, `Unknown member type: ${config.type}`));
+	createAgentFromConfig(config) {
+		switch (config.operation) {
+			case Operation.think: return Result.ok(new ThinkAgent(config));
+			case Operation.storage: return Result.ok(new DataAgent(config));
+			case Operation.http: return Result.ok(new APIAgent(config));
+			case Operation.email: return Result.ok(new EmailAgent(config));
+			case Operation.sms: return Result.ok(new SmsMember(config));
+			case Operation.form: return Result.ok(new FormAgent(config));
+			case Operation.page: return Result.ok(new PageAgent(config));
+			case Operation.html: return Result.ok(new HtmlMember(config));
+			case Operation.pdf: return Result.ok(new PdfMember(config));
+			case Operation.code: return Result.err(Errors.agentConfig(config.name, "Function agents require code implementation and must be registered manually"));
+			case Operation.tools: return Result.err(Errors.agentConfig(config.name, "MCP agent type not yet implemented"));
+			case Operation.scoring: return Result.err(Errors.agentConfig(config.name, "Scoring agent type not yet implemented"));
+			default: return Result.err(Errors.agentConfig(config.name, `Unknown agent operation: ${config.operation}`));
 		}
 	}
 	async executeStep(step, flowContext, stepIndex) {
 		const { ensemble, executionContext, metrics, stateManager, scoringState, ensembleScorer, scoringExecutor } = flowContext;
-		const memberStartTime = Date.now();
+		const agentStartTime = Date.now();
 		let resolvedInput;
 		if (step.input) resolvedInput = Parser.resolveInterpolation(step.input, executionContext);
-		else if (stepIndex > 0) resolvedInput = executionContext[ensemble.flow[stepIndex - 1].member]?.output || {};
+		else if (stepIndex > 0) resolvedInput = executionContext[ensemble.flow[stepIndex - 1].agent]?.output || {};
 		else resolvedInput = executionContext.input || {};
-		const memberResult = await this.resolveMember(step.member);
-		if (!memberResult.success) return Result.err(new EnsembleExecutionError(ensemble.name, step.member, memberResult.error));
-		const member = memberResult.value;
-		const memberContext = {
+		const agentResult = await this.resolveAgent(step.agent);
+		if (!agentResult.success) return Result.err(new EnsembleExecutionError(ensemble.name, step.agent, agentResult.error));
+		const agent = agentResult.value;
+		const agentContext = {
 			input: resolvedInput,
 			env: this.env,
 			ctx: this.ctx,
@@ -25681,9 +25649,9 @@ var Executor = class {
 		};
 		let getPendingUpdates = null;
 		if (stateManager && step.state) {
-			const { context, getPendingUpdates: getUpdates } = stateManager.getStateForMember(step.member, step.state);
-			memberContext.state = context.state;
-			memberContext.setState = context.setState;
+			const { context, getPendingUpdates: getUpdates } = stateManager.getStateForAgent(step.agent, step.state);
+			agentContext.state = context.state;
+			agentContext.setState = context.setState;
 			getPendingUpdates = getUpdates;
 		}
 		let response;
@@ -25691,15 +25659,15 @@ var Executor = class {
 		if (step.scoring && scoringState && ensembleScorer) {
 			const scoringConfig = step.scoring;
 			const scoredResult = await scoringExecutor.executeWithScoring(async () => {
-				const resp = await member.execute(memberContext);
+				const resp = await agent.execute(agentContext);
 				if (stateManager && getPendingUpdates) {
 					const { updates, newLog } = getPendingUpdates();
 					flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
 				}
 				return resp;
 			}, async (output, attempt, previousScore) => {
-				const evaluatorResult = await this.resolveMember(scoringConfig.evaluator);
-				if (!evaluatorResult.success) throw new Error(`Failed to resolve evaluator member: ${evaluatorResult.error.message}`);
+				const evaluatorResult = await this.resolveAgent(scoringConfig.evaluator);
+				if (!evaluatorResult.success) throw new Error(`Failed to resolve evaluator agent: ${evaluatorResult.error.message}`);
 				const evaluator = evaluatorResult.value;
 				const evalContext = {
 					input: {
@@ -25731,7 +25699,7 @@ var Executor = class {
 			response = scoredResult.output;
 			scoringResult = scoredResult.score;
 			scoringState.scoreHistory.push({
-				member: step.member,
+				agent: step.agent,
 				score: scoringResult.score,
 				passed: scoringResult.passed,
 				feedback: scoringResult.feedback,
@@ -25739,30 +25707,30 @@ var Executor = class {
 				timestamp: Date.now(),
 				attempt: scoredResult.attempts
 			});
-			scoringState.retryCount[step.member] = scoredResult.attempts - 1;
-			if (scoredResult.status === "max_retries_exceeded") this.logger.warn("Member exceeded max retries", {
-				memberName: step.member,
+			scoringState.retryCount[step.agent] = scoredResult.attempts - 1;
+			if (scoredResult.status === "max_retries_exceeded") this.logger.warn("Agent exceeded max retries", {
+				agentName: step.agent,
 				score: scoringResult.score,
 				attempts: scoredResult.attempts,
 				ensembleName: ensemble.name
 			});
 		} else {
-			response = await member.execute(memberContext);
+			response = await agent.execute(agentContext);
 			if (stateManager && getPendingUpdates) {
 				const { updates, newLog } = getPendingUpdates();
 				flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
 			}
 		}
-		const memberDuration = Date.now() - memberStartTime;
-		metrics.members.push({
-			name: step.member,
-			duration: memberDuration,
+		const agentDuration = Date.now() - agentStartTime;
+		metrics.agents.push({
+			name: step.agent,
+			duration: agentDuration,
 			cached: response.cached,
 			success: response.success
 		});
 		if (response.cached) metrics.cacheHits++;
-		if (!response.success) return Result.err(new MemberExecutionError(step.member, response.error || "Unknown error", void 0));
-		executionContext[step.member] = { output: response.data };
+		if (!response.success) return Result.err(new AgentExecutionError(step.agent, response.error || "Unknown error", void 0));
+		executionContext[step.agent] = { output: response.data };
 		if (flowContext.stateManager) executionContext.state = flowContext.stateManager.getState();
 		if (scoringState) executionContext.scoring = scoringState;
 		return Result.ok(void 0);
@@ -25780,7 +25748,7 @@ var Executor = class {
 		}
 		let finalOutput;
 		if (ensemble.output) finalOutput = Parser.resolveInterpolation(ensemble.output, executionContext);
-		else if (ensemble.flow.length > 0) finalOutput = executionContext[ensemble.flow[ensemble.flow.length - 1].member]?.output;
+		else if (ensemble.flow.length > 0) finalOutput = executionContext[ensemble.flow[ensemble.flow.length - 1].agent]?.output;
 		else finalOutput = {};
 		metrics.totalDuration = Date.now() - startTime;
 		const stateReport = flowContext.stateManager?.getAccessReport();
@@ -25797,7 +25765,7 @@ var Executor = class {
 		const metrics = {
 			ensemble: ensemble.name,
 			totalDuration: 0,
-			members: [],
+			agents: [],
 			cacheHits: 0
 		};
 		const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
@@ -25833,19 +25801,19 @@ var Executor = class {
 		const parseResult = Result.fromThrowable(() => Parser.parseEnsemble(yamlContent));
 		if (!parseResult.success) return Result.err(Errors.ensembleParse("unknown", parseResult.error.message));
 		const ensemble = parseResult.value;
-		const availableMembers = new Set(this.memberRegistry.keys());
-		const validationResult = Result.fromThrowable(() => Parser.validateMemberReferences(ensemble, availableMembers));
+		const availableMembers = new Set(this.agentRegistry.keys());
+		const validationResult = Result.fromThrowable(() => Parser.validateAgentReferences(ensemble, availableMembers));
 		if (!validationResult.success) return Result.err(Errors.ensembleParse(ensemble.name, validationResult.error.message));
 		return await this.executeEnsemble(ensemble, input);
 	}
 	getRegisteredMembers() {
 		const builtInNames = getBuiltInRegistry().getAvailableNames();
-		const userDefinedNames = Array.from(this.memberRegistry.keys());
+		const userDefinedNames = Array.from(this.agentRegistry.keys());
 		const allNames = new Set([...builtInNames, ...userDefinedNames]);
 		return Array.from(allNames);
 	}
-	hasMember(memberName) {
-		return getBuiltInRegistry().isBuiltIn(memberName) || this.memberRegistry.has(memberName);
+	hasMember(agentName) {
+		return getBuiltInRegistry().isBuiltIn(agentName) || this.agentRegistry.has(agentName);
 	}
 	getBuiltInMembers() {
 		return getBuiltInRegistry().list();
@@ -25868,7 +25836,7 @@ var Executor = class {
 		const metrics = {
 			ensemble: ensemble.name,
 			totalDuration: 0,
-			members: suspendedState.metrics.members || [],
+			agents: suspendedState.metrics.agents || [],
 			cacheHits: suspendedState.metrics.cacheHits || 0
 		};
 		const startTime = suspendedState.metrics.startTime || Date.now();
@@ -25888,18 +25856,18 @@ var Executor = class {
 		return await this.executeFlow(flowContext, resumeFromStep);
 	}
 };
-init_base_member();
-var FunctionMember = class FunctionMember extends BaseMember {
+init_base_agent();
+var FunctionAgent = class FunctionAgent extends BaseAgent {
 	constructor(config, implementation) {
 		super(config);
-		if (typeof implementation !== "function") throw new Error(`Function member "${config.name}" requires a function implementation`);
+		if (typeof implementation !== "function") throw new Error(`Function agent "${config.name}" requires a function implementation`);
 		this.implementation = implementation;
 	}
 	async run(context) {
 		try {
 			return await this.implementation(context);
 		} catch (error) {
-			throw new Error(`Function member "${this.name}" execution failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+			throw new Error(`Function agent "${this.name}" execution failed: ${error instanceof Error ? error.message : "Unknown error"}`);
 		}
 	}
 	getImplementation() {
@@ -25911,7 +25879,7 @@ var FunctionMember = class FunctionMember extends BaseMember {
 			const implementation = async (context) => {
 				return await handler(context.input, context);
 			};
-			return new FunctionMember(config, implementation);
+			return new FunctionAgent(config, implementation);
 		}
 		return null;
 	}
@@ -25919,15 +25887,15 @@ var FunctionMember = class FunctionMember extends BaseMember {
 var MemberLoader = class {
 	constructor(config) {
 		this.config = {
-			membersDir: config.membersDir || "./members",
+			membersDir: config.membersDir || "./agents",
 			ensemblesDir: config.ensemblesDir || "./ensembles",
 			env: config.env,
 			ctx: config.ctx
 		};
 		this.loadedMembers = /* @__PURE__ */ new Map();
 	}
-	registerMember(memberConfig, implementation) {
-		const config = typeof memberConfig === "string" ? Parser.parseMember(memberConfig) : memberConfig;
+	registerAgent(agentConfig, implementation) {
+		const config = typeof agentConfig === "string" ? Parser.parseAgent(agentConfig) : agentConfig;
 		const instance = this.createMemberInstance(config, implementation);
 		this.loadedMembers.set(config.name, {
 			config,
@@ -25936,26 +25904,26 @@ var MemberLoader = class {
 		return instance;
 	}
 	async loadMemberFromEdgit(memberRef) {
-		const { name, version } = Parser.parseMemberReference(memberRef);
-		if (!version) throw new Error(`Member reference must include version: ${memberRef}`);
+		const { name, version } = Parser.parseAgentReference(memberRef);
+		if (!version) throw new Error(`Agent reference must include version: ${memberRef}`);
 		const versionedKey = `${name}@${version}`;
 		if (this.loadedMembers.has(versionedKey)) return this.loadedMembers.get(versionedKey).instance;
-		throw new Error(`Cannot load versioned member from Edgit: ${memberRef}. Edgit integration not yet available. Use loader.registerMember() for now.`);
+		throw new Error(`Cannot load versioned agent from Edgit: ${memberRef}. Edgit integration not yet available. Use loader.registerAgent() for now.`);
 	}
 	createMemberInstance(config, implementation) {
-		switch (config.type) {
-			case "Function":
-				if (!implementation) throw new Error(`Function member "${config.name}" requires an implementation function`);
-				return new FunctionMember(config, implementation);
-			case "Think": return new ThinkMember(config);
-			case "Data": return new DataMember(config);
-			case "API": return new APIMember(config);
-			case "MCP": throw new Error("MCP member type not yet implemented");
-			case "Scoring": throw new Error("Scoring member type not yet implemented");
-			default: throw new Error(`Unknown member type: ${config.type}`);
+		switch (config.operation) {
+			case "code":
+				if (!implementation) throw new Error(`Code agent "${config.name}" requires an implementation function`);
+				return new FunctionAgent(config, implementation);
+			case "think": return new ThinkAgent(config);
+			case "storage": return new DataAgent(config);
+			case "http": return new APIAgent(config);
+			case "tools": throw new Error("Tools agent type not yet implemented");
+			case "scoring": throw new Error("Scoring agent type not yet implemented");
+			default: throw new Error(`Unknown agent type: ${config.operation}`);
 		}
 	}
-	getMember(name) {
+	getAgent(name) {
 		return this.loadedMembers.get(name)?.instance;
 	}
 	getAllMembers() {
@@ -26010,16 +25978,19 @@ var PageRouter = class {
 	}
 	async discoverPages(pagesMap) {
 		if (!this.config.autoRoute) return;
-		for (const [pageName, { config, member }] of pagesMap) {
-			this.pages.set(pageName, member);
-			if (config.config?.route) continue;
+		for (const [pageName, { config, agent }] of pagesMap) {
+			this.pages.set(pageName, agent);
+			if (config.config?.route) {
+				this.registerPage(config, agent);
+				continue;
+			}
 			let path$1 = this.pageNameToPath(pageName);
 			path$1 = this.normalizePath(path$1);
 			const params = this.extractParams(path$1);
 			this.routes.push({
 				path: path$1,
 				methods: ["GET"],
-				page: member,
+				page: agent,
 				params
 			});
 		}
@@ -26860,26 +26831,26 @@ var UnifiedRouter = class {
 		let pattern = options.pattern;
 		let path$1 = options.path || options.pattern;
 		if (pattern === "default" || pattern === "auto") if (options.memberPath) {
-			pattern = this.resolveDefaultPath(options.memberPath, options.memberType);
+			pattern = this.resolveDefaultPath(options.memberPath, options.operation);
 			path$1 = pattern;
 		} else {
-			pattern = `/${options.memberType}s/${options.memberName}`;
+			pattern = `/${options.operation}s/${options.agentName}`;
 			path$1 = pattern;
 		}
 		const route = {
 			pattern,
 			path: path$1,
 			methods: options.methods,
-			memberType: options.memberType,
-			memberName: options.memberName,
+			operation: options.operation,
+			agentName: options.agentName,
 			auth: options.auth,
 			priority: options.priority,
 			handler: options.handler
 		};
 		this.routes.push(route);
 		this.routes.sort((a, b) => {
-			const aPrio = a.priority ?? this.getDefaultPriority(a.memberType);
-			const bPrio = b.priority ?? this.getDefaultPriority(b.memberType);
+			const aPrio = a.priority ?? this.getDefaultPriority(a.operation);
+			const bPrio = b.priority ?? this.getDefaultPriority(b.operation);
 			if (aPrio !== bPrio) return aPrio - bPrio;
 			const aStatic = !a.pattern.includes(":") && !a.pattern.includes("*");
 			const bStatic = !b.pattern.includes(":") && !b.pattern.includes("*");
@@ -26888,11 +26859,11 @@ var UnifiedRouter = class {
 			return b.pattern.length - a.pattern.length;
 		});
 	}
-	resolveDefaultPath(memberPath, memberType) {
-		let path$1 = memberPath.replace(/\.(yaml|yml|ts|js|tsx|jsx)$/, "").replace(/\/(member|page|ensemble|form|api)$/, "");
+	resolveDefaultPath(memberPath, operation) {
+		let path$1 = memberPath.replace(/\.(yaml|yml|ts|js|tsx|jsx)$/, "").replace(/\/(agent|page|ensemble|form|api)$/, "");
 		for (const prefix of [
 			"/pages/",
-			"/members/",
+			"/agents/",
 			"/ensembles/",
 			"/forms/",
 			"/apis/",
@@ -26906,7 +26877,7 @@ var UnifiedRouter = class {
 		if (path$1.endsWith("/index")) path$1 = path$1.substring(0, path$1.length - 6) || "/";
 		return path$1;
 	}
-	getDefaultPriority(memberType) {
+	getDefaultPriority(operation) {
 		return {
 			static: 1,
 			health: 2,
@@ -26916,7 +26887,7 @@ var UnifiedRouter = class {
 			docs: 70,
 			page: 80,
 			form: 90
-		}[memberType] || 100;
+		}[operation] || 100;
 	}
 	matchPattern(pattern, path$1) {
 		pattern = pattern.replace(/\/+$/, "") || "/";
@@ -26946,18 +26917,18 @@ var UnifiedRouter = class {
 			if (!route.methods.includes(method) && !route.methods.includes("*")) continue;
 			const params = this.matchPattern(route.pattern, path$1);
 			if (params === null) continue;
-			const auth = this.resolveAuthConfig(route.pattern, route.memberType, route.auth);
+			const auth = this.resolveAuthConfig(route.pattern, route.operation, route.auth);
 			return {
 				pattern: route.pattern,
 				params,
 				auth,
-				memberType: route.memberType,
-				priority: route.priority ?? this.getDefaultPriority(route.memberType)
+				operation: route.operation,
+				priority: route.priority ?? this.getDefaultPriority(route.operation)
 			};
 		}
 		return null;
 	}
-	resolveAuthConfig(path$1, memberType, memberAuth) {
+	resolveAuthConfig(path$1, operation, memberAuth) {
 		let resolved = {};
 		let source = "global-default";
 		if (this.config.routing?.auth?.global) resolved = { ...this.config.routing.auth.global };
@@ -26972,7 +26943,7 @@ var UnifiedRouter = class {
 				static: "pages",
 				health: "api",
 				auth: "api"
-			}[memberType];
+			}[operation];
 			if (typeKey && typeDefaults[typeKey]) {
 				resolved = {
 					...resolved,
@@ -26996,7 +26967,7 @@ var UnifiedRouter = class {
 				...resolved,
 				...memberAuth
 			};
-			source = "member";
+			source = "agent";
 		}
 		if (!resolved.requirement) resolved.requirement = "required";
 		return {
@@ -27108,13 +27079,13 @@ var UnifiedRouter = class {
 		});
 	}
 };
-init_base_member();
+init_base_agent();
 function createConductorHandler(config) {
 	return { async fetch(request, env, ctx) {
 		return new Response("Conductor initialized - handler implementation coming soon", { headers: { "content-type": "text/plain" } });
 	} };
 }
 var worker_entry_default = {};
-export { APIMember, ApiKeyValidator, BaseMember, BearerValidator, CookieValidator, CustomValidatorRegistry, DataMember, Executor, FunctionMember, GitHubSignatureValidator, MemberLoader, PageMember, PageRouter, Parser, StateManager, StripeSignatureValidator, ThinkMember, TwilioSignatureValidator, UnifiedRouter, UnkeyValidator, createApiKeyValidator, createBearerValidator, createConductorHandler, createCookieValidator, createCustomValidatorRegistry, createLoader, createUnkeyValidator, worker_entry_default as default };
+export { APIAgent, ApiKeyValidator, BaseAgent, BearerValidator, CookieValidator, CustomValidatorRegistry, DataAgent, Executor, FunctionAgent, GitHubSignatureValidator, MemberLoader, PageAgent, PageRouter, Parser, StateManager, StripeSignatureValidator, ThinkAgent, TwilioSignatureValidator, UnifiedRouter, UnkeyValidator, createApiKeyValidator, createBearerValidator, createConductorHandler, createCookieValidator, createCustomValidatorRegistry, createLoader, createUnkeyValidator, worker_entry_default as default };
 
 //# sourceMappingURL=index.js.map

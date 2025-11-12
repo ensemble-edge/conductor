@@ -7,10 +7,10 @@
  * @example
  * ```typescript
  * const modelId = ModelId.create('@cf/meta/llama-3.1-8b-instruct');
- * const memberId = MemberName.create('analyze-company');
+ * const agentId = AgentName.create('analyze-company');
  *
- * // Type error! Can't pass MemberName where ModelId is expected
- * platform.validateModel(memberId); // ❌ Compile error
+ * // Type error! Can't pass AgentName where ModelId is expected
+ * platform.validateModel(agentId); // ❌ Compile error
  * platform.validateModel(modelId);  // ✅ Works
  * ```
  */
@@ -27,11 +27,11 @@ export type Brand<T, TBrand extends string> = T & {
  */
 export type ModelId = Brand<string, 'ModelId'>;
 /**
- * Member name - identifies a member in the system
+ * Agent name - identifies an agent in the system
  * Format: lowercase alphanumeric with hyphens
  * Examples: 'analyze-company', 'fetch-data', 'greet-user'
  */
-export type MemberName = Brand<string, 'MemberName'>;
+export type AgentName = Brand<string, 'AgentName'>;
 /**
  * Ensemble name - identifies an ensemble workflow
  * Format: lowercase alphanumeric with hyphens
@@ -78,7 +78,7 @@ export type RequestId = Brand<string, 'RequestId'>;
 export type ResumeToken = Brand<string, 'ResumeToken'>;
 /**
  * Cache Key - identifies a cached value
- * Examples: 'member:analyze:a1b2c3', 'query:d4e5f6'
+ * Examples: 'agent:analyze:a1b2c3', 'query:d4e5f6'
  */
 export type CacheKey = Brand<string, 'CacheKey'>;
 /**
@@ -104,26 +104,26 @@ export declare const ModelId: {
     unwrap(modelId: ModelId): string;
 };
 /**
- * Member name validation and creation
+ * Agent name validation and creation
  */
-export declare const MemberName: {
+export declare const AgentName: {
     /**
-     * Create a MemberName from a string
-     * @throws {Error} if the member name is invalid
+     * Create an AgentName from a string
+     * @throws {Error} if the agent name is invalid
      */
-    create(value: string): MemberName;
+    create(value: string): AgentName;
     /**
-     * Check if a string is a valid MemberName
+     * Check if a string is a valid AgentName
      */
     isValid(value: string): boolean;
     /**
-     * Safely create a MemberName, returning null if invalid
+     * Safely create an AgentName, returning null if invalid
      */
-    tryCreate(value: string): MemberName | null;
+    tryCreate(value: string): AgentName | null;
     /**
-     * Unwrap a MemberName back to a string
+     * Unwrap an AgentName back to a string
      */
-    unwrap(memberName: MemberName): string;
+    unwrap(agentName: AgentName): string;
 };
 /**
  * Ensemble name validation and creation

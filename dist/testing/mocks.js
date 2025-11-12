@@ -3,7 +3,7 @@
  */
 /**
  * Mock AI provider for testing
- * Implements the AIProvider interface to integrate with ThinkMember
+ * Implements the AIProvider interface to integrate with ThinkAgent
  */
 export class MockAIProvider {
     constructor(responses = {}, id = 'mock', sharedResponsesMap, onExecute) {
@@ -31,7 +31,7 @@ export class MockAIProvider {
     async execute(request) {
         const timestamp = Date.now();
         let aiResponse;
-        // Try to match response by context (this is called during member execution)
+        // Try to match response by context (this is called during agent execution)
         // We'll match by the first available mocked response
         for (const [, response] of this.responses.entries()) {
             if (response instanceof Error) {
@@ -52,9 +52,9 @@ export class MockAIProvider {
                     aiResponse = response;
                 }
                 else {
-                    // For test mocks, the response object IS the expected member output
-                    // Return it as JSON in content, and ThinkMember will use it as-is
-                    // Since ThinkMember returns AIProviderResponse as the member data,
+                    // For test mocks, the response object IS the expected agent output
+                    // Return it as JSON in content, and ThinkAgent will use it as-is
+                    // Since ThinkAgent returns AIProviderResponse as the agent data,
                     // we return the response directly as the AIProviderResponse,
                     // making the mocked object available in the response
                     aiResponse = {
@@ -105,11 +105,11 @@ export class MockAIProvider {
         // Mock provider doesn't require API keys
         return null;
     }
-    setResponse(memberName, response) {
-        this.responses.set(memberName, response);
+    setResponse(agentName, response) {
+        this.responses.set(agentName, response);
     }
-    getResponse(memberName) {
-        return this.responses.get(memberName);
+    getResponse(agentName) {
+        return this.responses.get(agentName);
     }
     clear() {
         this.responses.clear();

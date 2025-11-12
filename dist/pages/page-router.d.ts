@@ -1,7 +1,7 @@
 /**
  * Page Router
  *
- * Automatic routing system for Page members:
+ * Automatic routing system for Page agents:
  * - Auto-discovery of pages from /pages directory
  * - Convention-based routing (directory structure = routes)
  * - Explicit route configuration in YAML
@@ -10,12 +10,12 @@
  * - 404 handling
  */
 import type { ConductorEnv } from '../types/env.js';
-import { PageMember } from '../members/page/page-member.js';
-import type { MemberConfig } from '../runtime/parser.js';
+import { PageAgent } from '../agents/page/page-agent.js';
+import type { AgentConfig } from '../runtime/parser.js';
 export interface PageRoute {
     path: string;
     methods: string[];
-    page: PageMember;
+    page: PageAgent;
     params?: string[];
     aliases?: string[];
     auth?: 'none' | 'required' | 'optional';
@@ -30,7 +30,7 @@ export interface PageRouterConfig {
     basePath?: string;
     indexFiles?: string[];
     notFoundPage?: string;
-    beforeRender?: (page: PageMember, request: Request, env: ConductorEnv) => Promise<Record<string, any>>;
+    beforeRender?: (page: PageAgent, request: Request, env: ConductorEnv) => Promise<Record<string, any>>;
 }
 export declare class PageRouter {
     private routes;
@@ -40,7 +40,7 @@ export declare class PageRouter {
     /**
      * Register a page with explicit route configuration
      */
-    registerPage(pageConfig: MemberConfig, pageMember: PageMember): void;
+    registerPage(pageConfig: AgentConfig, pageMember: PageAgent): void;
     /**
      * Auto-discover pages from directory structure
      *
@@ -51,8 +51,8 @@ export declare class PageRouter {
      * - pages/blog/[slug].yaml → /blog/:slug
      */
     discoverPages(pagesMap: Map<string, {
-        config: MemberConfig;
-        member: PageMember;
+        config: AgentConfig;
+        agent: PageAgent;
     }>): Promise<void>;
     /**
      * Handle incoming request

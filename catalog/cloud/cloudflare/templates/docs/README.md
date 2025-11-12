@@ -55,7 +55,7 @@ docs/
 
 ## AI Enhancement
 
-When using `conductor docs generate --ai`, the docs-writer member will:
+When using `conductor docs generate --ai`, the docs-writer agent will:
 - Improve clarity and readability
 - Add missing sections
 - Generate better examples

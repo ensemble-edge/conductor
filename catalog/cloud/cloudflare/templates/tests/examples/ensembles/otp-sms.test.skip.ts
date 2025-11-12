@@ -18,7 +18,7 @@ describe('OTP SMS Ensemble', () => {
 			projectPath: '.'
 		});
 
-		// Mock SMS response for the send-otp member
+		// Mock SMS response for the send-otp agent
 		conductor.mockSMS('send-otp', {
 			messageId: 'SM123456',
 			status: 'sent',
@@ -117,10 +117,10 @@ describe('OTP SMS Ensemble', () => {
 		// Check SMS calls were tracked
 		const smsCalls = conductor.getSMSCalls();
 		expect(smsCalls.length).toBeGreaterThan(0);
-		expect(smsCalls[0].member).toBe('send-otp');
+		expect(smsCalls[0].agent).toBe('send-otp');
 	});
 
-	it('should only execute the send-otp member', async () => {
+	it('should only execute the send-otp agent', async () => {
 		const result = await conductor.executeEnsemble('otp-sms', {
 			phone: '+1234567890',
 			otp: '654321',

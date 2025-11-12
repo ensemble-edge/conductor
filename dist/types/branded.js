@@ -7,10 +7,10 @@
  * @example
  * ```typescript
  * const modelId = ModelId.create('@cf/meta/llama-3.1-8b-instruct');
- * const memberId = MemberName.create('analyze-company');
+ * const agentId = AgentName.create('analyze-company');
  *
- * // Type error! Can't pass MemberName where ModelId is expected
- * platform.validateModel(memberId); // ❌ Compile error
+ * // Type error! Can't pass AgentName where ModelId is expected
+ * platform.validateModel(agentId); // ❌ Compile error
  * platform.validateModel(modelId);  // ✅ Works
  * ```
  */
@@ -57,46 +57,46 @@ export const ModelId = {
     },
 };
 /**
- * Member name validation and creation
+ * Agent name validation and creation
  */
-export const MemberName = {
+export const AgentName = {
     /**
-     * Create a MemberName from a string
-     * @throws {Error} if the member name is invalid
+     * Create an AgentName from a string
+     * @throws {Error} if the agent name is invalid
      */
     create(value) {
         if (!value || value.trim().length === 0) {
-            throw new Error('Member name cannot be empty');
+            throw new Error('Agent name cannot be empty');
         }
-        // Member names must be lowercase alphanumeric with hyphens
+        // Agent names must be lowercase alphanumeric with hyphens
         const normalized = value.trim();
         if (!/^[a-z0-9-]+$/.test(normalized)) {
-            throw new Error(`Invalid member name format: "${value}" ` + `(must be lowercase alphanumeric with hyphens)`);
+            throw new Error(`Invalid agent name format: "${value}" ` + `(must be lowercase alphanumeric with hyphens)`);
         }
         return normalized;
     },
     /**
-     * Check if a string is a valid MemberName
+     * Check if a string is a valid AgentName
      */
     isValid(value) {
         return !!value && /^[a-z0-9-]+$/.test(value.trim());
     },
     /**
-     * Safely create a MemberName, returning null if invalid
+     * Safely create an AgentName, returning null if invalid
      */
     tryCreate(value) {
         try {
-            return MemberName.create(value);
+            return AgentName.create(value);
         }
         catch {
             return null;
         }
     },
     /**
-     * Unwrap a MemberName back to a string
+     * Unwrap an AgentName back to a string
      */
-    unwrap(memberName) {
-        return memberName;
+    unwrap(agentName) {
+        return agentName;
     },
 };
 /**

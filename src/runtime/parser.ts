@@ -9,7 +9,7 @@ import * as YAML from 'yaml'
 import { z } from 'zod'
 import { getInterpolator } from './interpolation/index.js'
 import type { ResolutionContext } from './interpolation/index.js'
-import { MemberType } from '../types/constants.js'
+import { Operation } from '../types/constants.js'
 
 /**
  * Schema for validating ensemble configuration
@@ -69,7 +69,7 @@ const EnsembleSchema = z.object({
     .optional(),
   flow: z.array(
     z.object({
-      member: z.string().min(1, 'Member name is required'),
+      agent: z.string().min(1, 'Agent name is required'),
       input: z.record(z.unknown()).optional(),
       state: z
         .object({
@@ -106,21 +106,21 @@ const EnsembleSchema = z.object({
   output: z.record(z.unknown()).optional(),
 })
 
-const MemberSchema = z.object({
-  name: z.string().min(1, 'Member name is required'),
-  type: z.enum([
-    MemberType.Think,
-    MemberType.Function,
-    MemberType.Data,
-    MemberType.API,
-    MemberType.MCP,
-    MemberType.Scoring,
-    MemberType.Email,
-    MemberType.SMS,
-    MemberType.Form,
-    MemberType.Page,
-    MemberType.HTML,
-    MemberType.PDF,
+const AgentSchema = z.object({
+  name: z.string().min(1, 'Agent name is required'),
+  operation: z.enum([
+    Operation.think,
+    Operation.code,
+    Operation.storage,
+    Operation.http,
+    Operation.tools,
+    Operation.scoring,
+    Operation.email,
+    Operation.sms,
+    Operation.form,
+    Operation.page,
+    Operation.html,
+    Operation.pdf,
   ]),
   description: z.string().optional(),
   config: z.record(z.unknown()).optional(),
@@ -133,7 +133,7 @@ const MemberSchema = z.object({
 })
 
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>
-export type MemberConfig = z.infer<typeof MemberSchema>
+export type AgentConfig = z.infer<typeof AgentSchema>
 export type FlowStep = EnsembleConfig['flow'][number]
 export type WebhookConfig = NonNullable<EnsembleConfig['webhooks']>[number]
 export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number]
@@ -167,9 +167,9 @@ export class Parser {
   }
 
   /**
-   * Parse and validate a member YAML file
+   * Parse and validate an agent YAML file
    */
-  static parseMember(yamlContent: string): MemberConfig {
+  static parseAgent(yamlContent: string): AgentConfig {
     try {
       const parsed = YAML.parse(yamlContent)
 
@@ -177,16 +177,16 @@ export class Parser {
         throw new Error('Empty or invalid YAML content')
       }
 
-      const validated = MemberSchema.parse(parsed)
+      const validated = AgentSchema.parse(parsed)
       return validated
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw new Error(
-          `Member validation failed: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+          `Agent validation failed: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
         )
       }
       throw new Error(
-        `Failed to parse member YAML: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to parse agent YAML: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
     }
   }
@@ -194,7 +194,7 @@ export class Parser {
   /**
    * Resolve input interpolations using composition-based resolver chain
    *
-   * Supports: ${input.x}, ${state.y}, ${member.output.z}
+   * Supports: ${input.x}, ${state.y}, ${agent.output.z}
    *
    * Reduced from 42 lines of nested if/else to 1 line via chain of responsibility
    */
@@ -203,15 +203,15 @@ export class Parser {
   }
 
   /**
-   * Parse a member reference that may include version
+   * Parse an agent reference that may include version
    * Supports formats:
-   * - "member-name" (no version)
-   * - "member-name@v1.0.0" (semver version)
-   * - "member-name@production" (deployment tag)
-   * - "member-name@latest" (latest tag)
+   * - "agent-name" (no version)
+   * - "agent-name@v1.0.0" (semver version)
+   * - "agent-name@production" (deployment tag)
+   * - "agent-name@latest" (latest tag)
    */
-  static parseMemberReference(memberRef: string): { name: string; version?: string } {
-    const parts = memberRef.split('@')
+  static parseAgentReference(agentRef: string): { name: string; version?: string } {
+    const parts = agentRef.split('@')
 
     if (parts.length === 1) {
       return { name: parts[0] }
@@ -225,27 +225,27 @@ export class Parser {
     }
 
     throw new Error(
-      `Invalid member reference format: ${memberRef}. Expected "name" or "name@version"`
+      `Invalid agent reference format: ${agentRef}. Expected "name" or "name@version"`
     )
   }
 
   /**
-   * Validate that all required members exist
+   * Validate that all required agents exist
    */
-  static validateMemberReferences(ensemble: EnsembleConfig, availableMembers: Set<string>): void {
-    const missingMembers: string[] = []
+  static validateAgentReferences(ensemble: EnsembleConfig, availableAgents: Set<string>): void {
+    const missingAgents: string[] = []
 
     for (const step of ensemble.flow) {
-      const { name } = this.parseMemberReference(step.member)
+      const { name } = this.parseAgentReference(step.agent)
 
-      if (!availableMembers.has(name)) {
-        missingMembers.push(step.member)
+      if (!availableAgents.has(name)) {
+        missingAgents.push(step.agent)
       }
     }
 
-    if (missingMembers.length > 0) {
+    if (missingAgents.length > 0) {
       throw new Error(
-        `Ensemble "${ensemble.name}" references missing members: ${missingMembers.join(', ')}`
+        `Ensemble "${ensemble.name}" references missing agents: ${missingAgents.join(', ')}`
       )
     }
   }

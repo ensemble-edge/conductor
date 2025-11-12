@@ -6,7 +6,7 @@
  */
 import { type EnsembleConfig } from './parser.js';
 import { type AccessReport } from './state-manager.js';
-import type { BaseMember } from '../members/base-member.js';
+import type { BaseAgent } from '../agents/base-agent.js';
 import type { ConductorEnv } from '../types/env.js';
 import { type AsyncResult } from '../types/result.js';
 import { type ConductorError } from '../errors/error-types.js';
@@ -41,11 +41,11 @@ export interface ExecutionResult {
 export interface ExecutionMetrics {
     ensemble: string;
     totalDuration: number;
-    members: MemberMetric[];
+    agents: AgentMetric[];
     cacheHits: number;
     stateAccess?: AccessReport;
 }
-export interface MemberMetric {
+export interface AgentMetric {
     name: string;
     duration: number;
     cached: boolean;
@@ -57,31 +57,31 @@ export interface MemberMetric {
 export declare class Executor {
     private env;
     private ctx;
-    private memberRegistry;
+    private agentRegistry;
     private logger;
     constructor(config: ExecutorConfig);
     /**
-     * Register a member for use in ensembles
+     * Register an agent for use in ensembles
      */
-    registerMember(member: BaseMember): void;
+    registerAgent(agent: BaseAgent): void;
     /**
-     * Resolve a member by reference with explicit error handling
+     * Resolve an agent by reference with explicit error handling
      * Supports both simple names and versioned references (name@version)
      *
      * Loading priority:
-     * 1. Check built-in members (scrape, validate, rag, hitl, fetch)
-     * 2. Check user-defined members (registered via registerMember)
+     * 1. Check built-in agents (scrape, validate, rag, hitl, fetch)
+     * 2. Check user-defined agents (registered via registerAgent)
      * 3. Error if not found
      *
-     * @param memberRef - Member reference (e.g., "greet" or "analyze-company@production")
-     * @returns Result containing the member or an error
+     * @param agentRef - Agent reference (e.g., "greet" or "analyze-company@production")
+     * @returns Result containing the agent or an error
      */
-    private resolveMember;
+    private resolveAgent;
     /**
-     * Create a member instance from config
-     * Used for dynamically loading members from Edgit
+     * Create an agent instance from config
+     * Used for dynamically loading agents from Edgit
      */
-    private createMemberFromConfig;
+    private createAgentFromConfig;
     /**
      * Execute a single flow step with all associated logic
      * @private
@@ -104,17 +104,17 @@ export declare class Executor {
      */
     executeFromYAML(yamlContent: string, input: Record<string, any>): AsyncResult<ExecutionOutput, ConductorError>;
     /**
-     * Get all registered member names (both built-in and user-defined)
+     * Get all registered agent names (both built-in and user-defined)
      */
     getRegisteredMembers(): string[];
     /**
-     * Check if a member is registered (checks both built-in and user-defined)
+     * Check if a agent is registered (checks both built-in and user-defined)
      */
-    hasMember(memberName: string): boolean;
+    hasMember(agentName: string): boolean;
     /**
-     * Get all built-in member metadata
+     * Get all built-in agent metadata
      */
-    getBuiltInMembers(): import("../members/built-in/types.js").BuiltInMemberMetadata[];
+    getBuiltInMembers(): import("../agents/built-in/types.js").BuiltInMemberMetadata[];
     /**
      * Resume execution from suspended state
      * Used for HITL approval workflows and webhook resumption

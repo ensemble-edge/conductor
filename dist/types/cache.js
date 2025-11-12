@@ -1,7 +1,7 @@
 /**
  * Common Cache Configuration Types
  *
- * Shared cache configuration interfaces for all member types
+ * Shared cache configuration interfaces for all agent types
  */
 /**
  * Type guard to check if a config has cache support
@@ -19,7 +19,7 @@ export function isCacheWarmingEnabled(config) {
     return config.cache.enabled && (config.cache.warming === true || config.cache.prewarm === true);
 }
 /**
- * Extract cache config from any member config
+ * Extract cache config from any agent config
  */
 export function getCacheConfig(config) {
     return hasCacheConfig(config) ? config.cache : null;

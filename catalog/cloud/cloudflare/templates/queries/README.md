@@ -1,12 +1,12 @@
 # Shared Queries
 
-This folder contains **shared, versioned SQL queries** that can be used across multiple members and ensembles.
+This folder contains **shared, versioned SQL queries** that can be used across multiple agents and ensembles.
 
 ## 🚧 Status: Coming Soon
 
 **File-based component loading is not yet implemented.** This folder structure demonstrates the intended architecture.
 
-For now, define queries inline in your member.yaml or use the Data member type.
+For now, define queries inline in your agent.yaml or use the Data agent type.
 
 Once Edgit integration is complete, you'll be able to reference queries like:
 ```yaml
@@ -17,9 +17,9 @@ query:
 ## Why Shared Queries?
 
 Queries are Edgit components, which means:
-- **Reusable**: Multiple members can reference the same query
+- **Reusable**: Multiple agents can reference the same query
 - **Versioned**: Each query has independent version history
-- **Optimizable**: Use different query versions across members
+- **Optimizable**: Use different query versions across agents
 - **Database-agnostic**: Works with D1, Hyperdrive (Postgres, MySQL, MariaDB)
 
 ## Adding a Query
@@ -44,7 +44,7 @@ Queries are Edgit components, which means:
    LIMIT :limit;
    ```
 
-3. Reference it in a member's `member.yaml`:
+3. Reference it in a agent's `agent.yaml`:
    ```yaml
    type: query
    name: company-finder
@@ -82,7 +82,7 @@ binding = "PRODUCTION_DB"
 id = "your-hyperdrive-id"
 ```
 
-Then use in member:
+Then use in agent:
 ```yaml
 query:
   component: queries/my-query.sql
@@ -100,17 +100,17 @@ flow:
 
 ## Co-located Alternative
 
-For rapid development, you can put queries directly in member folders:
+For rapid development, you can put queries directly in agent folders:
 ```
-members/
-  my-query-member/
-    member.yaml
+agents/
+  my-query-agent/
+    agent.yaml
     query.sql        # Co-located query
 ```
 
 **When to use shared vs co-located:**
-- **Co-located**: Early development, member-specific queries
-- **Shared**: Production use, queries used by multiple members, version control needed
+- **Co-located**: Early development, agent-specific queries
+- **Shared**: Production use, queries used by multiple agents, version control needed
 
 ## Query Parameters
 
@@ -122,7 +122,7 @@ WHERE created_at > :startDate
   AND country IN (:countries);
 ```
 
-Map parameters in member.yaml:
+Map parameters in agent.yaml:
 ```yaml
 params:
   startDate: "{{input.startDate}}"

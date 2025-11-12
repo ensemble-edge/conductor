@@ -1,16 +1,16 @@
 /**
- * Member Loader Utility
+ * Agent Loader Utility
  *
- * Dynamically loads user-created members from their project directory
+ * Dynamically loads user-created agents from their project directory
  * This runs in the user's project context, not in the conductor package
  */
-import { type MemberConfig } from '../runtime/parser.js';
-import { BaseMember } from '../members/base-member.js';
-import { type FunctionImplementation } from '../members/function-member.js';
+import { type AgentConfig } from '../runtime/parser.js';
+import { BaseAgent } from '../agents/base-agent.js';
+import { type FunctionImplementation } from '../agents/function-agent.js';
 export interface LoaderConfig {
     /**
-     * Base directory where members are located
-     * @default './members'
+     * Base directory where agents are located
+     * @default './agents'
      */
     membersDir?: string;
     /**
@@ -28,16 +28,16 @@ export interface LoaderConfig {
     ctx: ExecutionContext;
 }
 export interface LoadedMember {
-    config: MemberConfig;
-    instance: BaseMember;
+    config: AgentConfig;
+    instance: BaseAgent;
 }
 /**
- * MemberLoader handles dynamic loading of user-created members
+ * MemberLoader handles dynamic loading of user-created agents
  *
  * Note: In Cloudflare Workers, we can't use Node.js fs module.
  * Members must be bundled at build time using wrangler's module imports.
  *
- * For now, users will need to manually import and register their members.
+ * For now, users will need to manually import and register their agents.
  * Future: We can build a CLI tool that generates the registration code.
  */
 export declare class MemberLoader {
@@ -45,21 +45,21 @@ export declare class MemberLoader {
     private loadedMembers;
     constructor(config: LoaderConfig);
     /**
-     * Register a member manually
+     * Register a agent manually
      *
      * @example
      * ```typescript
-     * import greetConfig from './members/greet/member.yaml.js';
-     * import greetFunction from './members/greet/index.js';
+     * import greetConfig from './agents/greet/agent.yaml.js';
+     * import greetFunction from './agents/greet/index.js';
      *
-     * loader.registerMember(greetConfig, greetFunction);
+     * loader.registerAgent(greetConfig, greetFunction);
      * ```
      */
-    registerMember(memberConfig: MemberConfig | string, implementation?: FunctionImplementation): BaseMember;
+    registerAgent(agentConfig: AgentConfig | string, implementation?: FunctionImplementation): BaseAgent;
     /**
-     * Load a member from Edgit by version reference
+     * Load a agent from Edgit by version reference
      *
-     * This enables loading versioned member configs at runtime for A/B testing,
+     * This enables loading versioned agent configs at runtime for A/B testing,
      * environment-specific configs, and config-only deployments.
      *
      * @example
@@ -71,29 +71,29 @@ export declare class MemberLoader {
      * await loader.loadMemberFromEdgit('analyze-company@production');
      * ```
      */
-    loadMemberFromEdgit(memberRef: string): Promise<BaseMember>;
+    loadMemberFromEdgit(memberRef: string): Promise<BaseAgent>;
     /**
-     * Create a member instance based on type
+     * Create a agent instance based on type
      */
     private createMemberInstance;
     /**
-     * Get a loaded member by name
+     * Get a loaded agent by name
      */
-    getMember(name: string): BaseMember | undefined;
+    getAgent(name: string): BaseAgent | undefined;
     /**
-     * Get all loaded members
+     * Get all loaded agents
      */
-    getAllMembers(): BaseMember[];
+    getAllMembers(): BaseAgent[];
     /**
-     * Get all member names
+     * Get all agent names
      */
     getMemberNames(): string[];
     /**
-     * Check if a member is loaded
+     * Check if a agent is loaded
      */
     hasMember(name: string): boolean;
     /**
-     * Clear all loaded members
+     * Clear all loaded agents
      */
     clear(): void;
 }

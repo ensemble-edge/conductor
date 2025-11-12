@@ -21,7 +21,7 @@ Automatically retry failed operations with configurable backoff strategies.
 ### Configuration
 
 ```yaml
-- member: call-external-api
+- agent: call-external-api
   input:
     url: ${input.apiUrl}
   retry:
@@ -77,7 +77,7 @@ Prevent operations from hanging indefinitely.
 ### Basic Timeout
 
 ```yaml
-- member: slow-operation
+- agent: slow-operation
   input:
     data: ${input.data}
   timeout: 5000  # 5 seconds, then fail
@@ -88,7 +88,7 @@ Prevent operations from hanging indefinitely.
 Return a default value instead of failing:
 
 ```yaml
-- member: fetch-recommendations
+- agent: fetch-recommendations
   input:
     userId: ${input.userId}
   timeout: 3000
@@ -100,7 +100,7 @@ Return a default value instead of failing:
 ### Combining Retry + Timeout
 
 ```yaml
-- member: critical-operation
+- agent: critical-operation
   input:
     data: ${input.data}
   timeout: 5000      # Each attempt times out after 5s
@@ -120,7 +120,7 @@ Skip steps based on runtime conditions.
 ### Basic When
 
 ```yaml
-- member: send-notification
+- agent: send-notification
   input:
     message: ${input.message}
   when: ${input.enableNotifications === true}
@@ -129,7 +129,7 @@ Skip steps based on runtime conditions.
 ### Multiple Conditions
 
 ```yaml
-- member: premium-feature
+- agent: premium-feature
   input:
     userId: ${input.userId}
   when: ${input.user.isPremium && input.user.verified}
@@ -138,7 +138,7 @@ Skip steps based on runtime conditions.
 ### With Previous Results
 
 ```yaml
-- member: send-followup-email
+- agent: send-followup-email
   input:
     userId: ${input.userId}
   when: ${validate-email.output.deliverable === true}
@@ -155,12 +155,12 @@ Graceful error handling with cleanup.
 ```yaml
 - type: try
   steps:
-    - member: risky-operation
+    - agent: risky-operation
       input:
         data: ${input.data}
 
   catch:
-    - member: handle-error
+    - agent: handle-error
       input:
         error: ${error}  # Error object available in context
 ```
@@ -170,22 +170,22 @@ Graceful error handling with cleanup.
 ```yaml
 - type: try
   steps:
-    - member: acquire-lock
+    - agent: acquire-lock
       input:
         resourceId: ${input.resourceId}
 
-    - member: process-resource
+    - agent: process-resource
       input:
         resourceId: ${input.resourceId}
 
   catch:
-    - member: log-error
+    - agent: log-error
       input:
         error: ${error}
         resourceId: ${input.resourceId}
 
   finally:
-    - member: release-lock  # Always runs, even if no error
+    - agent: release-lock  # Always runs, even if no error
       input:
         resourceId: ${input.resourceId}
 ```
@@ -195,7 +195,7 @@ Graceful error handling with cleanup.
 ```yaml
 - type: try
   steps:
-    - member: primary-service
+    - agent: primary-service
       input:
         data: ${input.data}
 
@@ -203,13 +203,13 @@ Graceful error handling with cleanup.
     # Try fallback service
     - type: try
       steps:
-        - member: fallback-service
+        - agent: fallback-service
           input:
             data: ${input.data}
 
       catch:
         # Both failed - use cache
-        - member: load-from-cache
+        - agent: load-from-cache
           input:
             key: ${input.cacheKey}
 ```
@@ -227,22 +227,22 @@ Cleaner alternative to nested if/else.
   value: ${input.priority}
   cases:
     urgent:
-      - member: handle-urgent
+      - agent: handle-urgent
         input:
           data: ${input.data}
 
     high:
-      - member: handle-high
+      - agent: handle-high
         input:
           data: ${input.data}
 
     normal:
-      - member: handle-normal
+      - agent: handle-normal
         input:
           data: ${input.data}
 
   default:
-    - member: handle-low
+    - agent: handle-low
       input:
         data: ${input.data}
 ```
@@ -254,14 +254,14 @@ Cleaner alternative to nested if/else.
   value: ${analyze.output.category}
   cases:
     fraud:
-      - member: flag-for-review
-      - member: notify-security
+      - agent: flag-for-review
+      - agent: notify-security
 
     suspicious:
-      - member: additional-checks
+      - agent: additional-checks
 
     clean:
-      - member: approve-transaction
+      - agent: approve-transaction
 ```
 
 ### Multiple Steps Per Case
@@ -271,12 +271,12 @@ Cleaner alternative to nested if/else.
   value: ${input.accountType}
   cases:
     premium:
-      - member: unlock-premium-features
-      - member: load-premium-settings
-      - member: track-premium-usage
+      - agent: unlock-premium-features
+      - agent: load-premium-settings
+      - agent: track-premium-usage
 
     basic:
-      - member: load-basic-features
+      - agent: load-basic-features
 ```
 
 ---
@@ -292,11 +292,11 @@ Iterate until a condition is met.
   condition: ${batch.output.hasMore === true}
   maxIterations: 100  # Safety limit
   steps:
-    - member: fetch-batch
+    - agent: fetch-batch
       input:
         cursor: ${batch.output.nextCursor}
 
-    - member: process-batch
+    - agent: process-batch
       input:
         items: ${fetch-batch.output.items}
 ```
@@ -308,11 +308,11 @@ Iterate until a condition is met.
   condition: ${fetch-page.output.nextPageToken !== null}
   maxIterations: 50
   steps:
-    - member: fetch-page
+    - agent: fetch-page
       input:
         pageToken: ${fetch-page.output.nextPageToken || null}
 
-    - member: store-results
+    - agent: store-results
       input:
         results: ${fetch-page.output.results}
 ```
@@ -341,12 +341,12 @@ Process large datasets efficiently.
   maxConcurrency: 10
 
   map:
-    member: analyze-document
+    agent: analyze-document
     input:
       document: ${item}
 
   reduce:
-    member: aggregate-results
+    agent: aggregate-results
     input:
       results: ${results}  # Array of all map results
 ```
@@ -359,13 +359,13 @@ Process large datasets efficiently.
   maxConcurrency: 20
 
   map:
-    member: analyze-sentiment
+    agent: analyze-sentiment
     input:
       text: ${item.text}
       reviewer: ${item.author}
 
   reduce:
-    member: calculate-average-sentiment
+    agent: calculate-average-sentiment
     input:
       sentiments: ${results}
 ```
@@ -401,7 +401,7 @@ Stop iteration when condition is met.
   breakWhen: ${check-target.output.found === true}
 
   step:
-    member: check-target
+    agent: check-target
     input:
       target: ${item}
       query: ${input.searchQuery}
@@ -415,7 +415,7 @@ Stop iteration when condition is met.
   items: ${input.databases}
   breakWhen: ${search-db.output.found === true}
   step:
-    member: search-db
+    agent: search-db
     input:
       db: ${item}
       query: ${input.query}
@@ -427,7 +427,7 @@ Stop iteration when condition is met.
   items: ${input.records}
   breakWhen: ${validate-record.output.valid === false}
   step:
-    member: validate-record
+    agent: validate-record
     input:
       record: ${item}
 ```
@@ -438,7 +438,7 @@ Stop iteration when condition is met.
   items: ${input.requests}
   breakWhen: ${check-rate-limit.output.limitExceeded === true}
   step:
-    member: check-rate-limit
+    agent: check-rate-limit
     input:
       request: ${item}
 ```
@@ -450,7 +450,7 @@ Stop iteration when condition is met.
 ### Resilient API Call
 
 ```yaml
-- member: fetch-data
+- agent: fetch-data
   input:
     url: ${input.url}
   retry:
@@ -466,7 +466,7 @@ Stop iteration when condition is met.
 ```yaml
 - type: try
   steps:
-    - member: primary-processor
+    - agent: primary-processor
       input:
         data: ${input.data}
       timeout: 10000
@@ -479,18 +479,18 @@ Stop iteration when condition is met.
       value: ${error.code}
       cases:
         TIMEOUT:
-          - member: queue-for-later
+          - agent: queue-for-later
             input:
               data: ${input.data}
 
         VALIDATION_ERROR:
-          - member: fix-and-retry
+          - agent: fix-and-retry
             input:
               data: ${input.data}
               error: ${error}
 
       default:
-        - member: log-unknown-error
+        - agent: log-unknown-error
           input:
             error: ${error}
 ```
@@ -503,7 +503,7 @@ Stop iteration when condition is met.
   maxConcurrency: 10
 
   map:
-    member: process-record
+    agent: process-record
     input:
       record: ${item}
     retry:
@@ -512,7 +512,7 @@ Stop iteration when condition is met.
     timeout: 3000
 
   reduce:
-    member: aggregate-successes
+    agent: aggregate-successes
     input:
       results: ${results}
 ```
@@ -525,12 +525,12 @@ Stop iteration when condition is met.
 
 ```yaml
 # ❌ Bad - can hang forever
-- member: call-api
+- agent: call-api
   input:
     url: ${input.url}
 
 # ✅ Good - bounded execution time
-- member: call-api
+- agent: call-api
   input:
     url: ${input.url}
   timeout: 5000
@@ -540,7 +540,7 @@ Stop iteration when condition is met.
 
 ```yaml
 # ✅ Good - respects rate limits
-- member: call-api
+- agent: call-api
   retry:
     attempts: 3
     backoff: exponential  # 1s, 2s, 4s
@@ -551,12 +551,12 @@ Stop iteration when condition is met.
 
 ```yaml
 # ❌ Bad - retries everything
-- member: process
+- agent: process
   retry:
     attempts: 3
 
 # ✅ Good - only retry transient errors
-- member: process
+- agent: process
   retry:
     attempts: 3
     retryOn: ["NETWORK_ERROR", "TIMEOUT", "RATE_LIMIT"]
@@ -583,10 +583,10 @@ Stop iteration when condition is met.
 # ✅ Good - always cleanup
 - type: try
   steps:
-    - member: acquire-resource
-    - member: use-resource
+    - agent: acquire-resource
+    - agent: use-resource
   finally:
-    - member: release-resource  # Always runs
+    - agent: release-resource  # Always runs
 ```
 
 ---

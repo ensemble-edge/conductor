@@ -15,11 +15,11 @@ export interface ExecutionRecord {
   /** Unique execution ID */
   id: string
 
-  /** Ensemble or member name */
+  /** Ensemble or agent name */
   name: string
 
   /** Execution type */
-  type: 'ensemble' | 'member'
+  type: 'ensemble' | 'agent'
 
   /** Input data */
   input: Record<string, unknown>
@@ -60,7 +60,7 @@ export interface ExecutionRecord {
  * Execution step
  */
 export interface ExecutionStep {
-  /** Step name/member */
+  /** Step name/agent */
   name: string
 
   /** Step status */
@@ -164,7 +164,7 @@ export class ExecutionHistory {
    */
   async list(options?: {
     limit?: number
-    type?: 'ensemble' | 'member'
+    type?: 'ensemble' | 'agent'
     status?: 'success' | 'failure'
   }): Promise<ExecutionRecord[]> {
     try {

@@ -27,10 +27,10 @@ export declare const openAPISpec: {
     }];
     readonly tags: readonly [{
         readonly name: "execution";
-        readonly description: "Member execution endpoints";
+        readonly description: "Agent execution endpoints";
     }, {
-        readonly name: "members";
-        readonly description: "Member discovery and information";
+        readonly name: "agents";
+        readonly description: "Agent discovery and information";
     }, {
         readonly name: "health";
         readonly description: "Health check and monitoring";
@@ -74,8 +74,8 @@ export declare const openAPISpec: {
         };
         readonly '/api/v1/execute': {
             readonly post: {
-                readonly summary: "Execute a member";
-                readonly description: "Execute a built-in member synchronously";
+                readonly summary: "Execute a agent";
+                readonly description: "Execute a built-in agent synchronously";
                 readonly tags: readonly ["execution"];
                 readonly security: readonly [{
                     readonly apiKey: readonly [];
@@ -122,7 +122,7 @@ export declare const openAPISpec: {
                         };
                     };
                     readonly '404': {
-                        readonly description: "Member not found";
+                        readonly description: "Agent not found";
                         readonly content: {
                             readonly 'application/json': {
                                 readonly schema: {
@@ -144,17 +144,17 @@ export declare const openAPISpec: {
                 };
             };
         };
-        readonly '/api/v1/members': {
+        readonly '/api/v1/agents': {
             readonly get: {
-                readonly summary: "List all members";
-                readonly description: "Get a list of all available built-in members";
-                readonly tags: readonly ["members"];
+                readonly summary: "List all agents";
+                readonly description: "Get a list of all available built-in agents";
+                readonly tags: readonly ["agents"];
                 readonly security: readonly [{
                     readonly apiKey: readonly [];
                 }];
                 readonly responses: {
                     readonly '200': {
-                        readonly description: "List of members";
+                        readonly description: "List of agents";
                         readonly content: {
                             readonly 'application/json': {
                                 readonly schema: {
@@ -176,11 +176,11 @@ export declare const openAPISpec: {
                 };
             };
         };
-        readonly '/api/v1/members/{name}': {
+        readonly '/api/v1/agents/{name}': {
             readonly get: {
-                readonly summary: "Get member details";
-                readonly description: "Get detailed information about a specific member";
-                readonly tags: readonly ["members"];
+                readonly summary: "Get agent details";
+                readonly description: "Get detailed information about a specific agent";
+                readonly tags: readonly ["agents"];
                 readonly security: readonly [{
                     readonly apiKey: readonly [];
                 }];
@@ -188,7 +188,7 @@ export declare const openAPISpec: {
                     readonly name: "name";
                     readonly in: "path";
                     readonly required: true;
-                    readonly description: "Member name";
+                    readonly description: "Agent name";
                     readonly schema: {
                         readonly type: "string";
                     };
@@ -196,7 +196,7 @@ export declare const openAPISpec: {
                 }];
                 readonly responses: {
                     readonly '200': {
-                        readonly description: "Member details";
+                        readonly description: "Agent details";
                         readonly content: {
                             readonly 'application/json': {
                                 readonly schema: {
@@ -216,7 +216,7 @@ export declare const openAPISpec: {
                         };
                     };
                     readonly '404': {
-                        readonly description: "Member not found";
+                        readonly description: "Agent not found";
                         readonly content: {
                             readonly 'application/json': {
                                 readonly schema: {
@@ -324,16 +324,16 @@ export declare const openAPISpec: {
         readonly schemas: {
             readonly ExecuteRequest: {
                 readonly type: "object";
-                readonly required: readonly ["member", "input"];
+                readonly required: readonly ["agent", "input"];
                 readonly properties: {
-                    readonly member: {
+                    readonly agent: {
                         readonly type: "string";
-                        readonly description: "Name of the member to execute";
+                        readonly description: "Name of the agent to execute";
                         readonly example: "fetch";
                     };
                     readonly input: {
                         readonly type: "object";
-                        readonly description: "Input data for the member";
+                        readonly description: "Input data for the agent";
                         readonly additionalProperties: true;
                         readonly example: {
                             readonly url: "https://api.example.com/data";
@@ -341,7 +341,7 @@ export declare const openAPISpec: {
                     };
                     readonly config: {
                         readonly type: "object";
-                        readonly description: "Optional configuration for the member";
+                        readonly description: "Optional configuration for the agent";
                         readonly additionalProperties: true;
                         readonly example: {
                             readonly timeout: 5000;
@@ -415,9 +415,9 @@ export declare const openAPISpec: {
             };
             readonly MemberListResponse: {
                 readonly type: "object";
-                readonly required: readonly ["members", "count"];
+                readonly required: readonly ["agents", "count"];
                 readonly properties: {
-                    readonly members: {
+                    readonly agents: {
                         readonly type: "array";
                         readonly items: {
                             readonly type: "object";
@@ -447,7 +447,7 @@ export declare const openAPISpec: {
                     };
                     readonly count: {
                         readonly type: "number";
-                        readonly description: "Total number of members";
+                        readonly description: "Total number of agents";
                         readonly example: 5;
                     };
                 };
@@ -560,7 +560,7 @@ export declare const openAPISpec: {
                     readonly message: {
                         readonly type: "string";
                         readonly description: "Human-readable error message";
-                        readonly example: "Member name is required";
+                        readonly example: "Agent name is required";
                     };
                     readonly code: {
                         readonly type: "string";

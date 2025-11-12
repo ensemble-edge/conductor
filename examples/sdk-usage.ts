@@ -17,9 +17,9 @@ async function basicExample() {
 	});
 
 	try {
-		// Execute fetch member
+		// Execute fetch agent
 		const result = await client.execute({
-			member: 'fetch',
+			agent: 'fetch',
 			input: {
 				url: 'https://api.github.com/users/octocat'
 			}
@@ -38,7 +38,7 @@ async function basicExample() {
 	}
 }
 
-// ==================== Type-Safe Member Helpers ====================
+// ==================== Type-Safe Agent Helpers ====================
 
 async function typeSafeExample() {
 	const client = createClient({
@@ -46,10 +46,10 @@ async function typeSafeExample() {
 		apiKey: 'your-api-key'
 	});
 
-	const members = createMemberHelpers(client);
+	const agents = createMemberHelpers(client);
 
 	// Fetch with type safety
-	const fetchResult = await members.fetch(
+	const fetchResult = await agents.fetch(
 		{
 			url: 'https://api.example.com/data',
 			method: 'GET',
@@ -68,7 +68,7 @@ async function typeSafeExample() {
 	}
 
 	// Scrape with type safety
-	const scrapeResult = await members.scrape(
+	const scrapeResult = await agents.scrape(
 		{ url: 'https://example.com' },
 		{ strategy: 'balanced' }
 	);
@@ -80,7 +80,7 @@ async function typeSafeExample() {
 	}
 
 	// Validate with type safety
-	const validateResult = await members.validate(
+	const validateResult = await agents.validate(
 		{
 			content: 'The product is great!',
 			evalType: 'nlp',
@@ -99,7 +99,7 @@ async function typeSafeExample() {
 	}
 
 	// RAG with type safety
-	const ragIndexResult = await members.ragIndex(
+	const ragIndexResult = await agents.ragIndex(
 		'This is important content to index',
 		'my-namespace',
 		{ chunkSize: 500, chunkStrategy: 'semantic' }
@@ -110,7 +110,7 @@ async function typeSafeExample() {
 		console.log('Chunks:', ragIndexResult.data.chunks);
 	}
 
-	const ragSearchResult = await members.ragSearch(
+	const ragSearchResult = await agents.ragSearch(
 		'important content',
 		'my-namespace',
 		{ topK: 5, minScore: 0.7 }
@@ -125,7 +125,7 @@ async function typeSafeExample() {
 	}
 
 	// HITL with type safety
-	const hitlRequestResult = await members.hitlRequest(
+	const hitlRequestResult = await agents.hitlRequest(
 		{ action: 'approve-purchase', amount: 1000, vendor: 'Acme Corp' },
 		{ notificationMethod: 'slack', slackChannel: '#approvals' }
 	);
@@ -136,7 +136,7 @@ async function typeSafeExample() {
 
 		// Later, respond to approval
 		const approvalId = hitlRequestResult.data.approvalId;
-		const hitlRespondResult = await members.hitlRespond(approvalId, true, 'Approved by manager');
+		const hitlRespondResult = await agents.hitlRespond(approvalId, true, 'Approved by manager');
 
 		if (hitlRespondResult.success) {
 			console.log('Approval processed:', hitlRespondResult.data.approved);
@@ -144,7 +144,7 @@ async function typeSafeExample() {
 	}
 }
 
-// ==================== Member Discovery ====================
+// ==================== Agent Discovery ====================
 
 async function discoveryExample() {
 	const client = createClient({
@@ -152,16 +152,16 @@ async function discoveryExample() {
 		apiKey: 'your-api-key'
 	});
 
-	// List all members
-	const members = await client.listMembers();
-	console.log('Available members:');
-	members.forEach((m) => {
+	// List all agents
+	const agents = await client.listMembers();
+	console.log('Available agents:');
+	agents.forEach((m) => {
 		console.log(`- ${m.name} (${m.type}) - ${m.description}`);
 	});
 
-	// Get member details
-	const fetchMember = await client.getMember('fetch');
-	console.log('Fetch member:');
+	// Get agent details
+	const fetchMember = await client.getAgent('fetch');
+	console.log('Fetch agent:');
 	console.log('- Name:', fetchMember.name);
 	console.log('- Version:', fetchMember.version);
 	console.log('- Config schema:', fetchMember.config?.schema);
@@ -203,7 +203,7 @@ async function errorHandlingExample() {
 
 	try {
 		await client.execute({
-			member: 'invalid-member',
+			agent: 'invalid-agent',
 			input: {}
 		});
 	} catch (error) {
@@ -216,7 +216,7 @@ async function errorHandlingExample() {
 			// Handle specific errors
 			switch (error.code) {
 				case 'MemberNotFound':
-					console.log('Member does not exist');
+					console.log('Agent does not exist');
 					break;
 				case 'ValidationError':
 					console.log('Invalid input:', error.details);

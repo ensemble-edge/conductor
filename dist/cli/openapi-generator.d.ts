@@ -102,7 +102,7 @@ export interface GeneratorOptions {
     projectPath: string;
     outputPath?: string;
     useAI?: boolean;
-    aiMember?: string;
+    aiAgent?: string;
 }
 /**
  * OpenAPI Documentation Generator
@@ -111,14 +111,14 @@ export declare class OpenAPIGenerator {
     private projectPath;
     private parser;
     private ensembles;
-    private members;
+    private agents;
     constructor(projectPath: string);
     /**
      * Generate OpenAPI documentation
      */
     generate(options: GeneratorOptions): Promise<OpenAPISpec>;
     /**
-     * Load project catalog (ensembles and members)
+     * Load project catalog (ensembles and agents)
      */
     private loadCatalog;
     /**

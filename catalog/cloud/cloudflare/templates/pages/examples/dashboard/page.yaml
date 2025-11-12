@@ -1,5 +1,5 @@
 name: dashboard
-type: Page
+operation: page
 description: User analytics dashboard with data visualization
 templateEngine: liquid
 

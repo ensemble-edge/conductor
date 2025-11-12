@@ -8,7 +8,7 @@ import type { Context } from 'hono';
  * API Request/Response Types
  */
 export interface ExecuteRequest {
-    member: string;
+    agent: string;
     input: Record<string, unknown>;
     config?: Record<string, unknown>;
     userId?: string;
@@ -42,9 +42,9 @@ export interface StreamEvent {
     timestamp: number;
 }
 export interface MemberListResponse {
-    members: Array<{
+    agents: Array<{
         name: string;
-        type: string;
+        operation: string;
         version?: string;
         description?: string;
         builtIn: boolean;
@@ -53,7 +53,7 @@ export interface MemberListResponse {
 }
 export interface MemberDetailResponse {
     name: string;
-    type: string;
+    operation: string;
     version?: string;
     description?: string;
     builtIn: boolean;

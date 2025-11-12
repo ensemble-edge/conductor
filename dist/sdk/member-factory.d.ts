@@ -1,16 +1,16 @@
 /**
- * SDK Member Factory
+ * SDK Agent Factory
  *
- * Helpers for creating members with less boilerplate
+ * Helpers for creating agents with less boilerplate
  */
 import type { CreateMemberOptions, MemberHandler } from './types.js';
-import type { MemberConfig } from '../runtime/parser.js';
+import type { AgentConfig } from '../runtime/parser.js';
 /**
- * Create a member with simplified syntax
+ * Create a agent with simplified syntax
  *
  * @example
  * ```typescript
- * export default createMember({
+ * export default createAgent({
  *   name: 'greet',
  *   type: 'Function',
  *   async handler({ input }) {
@@ -19,9 +19,9 @@ import type { MemberConfig } from '../runtime/parser.js';
  * });
  * ```
  */
-export declare function createMember(options: CreateMemberOptions): MemberHandler;
+export declare function createAgent(options: CreateMemberOptions): MemberHandler;
 /**
- * Create a Think member (AI reasoning)
+ * Create a Think agent (AI reasoning)
  *
  * @example
  * ```typescript
@@ -35,7 +35,7 @@ export declare function createMember(options: CreateMemberOptions): MemberHandle
  */
 export declare function createThinkMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
 /**
- * Create a Function member (JavaScript execution)
+ * Create a Function agent (JavaScript execution)
  *
  * @example
  * ```typescript
@@ -48,7 +48,7 @@ export declare function createThinkMember(options: Omit<CreateMemberOptions, 'ty
  */
 export declare function createFunctionMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
 /**
- * Create a Data member (storage operations)
+ * Create a Data agent (storage operations)
  *
  * @example
  * ```typescript
@@ -62,7 +62,7 @@ export declare function createFunctionMember(options: Omit<CreateMemberOptions, 
  */
 export declare function createDataMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
 /**
- * Create an API member (HTTP requests)
+ * Create an API agent (HTTP requests)
  *
  * @example
  * ```typescript
@@ -76,7 +76,7 @@ export declare function createDataMember(options: Omit<CreateMemberOptions, 'typ
  */
 export declare function createAPIMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
 /**
- * Create an Email member (email sending)
+ * Create an Email agent (email sending)
  *
  * @example
  * ```typescript
@@ -90,7 +90,7 @@ export declare function createAPIMember(options: Omit<CreateMemberOptions, 'type
  */
 export declare function createEmailMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
 /**
- * Create an SMS member (SMS sending)
+ * Create an SMS agent (SMS sending)
  *
  * @example
  * ```typescript
@@ -104,7 +104,7 @@ export declare function createEmailMember(options: Omit<CreateMemberOptions, 'ty
  */
 export declare function createSMSMember(options: Omit<CreateMemberOptions, 'type'>): MemberHandler;
 /**
- * Generate a member config (for programmatic member creation)
+ * Generate a agent config (for programmatic agent creation)
  */
-export declare function generateMemberConfig(options: CreateMemberOptions): MemberConfig;
+export declare function generateMemberConfig(options: CreateMemberOptions): AgentConfig;
 //# sourceMappingURL=member-factory.d.ts.map

@@ -2,13 +2,13 @@ name: welcome-email
 description: |
   Send a welcome email to new users using a template.
   Demonstrates:
-  - Email member with template rendering
+  - Email agent with template rendering
   - Using templates from KV storage
   - Handlebars variable interpolation
 
-members:
+agents:
   - name: send-welcome
-    type: email
+    operation: email
     config:
       provider:
         provider: cloudflare
@@ -17,7 +17,7 @@ members:
       templatesKv: TEMPLATES
 
 flow:
-  - member: send-welcome
+  - agent: send-welcome
     input:
       to: ${input.email}
       subject: Welcome to ${input.appName}!

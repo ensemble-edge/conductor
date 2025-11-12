@@ -7,10 +7,10 @@
  * @example
  * ```typescript
  * const modelId = ModelId.create('@cf/meta/llama-3.1-8b-instruct');
- * const memberId = MemberName.create('analyze-company');
+ * const agentId = AgentName.create('analyze-company');
  *
- * // Type error! Can't pass MemberName where ModelId is expected
- * platform.validateModel(memberId); // ❌ Compile error
+ * // Type error! Can't pass AgentName where ModelId is expected
+ * platform.validateModel(agentId); // ❌ Compile error
  * platform.validateModel(modelId);  // ✅ Works
  * ```
  */
@@ -31,11 +31,11 @@ export type Brand<T, TBrand extends string> = T & {
 export type ModelId = Brand<string, 'ModelId'>
 
 /**
- * Member name - identifies a member in the system
+ * Agent name - identifies an agent in the system
  * Format: lowercase alphanumeric with hyphens
  * Examples: 'analyze-company', 'fetch-data', 'greet-user'
  */
-export type MemberName = Brand<string, 'MemberName'>
+export type AgentName = Brand<string, 'AgentName'>
 
 /**
  * Ensemble name - identifies an ensemble workflow
@@ -91,7 +91,7 @@ export type ResumeToken = Brand<string, 'ResumeToken'>
 
 /**
  * Cache Key - identifies a cached value
- * Examples: 'member:analyze:a1b2c3', 'query:d4e5f6'
+ * Examples: 'agent:analyze:a1b2c3', 'query:d4e5f6'
  */
 export type CacheKey = Brand<string, 'CacheKey'>
 
@@ -143,52 +143,52 @@ export const ModelId = {
 }
 
 /**
- * Member name validation and creation
+ * Agent name validation and creation
  */
-export const MemberName = {
+export const AgentName = {
   /**
-   * Create a MemberName from a string
-   * @throws {Error} if the member name is invalid
+   * Create an AgentName from a string
+   * @throws {Error} if the agent name is invalid
    */
-  create(value: string): MemberName {
+  create(value: string): AgentName {
     if (!value || value.trim().length === 0) {
-      throw new Error('Member name cannot be empty')
+      throw new Error('Agent name cannot be empty')
     }
 
-    // Member names must be lowercase alphanumeric with hyphens
+    // Agent names must be lowercase alphanumeric with hyphens
     const normalized = value.trim()
     if (!/^[a-z0-9-]+$/.test(normalized)) {
       throw new Error(
-        `Invalid member name format: "${value}" ` + `(must be lowercase alphanumeric with hyphens)`
+        `Invalid agent name format: "${value}" ` + `(must be lowercase alphanumeric with hyphens)`
       )
     }
 
-    return normalized as MemberName
+    return normalized as AgentName
   },
 
   /**
-   * Check if a string is a valid MemberName
+   * Check if a string is a valid AgentName
    */
   isValid(value: string): boolean {
     return !!value && /^[a-z0-9-]+$/.test(value.trim())
   },
 
   /**
-   * Safely create a MemberName, returning null if invalid
+   * Safely create an AgentName, returning null if invalid
    */
-  tryCreate(value: string): MemberName | null {
+  tryCreate(value: string): AgentName | null {
     try {
-      return MemberName.create(value)
+      return AgentName.create(value)
     } catch {
       return null
     }
   },
 
   /**
-   * Unwrap a MemberName back to a string
+   * Unwrap an AgentName back to a string
    */
-  unwrap(memberName: MemberName): string {
-    return memberName as string
+  unwrap(agentName: AgentName): string {
+    return agentName as string
   },
 }
 

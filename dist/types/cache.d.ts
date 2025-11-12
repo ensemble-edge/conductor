@@ -1,10 +1,10 @@
 /**
  * Common Cache Configuration Types
  *
- * Shared cache configuration interfaces for all member types
+ * Shared cache configuration interfaces for all agent types
  */
 /**
- * Base cache configuration for all members
+ * Base cache configuration for all agents
  */
 export interface BaseCacheConfig {
     /** Enable caching */
@@ -35,7 +35,7 @@ export declare function hasCacheConfig(config: any): config is {
  */
 export declare function isCacheWarmingEnabled(config: any): boolean;
 /**
- * Extract cache config from any member config
+ * Extract cache config from any agent config
  */
 export declare function getCacheConfig(config: any): BaseCacheConfig | null;
 //# sourceMappingURL=cache.d.ts.map

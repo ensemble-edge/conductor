@@ -1,5 +1,5 @@
 name: blog-post
-type: Page
+operation: page
 description: Dynamic blog post page - demonstrates route parameters
 templateEngine: liquid
 

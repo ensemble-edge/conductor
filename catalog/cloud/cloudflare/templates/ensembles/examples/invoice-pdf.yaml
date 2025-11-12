@@ -1,9 +1,9 @@
 name: invoice-pdf
 description: Generate invoice PDF with display/download options
 
-members:
+agents:
   - name: generate-invoice
-    type: PDF
+    operation: pdf
     config:
       html:
         inline: |
@@ -175,7 +175,7 @@ members:
         subject: Invoice for {{customerName}}
 
 flow:
-  - member: generate-invoice
+  - agent: generate-invoice
     input:
       html:
         data:

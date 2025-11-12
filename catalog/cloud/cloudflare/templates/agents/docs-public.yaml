@@ -1,0 +1,46 @@
+# Public API Documentation
+# Accessible to anyone without authentication
+name: docs-public
+operation: docs
+description: Public API documentation with interactive UI
+
+# Route configuration
+# You can use 'default' to auto-resolve path from file location
+# Or specify explicit path like /docs
+route:
+  path: /docs  # Or use 'default' for /docs-public
+  methods: [GET]
+  auth:
+    requirement: public  # No authentication required
+  priority: 70  # Default for docs
+
+# Documentation UI settings
+ui: stoplight  # Options: stoplight, redoc, swagger, scalar, rapidoc
+openApiVersion: '3.1'
+
+# Auto-generate OpenAPI spec from your API agents
+autoGenerate:
+  enabled: true
+  useAI: true  # Use AI to enhance descriptions
+  aiAgent: docs-writer
+  include:
+    - /api/*  # Include all API routes
+  exclude:
+    - /api/internal/*  # Exclude internal routes
+
+# Branding
+branding:
+  title: My API Documentation
+  description: Complete API reference for developers
+  primaryColor: '#007bff'
+
+# Caching (uses KV)
+cache:
+  enabled: true
+  ttl: 3600  # 1 hour
+
+# Paths for different formats
+paths:
+  docs: /docs  # Interactive UI
+  yaml: /openapi.yaml  # OpenAPI spec in YAML
+  json: /openapi.json  # OpenAPI spec in JSON

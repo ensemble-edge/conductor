@@ -6,7 +6,7 @@ This directory contains example test suites demonstrating how to test various Co
 
 ### ✅ Working Tests (Ready to Run)
 
-- **`debug.test.ts`** - Member loading and structure validation
+- **`debug.test.ts`** - Agent loading and structure validation
 
 ### ⏸️ Skipped Tests (Future Features)
 
@@ -16,8 +16,8 @@ The following tests demonstrate features that are not yet fully implemented in C
 - **`ensembles/welcome-email.test.skip.ts`** - Requires `TestConductor.mockEmail()` method
 - **`ensembles/otp-sms.test.skip.ts`** - Requires `TestConductor.mockSMS()` method
 
-#### Function Member Testing
-- **`members/hello.test.skip.ts`** - Requires Function member execution support in TestConductor
+#### Function Agent Testing
+- **`agents/hello.test.skip.ts`** - Requires Function agent execution support in TestConductor
 
 #### Advanced Ensemble Testing
 - **`ensembles/analytics-report-pdf.test.skip.ts`** - PDF generation workflows
@@ -49,10 +49,10 @@ To enable a skipped test once the feature is implemented:
 ## Test Coverage
 
 Current test coverage for working tests:
-- ✅ Member loading and validation
+- ✅ Agent loading and validation
 - ✅ Basic ensemble structure
 - ⏸️ Email/SMS mocking (coming soon)
-- ⏸️ Function member execution (coming soon)
+- ⏸️ Function agent execution (coming soon)
 - ⏸️ PDF/Page workflows (coming soon)
 
 ## Contributing
@@ -68,24 +68,24 @@ When adding new example tests:
 ### TestConductor Methods
 
 Currently supported:
-- ✅ `mockAI(memberName, response)` - Mock AI model responses
+- ✅ `mockAI(agentName, response)` - Mock AI model responses
 
 Coming soon:
-- ⏸️ `mockEmail(memberName, response)` - Mock email sending
-- ⏸️ `mockSMS(memberName, response)` - Mock SMS sending
+- ⏸️ `mockEmail(agentName, response)` - Mock email sending
+- ⏸️ `mockSMS(agentName, response)` - Mock SMS sending
 - ⏸️ `mockHTTP(url, response)` - Mock HTTP requests
 
-### Member Type Support
+### Agent Type Support
 
 Currently supported in tests:
-- ✅ Think members (AI-powered)
-- ✅ Data members (KV/D1/R2)
-- ✅ API members (HTTP calls)
+- ✅ Think agents (AI-powered)
+- ✅ Data agents (KV/D1/R2)
+- ✅ API agents (HTTP calls)
 
 Coming soon:
-- ⏸️ Function members (TypeScript functions)
-- ⏸️ Page members (React components)
-- ⏸️ Form members (User input)
+- ⏸️ Function agents (TypeScript functions)
+- ⏸️ Page agents (React components)
+- ⏸️ Form agents (User input)
 
 ## Questions?
 

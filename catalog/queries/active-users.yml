@@ -9,14 +9,14 @@ description: Get list of recently active users
 # Input schema
 input:
   days:
-    type: number
+    operation: number
     required: false
     default: 30
     description: Number of days to look back
     example: 7
 
   limit:
-    type: number
+    operation: number
     required: false
     default: 100
     description: Max number of users to return
@@ -71,5 +71,5 @@ documentation: |
 
   ```typescript
   // Get users active in last 7 days
-  const users = await members.queryCatalog('active-users', { days: 7 });
+  const users = await agents.queryCatalog('active-users', { days: 7 });
   ```

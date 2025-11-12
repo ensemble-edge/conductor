@@ -16,10 +16,10 @@ export class StateManager {
         this.logger = config.logger || createLogger({ serviceName: 'state-manager' });
     }
     /**
-     * Create a state context for a specific member
+     * Create a state context for a specific agent
      * Returns both the context and a function to retrieve accumulated updates
      */
-    getStateForMember(memberName, config) {
+    getStateForAgent(agentName, config) {
         const { use = [], set = [] } = config;
         // Create read-only state view (only includes declared 'use' keys)
         const viewState = {};
@@ -28,7 +28,7 @@ export class StateManager {
             if (this.state && key in this.state) {
                 viewState[key] = this.state[key];
                 newLog.push({
-                    member: memberName,
+                    agent: agentName,
                     key,
                     operation: 'read',
                     timestamp: Date.now(),
@@ -43,15 +43,15 @@ export class StateManager {
                 if (set.includes(key)) {
                     pendingUpdates[key] = value;
                     newLog.push({
-                        member: memberName,
+                        agent: agentName,
                         key,
                         operation: 'write',
                         timestamp: Date.now(),
                     });
                 }
                 else {
-                    this.logger.warn('Member attempted to set undeclared state key', {
-                        memberName,
+                    this.logger.warn('Agent attempted to set undeclared state key', {
+                        agentName,
                         key,
                         declaredKeys: set,
                     });
@@ -67,8 +67,8 @@ export class StateManager {
         };
     }
     /**
-     * Apply pending updates from a member execution (returns new StateManager instance)
-     * This is the preferred method when using getStateForMember with getPendingUpdates
+     * Apply pending updates from a agent execution (returns new StateManager instance)
+     * This is the preferred method when using getStateForAgent with getPendingUpdates
      */
     applyPendingUpdates(updates, newLog) {
         // If no updates, return this instance (optimization)
@@ -81,10 +81,10 @@ export class StateManager {
         return new StateManager({ schema: this.schema, initial: {}, logger: this.logger }, newState, newLog);
     }
     /**
-     * Update state from a member (returns new StateManager instance)
-     * Use applyPendingUpdates for better performance when using getStateForMember
+     * Update state from a agent (returns new StateManager instance)
+     * Use applyPendingUpdates for better performance when using getStateForAgent
      */
-    setStateFromMember(memberName, updates, config) {
+    setStateFromMember(agentName, updates, config) {
         const { set = [] } = config;
         // Create new state object
         const newState = { ...this.state };
@@ -93,15 +93,15 @@ export class StateManager {
             if (set.includes(key)) {
                 newState[key] = value;
                 newLog.push({
-                    member: memberName,
+                    agent: agentName,
                     key,
                     operation: 'write',
                     timestamp: Date.now(),
                 });
             }
             else {
-                this.logger.warn('Member attempted to set undeclared state key', {
-                    memberName,
+                this.logger.warn('Agent attempted to set undeclared state key', {
+                    agentName,
                     key,
                     declaredKeys: set,
                 });
@@ -128,13 +128,13 @@ export class StateManager {
         }
         // Find unused keys
         const unusedKeys = allKeys.filter((key) => !usedKeys.has(key));
-        // Group access log by member
+        // Group access log by agent
         const accessPatterns = {};
         for (const access of this.accessLog) {
-            if (!accessPatterns[access.member]) {
-                accessPatterns[access.member] = [];
+            if (!accessPatterns[access.agent]) {
+                accessPatterns[access.agent] = [];
             }
-            accessPatterns[access.member].push(access);
+            accessPatterns[access.agent].push(access);
         }
         return {
             unusedKeys,

@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TestConductor } from '../../src/testing/test-conductor';
-import type { EnsembleConfig, MemberConfig } from '../../src/runtime/parser';
+import type { EnsembleConfig, AgentConfig } from '../../src/runtime/parser';
 
 describe('Executor - Basic Integration', () => {
 	let conductor: TestConductor;
@@ -17,41 +17,41 @@ describe('Executor - Basic Integration', () => {
 	});
 
 	describe('Sequential Execution', () => {
-		it('should execute single Function member successfully', async () => {
-			const member: MemberConfig = {
+		it('should execute single Function agent successfully', async () => {
+			const agent: AgentConfig = {
 				name: 'simple',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: unknown) => ({ result: 'processed', receivedInput: input })
 				}
 			};
 
 			const ensemble: EnsembleConfig = {
-				name: 'single-member',
-				flow: [{ member: 'simple' }]
+				name: 'single-agent',
+				flow: [{ agent: 'simple' }]
 			};
 
-			conductor.addMember('simple', member);
-			conductor.addEnsemble('single-member', ensemble);
+			conductor.addAgent('simple', agent);
+			conductor.addEnsemble('single-agent', ensemble);
 
-			const result = await conductor.executeEnsemble('single-member', { test: 'data' });
+			const result = await conductor.executeEnsemble('single-agent', { test: 'data' });
 
 			expect(result.success).toBe(true);
 			expect(result.output).toBeDefined();
 		});
 
-		it('should execute two members in sequence', async () => {
-			const member1: MemberConfig = {
+		it('should execute two agents in sequence', async () => {
+			const member1: AgentConfig = {
 				name: 'step1',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { value: number }) => ({ value: input.value + 1 })
 				}
 			};
 
-			const member2: MemberConfig = {
+			const member2: AgentConfig = {
 				name: 'step2',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { value: number }) => ({ value: input.value * 2 })
 				}
@@ -60,13 +60,13 @@ describe('Executor - Basic Integration', () => {
 			const ensemble: EnsembleConfig = {
 				name: 'sequential',
 				flow: [
-					{ member: 'step1' },
-					{ member: 'step2' }
+					{ agent: 'step1' },
+					{ agent: 'step2' }
 				]
 			};
 
-			conductor.addMember('step1', member1);
-			conductor.addMember('step2', member2);
+			conductor.addAgent('step1', member1);
+			conductor.addAgent('step2', member2);
 			conductor.addEnsemble('sequential', ensemble);
 
 			const result = await conductor.executeEnsemble('sequential', { value: 10 });
@@ -76,20 +76,20 @@ describe('Executor - Basic Integration', () => {
 			expect(result.output?.value).toBe(22);
 		});
 
-		it('should pass output from one member to next', async () => {
+		it('should pass output from one agent to next', async () => {
 			const collector: { calls: unknown[] } = { calls: [] };
 
-			const member1: MemberConfig = {
+			const member1: AgentConfig = {
 				name: 'producer',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => ({ produced: 'data from producer' })
 				}
 			};
 
-			const member2: MemberConfig = {
+			const member2: AgentConfig = {
 				name: 'consumer',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: unknown) => {
 						collector.calls.push(input);
@@ -101,13 +101,13 @@ describe('Executor - Basic Integration', () => {
 			const ensemble: EnsembleConfig = {
 				name: 'pipeline',
 				flow: [
-					{ member: 'producer' },
-					{ member: 'consumer' }
+					{ agent: 'producer' },
+					{ agent: 'consumer' }
 				]
 			};
 
-			conductor.addMember('producer', member1);
-			conductor.addMember('consumer', member2);
+			conductor.addAgent('producer', member1);
+			conductor.addAgent('consumer', member2);
 			conductor.addEnsemble('pipeline', ensemble);
 
 			await conductor.executeEnsemble('pipeline', {});
@@ -117,15 +117,15 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should handle three-step pipeline', async () => {
-			const member1: MemberConfig = {
+			const member1: AgentConfig = {
 				name: 'init',
-				type: 'Function',
+				operation: 'code',
 				config: { handler: async () => ({ step: 'init', count: 0 }) }
 			};
 
-			const member2: MemberConfig = {
+			const member2: AgentConfig = {
 				name: 'process',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { count: number }) => ({
 						step: 'process',
@@ -134,9 +134,9 @@ describe('Executor - Basic Integration', () => {
 				}
 			};
 
-			const member3: MemberConfig = {
+			const member3: AgentConfig = {
 				name: 'finalize',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { count: number }) => ({
 						step: 'finalize',
@@ -148,15 +148,15 @@ describe('Executor - Basic Integration', () => {
 			const ensemble: EnsembleConfig = {
 				name: 'three-step',
 				flow: [
-					{ member: 'init' },
-					{ member: 'process' },
-					{ member: 'finalize' }
+					{ agent: 'init' },
+					{ agent: 'process' },
+					{ agent: 'finalize' }
 				]
 			};
 
-			conductor.addMember('init', member1);
-			conductor.addMember('process', member2);
-			conductor.addMember('finalize', member3);
+			conductor.addAgent('init', member1);
+			conductor.addAgent('process', member2);
+			conductor.addAgent('finalize', member3);
 			conductor.addEnsemble('three-step', ensemble);
 
 			const result = await conductor.executeEnsemble('three-step', {});
@@ -169,9 +169,9 @@ describe('Executor - Basic Integration', () => {
 		it('should maintain execution order', async () => {
 			const executionOrder: string[] = [];
 
-			const createMember = (name: string): MemberConfig => ({
+			const createAgent = (name: string): AgentConfig => ({
 				name,
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						executionOrder.push(name);
@@ -183,17 +183,17 @@ describe('Executor - Basic Integration', () => {
 			const ensemble: EnsembleConfig = {
 				name: 'ordered',
 				flow: [
-					{ member: 'first' },
-					{ member: 'second' },
-					{ member: 'third' },
-					{ member: 'fourth' }
+					{ agent: 'first' },
+					{ agent: 'second' },
+					{ agent: 'third' },
+					{ agent: 'fourth' }
 				]
 			};
 
-			conductor.addMember('first', createMember('first'));
-			conductor.addMember('second', createMember('second'));
-			conductor.addMember('third', createMember('third'));
-			conductor.addMember('fourth', createMember('fourth'));
+			conductor.addAgent('first', createAgent('first'));
+			conductor.addAgent('second', createAgent('second'));
+			conductor.addAgent('third', createAgent('third'));
+			conductor.addAgent('fourth', createAgent('fourth'));
 			conductor.addEnsemble('ordered', ensemble);
 
 			await conductor.executeEnsemble('ordered', {});
@@ -202,9 +202,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should handle empty input', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'processor',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: unknown) => ({ received: input, processed: true })
 				}
@@ -212,10 +212,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'empty-input',
-				flow: [{ member: 'processor' }]
+				flow: [{ agent: 'processor' }]
 			};
 
-			conductor.addMember('processor', member);
+			conductor.addAgent('processor', agent);
 			conductor.addEnsemble('empty-input', ensemble);
 
 			const result = await conductor.executeEnsemble('empty-input', {});
@@ -225,9 +225,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should handle complex input objects', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'processor',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: {
 						user: { name: string; age: number };
@@ -243,10 +243,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'complex-input',
-				flow: [{ member: 'processor' }]
+				flow: [{ agent: 'processor' }]
 			};
 
-			conductor.addMember('processor', member);
+			conductor.addAgent('processor', agent);
 			conductor.addEnsemble('complex-input', ensemble);
 
 			const input = {
@@ -268,9 +268,9 @@ describe('Executor - Basic Integration', () => {
 
 	describe('State Management', () => {
 		it('should handle stateless execution', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'simple',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: unknown) => ({ output: 'processed' })
 				}
@@ -278,10 +278,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'stateless',
-				flow: [{ member: 'simple' }]
+				flow: [{ agent: 'simple' }]
 			};
 
-			conductor.addMember('simple', member);
+			conductor.addAgent('simple', agent);
 			conductor.addEnsemble('stateless', ensemble);
 
 			const result = await conductor.executeEnsemble('stateless', { test: 'data' });
@@ -291,9 +291,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should initialize state from ensemble config', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'reader',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (_input: unknown, context?: { state?: { counter: number } }) => ({
 						initialCounter: context?.state?.counter || 0
@@ -306,10 +306,10 @@ describe('Executor - Basic Integration', () => {
 				state: {
 					initial: { counter: 42 }
 				},
-				flow: [{ member: 'reader' }]
+				flow: [{ agent: 'reader' }]
 			};
 
-			conductor.addMember('reader', member);
+			conductor.addAgent('reader', agent);
 			conductor.addEnsemble('with-state', ensemble);
 
 			const result = await conductor.executeEnsemble('with-state', {});
@@ -321,9 +321,9 @@ describe('Executor - Basic Integration', () => {
 		it('should isolate state between executions', async () => {
 			const executionLog: number[] = [];
 
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'counter',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						const count = executionLog.length + 1;
@@ -335,10 +335,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'isolated-state',
-				flow: [{ member: 'counter' }]
+				flow: [{ agent: 'counter' }]
 			};
 
-			conductor.addMember('counter', member);
+			conductor.addAgent('counter', agent);
 			conductor.addEnsemble('isolated-state', ensemble);
 
 			const result1 = await conductor.executeEnsemble('isolated-state', {});
@@ -351,10 +351,10 @@ describe('Executor - Basic Integration', () => {
 	});
 
 	describe('Input Mapping', () => {
-		it('should map static values to member input', async () => {
-			const member: MemberConfig = {
+		it('should map static values to agent input', async () => {
+			const agent: AgentConfig = {
 				name: 'receiver',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { message: string }) => ({
 						received: input.message
@@ -366,13 +366,13 @@ describe('Executor - Basic Integration', () => {
 				name: 'static-mapping',
 				flow: [
 					{
-						member: 'receiver',
+						agent: 'receiver',
 						input: { message: 'Hello, World!' }
 					}
 				]
 			};
 
-			conductor.addMember('receiver', member);
+			conductor.addAgent('receiver', agent);
 			conductor.addEnsemble('static-mapping', ensemble);
 
 			const result = await conductor.executeEnsemble('static-mapping', {});
@@ -382,9 +382,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should interpolate input variables with ${ } syntax', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'greeter',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { name: string }) => ({
 						greeting: `Hello, ${input.name}!`
@@ -396,13 +396,13 @@ describe('Executor - Basic Integration', () => {
 				name: 'input-interpolation',
 				flow: [
 					{
-						member: 'greeter',
+						agent: 'greeter',
 						input: { name: '${input.userName}' }
 					}
 				]
 			};
 
-			conductor.addMember('greeter', member);
+			conductor.addAgent('greeter', agent);
 			conductor.addEnsemble('input-interpolation', ensemble);
 
 			const result = await conductor.executeEnsemble('input-interpolation', {
@@ -414,9 +414,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should interpolate nested input paths', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'processor',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { email: string; age: number }) => ({
 						processedEmail: input.email,
@@ -429,7 +429,7 @@ describe('Executor - Basic Integration', () => {
 				name: 'nested-interpolation',
 				flow: [
 					{
-						member: 'processor',
+						agent: 'processor',
 						input: {
 							email: '${input.user.contact.email}',
 							age: '${input.user.profile.age}'
@@ -438,7 +438,7 @@ describe('Executor - Basic Integration', () => {
 				]
 			};
 
-			conductor.addMember('processor', member);
+			conductor.addAgent('processor', agent);
 			conductor.addEnsemble('nested-interpolation', ensemble);
 
 			const result = await conductor.executeEnsemble('nested-interpolation', {
@@ -454,9 +454,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should mix static and interpolated values', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'mixer',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: {
 						static: string;
@@ -474,7 +474,7 @@ describe('Executor - Basic Integration', () => {
 				name: 'mixed-mapping',
 				flow: [
 					{
-						member: 'mixer',
+						agent: 'mixer',
 						input: {
 							static: 'constant',
 							dynamic: '${input.userName}',
@@ -486,7 +486,7 @@ describe('Executor - Basic Integration', () => {
 				]
 			};
 
-			conductor.addMember('mixer', member);
+			conductor.addAgent('mixer', agent);
 			conductor.addEnsemble('mixed-mapping', ensemble);
 
 			const result = await conductor.executeEnsemble('mixed-mapping', {
@@ -501,9 +501,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should handle array interpolation', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'array-processor',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { items: string[] }) => ({
 						count: input.items.length,
@@ -516,7 +516,7 @@ describe('Executor - Basic Integration', () => {
 				name: 'array-mapping',
 				flow: [
 					{
-						member: 'array-processor',
+						agent: 'array-processor',
 						input: {
 							items: ['${input.first}', 'static', '${input.second}']
 						}
@@ -524,7 +524,7 @@ describe('Executor - Basic Integration', () => {
 				]
 			};
 
-			conductor.addMember('array-processor', member);
+			conductor.addAgent('array-processor', agent);
 			conductor.addEnsemble('array-mapping', ensemble);
 
 			const result = await conductor.executeEnsemble('array-mapping', {
@@ -538,38 +538,38 @@ describe('Executor - Basic Integration', () => {
 	});
 
 	describe('Error Handling', () => {
-		it('should handle member throwing error', async () => {
-			const member: MemberConfig = {
+		it('should handle agent throwing error', async () => {
+			const agent: AgentConfig = {
 				name: 'thrower',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
-						throw new Error('Member execution failed');
+						throw new Error('Agent execution failed');
 					}
 				}
 			};
 
 			const ensemble: EnsembleConfig = {
 				name: 'error-test',
-				flow: [{ member: 'thrower' }]
+				flow: [{ agent: 'thrower' }]
 			};
 
-			conductor.addMember('thrower', member);
+			conductor.addAgent('thrower', agent);
 			conductor.addEnsemble('error-test', ensemble);
 
 			const result = await conductor.executeEnsemble('error-test', {});
 
 			expect(result.success).toBe(false);
 			expect(result.error).toBeDefined();
-			expect(result.error?.message).toContain('Member execution failed');
+			expect(result.error?.message).toContain('Agent execution failed');
 		});
 
 		it('should stop execution on first error', async () => {
 			const executionLog: string[] = [];
 
-			const member1: MemberConfig = {
+			const member1: AgentConfig = {
 				name: 'first',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						executionLog.push('first');
@@ -578,9 +578,9 @@ describe('Executor - Basic Integration', () => {
 				}
 			};
 
-			const member2: MemberConfig = {
+			const member2: AgentConfig = {
 				name: 'second',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						executionLog.push('second');
@@ -589,9 +589,9 @@ describe('Executor - Basic Integration', () => {
 				}
 			};
 
-			const member3: MemberConfig = {
+			const member3: AgentConfig = {
 				name: 'third',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						executionLog.push('third');
@@ -603,15 +603,15 @@ describe('Executor - Basic Integration', () => {
 			const ensemble: EnsembleConfig = {
 				name: 'stop-on-error',
 				flow: [
-					{ member: 'first' },
-					{ member: 'second' },
-					{ member: 'third' }
+					{ agent: 'first' },
+					{ agent: 'second' },
+					{ agent: 'third' }
 				]
 			};
 
-			conductor.addMember('first', member1);
-			conductor.addMember('second', member2);
-			conductor.addMember('third', member3);
+			conductor.addAgent('first', member1);
+			conductor.addAgent('second', member2);
+			conductor.addAgent('third', member3);
 			conductor.addEnsemble('stop-on-error', ensemble);
 
 			const result = await conductor.executeEnsemble('stop-on-error', {});
@@ -621,15 +621,15 @@ describe('Executor - Basic Integration', () => {
 			// 'third' should not have executed
 		});
 
-		it('should handle member not found error', async () => {
+		it('should handle agent not found error', async () => {
 			const ensemble: EnsembleConfig = {
-				name: 'missing-member',
-				flow: [{ member: 'nonexistent' }]
+				name: 'missing-agent',
+				flow: [{ agent: 'nonexistent' }]
 			};
 
-			conductor.addEnsemble('missing-member', ensemble);
+			conductor.addEnsemble('missing-agent', ensemble);
 
-			const result = await conductor.executeEnsemble('missing-member', {});
+			const result = await conductor.executeEnsemble('missing-agent', {});
 
 			expect(result.success).toBe(false);
 			expect(result.error).toBeDefined();
@@ -642,10 +642,10 @@ describe('Executor - Basic Integration', () => {
 			expect(result.error?.message).toContain('nonexistent-ensemble');
 		});
 
-		it('should provide error context with member information', async () => {
-			const member: MemberConfig = {
+		it('should provide error context with agent information', async () => {
+			const agent: AgentConfig = {
 				name: 'faulty',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						throw new Error('Specific error message');
@@ -656,11 +656,11 @@ describe('Executor - Basic Integration', () => {
 			const ensemble: EnsembleConfig = {
 				name: 'error-context',
 				flow: [
-					{ member: 'faulty' }
+					{ agent: 'faulty' }
 				]
 			};
 
-			conductor.addMember('faulty', member);
+			conductor.addAgent('faulty', agent);
 			conductor.addEnsemble('error-context', ensemble);
 
 			const result = await conductor.executeEnsemble('error-context', {});
@@ -670,9 +670,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should handle async errors correctly', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'async-thrower',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						await new Promise(resolve => setTimeout(resolve, 10));
@@ -683,10 +683,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'async-error',
-				flow: [{ member: 'async-thrower' }]
+				flow: [{ agent: 'async-thrower' }]
 			};
 
-			conductor.addMember('async-thrower', member);
+			conductor.addAgent('async-thrower', agent);
 			conductor.addEnsemble('async-error', ensemble);
 
 			const result = await conductor.executeEnsemble('async-error', {});
@@ -696,9 +696,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should handle invalid input gracefully', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'validator',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { required?: string }) => {
 						if (!input.required) {
@@ -711,10 +711,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'validation',
-				flow: [{ member: 'validator' }]
+				flow: [{ agent: 'validator' }]
 			};
 
-			conductor.addMember('validator', member);
+			conductor.addAgent('validator', agent);
 			conductor.addEnsemble('validation', ensemble);
 
 			const result = await conductor.executeEnsemble('validation', {});
@@ -725,9 +725,9 @@ describe('Executor - Basic Integration', () => {
 
 	describe('Metadata and Timing', () => {
 		it('should track execution time', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'timer',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						await new Promise(resolve => setTimeout(resolve, 50));
@@ -738,10 +738,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'timed',
-				flow: [{ member: 'timer' }]
+				flow: [{ agent: 'timer' }]
 			};
 
-			conductor.addMember('timer', member);
+			conductor.addAgent('timer', agent);
 			conductor.addEnsemble('timed', ensemble);
 
 			const result = await conductor.executeEnsemble('timed', {});
@@ -751,9 +751,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should track execution duration for longer operations', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'slow',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						await new Promise(resolve => setTimeout(resolve, 100));
@@ -764,10 +764,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'duration-test',
-				flow: [{ member: 'slow' }]
+				flow: [{ agent: 'slow' }]
 			};
 
-			conductor.addMember('slow', member);
+			conductor.addAgent('slow', agent);
 			conductor.addEnsemble('duration-test', ensemble);
 
 			const result = await conductor.executeEnsemble('duration-test', {});
@@ -777,9 +777,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should include execution steps in result', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'step',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => ({ done: true })
 				}
@@ -788,13 +788,13 @@ describe('Executor - Basic Integration', () => {
 			const ensemble: EnsembleConfig = {
 				name: 'step-tracking',
 				flow: [
-					{ member: 'step' },
-					{ member: 'step' },
-					{ member: 'step' }
+					{ agent: 'step' },
+					{ agent: 'step' },
+					{ agent: 'step' }
 				]
 			};
 
-			conductor.addMember('step', member);
+			conductor.addAgent('step', agent);
 			conductor.addEnsemble('step-tracking', ensemble);
 
 			const result = await conductor.executeEnsemble('step-tracking', {});
@@ -804,9 +804,9 @@ describe('Executor - Basic Integration', () => {
 		});
 
 		it('should track execution even on failure', async () => {
-			const member: MemberConfig = {
+			const agent: AgentConfig = {
 				name: 'failer',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						throw new Error('Failed after delay');
@@ -816,10 +816,10 @@ describe('Executor - Basic Integration', () => {
 
 			const ensemble: EnsembleConfig = {
 				name: 'fail-test',
-				flow: [{ member: 'failer' }]
+				flow: [{ agent: 'failer' }]
 			};
 
-			conductor.addMember('failer', member);
+			conductor.addAgent('failer', agent);
 			conductor.addEnsemble('fail-test', ensemble);
 
 			const result = await conductor.executeEnsemble('fail-test', {});

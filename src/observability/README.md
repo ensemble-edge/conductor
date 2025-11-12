@@ -104,7 +104,7 @@ class Executor {
 			// Create step-scoped logger
 			const stepLogger = execLogger.child({
 				stepIndex: index,
-				memberName: step.member
+				agentName: step.agent
 			});
 
 			stepLogger.debug('Executing step');
@@ -308,8 +308,8 @@ logger.error('Database connection failed', error); // Requires attention
 ### 4. Include Rich Context
 
 ```typescript
-logger.error('Member execution failed', error, {
-	memberName: 'analyze-request',
+logger.error('Agent execution failed', error, {
+	agentName: 'analyze-request',
 	attemptNumber: 3,
 	durationMs: 5432,
 	inputSize: input.length,
@@ -344,12 +344,12 @@ Replace all `console.log` calls:
 ```typescript
 // Before
 console.log('Starting execution');
-console.log('Step completed:', step.member);
+console.log('Step completed:', step.agent);
 console.error('Failed:', error);
 
 // After
 logger.info('Starting execution');
-logger.info('Step completed', { memberName: step.member });
+logger.info('Step completed', { agentName: step.agent });
 logger.error('Execution failed', error);
 ```
 

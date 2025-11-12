@@ -64,7 +64,7 @@ export interface EnsembleScoringConfig {
   enabled: boolean
 
   /**
-   * Default thresholds for all members
+   * Default thresholds for all agents
    */
   defaultThresholds: ScoringThresholds
 
@@ -100,11 +100,11 @@ export interface EnsembleScoringConfig {
 }
 
 /**
- * Member-level scoring configuration
+ * Agent-level scoring configuration
  */
-export interface MemberScoringConfig {
+export interface AgentScoringConfig {
   /**
-   * Evaluator member to use for scoring
+   * Evaluator agent to use for scoring
    */
   evaluator: string
 
@@ -114,7 +114,7 @@ export interface MemberScoringConfig {
   thresholds?: ScoringThresholds
 
   /**
-   * Criteria for this member
+   * Criteria for this agent
    */
   criteria?: Record<string, string> | ScoringCriterion[]
 
@@ -124,7 +124,7 @@ export interface MemberScoringConfig {
   onFailure?: ScoringFailureAction
 
   /**
-   * Retry limit for this member
+   * Retry limit for this agent
    */
   retryLimit?: number
 
@@ -186,7 +186,7 @@ export interface ScoringResult {
  */
 export interface ScoredExecutionResult<T = any> {
   /**
-   * Member output
+   * Agent output
    */
   output: T
 
@@ -216,9 +216,9 @@ export interface ScoredExecutionResult<T = any> {
  */
 export interface ScoreHistoryEntry {
   /**
-   * Member that was scored
+   * Agent that was scored
    */
-  member: string
+  agent: string
 
   /**
    * Score
@@ -302,7 +302,7 @@ export interface QualityMetrics {
   totalRetries: number
 
   /**
-   * Average attempts per member
+   * Average attempts per agent
    */
   averageAttempts: number
 }
@@ -312,7 +312,7 @@ export interface QualityMetrics {
  */
 export interface ScoringState {
   /**
-   * Score history for all members
+   * Score history for all agents
    */
   scoreHistory: ScoreHistoryEntry[]
 
@@ -322,7 +322,7 @@ export interface ScoringState {
   finalScore?: number
 
   /**
-   * Retry count per member
+   * Retry count per agent
    */
   retryCount: Record<string, number>
 
@@ -342,9 +342,9 @@ export interface ScoringTelemetryEvent {
   ensemble: string
 
   /**
-   * Member name
+   * Agent name
    */
-  member: string
+  agent: string
 
   /**
    * Score

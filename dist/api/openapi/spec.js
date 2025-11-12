@@ -31,11 +31,11 @@ export const openAPISpec = {
     tags: [
         {
             name: 'execution',
-            description: 'Member execution endpoints',
+            description: 'Agent execution endpoints',
         },
         {
-            name: 'members',
-            description: 'Member discovery and information',
+            name: 'agents',
+            description: 'Agent discovery and information',
         },
         {
             name: 'health',
@@ -71,8 +71,8 @@ export const openAPISpec = {
         },
         '/api/v1/execute': {
             post: {
-                summary: 'Execute a member',
-                description: 'Execute a built-in member synchronously',
+                summary: 'Execute a agent',
+                description: 'Execute a built-in agent synchronously',
                 tags: ['execution'],
                 security: [{ apiKey: [] }],
                 requestBody: {
@@ -109,7 +109,7 @@ export const openAPISpec = {
                         },
                     },
                     '404': {
-                        description: 'Member not found',
+                        description: 'Agent not found',
                         content: {
                             'application/json': {
                                 schema: { $ref: '#/components/schemas/ErrorResponse' },
@@ -127,15 +127,15 @@ export const openAPISpec = {
                 },
             },
         },
-        '/api/v1/members': {
+        '/api/v1/agents': {
             get: {
-                summary: 'List all members',
-                description: 'Get a list of all available built-in members',
-                tags: ['members'],
+                summary: 'List all agents',
+                description: 'Get a list of all available built-in agents',
+                tags: ['agents'],
                 security: [{ apiKey: [] }],
                 responses: {
                     '200': {
-                        description: 'List of members',
+                        description: 'List of agents',
                         content: {
                             'application/json': {
                                 schema: { $ref: '#/components/schemas/MemberListResponse' },
@@ -153,25 +153,25 @@ export const openAPISpec = {
                 },
             },
         },
-        '/api/v1/members/{name}': {
+        '/api/v1/agents/{name}': {
             get: {
-                summary: 'Get member details',
-                description: 'Get detailed information about a specific member',
-                tags: ['members'],
+                summary: 'Get agent details',
+                description: 'Get detailed information about a specific agent',
+                tags: ['agents'],
                 security: [{ apiKey: [] }],
                 parameters: [
                     {
                         name: 'name',
                         in: 'path',
                         required: true,
-                        description: 'Member name',
+                        description: 'Agent name',
                         schema: { type: 'string' },
                         example: 'fetch',
                     },
                 ],
                 responses: {
                     '200': {
-                        description: 'Member details',
+                        description: 'Agent details',
                         content: {
                             'application/json': {
                                 schema: { $ref: '#/components/schemas/MemberDetailResponse' },
@@ -187,7 +187,7 @@ export const openAPISpec = {
                         },
                     },
                     '404': {
-                        description: 'Member not found',
+                        description: 'Agent not found',
                         content: {
                             'application/json': {
                                 schema: { $ref: '#/components/schemas/ErrorResponse' },
@@ -281,22 +281,22 @@ export const openAPISpec = {
         schemas: {
             ExecuteRequest: {
                 type: 'object',
-                required: ['member', 'input'],
+                required: ['agent', 'input'],
                 properties: {
-                    member: {
+                    agent: {
                         type: 'string',
-                        description: 'Name of the member to execute',
+                        description: 'Name of the agent to execute',
                         example: 'fetch',
                     },
                     input: {
                         type: 'object',
-                        description: 'Input data for the member',
+                        description: 'Input data for the agent',
                         additionalProperties: true,
                         example: { url: 'https://api.example.com/data' },
                     },
                     config: {
                         type: 'object',
-                        description: 'Optional configuration for the member',
+                        description: 'Optional configuration for the agent',
                         additionalProperties: true,
                         example: { timeout: 5000 },
                     },
@@ -364,9 +364,9 @@ export const openAPISpec = {
             },
             MemberListResponse: {
                 type: 'object',
-                required: ['members', 'count'],
+                required: ['agents', 'count'],
                 properties: {
-                    members: {
+                    agents: {
                         type: 'array',
                         items: {
                             type: 'object',
@@ -381,7 +381,7 @@ export const openAPISpec = {
                     },
                     count: {
                         type: 'number',
-                        description: 'Total number of members',
+                        description: 'Total number of agents',
                         example: 5,
                     },
                 },
@@ -456,7 +456,7 @@ export const openAPISpec = {
                     message: {
                         type: 'string',
                         description: 'Human-readable error message',
-                        example: 'Member name is required',
+                        example: 'Agent name is required',
                     },
                     code: {
                         type: 'string',
