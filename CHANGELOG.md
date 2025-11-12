@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 1.4.2
+
+### Patch Changes
+
+- 1ca5e6f: Documentation improvements: comprehensive development guide, simplified CLAUDE.md workflow, and watch mode explanations
+
 ## 1.4.0
 
 ### Minor Changes
