@@ -1,5 +1,21 @@
 # @ensemble-edge/conductor
 
+## 1.4.1
+
+### Patch Changes
+
+- 6430e83: Fix handler import paths in Vite plugin - add ./ prefix for proper module resolution
+
+  Critical fix: Vite/Rolldown requires relative import paths to start with `./`, `../`, or `/`. Without this prefix, handler imports fail with "failed to resolve import" error, completely breaking the dynamic pages feature introduced in v1.4.0.
+
+- 2a86f99: Simplify CLAUDE.md release workflow documentation - focus on essential steps: changeset + commit + push, and use force-with-lease when release happens
+- e2cbf57: Add comprehensive development documentation for page watch mode
+  - Created DEVELOPMENT.md guide explaining watch mode limitations and solutions
+  - Clarified that watch mode issues only affect local dev, not CI/CD or production builds
+  - Documented that npm run dev includes automatic page detection via watch-pages.js
+  - Updated README.md with note to use npm run dev instead of wrangler dev directly
+  - Explained Wrangler's known limitation with detecting new files in watched directories
+
 ## 1.4.0
 
 ### Minor Changes
