@@ -1,27 +1,31 @@
 # .github/workflows/release.yml
 name: Release
+
 on:
   push:
     branches: [main, master]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
 permissions:
   contents: write
-  issues: write
   pull-requests: write
   id-token: write
+
 jobs:
   release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout Repo
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           npm ci
           # Workaround for npm optional dependency bug with rollup (npm/cli#4828)
@@ -39,68 +43,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Check for changesets
-        id: check
-        run: |
-          if [ -n "$(ls -A .changeset/*.md 2>/dev/null | grep -v README)" ]; then
-            echo "has_changesets=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changesets=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Version packages (local only)
-        if: steps.check.outputs.has_changesets == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          npm run version-packages
-          npm run build
-          VERSION=$(node -p "require('./package.json').version")
-          echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_ENV
-          # Stage changes but DON'T commit or push yet
-          git add -A
+      - name: Create Release Pull Request or Publish to npm
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: npm run release
+          version: npm run version-packages
+          createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to npm
-        if: steps.check.outputs.has_changesets == 'true'
-        run: npm run release
-        env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Create git tag (before GitHub release)
-        if: steps.check.outputs.has_changesets == 'true'
-        run: |
-          # Create tag if it doesn't exist (needed for GitHub release)
-          if git rev-parse "v${RELEASE_VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${RELEASE_VERSION} already exists"
-          else
-            echo "Creating tag v${RELEASE_VERSION}"
-            git tag "v${RELEASE_VERSION}"
-          fi
-          git push --tags || echo "Tag push failed (may already exist)"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create GitHub Release
-        if: steps.check.outputs.has_changesets == 'true'
-        run: |
-          CHANGELOG=$(awk '/^## / {if (p) exit; p=1; next} p' CHANGELOG.md)
-          # Create release, or update if it already exists
-          if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
-            echo "Release v${RELEASE_VERSION} already exists, updating..."
-            gh release edit "v${RELEASE_VERSION}" \
-              --title "v${RELEASE_VERSION}" \
-              --notes "${CHANGELOG}" \
-              --latest
-          else
-            echo "Creating release v${RELEASE_VERSION}..."
-            gh release create "v${RELEASE_VERSION}" \
-              --title "v${RELEASE_VERSION}" \
-              --notes "${CHANGELOG}" \
-              --latest
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
