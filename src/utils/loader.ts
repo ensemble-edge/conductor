@@ -80,8 +80,7 @@ export class MemberLoader {
     implementation?: FunctionImplementation
   ): BaseAgent {
     // Parse config if it's a string (YAML)
-    const config =
-      typeof agentConfig === 'string' ? Parser.parseAgent(agentConfig) : agentConfig
+    const config = typeof agentConfig === 'string' ? Parser.parseAgent(agentConfig) : agentConfig
 
     // Create agent instance based on type
     const instance = this.createMemberInstance(config, implementation)

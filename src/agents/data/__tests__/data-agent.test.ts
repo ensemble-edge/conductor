@@ -902,9 +902,7 @@ describe('DataAgent', () => {
 
       const agent = new DataAgent(config, mockRepository)
 
-      await expect(agent['run']({ ...mockContext, input: {} })).rejects.toThrow(
-        'Unknown operation'
-      )
+      await expect(agent['run']({ ...mockContext, input: {} })).rejects.toThrow('Unknown operation')
     })
   })
 

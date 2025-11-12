@@ -255,12 +255,12 @@ export class Executor {
         return Result.err(Errors.agentConfig(config.name, 'MCP agent type not yet implemented'))
 
       case Operation.scoring:
-        return Result.err(
-          Errors.agentConfig(config.name, 'Scoring agent type not yet implemented')
-        )
+        return Result.err(Errors.agentConfig(config.name, 'Scoring agent type not yet implemented'))
 
       default:
-        return Result.err(Errors.agentConfig(config.name, `Unknown agent operation: ${config.operation}`))
+        return Result.err(
+          Errors.agentConfig(config.name, `Unknown agent operation: ${config.operation}`)
+        )
     }
   }
 
@@ -292,9 +292,7 @@ export class Executor {
     } else if (stepIndex > 0) {
       // Default to previous agent's output for chaining
       const previousAgentName = ensemble.flow[stepIndex - 1].agent
-      const previousResult = executionContext[previousAgentName] as
-        | AgentExecutionResult
-        | undefined
+      const previousResult = executionContext[previousAgentName] as AgentExecutionResult | undefined
       resolvedInput = previousResult?.output || {}
     } else {
       // First step with no input - use original ensemble input

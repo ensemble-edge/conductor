@@ -105,10 +105,7 @@ export class ConductorClient {
   }
 
   async listMembers(): Promise<Agent[]> {
-    const response = await this.request<{ agents: Agent[]; count: number }>(
-      'GET',
-      '/api/v1/agents'
-    )
+    const response = await this.request<{ agents: Agent[]; count: number }>('GET', '/api/v1/agents')
     return response.agents
   }
 
