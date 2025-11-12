@@ -42,8 +42,8 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/api/users',
         methods: ['GET'],
-        memberType: 'api',
-        memberName: 'users-api',
+        operation: 'api',
+        agentName: 'users-api',
       })
 
       const match = router.match('/api/users', 'GET')
@@ -55,8 +55,8 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: 'default',
         methods: ['GET'],
-        memberType: 'page',
-        memberName: 'login',
+        operation: 'page',
+        agentName: 'login',
         memberPath: '/pages/login/page.yaml',
       })
 
@@ -69,8 +69,8 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: 'default',
         methods: ['GET'],
-        memberType: 'page',
-        memberName: 'index',
+        operation: 'page',
+        agentName: 'index',
         memberPath: '/pages/index/page.yaml',
       })
 
@@ -83,8 +83,8 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: 'default',
         methods: ['GET'],
-        memberType: 'page',
-        memberName: 'dashboard',
+        operation: 'page',
+        agentName: 'dashboard',
         memberPath: '/pages/admin/dashboard/page.yaml',
       })
 
@@ -99,22 +99,22 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/api/users/:id',
         methods: ['GET'],
-        memberType: 'api',
-        memberName: 'user-api',
+        operation: 'api',
+        agentName: 'user-api',
       })
 
       router.register({
         pattern: '/api/users',
         methods: ['GET', 'POST'],
-        memberType: 'api',
-        memberName: 'users-api',
+        operation: 'api',
+        agentName: 'users-api',
       })
 
       router.register({
         pattern: '/static/*',
         methods: ['GET'],
-        memberType: 'static',
-        memberName: 'static-files',
+        operation: 'static',
+        agentName: 'static-files',
       })
     })
 
@@ -153,8 +153,8 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/',
         methods: ['GET'],
-        memberType: 'page',
-        memberName: 'home',
+        operation: 'page',
+        agentName: 'home',
       })
 
       const match = router.match('/', 'GET')
@@ -166,8 +166,8 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/api/protected',
         methods: ['GET'],
-        memberType: 'api',
-        memberName: 'protected-api',
+        operation: 'api',
+        agentName: 'protected-api',
       })
 
       const match = router.match('/api/protected', 'GET')
@@ -176,12 +176,12 @@ describe('UnifiedRouter', () => {
       expect(match?.auth.methods).toEqual(['bearer', 'apiKey'])
     })
 
-    it('should allow member-specific auth to override defaults', () => {
+    it('should allow agent-specific auth to override defaults', () => {
       router.register({
         pattern: '/api/public',
         methods: ['GET'],
-        memberType: 'api',
-        memberName: 'public-api',
+        operation: 'api',
+        agentName: 'public-api',
         auth: { requirement: 'public' },
       })
 
@@ -196,24 +196,24 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/admin/*',
         methods: ['GET'],
-        memberType: 'page',
-        memberName: 'admin',
+        operation: 'page',
+        agentName: 'admin',
         priority: 10,
       })
 
       router.register({
         pattern: '/admin/users',
         methods: ['GET'],
-        memberType: 'page',
-        memberName: 'admin-users',
+        operation: 'page',
+        agentName: 'admin-users',
         priority: 10,
       })
 
       router.register({
         pattern: '/static/*',
         methods: ['GET'],
-        memberType: 'static',
-        memberName: 'static-files',
+        operation: 'static',
+        agentName: 'static-files',
         priority: 1,
       })
     })
@@ -221,14 +221,14 @@ describe('UnifiedRouter', () => {
     it('should match higher priority routes first', () => {
       const match = router.match('/static/test.js', 'GET')
       expect(match).not.toBeNull()
-      expect(match?.memberType).toBe('static')
+      expect(match?.operation).toBe('static')
     })
 
     it('should prefer static routes over dynamic within same priority', () => {
       const match = router.match('/admin/users', 'GET')
       expect(match).not.toBeNull()
       expect(match?.pattern).toBe('/admin/users')
-      expect(match?.memberType).toBe('page')
+      expect(match?.operation).toBe('page')
     })
   })
 })

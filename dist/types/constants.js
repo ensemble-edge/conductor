@@ -1,11 +1,13 @@
 /**
  * Constants and Enums - Eliminating Magic Strings
  *
- * Centralized constants for member types, providers, and storage types.
+ * Centralized constants for operation types, providers, and storage types.
  * Eliminates magic strings and provides compile-time safety.
  */
+// Re-export Operation from operation.ts for backward compatibility with imports
+export { Operation, isOperation } from './operation.js';
 /**
- * AI Provider types supported by Think members
+ * AI Provider types supported by Think agents
  */
 export var AIProvider;
 (function (AIProvider) {
@@ -15,7 +17,7 @@ export var AIProvider;
     AIProvider["Custom"] = "custom";
 })(AIProvider || (AIProvider = {}));
 /**
- * Storage backend types for Data members
+ * Storage backend types for Data agents
  */
 export var StorageType;
 (function (StorageType) {
@@ -24,24 +26,6 @@ export var StorageType;
     StorageType["R2"] = "r2";
 })(StorageType || (StorageType = {}));
 /**
- * Member types in Conductor framework
- */
-export var MemberType;
-(function (MemberType) {
-    MemberType["Think"] = "Think";
-    MemberType["Function"] = "Function";
-    MemberType["Data"] = "Data";
-    MemberType["API"] = "API";
-    MemberType["MCP"] = "MCP";
-    MemberType["Scoring"] = "Scoring";
-    MemberType["Email"] = "Email";
-    MemberType["SMS"] = "SMS";
-    MemberType["Form"] = "Form";
-    MemberType["Page"] = "Page";
-    MemberType["HTML"] = "HTML";
-    MemberType["PDF"] = "PDF";
-})(MemberType || (MemberType = {}));
-/**
  * Type guards for runtime validation
  */
 export const isAIProvider = (value) => {
@@ -49,7 +33,4 @@ export const isAIProvider = (value) => {
 };
 export const isStorageType = (value) => {
     return Object.values(StorageType).includes(value);
-};
-export const isMemberType = (value) => {
-    return Object.values(MemberType).includes(value);
 };

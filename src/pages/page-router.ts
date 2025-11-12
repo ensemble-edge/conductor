@@ -1,7 +1,7 @@
 /**
  * Page Router
  *
- * Automatic routing system for Page members:
+ * Automatic routing system for Page agents:
  * - Auto-discovery of pages from /pages directory
  * - Convention-based routing (directory structure = routes)
  * - Explicit route configuration in YAML
@@ -11,13 +11,13 @@
  */
 
 import type { ConductorEnv } from '../types/env.js'
-import { PageMember } from '../members/page/page-member.js'
-import type { MemberConfig } from '../runtime/parser.js'
+import { PageAgent } from '../agents/page/page-agent.js'
+import type { AgentConfig } from '../runtime/parser.js'
 
 export interface PageRoute {
   path: string
   methods: string[]
-  page: PageMember
+  page: PageAgent
   params?: string[] // Extracted parameter names from :param syntax
   aliases?: string[]
   auth?: 'none' | 'required' | 'optional'
@@ -34,7 +34,7 @@ export interface PageRouterConfig {
   indexFiles?: string[]
   notFoundPage?: string
   beforeRender?: (
-    page: PageMember,
+    page: PageAgent,
     request: Request,
     env: ConductorEnv
   ) => Promise<Record<string, any>>
@@ -42,7 +42,7 @@ export interface PageRouterConfig {
 
 export class PageRouter {
   private routes: PageRoute[] = []
-  private pages: Map<string, PageMember> = new Map()
+  private pages: Map<string, PageAgent> = new Map()
   private config: PageRouterConfig
 
   constructor(config: PageRouterConfig = {}) {
@@ -59,7 +59,7 @@ export class PageRouter {
   /**
    * Register a page with explicit route configuration
    */
-  registerPage(pageConfig: MemberConfig, pageMember: PageMember): void {
+  registerPage(pageConfig: AgentConfig, pageMember: PageAgent): void {
     const routeConfig = (pageConfig.config as any)?.route
 
     if (!routeConfig) {
@@ -104,19 +104,19 @@ export class PageRouter {
    * - pages/blog/[slug].yaml → /blog/:slug
    */
   async discoverPages(
-    pagesMap: Map<string, { config: MemberConfig; member: PageMember }>
+    pagesMap: Map<string, { config: AgentConfig; agent: PageAgent }>
   ): Promise<void> {
     if (!this.config.autoRoute) return
 
-    for (const [pageName, { config, member }] of pagesMap) {
+    for (const [pageName, { config, agent }] of pagesMap) {
       // Store page in pages map
-      this.pages.set(pageName, member)
+      this.pages.set(pageName, agent)
 
       // Check if page has explicit route configuration
       const routeConfig = (config.config as any)?.route
       if (routeConfig) {
         // Register with explicit route configuration
-        this.registerPage(config, member)
+        this.registerPage(config, agent)
         continue
       }
 
@@ -129,7 +129,7 @@ export class PageRouter {
       this.routes.push({
         path,
         methods: ['GET'],
-        page: member,
+        page: agent,
         params,
       })
     }
@@ -233,7 +233,7 @@ export class PageRouter {
 
       const pageOutput = (result.output || result.data) as any
 
-      // Use headers from PageMember - it already includes Content-Type
+      // Use headers from PageAgent - it already includes Content-Type
       // Don't duplicate the header or it causes "Unknown character encoding" error
       return new Response(pageOutput.html, {
         status: 200,
@@ -424,7 +424,7 @@ export class PageRouter {
 
       const pageOutput = (result.output || result.data) as any
 
-      // Use headers from PageMember - it already includes Content-Type
+      // Use headers from PageAgent - it already includes Content-Type
       // Don't duplicate the header or it causes "Unknown character encoding" error
       return new Response(pageOutput.html, {
         status: 404,

@@ -1,9 +1,9 @@
 name: login-page
 description: Render login page with session cookie management
 
-members:
+agents:
   - name: render-login
-    type: HTML
+    operation: html
     config:
       template:
         inline: |
@@ -195,7 +195,7 @@ members:
         maxAge: 604800  # 7 days
 
 flow:
-  - member: render-login
+  - agent: render-login
     input:
       data:
         appName: ${input.appName}

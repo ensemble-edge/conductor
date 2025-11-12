@@ -5,11 +5,11 @@ import type { TestExecutionResult } from './types.js';
 export interface CustomMatchers<R = unknown> {
     toBeSuccessful(): R;
     toHaveFailed(): R;
-    toHaveExecutedMember(memberName: string): R;
+    toHaveExecutedMember(agentName: string): R;
     toHaveExecutedSteps(count: number): R;
     toHaveCompletedIn(ms: number): R;
     toHaveState(key: string, value?: unknown): R;
-    toHaveCalledAI(memberName?: string): R;
+    toHaveCalledAI(agentName?: string): R;
     toHaveUsedTokens(count: number): R;
     toHaveCostLessThan(dollars: number): R;
     toHaveOutput(expected: unknown): R;
@@ -30,9 +30,9 @@ export declare function toHaveFailed(received: TestExecutionResult): {
     message: () => "Expected execution to have failed but it succeeded" | "Expected execution to succeed but it failed";
 };
 /**
- * Check if a specific member was executed
+ * Check if a specific agent was executed
  */
-export declare function toHaveExecutedMember(received: TestExecutionResult, memberName: string): {
+export declare function toHaveExecutedMember(received: TestExecutionResult, agentName: string): {
     pass: boolean;
     message: () => string;
 };
@@ -58,9 +58,9 @@ export declare function toHaveState(received: TestExecutionResult, key: string, 
     message: () => string;
 };
 /**
- * Check if AI was called (optionally for a specific member)
+ * Check if AI was called (optionally for a specific agent)
  */
-export declare function toHaveCalledAI(received: TestExecutionResult, memberName?: string): {
+export declare function toHaveCalledAI(received: TestExecutionResult, agentName?: string): {
     pass: boolean;
     message: () => string;
 };

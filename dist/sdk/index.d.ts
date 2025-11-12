@@ -2,10 +2,10 @@
  * Conductor SDK - Exports
  */
 export { ConductorClient, ConductorError, createClient } from './client.js';
-export type { ClientConfig, ExecuteOptions, ExecuteResult, Member, MemberDetail, HealthStatus, } from './client.js';
-export { MemberHelpers, createMemberHelpers } from './members.js';
-export type { FetchInput, FetchOutput, FetchConfig, ScrapeInput, ScrapeOutput, ScrapeConfig, ValidateInput, ValidateOutput, ValidateConfig, RAGInput, RAGIndexOutput, RAGSearchOutput, RAGOutput, RAGConfig, HITLInput, HITLRequestOutput, HITLRespondOutput, HITLOutput, HITLConfig, QueriesInput, QueriesOutput, QueriesConfig, } from './members.js';
-export { createMember, createThinkMember, createFunctionMember, createDataMember, createAPIMember, generateMemberConfig, } from './member-factory.js';
-export type { CreateMemberOptions, MemberHandler } from './types.js';
+export type { ClientConfig, ExecuteOptions, ExecuteResult, Agent, MemberDetail, HealthStatus, } from './client.js';
+export { MemberHelpers, createMemberHelpers } from './agents.js';
+export type { FetchInput, FetchOutput, FetchConfig, ScrapeInput, ScrapeOutput, ScrapeConfig, ValidateInput, ValidateOutput, ValidateConfig, RAGInput, RAGIndexOutput, RAGSearchOutput, RAGOutput, RAGConfig, HITLInput, HITLRequestOutput, HITLRespondOutput, HITLOutput, HITLConfig, QueriesInput, QueriesOutput, QueriesConfig, } from './agents.js';
+export { createAgent, createThinkMember, createFunctionMember, createDataMember, createAPIMember, generateMemberConfig, } from './agent-factory.js';
+export type { CreateAgentOptions, MemberHandler } from './types.js';
 export { loadComponent, loadMemberConfig } from './edgit.js';
 //# sourceMappingURL=index.d.ts.map

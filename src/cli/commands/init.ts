@@ -46,7 +46,7 @@ export function createInitCommand(): Command {
               'conductor.config.ts',
               'conductor.config.js',
               'ensembles',
-              'members',
+              'agents',
             ]
 
             for (const marker of conductorMarkers) {
@@ -71,7 +71,7 @@ export function createInitCommand(): Command {
             console.error(chalk.dim('Initializing will overwrite:'))
             console.error(chalk.dim('  - conductor.config.ts'))
             console.error(chalk.dim('  - ensembles/'))
-            console.error(chalk.dim('  - members/'))
+            console.error(chalk.dim('  - agents/'))
             console.error(chalk.dim('  - prompts/'))
             console.error(chalk.dim('  - configs/'))
             console.error(chalk.dim('  - tests/'))
@@ -177,7 +177,7 @@ export function createInitCommand(): Command {
           console.log(chalk.dim(`  ${directory !== '.' ? '2' : '1'}. npm install`))
           console.log(chalk.dim(`  ${directory !== '.' ? '3' : '2'}. Review the generated files:`))
           console.log(chalk.dim('     - ensembles/    : Your workflows'))
-          console.log(chalk.dim('     - members/      : AI members, functions, and agents'))
+          console.log(chalk.dim('     - agents/      : AI agents, functions, and agents'))
           console.log(chalk.dim('     - prompts/      : Prompt templates'))
           console.log(chalk.dim('     - configs/      : Configuration files'))
           console.log(

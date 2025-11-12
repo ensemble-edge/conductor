@@ -9,10 +9,10 @@
 export interface ExecutionRecord {
     /** Unique execution ID */
     id: string;
-    /** Ensemble or member name */
+    /** Ensemble or agent name */
     name: string;
     /** Execution type */
-    type: 'ensemble' | 'member';
+    type: 'ensemble' | 'agent';
     /** Input data */
     input: Record<string, unknown>;
     /** Output data (if successful) */
@@ -42,7 +42,7 @@ export interface ExecutionRecord {
  * Execution step
  */
 export interface ExecutionStep {
-    /** Step name/member */
+    /** Step name/agent */
     name: string;
     /** Step status */
     status: 'success' | 'failure' | 'skipped';
@@ -108,7 +108,7 @@ export declare class ExecutionHistory {
      */
     list(options?: {
         limit?: number;
-        type?: 'ensemble' | 'member';
+        type?: 'ensemble' | 'agent';
         status?: 'success' | 'failure';
     }): Promise<ExecutionRecord[]>;
     /**

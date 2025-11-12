@@ -1,10 +1,10 @@
 name: data-export-report
 description: Export user activity data to CSV/JSON/Excel with filtering and streaming support
 
-members:
+agents:
   # Query user activity data with filters
   - name: query-data
-    type: Data
+    operation: storage
     config:
       storage: kv
       operation: query
@@ -18,7 +18,7 @@ members:
 
   # Export to CSV format
   - name: export-csv
-    type: Data
+    operation: storage
     config:
       storage: kv
       operation: export
@@ -36,7 +36,7 @@ members:
 
   # Export to JSON format
   - name: export-json
-    type: Data
+    operation: storage
     config:
       storage: kv
       operation: export
@@ -54,7 +54,7 @@ members:
 
   # Export to Excel format
   - name: export-excel
-    type: Data
+    operation: storage
     config:
       storage: kv
       operation: export
@@ -71,7 +71,7 @@ members:
 
   # Generate HTML report with export links
   - name: generate-report
-    type: HTML
+    operation: html
     config:
       template: |
         <!DOCTYPE html>

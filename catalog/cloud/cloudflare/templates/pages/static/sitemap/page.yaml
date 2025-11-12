@@ -1,5 +1,5 @@
 name: sitemap
-type: Page
+operation: page
 templateEngine: liquid
 description: XML sitemap for search engines
 
@@ -55,6 +55,6 @@ input:
       priority: 0.5
 
 # To generate sitemap dynamically from your content:
-# 1. Use a Data member to query your content
+# 1. Use a Data agent to query your content
 # 2. Map results to sitemap URL format
-# 3. Pass to this page member
+# 3. Pass to this page agent

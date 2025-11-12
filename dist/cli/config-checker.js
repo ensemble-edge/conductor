@@ -21,9 +21,9 @@ export class ConfigChecker {
      */
     async checkAll() {
         const allIssues = [];
-        // Check members
-        const memberResult = await this.checkMembers();
-        allIssues.push(...memberResult.issues);
+        // Check agents
+        const agentResult = await this.checkMembers();
+        allIssues.push(...agentResult.issues);
         // Check ensembles
         const ensembleResult = await this.checkEnsembles();
         allIssues.push(...ensembleResult.issues);
@@ -36,12 +36,12 @@ export class ConfigChecker {
         };
     }
     /**
-     * Check member configurations
+     * Check agent configurations
      */
     async checkMembers() {
         const issues = [];
         try {
-            const memberFiles = await glob('members/*/member.yaml', { cwd: this.cwd });
+            const memberFiles = await glob('agents/*/agent.yaml', { cwd: this.cwd });
             for (const file of memberFiles) {
                 const memberIssues = await this.checkMemberFile(file);
                 issues.push(...memberIssues);
@@ -50,8 +50,8 @@ export class ConfigChecker {
         catch (error) {
             issues.push({
                 severity: 'error',
-                file: 'members/',
-                message: `Failed to check members: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                file: 'agents/',
+                message: `Failed to check agents: ${error instanceof Error ? error.message : 'Unknown error'}`,
             });
         }
         return {
@@ -60,7 +60,7 @@ export class ConfigChecker {
         };
     }
     /**
-     * Check a single member file
+     * Check a single agent file
      */
     async checkMemberFile(file) {
         const issues = [];
@@ -68,7 +68,7 @@ export class ConfigChecker {
         try {
             const content = fs.readFileSync(filePath, 'utf-8');
             const config = YAML.parse(content);
-            // Check Think members for model validation
+            // Check Think agents for model validation
             if (config.type === 'Think' && config.config?.model) {
                 const modelIssues = this.checkModel(file, config);
                 issues.push(...modelIssues);
@@ -98,7 +98,7 @@ export class ConfigChecker {
                 file,
                 message: `Unknown model: "${modelId}"`,
                 details: {
-                    member: config.name,
+                    agent: config.name,
                     suggestion: 'This may be a custom model or typo',
                 },
             });
@@ -109,7 +109,7 @@ export class ConfigChecker {
                 file,
                 message: `Model "${modelId}" is deprecated`,
                 details: {
-                    member: config.name,
+                    agent: config.name,
                     reason: model.deprecatedReason,
                     endOfLife: model.endOfLife,
                     replacement: model.replacementModel,
@@ -123,7 +123,7 @@ export class ConfigChecker {
                 file,
                 message: `Valid model: ${modelId}`,
                 details: {
-                    member: config.name,
+                    agent: config.name,
                     provider: this.getProviderForModel(modelId),
                 },
             });

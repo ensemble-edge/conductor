@@ -1,5 +1,5 @@
 /**
- * Cache System - Generic caching layer for member executions
+ * Cache System - Generic caching layer for agent executions
  *
  * Uses Repository pattern for storage-agnostic caching.
  * Supports TTL, cache keys, and invalidation strategies.
@@ -29,7 +29,7 @@ export interface CachedValue<T> {
 }
 
 /**
- * Cache interface for member execution results
+ * Cache interface for agent execution results
  */
 export interface Cache<T = any> {
   get(key: string): AsyncResult<T | null, ConductorError>

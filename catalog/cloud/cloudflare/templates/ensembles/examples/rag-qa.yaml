@@ -17,7 +17,7 @@ description: |
 
 flow:
   # Single step: AutoRAG retrieves AND generates answer
-  - member: docs-search
+  - agent: docs-search
     input:
       query: ${input.question}
       topK: 5

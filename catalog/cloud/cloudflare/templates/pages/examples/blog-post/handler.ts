@@ -99,13 +99,13 @@ export async function handler(context: HandlerContext) {
         <p>Conductor is a powerful framework for building edge-native AI applications. In this post, we'll explore the basics of getting started.</p>
 
         <h2>What is Conductor?</h2>
-        <p>Conductor is an orchestration framework that helps you coordinate AI members and build complex workflows that run at the edge.</p>
+        <p>Conductor is an orchestration framework that helps you coordinate AI agents and build complex workflows that run at the edge.</p>
 
         <h2>Key Features</h2>
         <ul>
           <li>Edge-native deployment on Cloudflare Workers</li>
           <li>Simple YAML configuration</li>
-          <li>Built-in member types for common tasks</li>
+          <li>Built-in agent types for common tasks</li>
           <li>Automatic API generation</li>
           <li>Dynamic pages with route parameters</li>
         </ul>
@@ -133,7 +133,7 @@ export async function handler(context: HandlerContext) {
         <p>Once you've mastered the basics of Conductor, it's time to explore advanced patterns that will help you build production-grade applications.</p>
 
         <h2>Error Handling Strategies</h2>
-        <p>Learn how to implement robust error handling across your members and ensembles.</p>
+        <p>Learn how to implement robust error handling across your agents and ensembles.</p>
 
         <h2>State Management</h2>
         <p>Using Durable Objects for stateful workflows and long-running processes.</p>

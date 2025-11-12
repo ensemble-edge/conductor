@@ -1,7 +1,7 @@
 /**
  * Analytics Report PDF Ensemble Integration Test
  *
- * Tests multi-member workflow: HTML → PDF generation.
+ * Tests multi-agent workflow: HTML → PDF generation.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -109,7 +109,7 @@ describe('Analytics Report PDF Ensemble', () => {
 		expect(output.size).toBeGreaterThan(0);
 	});
 
-	it('should use HTML member output for PDF generation', async () => {
+	it('should use HTML agent output for PDF generation', async () => {
 		const executor = new Executor({ env: mockEnv, ctx: mockCtx });
 
 		const input = {
@@ -129,12 +129,12 @@ describe('Analytics Report PDF Ensemble', () => {
 		expect(result.success).toBe(true);
 		if (!result.success) return;
 
-		// Check that HTML member executed
+		// Check that HTML agent executed
 		expect(result.data['render-report-html']).toBeDefined();
 		expect(result.data['render-report-html'].output).toBeDefined();
 		expect(result.data['render-report-html'].output.html).toBeDefined();
 
-		// Check that PDF member used HTML output
+		// Check that PDF agent used HTML output
 		const output = result.data.output as { pdf: ArrayBuffer; size: number };
 		expect(output.pdf).toBeDefined();
 	});

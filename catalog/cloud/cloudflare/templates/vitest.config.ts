@@ -1,7 +1,7 @@
 /**
  * Vitest Configuration for Conductor Project
  *
- * Standard Vitest configuration for testing Conductor ensembles and members.
+ * Standard Vitest configuration for testing Conductor ensembles and agents.
  * Tests run in Node.js environment for maximum compatibility.
  *
  * Note: If you need to test Cloudflare Workers-specific bindings (AI, KV, D1, etc.),
@@ -21,7 +21,7 @@ export default defineConfig({
 			provider: 'v8',
 			reporter: ['text', 'json', 'html', 'lcov'],
 			include: [
-				'members/**/*.ts',
+				'agents/**/*.ts',
 				'src/**/*.ts'
 			],
 			exclude: [

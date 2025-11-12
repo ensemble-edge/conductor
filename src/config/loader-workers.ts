@@ -122,9 +122,9 @@ function configFromEnv(env: Record<string, string>): Partial<ConductorConfig> {
     config.docs = config.docs || {}
     config.docs.useAI = env.CONDUCTOR_DOCS_USE_AI === 'true'
   }
-  if (env.CONDUCTOR_DOCS_AI_MEMBER) {
+  if (env.CONDUCTOR_DOCS_AI_AGENT) {
     config.docs = config.docs || {}
-    config.docs.aiMember = env.CONDUCTOR_DOCS_AI_MEMBER
+    config.docs.aiAgent = env.CONDUCTOR_DOCS_AI_AGENT
   }
   if (env.CONDUCTOR_DOCS_FORMAT) {
     config.docs = config.docs || {}

@@ -1,5 +1,5 @@
 name: error-500
-type: page
+operation: page
 templateEngine: liquid
 description: 500 Internal Server Error page
 

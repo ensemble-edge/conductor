@@ -1,5 +1,5 @@
 name: robots
-type: Page
+operation: page
 templateEngine: liquid
 description: Robots.txt for search engine crawlers
 

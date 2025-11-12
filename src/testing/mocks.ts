@@ -8,13 +8,13 @@ import type {
   AIProviderRequest,
   AIProviderResponse,
   AIProviderConfig,
-} from '../members/think-providers/index.js'
+} from '../agents/think-providers/index.js'
 import type { ConductorEnv } from '../types/env.js'
 import type { ProviderId } from '../types/branded.js'
 
 /**
  * Mock AI provider for testing
- * Implements the AIProvider interface to integrate with ThinkMember
+ * Implements the AIProvider interface to integrate with ThinkAgent
  */
 export class MockAIProvider implements AIProvider {
   readonly id: ProviderId
@@ -29,7 +29,7 @@ export class MockAIProvider implements AIProvider {
     metadata: {},
   }
   private onExecute?: (call: {
-    memberName?: string
+    agentName?: string
     request: any
     response: any
     timestamp: number
@@ -60,7 +60,7 @@ export class MockAIProvider implements AIProvider {
     const timestamp = Date.now()
     let aiResponse: AIProviderResponse
 
-    // Try to match response by context (this is called during member execution)
+    // Try to match response by context (this is called during agent execution)
     // We'll match by the first available mocked response
     for (const [, response] of this.responses.entries()) {
       if (response instanceof Error) {
@@ -81,9 +81,9 @@ export class MockAIProvider implements AIProvider {
         if ('content' in response && typeof response.content === 'string') {
           aiResponse = response as AIProviderResponse
         } else {
-          // For test mocks, the response object IS the expected member output
-          // Return it as JSON in content, and ThinkMember will use it as-is
-          // Since ThinkMember returns AIProviderResponse as the member data,
+          // For test mocks, the response object IS the expected agent output
+          // Return it as JSON in content, and ThinkAgent will use it as-is
+          // Since ThinkAgent returns AIProviderResponse as the agent data,
           // we return the response directly as the AIProviderResponse,
           // making the mocked object available in the response
           aiResponse = {
@@ -141,12 +141,12 @@ export class MockAIProvider implements AIProvider {
     return null
   }
 
-  setResponse(memberName: string, response: unknown | Error): void {
-    this.responses.set(memberName, response)
+  setResponse(agentName: string, response: unknown | Error): void {
+    this.responses.set(agentName, response)
   }
 
-  getResponse(memberName: string): unknown | Error | undefined {
-    return this.responses.get(memberName)
+  getResponse(agentName: string): unknown | Error | undefined {
+    return this.responses.get(agentName)
   }
 
   clear(): void {

@@ -2,7 +2,7 @@
  * Cache Warming Utility
  *
  * Enables pre-population of edge cache after deployment for improved performance
- * Works with any member type that has cache configuration
+ * Works with any agent type that has cache configuration
  */
 
 import { isCacheWarmingEnabled, getCacheConfig } from '../types/cache.js'
@@ -156,22 +156,22 @@ function buildUrl(baseUrl: string, route: RouteToWarm): string {
 }
 
 /**
- * Extract routes from member configurations for cache warming
- * Works with any member type (Page, API, Data, etc.) that has:
+ * Extract routes from agent configurations for cache warming
+ * Works with any agent type (Page, API, Data, etc.) that has:
  * - A route configuration
  * - A cache configuration with warming enabled
  */
-export function extractWarmableRoutes(members: any[]): RouteToWarm[] {
+export function extractWarmableRoutes(agents: any[]): RouteToWarm[] {
   const routes: RouteToWarm[] = []
 
-  for (const member of members) {
-    // Skip if warming not enabled (works for any member type)
-    if (!isCacheWarmingEnabled(member)) {
+  for (const agent of agents) {
+    // Skip if warming not enabled (works for any agent type)
+    if (!isCacheWarmingEnabled(agent)) {
       continue
     }
 
-    // Extract route path (supports both member.route and direct path)
-    const path = member.route?.path || member.path || `/${member.name}`
+    // Extract route path (supports both agent.route and direct path)
+    const path = agent.route?.path || agent.path || `/${agent.name}`
 
     // Default priority based on common patterns
     let priority = 50
@@ -180,7 +180,7 @@ export function extractWarmableRoutes(members: any[]): RouteToWarm[] {
     if (path.includes('/:')) priority = 20 // Dynamic routes lowest
 
     // Extract HTTP methods (default to GET)
-    const methods = member.route?.methods || member.methods || ['GET']
+    const methods = agent.route?.methods || agent.methods || ['GET']
 
     // Create routes for each HTTP method
     for (const method of methods) {
@@ -222,9 +222,9 @@ export async function scheduledCacheRefresh(
     throw new Error('BASE_URL or DEPLOYMENT_URL environment variable required for cache warming')
   }
 
-  // Load members (pages, API routes, etc.) from KV or environment
-  const members = await loadMembersForWarming(env)
-  const routes = extractWarmableRoutes(members)
+  // Load agents (pages, API routes, etc.) from KV or environment
+  const agents = await loadMembersForWarming(env)
+  const routes = extractWarmableRoutes(agents)
 
   return warmCache({
     baseUrl,
@@ -237,12 +237,12 @@ export async function scheduledCacheRefresh(
 }
 
 /**
- * Load member configurations for cache warming
- * Supports any member type with cache configuration
+ * Load agent configurations for cache warming
+ * Supports any agent type with cache configuration
  */
 async function loadMembersForWarming(env: any): Promise<any[]> {
   // In production, this would load from KV or similar
-  // Could load pages, API routes, data members, etc.
-  // For now, return empty array (to be implemented with actual member discovery)
+  // Could load pages, API routes, data agents, etc.
+  // For now, return empty array (to be implemented with actual agent discovery)
   return []
 }

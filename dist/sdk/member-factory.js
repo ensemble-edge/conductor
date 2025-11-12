@@ -1,15 +1,15 @@
 /**
- * SDK Member Factory
+ * SDK Agent Factory
  *
- * Helpers for creating members with less boilerplate
+ * Helpers for creating agents with less boilerplate
  */
-import { MemberType } from '../types/constants.js';
+import { Operation } from '../types/constants.js';
 /**
- * Create a member with simplified syntax
+ * Create a agent with simplified syntax
  *
  * @example
  * ```typescript
- * export default createMember({
+ * export default createAgent({
  *   name: 'greet',
  *   type: 'Function',
  *   async handler({ input }) {
@@ -18,13 +18,13 @@ import { MemberType } from '../types/constants.js';
  * });
  * ```
  */
-export function createMember(options) {
+export function createAgent(options) {
     // Return the handler function
-    // The config will be loaded from member.yaml by the loader
+    // The config will be loaded from agent.yaml by the loader
     return options.handler;
 }
 /**
- * Create a Think member (AI reasoning)
+ * Create a Think agent (AI reasoning)
  *
  * @example
  * ```typescript
@@ -37,10 +37,10 @@ export function createMember(options) {
  * ```
  */
 export function createThinkMember(options) {
-    return createMember({ ...options, type: MemberType.Think });
+    return createAgent({ ...options, type: Operation.Think });
 }
 /**
- * Create a Function member (JavaScript execution)
+ * Create a Function agent (JavaScript execution)
  *
  * @example
  * ```typescript
@@ -52,10 +52,10 @@ export function createThinkMember(options) {
  * ```
  */
 export function createFunctionMember(options) {
-    return createMember({ ...options, type: MemberType.Function });
+    return createAgent({ ...options, type: Operation.Function });
 }
 /**
- * Create a Data member (storage operations)
+ * Create a Data agent (storage operations)
  *
  * @example
  * ```typescript
@@ -68,10 +68,10 @@ export function createFunctionMember(options) {
  * ```
  */
 export function createDataMember(options) {
-    return createMember({ ...options, type: MemberType.Data });
+    return createAgent({ ...options, type: Operation.Data });
 }
 /**
- * Create an API member (HTTP requests)
+ * Create an API agent (HTTP requests)
  *
  * @example
  * ```typescript
@@ -84,10 +84,10 @@ export function createDataMember(options) {
  * ```
  */
 export function createAPIMember(options) {
-    return createMember({ ...options, type: MemberType.API });
+    return createAgent({ ...options, type: Operation.API });
 }
 /**
- * Create an Email member (email sending)
+ * Create an Email agent (email sending)
  *
  * @example
  * ```typescript
@@ -100,10 +100,10 @@ export function createAPIMember(options) {
  * ```
  */
 export function createEmailMember(options) {
-    return createMember({ ...options, type: MemberType.Email });
+    return createAgent({ ...options, type: Operation.Email });
 }
 /**
- * Create an SMS member (SMS sending)
+ * Create an SMS agent (SMS sending)
  *
  * @example
  * ```typescript
@@ -116,10 +116,10 @@ export function createEmailMember(options) {
  * ```
  */
 export function createSMSMember(options) {
-    return createMember({ ...options, type: MemberType.SMS });
+    return createAgent({ ...options, type: Operation.SMS });
 }
 /**
- * Generate a member config (for programmatic member creation)
+ * Generate a agent config (for programmatic agent creation)
  */
 export function generateMemberConfig(options) {
     return {

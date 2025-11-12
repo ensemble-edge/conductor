@@ -1,14 +1,14 @@
 /**
  * Stream Routes
  *
- * Server-Sent Events (SSE) for streaming member execution.
+ * Server-Sent Events (SSE) for streaming agent execution.
  */
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { getBuiltInRegistry } from '../../members/built-in/registry.js';
+import { getBuiltInRegistry } from '../../agents/built-in/registry.js';
 const stream = new Hono();
 /**
- * POST /stream - Execute a member with streaming
+ * POST /stream - Execute a agent with streaming
  */
 stream.post('/', (c) => {
     return streamSSE(c, async (stream) => {
@@ -21,32 +21,32 @@ stream.post('/', (c) => {
                 event: 'start',
                 data: JSON.stringify({
                     requestId,
-                    member: body.member,
+                    agent: body.agent,
                     timestamp: Date.now(),
                 }),
             });
             // Get built-in registry
             const builtInRegistry = getBuiltInRegistry();
-            // Check if member exists
-            if (!builtInRegistry.isBuiltIn(body.member)) {
+            // Check if agent exists
+            if (!builtInRegistry.isBuiltIn(body.agent)) {
                 await stream.writeSSE({
                     event: 'error',
                     data: JSON.stringify({
                         error: 'MemberNotFound',
-                        message: `Member not found: ${body.member}`,
+                        message: `Agent not found: ${body.agent}`,
                         requestId,
                     }),
                 });
                 return;
             }
-            // Get member metadata
-            const metadata = builtInRegistry.getMetadata(body.member);
+            // Get agent metadata
+            const metadata = builtInRegistry.getMetadata(body.agent);
             if (!metadata) {
                 await stream.writeSSE({
                     event: 'error',
                     data: JSON.stringify({
                         error: 'MemberNotFound',
-                        message: `Member metadata not found: ${body.member}`,
+                        message: `Agent metadata not found: ${body.agent}`,
                         requestId,
                     }),
                 });
@@ -57,26 +57,26 @@ stream.post('/', (c) => {
                 event: 'progress',
                 data: JSON.stringify({
                     status: 'executing',
-                    message: `Executing ${body.member}...`,
+                    message: `Executing ${body.agent}...`,
                 }),
             });
-            // Create member instance
-            const memberConfig = {
-                name: body.member,
-                type: metadata.type,
+            // Create agent instance
+            const agentConfig = {
+                name: body.agent,
+                operation: metadata.operation,
                 config: body.config || {},
             };
-            const member = builtInRegistry.create(body.member, memberConfig, c.env);
+            const agent = builtInRegistry.create(body.agent, agentConfig, c.env);
             // Create execution context
             const memberContext = {
                 input: body.input,
                 env: c.env,
                 ctx: c.executionCtx,
             };
-            // Execute member
-            const result = await member.execute(memberContext);
+            // Execute agent
+            const result = await agent.execute(memberContext);
             // Send data events (for streaming data during execution)
-            // This would be used if members support streaming output
+            // This would be used if agents support streaming output
             await stream.writeSSE({
                 event: 'data',
                 data: JSON.stringify({

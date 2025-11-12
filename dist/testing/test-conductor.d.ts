@@ -1,7 +1,7 @@
 /**
  * Test Conductor - Testing Helper for Conductor Projects
  */
-import type { EnsembleConfig, MemberConfig } from '../runtime/parser.js';
+import type { EnsembleConfig, AgentConfig } from '../runtime/parser.js';
 import type { TestConductorOptions, TestExecutionResult, TestMemberResult, AICall, DatabaseQuery, ExecutionRecord, ProjectSnapshot } from './types.js';
 /**
  * Test helper for executing and testing Conductor ensembles
@@ -25,13 +25,13 @@ export declare class TestConductor {
      */
     executeEnsemble(name: string, input: Record<string, unknown>): Promise<TestExecutionResult>;
     /**
-     * Execute a member directly
+     * Execute a agent directly
      */
-    executeMember(name: string, input: unknown): Promise<TestMemberResult>;
+    executeAgent(name: string, input: unknown): Promise<TestMemberResult>;
     /**
      * Mock AI provider responses
      */
-    mockAI(memberName: string, response: unknown | Error): void;
+    mockAI(agentName: string, response: unknown | Error): void;
     /**
      * Mock database responses
      */
@@ -57,17 +57,17 @@ export declare class TestConductor {
      */
     addEnsemble(name: string, config: EnsembleConfig): void;
     /**
-     * Add member to catalog programmatically
+     * Add agent to catalog programmatically
      */
-    addMember(name: string, config: MemberConfig): void;
+    addAgent(name: string, config: AgentConfig): void;
     /**
      * Get ensemble from catalog
      */
     getEnsemble(name: string): EnsembleConfig | undefined;
     /**
-     * Get member from catalog
+     * Get agent from catalog
      */
-    getMember(name: string): MemberConfig | undefined;
+    getAgent(name: string): AgentConfig | undefined;
     /**
      * Create project snapshot
      */
@@ -81,7 +81,7 @@ export declare class TestConductor {
      */
     private loadCatalog;
     /**
-     * Register loaded members with the executor
+     * Register loaded agents with the executor
      */
     private registerLoadedMembers;
     /**

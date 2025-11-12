@@ -36,7 +36,7 @@ export function createReplayCommand() {
                 console.error('');
                 console.error(chalk.red('✗ Can only replay ensemble executions'));
                 console.error('');
-                console.error(chalk.dim('Member executions cannot be replayed independently'));
+                console.error(chalk.dim('Agent executions cannot be replayed independently'));
                 console.error('');
                 process.exit(1);
             }

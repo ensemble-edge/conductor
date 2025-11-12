@@ -1,18 +1,18 @@
 /**
  * CLI Members Command
  *
- * List and inspect members.
+ * List and inspect agents.
  */
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { getBuiltInRegistry } from '../../members/built-in/registry.js';
+import { getBuiltInRegistry } from '../../agents/built-in/registry.js';
 import { createClient } from '../../sdk/client.js';
 export function createMembersCommand() {
-    const members = new Command('members').description('Manage and inspect members');
-    // List members
-    members
+    const agents = new Command('agents').description('Manage and inspect agents');
+    // List agents
+    agents
         .command('list')
-        .description('List all available members')
+        .description('List all available agents')
         .option('--remote', 'List from API instead of local')
         .option('--api-url <url>', 'API URL (default: from CONDUCTOR_API_URL env)')
         .option('--api-key <key>', 'API key (default: from CONDUCTOR_API_KEY env)')
@@ -59,7 +59,7 @@ export function createMembersCommand() {
                     console.log(`${chalk.cyan(m.name.padEnd(15))} ${chalk.dim(m.type.padEnd(10))} ${m.description || ''}`);
                 });
                 console.log('');
-                console.log(chalk.dim(`Total: ${membersList.length} members`));
+                console.log(chalk.dim(`Total: ${membersList.length} agents`));
             }
         }
         catch (error) {
@@ -68,15 +68,15 @@ export function createMembersCommand() {
         }
     });
     // Info command
-    members
+    agents
         .command('info')
-        .description('Get detailed information about a member')
-        .argument('<name>', 'Member name')
+        .description('Get detailed information about a agent')
+        .argument('<name>', 'Agent name')
         .option('--remote', 'Get info from API instead of local')
         .option('--api-url <url>', 'API URL (default: from CONDUCTOR_API_URL env)')
         .option('--api-key <key>', 'API key (default: from CONDUCTOR_API_KEY env)')
         .option('--output <format>', 'Output format: json or pretty (default: pretty)', 'pretty')
-        .action(async (memberName, options) => {
+        .action(async (agentName, options) => {
         try {
             let memberInfo;
             if (options.remote) {
@@ -88,16 +88,16 @@ export function createMembersCommand() {
                     process.exit(1);
                 }
                 const client = createClient({ baseUrl: apiUrl, apiKey });
-                memberInfo = (await client.getMember(memberName));
+                memberInfo = (await client.getAgent(agentName));
             }
             else {
                 // Get from local registry
                 const registry = getBuiltInRegistry();
-                if (!registry.isBuiltIn(memberName)) {
-                    console.error(chalk.red(`Error: Member not found: ${memberName}`));
+                if (!registry.isBuiltIn(agentName)) {
+                    console.error(chalk.red(`Error: Agent not found: ${agentName}`));
                     process.exit(1);
                 }
-                const metadata = registry.getMetadata(memberName);
+                const metadata = registry.getMetadata(agentName);
                 memberInfo = {
                     name: metadata.name,
                     type: metadata.type,
@@ -171,5 +171,5 @@ export function createMembersCommand() {
             process.exit(1);
         }
     });
-    return members;
+    return agents;
 }

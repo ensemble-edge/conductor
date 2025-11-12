@@ -77,11 +77,11 @@ See `examples/` directory for:
 
 ## Usage
 
-Pages are loaded and rendered by the Page member type in ensembles:
+Pages are loaded and rendered by the Page agent type in ensembles:
 
 ```yaml
 name: render-dashboard
-members:
+agents:
   - name: dashboard-page
     type: Page
     input:

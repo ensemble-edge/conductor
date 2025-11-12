@@ -42,7 +42,7 @@ export interface ModelInfo {
   replacementModel?: string
 }
 
-export interface MemberConfig {
+export interface AgentConfig {
   name: string
   type: string
   config?: {
@@ -72,9 +72,9 @@ export class ConfigChecker {
   async checkAll(): Promise<CheckResult> {
     const allIssues: Issue[] = []
 
-    // Check members
-    const memberResult = await this.checkMembers()
-    allIssues.push(...memberResult.issues)
+    // Check agents
+    const agentResult = await this.checkMembers()
+    allIssues.push(...agentResult.issues)
 
     // Check ensembles
     const ensembleResult = await this.checkEnsembles()
@@ -91,13 +91,13 @@ export class ConfigChecker {
   }
 
   /**
-   * Check member configurations
+   * Check agent configurations
    */
   async checkMembers(): Promise<CheckResult> {
     const issues: Issue[] = []
 
     try {
-      const memberFiles = await glob('members/*/member.yaml', { cwd: this.cwd })
+      const memberFiles = await glob('agents/*/agent.yaml', { cwd: this.cwd })
 
       for (const file of memberFiles) {
         const memberIssues = await this.checkMemberFile(file)
@@ -106,8 +106,8 @@ export class ConfigChecker {
     } catch (error) {
       issues.push({
         severity: 'error',
-        file: 'members/',
-        message: `Failed to check members: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        file: 'agents/',
+        message: `Failed to check agents: ${error instanceof Error ? error.message : 'Unknown error'}`,
       })
     }
 
@@ -118,7 +118,7 @@ export class ConfigChecker {
   }
 
   /**
-   * Check a single member file
+   * Check a single agent file
    */
   private async checkMemberFile(file: string): Promise<Issue[]> {
     const issues: Issue[] = []
@@ -126,9 +126,9 @@ export class ConfigChecker {
 
     try {
       const content = fs.readFileSync(filePath, 'utf-8')
-      const config: MemberConfig = YAML.parse(content)
+      const config: AgentConfig = YAML.parse(content)
 
-      // Check Think members for model validation
+      // Check Think agents for model validation
       if (config.type === 'Think' && config.config?.model) {
         const modelIssues = this.checkModel(file, config)
         issues.push(...modelIssues)
@@ -147,7 +147,7 @@ export class ConfigChecker {
   /**
    * Check model configuration
    */
-  private checkModel(file: string, config: MemberConfig): Issue[] {
+  private checkModel(file: string, config: AgentConfig): Issue[] {
     const issues: Issue[] = []
     const modelId = config.config?.model
 
@@ -161,7 +161,7 @@ export class ConfigChecker {
         file,
         message: `Unknown model: "${modelId}"`,
         details: {
-          member: config.name,
+          agent: config.name,
           suggestion: 'This may be a custom model or typo',
         },
       })
@@ -171,7 +171,7 @@ export class ConfigChecker {
         file,
         message: `Model "${modelId}" is deprecated`,
         details: {
-          member: config.name,
+          agent: config.name,
           reason: model.deprecatedReason,
           endOfLife: model.endOfLife,
           replacement: model.replacementModel,
@@ -184,7 +184,7 @@ export class ConfigChecker {
         file,
         message: `Valid model: ${modelId}`,
         details: {
-          member: config.name,
+          agent: config.name,
           provider: this.getProviderForModel(modelId),
         },
       })

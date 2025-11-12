@@ -1,9 +1,9 @@
 /**
  * SDK Testing Utilities
  *
- * Helpers for testing members and ensembles
+ * Helpers for testing agents and ensembles
  */
-import type { MemberExecutionContext } from './types.js';
+import type { AgentExecutionContext } from './types.js';
 /**
  * Create a mock execution context for testing
  *
@@ -17,7 +17,7 @@ import type { MemberExecutionContext } from './types.js';
  * expect(result.message).toBe('Hello, Test!');
  * ```
  */
-export declare function mockContext(overrides?: Partial<MemberExecutionContext>): MemberExecutionContext;
+export declare function mockContext(overrides?: Partial<AgentExecutionContext>): AgentExecutionContext;
 /**
  * Create a mock Env object
  */

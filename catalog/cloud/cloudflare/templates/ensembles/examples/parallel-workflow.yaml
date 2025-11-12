@@ -7,22 +7,22 @@ description: |
 
 flow:
   # Step 1: Analyze input
-  - member: analyze
+  - agent: analyze
     input:
       data: ${input.data}
 
   # Step 2: Parallel execution - process multiple tasks simultaneously
   - type: parallel
     steps:
-      - member: validate
+      - agent: validate
         input:
           data: ${analyze.output.cleaned}
 
-      - member: enrich
+      - agent: enrich
         input:
           data: ${analyze.output.cleaned}
 
-      - member: categorize
+      - agent: categorize
         input:
           data: ${analyze.output.cleaned}
 
@@ -31,7 +31,7 @@ flow:
     condition: validate.output.isValid === true
     then:
       # Valid path: Continue processing
-      - member: process
+      - agent: process
         input:
           data: ${enrich.output.enriched}
           category: ${categorize.output.category}
@@ -40,21 +40,21 @@ flow:
       # Parallel notifications
       - type: parallel
         steps:
-          - member: notify-success
+          - agent: notify-success
             input:
               result: ${process.output}
 
-          - member: log-success
+          - agent: log-success
             input:
               result: ${process.output}
 
     else:
       # Invalid path: Handle error
-      - member: notify-error
+      - agent: notify-error
         input:
           errors: ${validate.output.errors}
 
-      - member: log-error
+      - agent: log-error
         input:
           errors: ${validate.output.errors}
 
@@ -63,7 +63,7 @@ flow:
     items: ${process.output.items}
     maxConcurrency: 3
     step:
-      member: post-process
+    agent: post-process
       input:
         item: ${item}
 

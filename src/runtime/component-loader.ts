@@ -36,8 +36,8 @@ import { Result } from '../types/result.js'
 
 export type ComponentProtocol =
   | 'template' // Handlebars/HTML templates
-  | 'prompt' // AI prompts for Think members
-  | 'query' // SQL queries for Data members
+  | 'prompt' // AI prompts for Think agents
+  | 'query' // SQL queries for Data agents
   | 'config' // Configuration objects
   | 'component' // Compiled JSX components
   | 'page' // Compiled JSX pages

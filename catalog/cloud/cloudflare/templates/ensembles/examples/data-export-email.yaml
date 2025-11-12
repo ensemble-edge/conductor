@@ -9,8 +9,8 @@ description: |
 
 flow:
   # Step 1: Export data from storage
-  - member: export-data
-    type: data
+  - agent: export-data
+    operation: data
     config:
       storage: kv
       operation: export
@@ -27,8 +27,8 @@ flow:
     output: exportResult
 
   # Step 2: Prepare attachment from export
-  - member: prepare-attachment
-    type: function
+  - agent: prepare-attachment
+    operation: function
     config:
       handler: |
         function prepareAttachment(context) {
@@ -58,11 +58,11 @@ flow:
     output: attachment
 
   # Step 3: Send email with attachment
-  - member: send-email
-    type: email
+  - agent: send-email
+    operation: email
     config:
       provider:
-        type: resend
+        operation: resend
         apiKey: $env.RESEND_API_KEY
         from: "reports@example.com"
     input:

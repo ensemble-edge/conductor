@@ -1,5 +1,5 @@
 # Greeting Configuration
-# This config is used by the greet member to control greeting behavior
+# This config is used by the greet agent to control greeting behavior
 
 # AI Model Settings
 model: "@cf/meta/llama-3.1-8b-instruct"

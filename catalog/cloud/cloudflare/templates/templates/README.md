@@ -125,7 +125,7 @@ HTML templates designed for PDF generation with print styles.
 ```yaml
 # ensembles/welcome-email.yaml
 flow:
-  - member: send-welcome
+  - agent: send-welcome
     type: Email
     config:
       template: email/welcome  # Loads from templates/email/welcome.html
@@ -141,7 +141,7 @@ flow:
 
 ```yaml
 # For quick prototyping
-- member: send-notification
+- agent: send-notification
   type: Email
   input:
     to: admin@example.com
@@ -154,7 +154,7 @@ flow:
 
 ```yaml
 # After deployment, templates are versioned in KV
-- member: send-email
+- agent: send-email
   type: Email
   config:
     template: kv://templates/email/welcome@v1.2.0
@@ -203,14 +203,14 @@ config:
 ### 5. A/B Testing
 Use different template versions for testing:
 ```yaml
-- member: conditional
+- agent: conditional
   if: ${input.experimentGroup === 'A'}
   then:
-    - member: send-email
+    - agent: send-email
       config:
         template: kv://templates/email/welcome@v1.0.0
   else:
-    - member: send-email
+    - agent: send-email
       config:
         template: kv://templates/email/welcome@v2.0.0
 ```
@@ -261,7 +261,7 @@ Conductor supports multiple template engines optimized for edge runtime:
 
 **Why Liquid?** Unlike Handlebars which uses `new Function()` (blocked by Cloudflare Workers CSP), Liquid compiles to AST and runs safely at the edge. Perfect for real-time, edge-first applications.
 
-Configure in member YAML:
+Configure in agent YAML:
 ```yaml
 config:
   template: email/welcome

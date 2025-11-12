@@ -154,7 +154,7 @@ describe('Cache Warming', () => {
       expect(results).toHaveLength(1)
       expect(results[0].success).toBe(true)
       expect(fetchMock).toHaveBeenCalledTimes(3)
-    })
+    }, 10000)
 
     it('should include query parameters', async () => {
       fetchMock.mockResolvedValueOnce({

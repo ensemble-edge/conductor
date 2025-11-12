@@ -11,6 +11,6 @@
 		"skipLibCheck": true,
 		"esModuleInterop": true
 	},
-	"include": ["src/**/*", "members/**/*"],
+	"include": ["src/**/*", "agents/**/*"],
 	"exclude": ["node_modules"]
 }

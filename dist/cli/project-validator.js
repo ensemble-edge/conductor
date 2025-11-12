@@ -1,21 +1,21 @@
 /**
  * Project Validator - Validates Conductor project structure
  *
- * Checks YAML syntax, member references, and project structure.
+ * Checks YAML syntax, agent references, and project structure.
  * Separates validation logic for testability and reusability.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import * as YAML from 'yaml';
-import { MemberType } from '../types/constants.js';
+import { Operation } from '../types/constants.js';
 /**
  * Project validator for Conductor projects
  */
 export class ProjectValidator {
     constructor(cwd) {
         this.cwd = cwd;
-        this.members = new Map();
-        this.membersDir = path.join(cwd, 'members');
+        this.agents = new Map();
+        this.membersDir = path.join(cwd, 'agents');
         this.ensemblesDir = path.join(cwd, 'ensembles');
     }
     /**
@@ -28,7 +28,7 @@ export class ProjectValidator {
         const structureResult = this.validateStructure();
         errors.push(...structureResult.errors);
         warnings.push(...structureResult.warnings);
-        // Validate members
+        // Validate agents
         const membersResult = await this.validateMembers();
         errors.push(...membersResult.errors);
         warnings.push(...membersResult.warnings);
@@ -48,10 +48,10 @@ export class ProjectValidator {
     validateStructure() {
         const errors = [];
         const warnings = [];
-        // Check members directory exists
+        // Check agents directory exists
         if (!fs.existsSync(this.membersDir)) {
             errors.push({
-                file: 'members/',
+                file: 'agents/',
                 message: 'Members directory not found',
             });
         }
@@ -65,7 +65,7 @@ export class ProjectValidator {
         return { errors, warnings };
     }
     /**
-     * Validate all members
+     * Validate all agents
      */
     async validateMembers() {
         const errors = [];
@@ -77,70 +77,70 @@ export class ProjectValidator {
             .readdirSync(this.membersDir, { withFileTypes: true })
             .filter((d) => d.isDirectory())
             .map((d) => d.name);
-        for (const memberName of memberDirs) {
-            const result = await this.validateMember(memberName);
+        for (const agentName of memberDirs) {
+            const result = await this.validateMember(agentName);
             errors.push(...result.errors);
             warnings.push(...result.warnings);
         }
         return { errors, warnings };
     }
     /**
-     * Validate a single member
+     * Validate a single agent
      */
-    async validateMember(memberName) {
+    async validateMember(agentName) {
         const errors = [];
         const warnings = [];
-        const memberYamlPath = path.join(this.membersDir, memberName, 'member.yaml');
-        const memberImplPath = path.join(this.membersDir, memberName, 'index.ts');
-        // Check member.yaml exists
+        const memberYamlPath = path.join(this.membersDir, agentName, 'agent.yaml');
+        const memberImplPath = path.join(this.membersDir, agentName, 'index.ts');
+        // Check agent.yaml exists
         if (!fs.existsSync(memberYamlPath)) {
             errors.push({
-                file: `members/${memberName}/`,
-                message: 'Missing member.yaml',
+                file: `agents/${agentName}/`,
+                message: 'Missing agent.yaml',
             });
             return { errors, warnings };
         }
-        // Parse and validate member.yaml
+        // Parse and validate agent.yaml
         try {
             const yamlContent = fs.readFileSync(memberYamlPath, 'utf-8');
-            const memberConfig = YAML.parse(yamlContent);
+            const agentConfig = YAML.parse(yamlContent);
             // Validate required fields
-            if (!memberConfig.name) {
+            if (!agentConfig.name) {
                 errors.push({
-                    file: `members/${memberName}/member.yaml`,
+                    file: `agents/${agentName}/agent.yaml`,
                     message: 'Missing required field: name',
                 });
             }
-            if (!memberConfig.type) {
+            if (!agentConfig.type) {
                 errors.push({
-                    file: `members/${memberName}/member.yaml`,
+                    file: `agents/${agentName}/agent.yaml`,
                     message: 'Missing required field: type',
                 });
             }
             else {
-                // Validate member type
-                if (!this.isValidMemberType(memberConfig.type)) {
+                // Validate agent type
+                if (!this.isValidMemberType(agentConfig.type)) {
                     errors.push({
-                        file: `members/${memberName}/member.yaml`,
-                        message: `Invalid member type: ${memberConfig.type}`,
+                        file: `agents/${agentName}/agent.yaml`,
+                        message: `Invalid agent type: ${agentConfig.type}`,
                     });
                 }
             }
-            // Store validated member
-            if (memberConfig.name) {
-                this.members.set(memberConfig.name, memberConfig);
+            // Store validated agent
+            if (agentConfig.name) {
+                this.agents.set(agentConfig.name, agentConfig);
             }
         }
         catch (error) {
             errors.push({
-                file: `members/${memberName}/member.yaml`,
+                file: `agents/${agentName}/agent.yaml`,
                 message: `Invalid YAML: ${error instanceof Error ? error.message : 'Unknown error'}`,
             });
         }
-        // Check implementation exists (warning only for non-Function members)
+        // Check implementation exists (warning only for non-Function agents)
         if (!fs.existsSync(memberImplPath)) {
             warnings.push({
-                file: `members/${memberName}/`,
+                file: `agents/${agentName}/`,
                 message: 'Missing index.ts implementation',
             });
         }
@@ -189,19 +189,19 @@ export class ProjectValidator {
                 });
             }
             else {
-                // Validate member references in flow
+                // Validate agent references in flow
                 for (let i = 0; i < ensembleConfig.flow.length; i++) {
                     const step = ensembleConfig.flow[i];
-                    if (!step.member) {
+                    if (!step.agent) {
                         errors.push({
                             file: `ensembles/${ensembleFile}`,
-                            message: `Flow step ${i + 1} missing required field: member`,
+                            message: `Flow step ${i + 1} missing required field: agent`,
                         });
                     }
-                    else if (!this.members.has(step.member)) {
+                    else if (!this.agents.has(step.agent)) {
                         errors.push({
                             file: `ensembles/${ensembleFile}`,
-                            message: `References unknown member: ${step.member}`,
+                            message: `References unknown agent: ${step.agent}`,
                         });
                     }
                 }
@@ -216,23 +216,23 @@ export class ProjectValidator {
         return { errors, warnings };
     }
     /**
-     * Check if a member type is valid
+     * Check if a agent type is valid
      */
     isValidMemberType(type) {
         const validTypes = [
-            MemberType.Function,
-            MemberType.Think,
-            MemberType.Data,
-            MemberType.API,
-            MemberType.MCP,
-            MemberType.Scoring,
+            Operation.code,
+            Operation.think,
+            Operation.storage,
+            Operation.http,
+            Operation.tools,
+            Operation.scoring,
         ];
         return validTypes.includes(type);
     }
     /**
-     * Get validated members
+     * Get validated agents
      */
     getMembers() {
-        return this.members;
+        return this.agents;
     }
 }

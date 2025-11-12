@@ -87,7 +87,7 @@ export class ConsoleReporter extends Reporter {
         console.log(this.chalk.gray(`     ${issue.message}`));
         if (issue.details) {
             for (const [key, value] of Object.entries(issue.details)) {
-                if (value && key !== 'member') {
+                if (value && key !== 'agent') {
                     if (key === 'replacement') {
                         console.log(this.chalk.green(`     → Use "${value}" instead`));
                     }
@@ -134,7 +134,7 @@ export class ConsoleReporter extends Reporter {
         else {
             console.log(this.chalk.yellow(`\n⚠️  Configuration check complete - found ${totalIssues} issue(s)\n`));
             console.log(this.chalk.gray('Run `conductor upgrade` to update platform data'));
-            console.log(this.chalk.gray('Review and update your member configurations as needed\n'));
+            console.log(this.chalk.gray('Review and update your agent configurations as needed\n'));
         }
     }
 }

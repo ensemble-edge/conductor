@@ -10,19 +10,19 @@ description: Get user signup analytics aggregated by date range
 # Input schema - defines required and optional parameters
 input:
   startDate:
-    type: string
+    operation: string
     required: true
     description: Start date (ISO format YYYY-MM-DD)
     example: '2024-01-01'
 
   endDate:
-    type: string
+    operation: string
     required: true
     description: End date (ISO format YYYY-MM-DD)
     example: '2024-01-31'
 
   planType:
-    type: string
+    operation: string
     required: false
     description: Filter by plan type (free, pro, enterprise)
     example: 'pro'
@@ -86,7 +86,7 @@ documentation: |
 
   ```yaml
   - name: get-metrics
-    member: queries
+    agent: queries
     input:
       queryName: user-analytics
       input:
@@ -97,7 +97,7 @@ documentation: |
   ### Usage in SDK
 
   ```typescript
-  const result = await members.queryCatalog(
+  const result = await agents.queryCatalog(
     'user-analytics',
     { startDate: '2024-01-01', endDate: '2024-01-31' }
   );

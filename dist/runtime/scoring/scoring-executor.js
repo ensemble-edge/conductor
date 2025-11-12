@@ -1,16 +1,16 @@
 /**
  * Scoring Executor
  *
- * Handles member execution with scoring, retry logic, and backoff strategies.
+ * Handles agent execution with scoring, retry logic, and backoff strategies.
  */
 import { Errors } from '../../errors/error-types.js';
 import { createLogger } from '../../observability/index.js';
 const logger = createLogger({ serviceName: 'scoring-executor' });
 export class ScoringExecutor {
     /**
-     * Execute a member with scoring and retry logic
+     * Execute a agent with scoring and retry logic
      */
-    async executeWithScoring(executeMember, evaluateOutput, config) {
+    async executeWithScoring(executeAgent, evaluateOutput, config) {
         const startTime = Date.now();
         let attempts = 0;
         let lastScore;
@@ -20,8 +20,8 @@ export class ScoringExecutor {
         while (attempts < maxAttempts) {
             attempts++;
             try {
-                // Execute the member
-                const output = await executeMember();
+                // Execute the agent
+                const output = await executeAgent();
                 lastOutput = output;
                 // Evaluate the output
                 const score = await evaluateOutput(output, attempts, lastScore);

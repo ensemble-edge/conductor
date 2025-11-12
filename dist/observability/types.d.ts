@@ -23,7 +23,7 @@ export interface LogContext {
     requestId?: string;
     executionId?: string;
     ensembleName?: string;
-    memberName?: string;
+    agentName?: string;
     stepIndex?: number;
     attemptNumber?: number;
     durationMs?: number;

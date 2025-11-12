@@ -2,7 +2,7 @@
  * URL Resolver
  *
  * Resolves URLs with automatic www fallback for reliability.
- * Used by Scrape member and other HTTP-based operations.
+ * Used by Scrape agent and other HTTP-based operations.
  *
  * Features:
  * - Automatic www prefix fallback

@@ -1,5 +1,5 @@
 name: error-403
-type: page
+operation: page
 description: 403 Forbidden error page
 
 # Route configuration

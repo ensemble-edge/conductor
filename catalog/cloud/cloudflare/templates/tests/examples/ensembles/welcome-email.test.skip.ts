@@ -1,7 +1,7 @@
 /**
  * Welcome Email Ensemble Test
  *
- * Tests the email member with template rendering.
+ * Tests the email agent with template rendering.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -55,7 +55,7 @@ describe('Welcome Email Ensemble', () => {
 
 		expect(result).toBeSuccessful();
 
-		// Check that email member was called with correct input
+		// Check that email agent was called with correct input
 		const emailCalls = conductor.getEmailCalls();
 		expect(emailCalls.length).toBe(1);
 		expect(emailCalls[0].input.to).toBe('bob@example.com');

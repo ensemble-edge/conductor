@@ -31,7 +31,7 @@ export interface ModelInfo {
     endOfLife?: string;
     replacementModel?: string;
 }
-export interface MemberConfig {
+export interface AgentConfig {
     name: string;
     type: string;
     config?: {
@@ -56,11 +56,11 @@ export declare class ConfigChecker {
      */
     checkAll(): Promise<CheckResult>;
     /**
-     * Check member configurations
+     * Check agent configurations
      */
     checkMembers(): Promise<CheckResult>;
     /**
-     * Check a single member file
+     * Check a single agent file
      */
     private checkMemberFile;
     /**

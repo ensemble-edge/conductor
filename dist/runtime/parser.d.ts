@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 import type { ResolutionContext } from './interpolation/index.js';
-import { MemberType } from '../types/constants.js';
+import { Operation } from '../types/constants.js';
 /**
  * Schema for validating ensemble configuration
  */
@@ -128,7 +128,7 @@ declare const EnsembleSchema: z.ZodObject<{
         metadata?: Record<string, unknown> | undefined;
     }>, "many">>;
     flow: z.ZodArray<z.ZodObject<{
-        member: z.ZodString;
+        agent: z.ZodString;
         input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
         state: z.ZodOptional<z.ZodObject<{
             use: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
@@ -197,11 +197,7 @@ declare const EnsembleSchema: z.ZodObject<{
         }>>;
         condition: z.ZodOptional<z.ZodUnknown>;
     }, "strip", z.ZodTypeAny, {
-        member: string;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
+        agent: string;
         scoring?: {
             evaluator: string;
             criteria?: unknown[] | Record<string, string> | undefined;
@@ -214,6 +210,10 @@ declare const EnsembleSchema: z.ZodObject<{
             retryLimit?: number | undefined;
             requireImprovement?: boolean | undefined;
             minImprovement?: number | undefined;
+        } | undefined;
+        state?: {
+            set?: string[] | undefined;
+            use?: string[] | undefined;
         } | undefined;
         input?: Record<string, unknown> | undefined;
         cache?: {
@@ -222,11 +222,7 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         condition?: unknown;
     }, {
-        member: string;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
+        agent: string;
         scoring?: {
             evaluator: string;
             criteria?: unknown[] | Record<string, string> | undefined;
@@ -239,6 +235,10 @@ declare const EnsembleSchema: z.ZodObject<{
             retryLimit?: number | undefined;
             requireImprovement?: boolean | undefined;
             minImprovement?: number | undefined;
+        } | undefined;
+        state?: {
+            set?: string[] | undefined;
+            use?: string[] | undefined;
         } | undefined;
         input?: Record<string, unknown> | undefined;
         cache?: {
@@ -251,11 +251,7 @@ declare const EnsembleSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     flow: {
-        member: string;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
+        agent: string;
         scoring?: {
             evaluator: string;
             criteria?: unknown[] | Record<string, string> | undefined;
@@ -269,6 +265,10 @@ declare const EnsembleSchema: z.ZodObject<{
             requireImprovement?: boolean | undefined;
             minImprovement?: number | undefined;
         } | undefined;
+        state?: {
+            set?: string[] | undefined;
+            use?: string[] | undefined;
+        } | undefined;
         input?: Record<string, unknown> | undefined;
         cache?: {
             ttl?: number | undefined;
@@ -276,11 +276,6 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         condition?: unknown;
     }[];
-    description?: string | undefined;
-    state?: {
-        schema?: Record<string, unknown> | undefined;
-        initial?: Record<string, unknown> | undefined;
-    } | undefined;
     scoring?: {
         enabled: boolean;
         defaultThresholds: {
@@ -294,6 +289,11 @@ declare const EnsembleSchema: z.ZodObject<{
         trackInState?: boolean | undefined;
         criteria?: unknown[] | Record<string, string> | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
+    } | undefined;
+    description?: string | undefined;
+    state?: {
+        schema?: Record<string, unknown> | undefined;
+        initial?: Record<string, unknown> | undefined;
     } | undefined;
     webhooks?: {
         path: string;
@@ -317,11 +317,7 @@ declare const EnsembleSchema: z.ZodObject<{
 }, {
     name: string;
     flow: {
-        member: string;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
+        agent: string;
         scoring?: {
             evaluator: string;
             criteria?: unknown[] | Record<string, string> | undefined;
@@ -335,6 +331,10 @@ declare const EnsembleSchema: z.ZodObject<{
             requireImprovement?: boolean | undefined;
             minImprovement?: number | undefined;
         } | undefined;
+        state?: {
+            set?: string[] | undefined;
+            use?: string[] | undefined;
+        } | undefined;
         input?: Record<string, unknown> | undefined;
         cache?: {
             ttl?: number | undefined;
@@ -342,11 +342,6 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         condition?: unknown;
     }[];
-    description?: string | undefined;
-    state?: {
-        schema?: Record<string, unknown> | undefined;
-        initial?: Record<string, unknown> | undefined;
-    } | undefined;
     scoring?: {
         enabled: boolean;
         defaultThresholds: {
@@ -360,6 +355,11 @@ declare const EnsembleSchema: z.ZodObject<{
         trackInState?: boolean | undefined;
         criteria?: unknown[] | Record<string, string> | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
+    } | undefined;
+    description?: string | undefined;
+    state?: {
+        schema?: Record<string, unknown> | undefined;
+        initial?: Record<string, unknown> | undefined;
     } | undefined;
     webhooks?: {
         path: string;
@@ -381,9 +381,9 @@ declare const EnsembleSchema: z.ZodObject<{
     }[] | undefined;
     output?: Record<string, unknown> | undefined;
 }>;
-declare const MemberSchema: z.ZodObject<{
+declare const AgentSchema: z.ZodObject<{
     name: z.ZodString;
-    type: z.ZodEnum<[MemberType.Think, MemberType.Function, MemberType.Data, MemberType.API, MemberType.MCP, MemberType.Scoring, MemberType.Email, MemberType.SMS, MemberType.Form, MemberType.Page, MemberType.HTML, MemberType.PDF]>;
+    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.page, Operation.html, Operation.pdf]>;
     description: z.ZodOptional<z.ZodString>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     schema: z.ZodOptional<z.ZodObject<{
@@ -398,7 +398,7 @@ declare const MemberSchema: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    type: MemberType;
+    operation: Operation;
     description?: string | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;
@@ -407,7 +407,7 @@ declare const MemberSchema: z.ZodObject<{
     config?: Record<string, unknown> | undefined;
 }, {
     name: string;
-    type: MemberType;
+    operation: Operation;
     description?: string | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;
@@ -416,7 +416,7 @@ declare const MemberSchema: z.ZodObject<{
     config?: Record<string, unknown> | undefined;
 }>;
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>;
-export type MemberConfig = z.infer<typeof MemberSchema>;
+export type AgentConfig = z.infer<typeof AgentSchema>;
 export type FlowStep = EnsembleConfig['flow'][number];
 export type WebhookConfig = NonNullable<EnsembleConfig['webhooks']>[number];
 export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number];
@@ -427,33 +427,33 @@ export declare class Parser {
      */
     static parseEnsemble(yamlContent: string): EnsembleConfig;
     /**
-     * Parse and validate a member YAML file
+     * Parse and validate an agent YAML file
      */
-    static parseMember(yamlContent: string): MemberConfig;
+    static parseAgent(yamlContent: string): AgentConfig;
     /**
      * Resolve input interpolations using composition-based resolver chain
      *
-     * Supports: ${input.x}, ${state.y}, ${member.output.z}
+     * Supports: ${input.x}, ${state.y}, ${agent.output.z}
      *
      * Reduced from 42 lines of nested if/else to 1 line via chain of responsibility
      */
     static resolveInterpolation(template: unknown, context: ResolutionContext): unknown;
     /**
-     * Parse a member reference that may include version
+     * Parse an agent reference that may include version
      * Supports formats:
-     * - "member-name" (no version)
-     * - "member-name@v1.0.0" (semver version)
-     * - "member-name@production" (deployment tag)
-     * - "member-name@latest" (latest tag)
+     * - "agent-name" (no version)
+     * - "agent-name@v1.0.0" (semver version)
+     * - "agent-name@production" (deployment tag)
+     * - "agent-name@latest" (latest tag)
      */
-    static parseMemberReference(memberRef: string): {
+    static parseAgentReference(agentRef: string): {
         name: string;
         version?: string;
     };
     /**
-     * Validate that all required members exist
+     * Validate that all required agents exist
      */
-    static validateMemberReferences(ensemble: EnsembleConfig, availableMembers: Set<string>): void;
+    static validateAgentReferences(ensemble: EnsembleConfig, availableAgents: Set<string>): void;
 }
 export {};
 //# sourceMappingURL=parser.d.ts.map

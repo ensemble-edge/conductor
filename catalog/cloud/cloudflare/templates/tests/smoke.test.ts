@@ -32,8 +32,8 @@ describe('Conductor Installation', () => {
 		expect(existsSync(wranglerPath)).toBe(true);
 	});
 
-	it('should have members directory structure', () => {
-		const membersPath = resolve(process.cwd(), 'members');
+	it('should have agents directory structure', () => {
+		const membersPath = resolve(process.cwd(), 'agents');
 		expect(existsSync(membersPath)).toBe(true);
 	});
 

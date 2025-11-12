@@ -1,6 +1,6 @@
 # Testing Your Conductor Project
 
-This directory contains tests for your Conductor ensembles and members.
+This directory contains tests for your Conductor ensembles and agents.
 
 ## Test Structure
 
@@ -8,7 +8,7 @@ This directory contains tests for your Conductor ensembles and members.
 - **basic.test.ts** - Hello world ensemble test (always included)
 - **examples/** - Example tests (skipped with `--no-examples` flag)
   - **ensembles/** - Tests for example ensembles
-  - **members/** - Tests for example members
+  - **agents/** - Tests for example agents
   - **debug.test.ts** - Debug utilities
 
 When you run `conductor init --no-examples`, the examples/ directory is not copied, so your project starts with only the essential tests.
@@ -34,13 +34,13 @@ See `basic.test.ts` for an example of testing without TestConductor:
 
 ```typescript
 import { Executor, MemberLoader } from '@ensemble-edge/conductor';
-import type { MemberConfig } from '@ensemble-edge/conductor';
+import type { AgentConfig } from '@ensemble-edge/conductor';
 
 const executor = new Executor({ env, ctx });
 const loader = new MemberLoader({ env, ctx });
 
-const member = loader.registerMember(memberConfig as MemberConfig, memberFunction);
-executor.registerMember(member);
+const agent = loader.registerAgent(agentConfig as AgentConfig, memberFunction);
+executor.registerAgent(agent);
 
 const result = await executor.executeFromYAML(ensembleYAML as unknown as string, input);
 expect(result.success).toBe(true);
@@ -48,14 +48,14 @@ expect(result.success).toBe(true);
 
 ### Testing Members (TestConductor)
 
-See `examples/members/hello.test.ts` for an example using TestConductor:
+See `examples/agents/hello.test.ts` for an example using TestConductor:
 
 ```typescript
 import { TestConductor, registerMatchers } from '@ensemble-edge/conductor/testing';
 
 registerMatchers();
 
-describe('My Member', () => {
+describe('My Agent', () => {
   let conductor: TestConductor;
 
   beforeEach(async () => {
@@ -67,7 +67,7 @@ describe('My Member', () => {
   });
 
   it('should execute successfully', async () => {
-    const result = await conductor.executeMember('my-member', { input: 'data' });
+    const result = await conductor.executeAgent('my-agent', { input: 'data' });
     expect(result.output).toBeDefined();
   });
 });
@@ -82,7 +82,7 @@ it('should execute successfully', async () => {
   const result = await conductor.executeEnsemble('my-ensemble', { input: 'data' });
 
   expect(result).toBeSuccessful();
-  expect(result).toHaveExecutedMember('my-member');
+  expect(result).toHaveExecutedMember('my-agent');
   expect(result).toHaveCompletedIn(1000);
 });
 ```
@@ -93,10 +93,10 @@ Conductor provides custom Vitest matchers for testing:
 
 - `toBeSuccessful()` - Check if execution succeeded
 - `toHaveFailed()` - Check if execution failed
-- `toHaveExecutedMember(name)` - Check if a member was executed
+- `toHaveExecutedMember(name)` - Check if a agent was executed
 - `toHaveExecutedSteps(count)` - Check number of steps executed
 - `toHaveCompletedIn(ms)` - Check execution time
-- `toHaveCalledAI(memberName?)` - Check if AI was called
+- `toHaveCalledAI(agentName?)` - Check if AI was called
 - `toHaveUsedTokens(count)` - Check token usage
 - `toHaveCostLessThan(dollars)` - Check estimated cost
 
@@ -105,7 +105,7 @@ Conductor provides custom Vitest matchers for testing:
 ### Mock AI Responses
 
 ```typescript
-conductor.mockAI('my-member', {
+conductor.mockAI('my-agent', {
   message: 'Mocked AI response'
 });
 ```

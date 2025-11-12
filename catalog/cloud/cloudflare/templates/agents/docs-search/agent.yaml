@@ -1,0 +1,38 @@
+name: docs-search
+operation: autorag
+description: |
+  Search documentation using Cloudflare AutoRAG.
+
+  Dead simple - just point to your R2 bucket and AutoRAG handles:
+  - Automatic document ingestion (PDFs, images, HTML, etc.)
+  - Automatic chunking and embedding
+  - Continuous monitoring for updates
+  - Semantic search and answer generation
+
+  No manual preprocessing required!
+
+config:
+  # AutoRAG instance name from wrangler.toml [[ai_autorag]]
+  instance: "my-docs-rag"
+
+  # Mode: "answer" for AI-generated responses, "results" for raw search
+  mode: "answer"
+
+  # Number of documents to retrieve
+  topK: 5
+
+  # Optional: Enable query rewriting for better retrieval
+  rewriteQuery: true
+
+# Example wrangler.toml configuration:
+#
+# [[ai_autorag]]
+# name = "my-docs-rag"
+# r2_bucket = "my-docs"
+#
+# [ai_autorag.chunking]
+# size = 512
+# overlap = 0.1
+#
+# [ai_autorag.embedding]
+# model = "@cf/baai/bge-base-en-v1.5"

@@ -9,8 +9,8 @@ description: |
 
 flow:
   # Step 1: Fetch data for the report
-  - member: fetch-report-data
-    type: data
+  - agent: fetch-report-data
+    operation: data
     config:
       storage: d1
       operation: query
@@ -24,8 +24,8 @@ flow:
     output: reportData
 
   # Step 2: Generate PDF from the data
-  - member: generate-report-pdf
-    type: pdf
+  - agent: generate-report-pdf
+    operation: pdf
     config:
       browser:
         binding: BROWSER

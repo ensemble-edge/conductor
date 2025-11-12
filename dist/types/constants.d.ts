@@ -1,11 +1,12 @@
 /**
  * Constants and Enums - Eliminating Magic Strings
  *
- * Centralized constants for member types, providers, and storage types.
+ * Centralized constants for operation types, providers, and storage types.
  * Eliminates magic strings and provides compile-time safety.
  */
+export { Operation, type OperationType, isOperation } from './operation.js';
 /**
- * AI Provider types supported by Think members
+ * AI Provider types supported by Think agents
  */
 export declare enum AIProvider {
     OpenAI = "openai",
@@ -14,7 +15,7 @@ export declare enum AIProvider {
     Custom = "custom"
 }
 /**
- * Storage backend types for Data members
+ * Storage backend types for Data agents
  */
 export declare enum StorageType {
     KV = "kv",
@@ -22,32 +23,13 @@ export declare enum StorageType {
     R2 = "r2"
 }
 /**
- * Member types in Conductor framework
- */
-export declare enum MemberType {
-    Think = "Think",
-    Function = "Function",
-    Data = "Data",
-    API = "API",
-    MCP = "MCP",
-    Scoring = "Scoring",
-    Email = "Email",
-    SMS = "SMS",
-    Form = "Form",
-    Page = "Page",
-    HTML = "HTML",
-    PDF = "PDF"
-}
-/**
  * Type guards for runtime validation
  */
 export declare const isAIProvider: (value: string) => value is AIProvider;
 export declare const isStorageType: (value: string) => value is StorageType;
-export declare const isMemberType: (value: string) => value is MemberType;
 /**
- * Type aliases for string unions (backwards compatibility)
+ * Type aliases for string unions
  */
 export type AIProviderType = 'openai' | 'anthropic' | 'cloudflare' | 'custom';
 export type StorageTypeString = 'kv' | 'd1' | 'r2';
-export type MemberTypeString = 'Think' | 'Function' | 'Data' | 'API' | 'MCP' | 'Scoring' | 'Email' | 'SMS' | 'Form' | 'Page' | 'HTML' | 'PDF';
 //# sourceMappingURL=constants.d.ts.map

@@ -32,7 +32,7 @@ export {
   timing,
 } from './middleware/index.js'
 
-export { execute, members, health, stream, async } from './routes/index.js'
+export { execute, agents, health, stream, async } from './routes/index.js'
 
 export { openAPISpec, openapi } from './openapi/index.js'
 export type { OpenAPISpec } from './openapi/index.js'

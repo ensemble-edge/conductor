@@ -28,7 +28,7 @@ app.post('/:ensembleName', async (c) => {
 name: ${ensembleName}
 description: Webhook-triggered ensemble
 flow:
-  - member: process-webhook
+  - agent: process-webhook
     input:
       data: \${input}
 `;

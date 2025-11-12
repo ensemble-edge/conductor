@@ -18,7 +18,7 @@ import type {
   ExecutionNode,
   ExecutionGraph,
 } from './graph-types.js'
-import type { MemberExecutionContext } from '../members/base-member.js'
+import type { AgentExecutionContext } from '../agents/base-agent.js'
 import { Result } from '../types/result.js'
 import type { ConductorError } from '../errors/error-types.js'
 
@@ -257,9 +257,9 @@ export class GraphExecutor {
     context: Record<string, unknown>,
     results: Map<string, unknown>
   ): Promise<unknown> {
-    // TODO: Implement actual member execution
+    // TODO: Implement actual agent execution
     // This is a simplified placeholder
-    return { success: true, member: step.member }
+    return { success: true, agent: step.agent }
   }
 
   /**

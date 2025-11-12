@@ -1,9 +1,9 @@
 name: analytics-report-pdf
-description: Generate analytics report PDF from HTML member
+description: Generate analytics report PDF from HTML agent
 
-members:
+agents:
   - name: render-report-html
-    type: HTML
+    operation: html
     config:
       template:
         inline: |
@@ -162,7 +162,7 @@ members:
           </html>
 
   - name: convert-to-pdf
-    type: PDF
+    operation: pdf
     config:
       html:
         fromMember: render-report-html
@@ -192,7 +192,7 @@ members:
         subject: Analytics Report
 
 flow:
-  - member: render-report-html
+  - agent: render-report-html
     input:
       data:
         title: ${input.title}
@@ -203,7 +203,7 @@ flow:
         detailedData: ${input.detailedData}
         recommendations: ${input.recommendations}
 
-  - member: convert-to-pdf
+  - agent: convert-to-pdf
     input:
       storage:
         r2Key: static/reports/analytics-${input.timestamp}.pdf

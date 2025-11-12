@@ -4,23 +4,23 @@
  * Asynchronous execution with status polling and webhooks.
  */
 import { Hono } from 'hono';
-import { getBuiltInRegistry } from '../../members/built-in/registry.js';
+import { getBuiltInRegistry } from '../../agents/built-in/registry.js';
 import { createLogger } from '../../observability/index.js';
 const async = new Hono();
 const logger = createLogger({ serviceName: 'api-async' });
 // In-memory execution tracking (in production, use Durable Objects or D1)
 const executions = new Map();
 /**
- * POST /async - Execute a member asynchronously
+ * POST /async - Execute a agent asynchronously
  */
 async.post('/', async (c) => {
     const body = await c.req.json();
     const requestId = c.get('requestId') || generateExecutionId();
     // Validate request
-    if (!body.member || !body.input) {
+    if (!body.agent || !body.input) {
         return c.json({
             error: 'ValidationError',
-            message: 'Member name and input are required',
+            message: 'Agent name and input are required',
             timestamp: Date.now(),
         }, 400);
     }
@@ -110,22 +110,22 @@ async function executeAsync(executionId, request, env) {
         execution.startedAt = Date.now();
         // Get built-in registry
         const builtInRegistry = getBuiltInRegistry();
-        // Check if member exists
-        if (!builtInRegistry.isBuiltIn(request.member)) {
-            throw new Error(`Member not found: ${request.member}`);
+        // Check if agent exists
+        if (!builtInRegistry.isBuiltIn(request.agent)) {
+            throw new Error(`Agent not found: ${request.agent}`);
         }
-        // Get member metadata
-        const metadata = builtInRegistry.getMetadata(request.member);
+        // Get agent metadata
+        const metadata = builtInRegistry.getMetadata(request.agent);
         if (!metadata) {
-            throw new Error(`Member metadata not found: ${request.member}`);
+            throw new Error(`Agent metadata not found: ${request.agent}`);
         }
-        // Create member instance
-        const memberConfig = {
-            name: request.member,
-            type: metadata.type,
+        // Create agent instance
+        const agentConfig = {
+            name: request.agent,
+            operation: metadata.operation,
             config: request.config || {},
         };
-        const member = builtInRegistry.create(request.member, memberConfig, env);
+        const agent = builtInRegistry.create(request.agent, agentConfig, env);
         // Create execution context (simplified - no real ctx available)
         const memberContext = {
             input: request.input,
@@ -135,8 +135,8 @@ async function executeAsync(executionId, request, env) {
                 passThroughOnException: () => { },
             },
         };
-        // Execute member
-        const result = await member.execute(memberContext);
+        // Execute agent
+        const result = await agent.execute(memberContext);
         // Update status
         if (result.success) {
             execution.status = 'completed';

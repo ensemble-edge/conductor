@@ -1,7 +1,7 @@
 /**
  * Project Validator - Validates Conductor project structure
  *
- * Checks YAML syntax, member references, and project structure.
+ * Checks YAML syntax, agent references, and project structure.
  * Separates validation logic for testability and reusability.
  */
 export interface ValidationResult {
@@ -17,7 +17,7 @@ export interface ValidationWarning {
     file: string;
     message: string;
 }
-export interface MemberConfig {
+export interface AgentConfig {
     name: string;
     type: string;
     description?: string;
@@ -29,7 +29,7 @@ export interface EnsembleConfig {
     [key: string]: unknown;
 }
 export interface FlowStep {
-    member: string;
+    agent: string;
     input?: Record<string, unknown>;
     [key: string]: unknown;
 }
@@ -40,7 +40,7 @@ export declare class ProjectValidator {
     private readonly cwd;
     private readonly membersDir;
     private readonly ensemblesDir;
-    private members;
+    private agents;
     constructor(cwd: string);
     /**
      * Validate entire project
@@ -51,11 +51,11 @@ export declare class ProjectValidator {
      */
     private validateStructure;
     /**
-     * Validate all members
+     * Validate all agents
      */
     private validateMembers;
     /**
-     * Validate a single member
+     * Validate a single agent
      */
     private validateMember;
     /**
@@ -67,12 +67,12 @@ export declare class ProjectValidator {
      */
     private validateEnsemble;
     /**
-     * Check if a member type is valid
+     * Check if a agent type is valid
      */
     private isValidMemberType;
     /**
-     * Get validated members
+     * Get validated agents
      */
-    getMembers(): Map<string, MemberConfig>;
+    getMembers(): Map<string, AgentConfig>;
 }
 //# sourceMappingURL=project-validator.d.ts.map

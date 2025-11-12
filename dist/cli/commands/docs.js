@@ -11,7 +11,7 @@ export function createDocsCommand() {
     const docs = new Command('docs');
     docs
         .description('Generate OpenAPI documentation for your project')
-        .option('--ai', 'Use AI to enhance documentation (requires docs-writer member)')
+        .option('--ai', 'Use AI to enhance documentation (requires docs-writer agent)')
         .option('-o, --output <path>', 'Output file path', './openapi.yaml')
         .option('--json', 'Output as JSON instead of YAML')
         .action(async (options) => {
@@ -31,7 +31,7 @@ export function createDocsCommand() {
             const spec = await generator.generate({
                 projectPath,
                 useAI,
-                aiMember: 'docs-writer',
+                aiAgent: 'docs-writer',
             });
             // Determine output format
             const outputPath = options.output;

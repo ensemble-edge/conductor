@@ -6,19 +6,19 @@
  */
 import { Parser } from './parser.js';
 import { StateManager } from './state-manager.js';
-import { ThinkMember } from '../members/think-member.js';
-import { DataMember } from '../members/data-member.js';
-import { APIMember } from '../members/api-member.js';
-import { EmailMember } from '../members/email/email-member.js';
-import { SmsMember } from '../members/sms/sms-member.js';
-import { FormMember } from '../members/form/form-member.js';
-import { PageMember } from '../members/page/page-member.js';
-import { HtmlMember } from '../members/html/html-member.js';
-import { PdfMember } from '../members/pdf/pdf-member.js';
-import { getBuiltInRegistry } from '../members/built-in/registry.js';
+import { ThinkAgent } from '../agents/think-agent.js';
+import { DataAgent } from '../agents/data-agent.js';
+import { APIAgent } from '../agents/api-agent.js';
+import { EmailAgent } from '../agents/email/email-agent.js';
+import { SmsMember } from '../agents/sms/sms-agent.js';
+import { FormAgent } from '../agents/form/form-agent.js';
+import { PageAgent } from '../agents/page/page-agent.js';
+import { HtmlMember } from '../agents/html/html-agent.js';
+import { PdfMember } from '../agents/pdf/pdf-agent.js';
+import { getBuiltInRegistry } from '../agents/built-in/registry.js';
 import { Result } from '../types/result.js';
-import { Errors, MemberExecutionError, EnsembleExecutionError, } from '../errors/error-types.js';
-import { MemberType } from '../types/constants.js';
+import { Errors, AgentExecutionError, EnsembleExecutionError, } from '../errors/error-types.js';
+import { Operation } from '../types/constants.js';
 import { ScoringExecutor, EnsembleScorer, } from './scoring/index.js';
 import { createLogger } from '../observability/index.js';
 /**
@@ -28,104 +28,104 @@ export class Executor {
     constructor(config) {
         this.env = config.env;
         this.ctx = config.ctx;
-        this.memberRegistry = new Map();
+        this.agentRegistry = new Map();
         this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS);
     }
     /**
-     * Register a member for use in ensembles
+     * Register an agent for use in ensembles
      */
-    registerMember(member) {
-        this.memberRegistry.set(member.getName(), member);
+    registerAgent(agent) {
+        this.agentRegistry.set(agent.getName(), agent);
     }
     /**
-     * Resolve a member by reference with explicit error handling
+     * Resolve an agent by reference with explicit error handling
      * Supports both simple names and versioned references (name@version)
      *
      * Loading priority:
-     * 1. Check built-in members (scrape, validate, rag, hitl, fetch)
-     * 2. Check user-defined members (registered via registerMember)
+     * 1. Check built-in agents (scrape, validate, rag, hitl, fetch)
+     * 2. Check user-defined agents (registered via registerAgent)
      * 3. Error if not found
      *
-     * @param memberRef - Member reference (e.g., "greet" or "analyze-company@production")
-     * @returns Result containing the member or an error
+     * @param agentRef - Agent reference (e.g., "greet" or "analyze-company@production")
+     * @returns Result containing the agent or an error
      */
-    async resolveMember(memberRef) {
-        const { name, version } = Parser.parseMemberReference(memberRef);
+    async resolveAgent(agentRef) {
+        const { name, version } = Parser.parseAgentReference(agentRef);
         // If no version specified, check both built-in and user registries
         if (!version) {
-            // 1. Check if it's a built-in member first
+            // 1. Check if it's a built-in agent first
             const builtInRegistry = getBuiltInRegistry();
             if (builtInRegistry.isBuiltIn(name)) {
                 try {
-                    // Create a minimal MemberConfig for built-in members
+                    // Create a minimal AgentConfig for built-in agents
                     const config = {
                         name: name,
-                        type: builtInRegistry.getMetadata(name)?.type || MemberType.Function,
+                        operation: builtInRegistry.getMetadata(name)?.operation || Operation.code,
                         config: {},
                     };
-                    const member = builtInRegistry.create(name, config, this.env);
-                    return Result.ok(member);
+                    const agent = builtInRegistry.create(name, config, this.env);
+                    return Result.ok(agent);
                 }
                 catch (error) {
-                    return Result.err(Errors.memberConfig(name, `Failed to load built-in member: ${error instanceof Error ? error.message : 'Unknown error'}`));
+                    return Result.err(Errors.agentConfig(name, `Failed to load built-in agent: ${error instanceof Error ? error.message : 'Unknown error'}`));
                 }
             }
-            // 2. Check user-defined member registry
-            const member = this.memberRegistry.get(name);
-            if (!member) {
-                return Result.err(Errors.memberNotFound(name));
+            // 2. Check user-defined agent registry
+            const agent = this.agentRegistry.get(name);
+            if (!agent) {
+                return Result.err(Errors.agentNotFound(name));
             }
-            return Result.ok(member);
+            return Result.ok(agent);
         }
         // Version specified - check cache first
         const versionedKey = `${name}@${version}`;
-        if (this.memberRegistry.has(versionedKey)) {
-            const member = this.memberRegistry.get(versionedKey);
-            return Result.ok(member);
+        if (this.agentRegistry.has(versionedKey)) {
+            const agent = this.agentRegistry.get(versionedKey);
+            return Result.ok(agent);
         }
         // Try to load from local registry (Edgit not yet integrated)
-        const localMember = this.memberRegistry.get(name);
-        if (localMember) {
+        const localAgent = this.agentRegistry.get(name);
+        if (localAgent) {
             // Cache it under versioned key
-            this.memberRegistry.set(versionedKey, localMember);
-            return Result.ok(localMember);
+            this.agentRegistry.set(versionedKey, localAgent);
+            return Result.ok(localAgent);
         }
         // Not found
-        return Result.err(Errors.memberConfig(memberRef, 'Versioned member loading requires Edgit integration. ' +
-            'Register members manually using executor.registerMember()'));
+        return Result.err(Errors.agentConfig(agentRef, 'Versioned agent loading requires Edgit integration. ' +
+            'Register agents manually using executor.registerAgent()'));
     }
     /**
-     * Create a member instance from config
-     * Used for dynamically loading members from Edgit
+     * Create an agent instance from config
+     * Used for dynamically loading agents from Edgit
      */
-    createMemberFromConfig(config) {
-        switch (config.type) {
-            case MemberType.Think:
-                return Result.ok(new ThinkMember(config));
-            case MemberType.Data:
-                return Result.ok(new DataMember(config));
-            case MemberType.API:
-                return Result.ok(new APIMember(config));
-            case MemberType.Email:
-                return Result.ok(new EmailMember(config));
-            case MemberType.SMS:
+    createAgentFromConfig(config) {
+        switch (config.operation) {
+            case Operation.think:
+                return Result.ok(new ThinkAgent(config));
+            case Operation.storage:
+                return Result.ok(new DataAgent(config));
+            case Operation.http:
+                return Result.ok(new APIAgent(config));
+            case Operation.email:
+                return Result.ok(new EmailAgent(config));
+            case Operation.sms:
                 return Result.ok(new SmsMember(config));
-            case MemberType.Form:
-                return Result.ok(new FormMember(config));
-            case MemberType.Page:
-                return Result.ok(new PageMember(config));
-            case MemberType.HTML:
+            case Operation.form:
+                return Result.ok(new FormAgent(config));
+            case Operation.page:
+                return Result.ok(new PageAgent(config));
+            case Operation.html:
                 return Result.ok(new HtmlMember(config));
-            case MemberType.PDF:
+            case Operation.pdf:
                 return Result.ok(new PdfMember(config));
-            case MemberType.Function:
-                return Result.err(Errors.memberConfig(config.name, 'Function members require code implementation and must be registered manually'));
-            case MemberType.MCP:
-                return Result.err(Errors.memberConfig(config.name, 'MCP member type not yet implemented'));
-            case MemberType.Scoring:
-                return Result.err(Errors.memberConfig(config.name, 'Scoring member type not yet implemented'));
+            case Operation.code:
+                return Result.err(Errors.agentConfig(config.name, 'Function agents require code implementation and must be registered manually'));
+            case Operation.tools:
+                return Result.err(Errors.agentConfig(config.name, 'MCP agent type not yet implemented'));
+            case Operation.scoring:
+                return Result.err(Errors.agentConfig(config.name, 'Scoring agent type not yet implemented'));
             default:
-                return Result.err(Errors.memberConfig(config.name, `Unknown member type: ${config.type}`));
+                return Result.err(Errors.agentConfig(config.name, `Unknown agent operation: ${config.operation}`));
         }
     }
     /**
@@ -134,7 +134,7 @@ export class Executor {
      */
     async executeStep(step, flowContext, stepIndex) {
         const { ensemble, executionContext, metrics, stateManager, scoringState, ensembleScorer, scoringExecutor, } = flowContext;
-        const memberStartTime = Date.now();
+        const agentStartTime = Date.now();
         // Resolve input interpolations
         let resolvedInput;
         if (step.input) {
@@ -142,23 +142,23 @@ export class Executor {
             resolvedInput = Parser.resolveInterpolation(step.input, executionContext);
         }
         else if (stepIndex > 0) {
-            // Default to previous member's output for chaining
-            const previousMemberName = ensemble.flow[stepIndex - 1].member;
-            const previousResult = executionContext[previousMemberName];
+            // Default to previous agent's output for chaining
+            const previousAgentName = ensemble.flow[stepIndex - 1].agent;
+            const previousResult = executionContext[previousAgentName];
             resolvedInput = previousResult?.output || {};
         }
         else {
             // First step with no input - use original ensemble input
             resolvedInput = executionContext.input || {};
         }
-        // Resolve member - error handling is explicit
-        const memberResult = await this.resolveMember(step.member);
-        if (!memberResult.success) {
-            return Result.err(new EnsembleExecutionError(ensemble.name, step.member, memberResult.error));
+        // Resolve agent - error handling is explicit
+        const agentResult = await this.resolveAgent(step.agent);
+        if (!agentResult.success) {
+            return Result.err(new EnsembleExecutionError(ensemble.name, step.agent, agentResult.error));
         }
-        const member = memberResult.value;
-        // Create member execution context
-        const memberContext = {
+        const agent = agentResult.value;
+        // Create agent execution context
+        const agentContext = {
             input: resolvedInput,
             env: this.env,
             ctx: this.ctx,
@@ -167,21 +167,21 @@ export class Executor {
         // Add state context if available and track updates
         let getPendingUpdates = null;
         if (stateManager && step.state) {
-            const { context, getPendingUpdates: getUpdates } = stateManager.getStateForMember(step.member, step.state);
-            memberContext.state = context.state;
-            memberContext.setState = context.setState;
+            const { context, getPendingUpdates: getUpdates } = stateManager.getStateForAgent(step.agent, step.state);
+            agentContext.state = context.state;
+            agentContext.setState = context.setState;
             getPendingUpdates = getUpdates;
         }
-        // Execute member (with scoring if configured)
+        // Execute agent (with scoring if configured)
         let response;
         let scoringResult;
         if (step.scoring && scoringState && ensembleScorer) {
             // Execute with scoring and retry logic
             const scoringConfig = step.scoring;
             const scoredResult = await scoringExecutor.executeWithScoring(
-            // Member execution function
+            // Agent execution function
             async () => {
-                const resp = await member.execute(memberContext);
+                const resp = await agent.execute(agentContext);
                 // Apply state updates after each attempt
                 if (stateManager && getPendingUpdates) {
                     const { updates, newLog } = getPendingUpdates();
@@ -191,10 +191,10 @@ export class Executor {
             }, 
             // Evaluator function
             async (output, attempt, previousScore) => {
-                // Resolve the evaluator member
-                const evaluatorResult = await this.resolveMember(scoringConfig.evaluator);
+                // Resolve the evaluator agent
+                const evaluatorResult = await this.resolveAgent(scoringConfig.evaluator);
                 if (!evaluatorResult.success) {
-                    throw new Error(`Failed to resolve evaluator member: ${evaluatorResult.error.message}`);
+                    throw new Error(`Failed to resolve evaluator agent: ${evaluatorResult.error.message}`);
                 }
                 const evaluator = evaluatorResult.value;
                 // Create evaluation context with the output to score
@@ -247,7 +247,7 @@ export class Executor {
             scoringResult = scoredResult.score;
             // Update scoring state
             scoringState.scoreHistory.push({
-                member: step.member,
+                agent: step.agent,
                 score: scoringResult.score,
                 passed: scoringResult.passed,
                 feedback: scoringResult.feedback,
@@ -256,11 +256,11 @@ export class Executor {
                 attempt: scoredResult.attempts,
             });
             // Track retry count
-            scoringState.retryCount[step.member] = scoredResult.attempts - 1;
+            scoringState.retryCount[step.agent] = scoredResult.attempts - 1;
             // Handle scoring status
             if (scoredResult.status === 'max_retries_exceeded') {
-                this.logger.warn('Member exceeded max retries', {
-                    memberName: step.member,
+                this.logger.warn('Agent exceeded max retries', {
+                    agentName: step.agent,
                     score: scoringResult.score,
                     attempts: scoredResult.attempts,
                     ensembleName: ensemble.name,
@@ -269,7 +269,7 @@ export class Executor {
         }
         else {
             // Normal execution without scoring
-            response = await member.execute(memberContext);
+            response = await agent.execute(agentContext);
             // Apply pending state updates
             if (stateManager && getPendingUpdates) {
                 const { updates, newLog } = getPendingUpdates();
@@ -277,22 +277,22 @@ export class Executor {
             }
         }
         // Track metrics
-        const memberDuration = Date.now() - memberStartTime;
-        metrics.members.push({
-            name: step.member,
-            duration: memberDuration,
+        const agentDuration = Date.now() - agentStartTime;
+        metrics.agents.push({
+            name: step.agent,
+            duration: agentDuration,
             cached: response.cached,
             success: response.success,
         });
         if (response.cached) {
             metrics.cacheHits++;
         }
-        // Handle member execution errors explicitly
+        // Handle agent execution errors explicitly
         if (!response.success) {
-            return Result.err(new MemberExecutionError(step.member, response.error || 'Unknown error', undefined));
+            return Result.err(new AgentExecutionError(step.agent, response.error || 'Unknown error', undefined));
         }
-        // Store member output in context for future interpolations
-        executionContext[step.member] = {
+        // Store agent output in context for future interpolations
+        executionContext[step.agent] = {
             output: response.data,
         };
         // Update state context with new state from immutable StateManager
@@ -331,8 +331,8 @@ export class Executor {
             finalOutput = Parser.resolveInterpolation(ensemble.output, executionContext);
         }
         else if (ensemble.flow.length > 0) {
-            // Default to last member's output
-            const lastMemberName = ensemble.flow[ensemble.flow.length - 1].member;
+            // Default to last agent's output
+            const lastMemberName = ensemble.flow[ensemble.flow.length - 1].agent;
             const lastResult = executionContext[lastMemberName];
             finalOutput = lastResult?.output;
         }
@@ -367,7 +367,7 @@ export class Executor {
         const metrics = {
             ensemble: ensemble.name,
             totalDuration: 0,
-            members: [],
+            agents: [],
             cacheHits: 0,
         };
         // Initialize state manager if configured
@@ -415,9 +415,9 @@ export class Executor {
             return Result.err(Errors.ensembleParse('unknown', parseResult.error.message));
         }
         const ensemble = parseResult.value;
-        // Validate member references
-        const availableMembers = new Set(this.memberRegistry.keys());
-        const validationResult = Result.fromThrowable(() => Parser.validateMemberReferences(ensemble, availableMembers));
+        // Validate agent references
+        const availableMembers = new Set(this.agentRegistry.keys());
+        const validationResult = Result.fromThrowable(() => Parser.validateAgentReferences(ensemble, availableMembers));
         if (!validationResult.success) {
             return Result.err(Errors.ensembleParse(ensemble.name, validationResult.error.message));
         }
@@ -425,25 +425,25 @@ export class Executor {
         return await this.executeEnsemble(ensemble, input);
     }
     /**
-     * Get all registered member names (both built-in and user-defined)
+     * Get all registered agent names (both built-in and user-defined)
      */
     getRegisteredMembers() {
         const builtInRegistry = getBuiltInRegistry();
         const builtInNames = builtInRegistry.getAvailableNames();
-        const userDefinedNames = Array.from(this.memberRegistry.keys());
-        // Combine both, user-defined members take precedence (can override built-in)
+        const userDefinedNames = Array.from(this.agentRegistry.keys());
+        // Combine both, user-defined agents take precedence (can override built-in)
         const allNames = new Set([...builtInNames, ...userDefinedNames]);
         return Array.from(allNames);
     }
     /**
-     * Check if a member is registered (checks both built-in and user-defined)
+     * Check if a agent is registered (checks both built-in and user-defined)
      */
-    hasMember(memberName) {
+    hasMember(agentName) {
         const builtInRegistry = getBuiltInRegistry();
-        return builtInRegistry.isBuiltIn(memberName) || this.memberRegistry.has(memberName);
+        return builtInRegistry.isBuiltIn(agentName) || this.agentRegistry.has(agentName);
     }
     /**
-     * Get all built-in member metadata
+     * Get all built-in agent metadata
      */
     getBuiltInMembers() {
         const builtInRegistry = getBuiltInRegistry();
@@ -484,7 +484,7 @@ export class Executor {
         const metrics = {
             ensemble: ensemble.name,
             totalDuration: 0,
-            members: suspendedState.metrics.members || [],
+            agents: suspendedState.metrics.agents || [],
             cacheHits: suspendedState.metrics.cacheHits || 0,
         };
         const startTime = suspendedState.metrics.startTime || Date.now();

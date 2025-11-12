@@ -1,6 +1,6 @@
 # Component Templates Catalog
 
-Example reusable HTML components and layouts for the Conductor HTML member.
+Example reusable HTML components and layouts for the Conductor HTML agent.
 
 ## Overview
 
@@ -175,7 +175,7 @@ wrangler kv key put "templates/layouts/main@latest" \
 ### Basic Page with Layout
 
 ```yaml
-members:
+agents:
   - name: render-page
     type: html
     template:
@@ -192,7 +192,7 @@ members:
 ### Using Components
 
 ```yaml
-members:
+agents:
   - name: render-dashboard
     type: html
     template:
@@ -219,7 +219,7 @@ members:
 
 ```yaml
 # Use specific versions for stability
-members:
+agents:
   - name: render-page
     type: html
     template:

@@ -11,6 +11,6 @@
 		"skipLibCheck": true,
 		"esModuleInterop": true
 	},
-	"include": ["src/**/*", "members/**/*", "types.d.ts"],
+	"include": ["src/**/*", "agents/**/*", "types.d.ts"],
 	"exclude": ["node_modules"]
 }

@@ -12,7 +12,7 @@ export interface ClientConfig {
 }
 
 export interface ExecuteOptions {
-  member: string
+  agent: string
   input: unknown
   config?: unknown
   userId?: string
@@ -31,7 +31,7 @@ export interface ExecuteResult<T = unknown> {
   }
 }
 
-export interface Member {
+export interface Agent {
   name: string
   type: string
   version?: string
@@ -39,7 +39,7 @@ export interface Member {
   builtIn: boolean
 }
 
-export interface MemberDetail extends Member {
+export interface MemberDetail extends Agent {
   config?: {
     schema?: Record<string, unknown>
     defaults?: Record<string, unknown>
@@ -104,16 +104,16 @@ export class ConductorClient {
     return response
   }
 
-  async listMembers(): Promise<Member[]> {
-    const response = await this.request<{ members: Member[]; count: number }>(
+  async listMembers(): Promise<Agent[]> {
+    const response = await this.request<{ agents: Agent[]; count: number }>(
       'GET',
-      '/api/v1/members'
+      '/api/v1/agents'
     )
-    return response.members
+    return response.agents
   }
 
-  async getMember(name: string): Promise<MemberDetail> {
-    const response = await this.request<MemberDetail>('GET', `/api/v1/members/${name}`)
+  async getAgent(name: string): Promise<MemberDetail> {
+    const response = await this.request<MemberDetail>('GET', `/api/v1/agents/${name}`)
     return response
   }
 

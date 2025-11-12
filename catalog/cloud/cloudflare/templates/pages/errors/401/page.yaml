@@ -1,5 +1,5 @@
 name: error-401
-type: page
+operation: page
 description: 401 Unauthorized error page
 
 # Route configuration

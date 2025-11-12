@@ -1,7 +1,7 @@
 /**
  * Stream Routes
  *
- * Server-Sent Events (SSE) for streaming member execution.
+ * Server-Sent Events (SSE) for streaming agent execution.
  */
 import { Hono } from 'hono';
 declare const stream: Hono<{

@@ -9,7 +9,7 @@
 export const DEFAULT_CONFIG = {
     docs: {
         useAI: false,
-        aiMember: 'docs-writer',
+        aiAgent: 'docs-writer',
         format: 'yaml',
         includeExamples: true,
         includeSecurity: true,

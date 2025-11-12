@@ -3,10 +3,10 @@ description: |
   Basic ensemble example demonstrating Conductor's capabilities:
   - Uses shared prompts (prompts/hello.md)
   - Uses shared configs (configs/hello-settings.yaml)
-  - Shows how members can reference versioned components
+  - Shows how agents can reference versioned components
 
 flow:
-  - member: hello
+  - agent: hello
     input:
       name: ${input.name}
       style: ${input.style || "friendly"}

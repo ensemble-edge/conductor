@@ -9,8 +9,8 @@ description: |
 
 flow:
   # Step 1: Generate PDF from HTML
-  - member: generate-pdf
-    type: pdf
+  - agent: generate-pdf
+    operation: pdf
     config:
       template: invoice  # Or use inline HTML with 'html' property
       storage:
@@ -115,8 +115,8 @@ flow:
     output: pdfResult
 
   # Step 2: Prepare PDF attachment
-  - member: prepare-pdf-attachment
-    type: function
+  - agent: prepare-pdf-attachment
+    operation: function
     config:
       handler: |
         function preparePdfAttachment(context) {
@@ -142,11 +142,11 @@ flow:
     output: attachment
 
   # Step 3: Send email with PDF attachment
-  - member: send-email
-    type: email
+  - agent: send-email
+    operation: email
     config:
       provider:
-        type: resend
+        operation: resend
         apiKey: $env.RESEND_API_KEY
         from: "invoices@example.com"
     input:

@@ -1,17 +1,17 @@
 /**
  * Members Routes
  *
- * Endpoints for listing and discovering members.
+ * Endpoints for listing and discovering agents.
  */
 import { Hono } from 'hono';
-import { getBuiltInRegistry } from '../../members/built-in/registry.js';
+import { getBuiltInRegistry } from '../../agents/built-in/registry.js';
 import { createLogger } from '../../observability/index.js';
-const members = new Hono();
-const logger = createLogger({ serviceName: 'api-members' });
+const agents = new Hono();
+const logger = createLogger({ serviceName: 'api-agents' });
 /**
- * GET /members - List all available members
+ * GET /agents - List all available agents
  */
-members.get('/', async (c) => {
+agents.get('/', async (c) => {
     try {
         const builtInRegistry = getBuiltInRegistry();
         const builtInMembers = builtInRegistry.list();
@@ -23,38 +23,38 @@ members.get('/', async (c) => {
             description: metadata.description,
             builtIn: true,
         }));
-        // TODO: Add user-defined members from database
+        // TODO: Add user-defined agents from database
         const response = {
-            members: membersList,
+            agents: membersList,
             count: membersList.length,
         };
         return c.json(response);
     }
     catch (error) {
-        logger.error('Failed to list members', error instanceof Error ? error : undefined, {
+        logger.error('Failed to list agents', error instanceof Error ? error : undefined, {
             requestId: c.get('requestId'),
         });
         return c.json({
             error: 'InternalServerError',
-            message: 'Failed to list members',
+            message: 'Failed to list agents',
             timestamp: Date.now(),
         }, 500);
     }
 });
 /**
- * GET /members/:name - Get member details
+ * GET /agents/:name - Get agent details
  */
-members.get('/:name', async (c) => {
+agents.get('/:name', async (c) => {
     const name = c.req.param('name');
     try {
         const builtInRegistry = getBuiltInRegistry();
-        // Check if it's a built-in member
+        // Check if it's a built-in agent
         if (builtInRegistry.isBuiltIn(name)) {
             const metadata = builtInRegistry.getMetadata(name);
             if (!metadata) {
                 return c.json({
                     error: 'NotFound',
-                    message: `Member not found: ${name}`,
+                    message: `Agent not found: ${name}`,
                     timestamp: Date.now(),
                 }, 404);
             }
@@ -78,23 +78,23 @@ members.get('/:name', async (c) => {
             };
             return c.json(response);
         }
-        // TODO: Check user-defined members from database
+        // TODO: Check user-defined agents from database
         return c.json({
             error: 'NotFound',
-            message: `Member not found: ${name}`,
+            message: `Agent not found: ${name}`,
             timestamp: Date.now(),
         }, 404);
     }
     catch (error) {
-        logger.error('Failed to get member details', error instanceof Error ? error : undefined, {
+        logger.error('Failed to get agent details', error instanceof Error ? error : undefined, {
             requestId: c.get('requestId'),
-            memberName: c.req.param('name'),
+            agentName: c.req.param('name'),
         });
         return c.json({
             error: 'InternalServerError',
-            message: 'Failed to get member details',
+            message: 'Failed to get agent details',
             timestamp: Date.now(),
         }, 500);
     }
 });
-export default members;
+export default agents;

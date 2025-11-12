@@ -1,7 +1,7 @@
 /**
  * SDK Testing Utilities
  *
- * Helpers for testing members and ensembles
+ * Helpers for testing agents and ensembles
  */
 /**
  * Create a mock execution context for testing

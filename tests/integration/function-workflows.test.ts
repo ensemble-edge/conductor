@@ -1,12 +1,12 @@
 /**
- * Function Member Workflow Integration Tests
+ * Function Agent Workflow Integration Tests
  *
- * Tests complex orchestration patterns with Function members
+ * Tests complex orchestration patterns with Function agents
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TestConductor } from '../../src/testing/test-conductor';
-import type { MemberConfig, EnsembleConfig } from '../../src/runtime/parser';
+import type { AgentConfig, EnsembleConfig } from '../../src/runtime/parser';
 
 describe('Function Workflows', () => {
 	let conductor: TestConductor;
@@ -18,9 +18,9 @@ describe('Function Workflows', () => {
 	describe('Data Processing Pipelines', () => {
 		it('should process data through multi-step transformation', async () => {
 			// Step 1: Parse CSV data
-			const parser: MemberConfig = {
+			const parser: AgentConfig = {
 				name: 'parse-csv',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { csv: string }) => {
 						const lines = input.csv.split('\n');
@@ -34,9 +34,9 @@ describe('Function Workflows', () => {
 			};
 
 			// Step 2: Filter adult records
-			const filter: MemberConfig = {
+			const filter: AgentConfig = {
 				name: 'filter-adults',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { records: Array<{ name: string; age: number }> }) => {
 						const adults = input.records.filter((r) => r.age >= 18);
@@ -46,9 +46,9 @@ describe('Function Workflows', () => {
 			};
 
 			// Step 3: Calculate statistics
-			const stats: MemberConfig = {
+			const stats: AgentConfig = {
 				name: 'calculate-stats',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { adults: Array<{ age: number }> }) => {
 						const avgAge = input.adults.reduce((sum, r) => sum + r.age, 0) / input.adults.length;
@@ -57,16 +57,16 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('parse-csv', parser);
-			conductor.addMember('filter-adults', filter);
-			conductor.addMember('calculate-stats', stats);
+			conductor.addAgent('parse-csv', parser);
+			conductor.addAgent('filter-adults', filter);
+			conductor.addAgent('calculate-stats', stats);
 
 			const ensemble: EnsembleConfig = {
 				name: 'csv-analysis',
 				flow: [
-					{ member: 'parse-csv' },
-					{ member: 'filter-adults', input: '${parse-csv.output}' },
-					{ member: 'calculate-stats', input: '${filter-adults.output}' }
+					{ agent: 'parse-csv' },
+					{ agent: 'filter-adults', input: '${parse-csv.output}' },
+					{ agent: 'calculate-stats', input: '${filter-adults.output}' }
 				]
 			};
 
@@ -82,9 +82,9 @@ describe('Function Workflows', () => {
 		});
 
 		it('should handle validation and error correction pipeline', async () => {
-			const validator: MemberConfig = {
+			const validator: AgentConfig = {
 				name: 'email-validator',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: any) => {
 						// Handle case where input is object with email property
@@ -95,9 +95,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const corrector: MemberConfig = {
+			const corrector: AgentConfig = {
 				name: 'email-corrector',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: any) => {
 						const { valid, email } = input;
@@ -110,15 +110,15 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('email-validator', validator);
-			conductor.addMember('email-corrector', corrector);
+			conductor.addAgent('email-validator', validator);
+			conductor.addAgent('email-corrector', corrector);
 
 			conductor.addEnsemble('email-validation', {
 				name: 'email-validation',
 				description: 'Validate and correct email',
 				flow: [
-					{ member: 'email-validator' },
-					{ member: 'email-corrector', input: '${email-validator.output}' }
+					{ agent: 'email-validator' },
+					{ agent: 'email-corrector', input: '${email-validator.output}' }
 				]
 			});
 
@@ -134,9 +134,9 @@ describe('Function Workflows', () => {
 		});
 
 		it('should aggregate results from parallel-style sequential execution', async () => {
-			const fetchUsers: MemberConfig = {
+			const fetchUsers: AgentConfig = {
 				name: 'fetch-users',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => ({
 						users: [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }]
@@ -144,9 +144,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const fetchPosts: MemberConfig = {
+			const fetchPosts: AgentConfig = {
 				name: 'fetch-posts',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => ({
 						posts: [{ id: 1, userId: 1, title: 'Post 1' }]
@@ -154,9 +154,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const join: MemberConfig = {
+			const join: AgentConfig = {
 				name: 'join-data',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { users: any[]; posts: any[] }) => {
 						const enriched = input.users.map((user) => ({
@@ -168,17 +168,17 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('fetch-users', fetchUsers);
-			conductor.addMember('fetch-posts', fetchPosts);
-			conductor.addMember('join-data', join);
+			conductor.addAgent('fetch-users', fetchUsers);
+			conductor.addAgent('fetch-posts', fetchPosts);
+			conductor.addAgent('join-data', join);
 
 			conductor.addEnsemble('aggregate', {
 				name: 'aggregate',
 				flow: [
-					{ member: 'fetch-users' },
-					{ member: 'fetch-posts' },
+					{ agent: 'fetch-users' },
+					{ agent: 'fetch-posts' },
 					{
-						member: 'join-data',
+						agent: 'join-data',
 						input: {
 							users: '${fetch-users.output.users}',
 							posts: '${fetch-posts.output.posts}'
@@ -197,9 +197,9 @@ describe('Function Workflows', () => {
 
 	describe('Conditional Logic Workflows', () => {
 		it('should implement conditional branching via output inspection', async () => {
-			const checker: MemberConfig = {
+			const checker: AgentConfig = {
 				name: 'check-balance',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { balance: number }) => ({
 						balance: input.balance,
@@ -208,9 +208,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const processor: MemberConfig = {
+			const processor: AgentConfig = {
 				name: 'process-result',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { canPurchase: boolean }) => {
 						if (input.canPurchase) {
@@ -221,14 +221,14 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('check-balance', checker);
-			conductor.addMember('process-result', processor);
+			conductor.addAgent('check-balance', checker);
+			conductor.addAgent('process-result', processor);
 
 			conductor.addEnsemble('purchase', {
 				name: 'purchase',
 				flow: [
-					{ member: 'check-balance' },
-					{ member: 'process-result', input: '${check-balance.output}' }
+					{ agent: 'check-balance' },
+					{ agent: 'process-result', input: '${check-balance.output}' }
 				]
 			});
 
@@ -244,9 +244,9 @@ describe('Function Workflows', () => {
 		});
 
 		it('should handle routing based on data type', async () => {
-			const classifier: MemberConfig = {
+			const classifier: AgentConfig = {
 				name: 'classify',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { data: any }) => {
 						const type = Array.isArray(input.data) ? 'array' : typeof input.data;
@@ -255,9 +255,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const processor: MemberConfig = {
+			const processor: AgentConfig = {
 				name: 'process',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { type: string; data: any }) => {
 						switch (input.type) {
@@ -274,14 +274,14 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('classify', classifier);
-			conductor.addMember('process', processor);
+			conductor.addAgent('classify', classifier);
+			conductor.addAgent('process', processor);
 
 			conductor.addEnsemble('router', {
 				name: 'router',
 				flow: [
-					{ member: 'classify' },
-					{ member: 'process', input: '${classify.output}' }
+					{ agent: 'classify' },
+					{ agent: 'process', input: '${classify.output}' }
 				]
 			});
 
@@ -298,12 +298,12 @@ describe('Function Workflows', () => {
 	});
 
 	describe('Error Handling and Recovery', () => {
-		it('should implement retry logic in member', async () => {
+		it('should implement retry logic in agent', async () => {
 			let attempts = 0;
 
-			const unreliable: MemberConfig = {
+			const unreliable: AgentConfig = {
 				name: 'unreliable-service',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						attempts++;
@@ -315,9 +315,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const retrier: MemberConfig = {
+			const retrier: AgentConfig = {
 				name: 'retry-wrapper',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: unknown, context: any) => {
 						// Simulate retry logic
@@ -336,11 +336,11 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('retry-wrapper', retrier);
+			conductor.addAgent('retry-wrapper', retrier);
 
 			conductor.addEnsemble('with-retry', {
 				name: 'with-retry',
-				flow: [{ member: 'retry-wrapper' }]
+				flow: [{ agent: 'retry-wrapper' }]
 			});
 
 			const result = await conductor.executeEnsemble('with-retry', {});
@@ -349,9 +349,9 @@ describe('Function Workflows', () => {
 		});
 
 		it('should implement fallback strategy', async () => {
-			const primary: MemberConfig = {
+			const primary: AgentConfig = {
 				name: 'primary-service',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { useFailure?: boolean }) => {
 						if (input.useFailure) {
@@ -362,9 +362,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const fallback: MemberConfig = {
+			const fallback: AgentConfig = {
 				name: 'fallback-handler',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: any) => {
 						// If input has error, use fallback
@@ -373,13 +373,13 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('primary-service', primary);
-			conductor.addMember('fallback-handler', fallback);
+			conductor.addAgent('primary-service', primary);
+			conductor.addAgent('fallback-handler', fallback);
 
 			// Test success case
 			conductor.addEnsemble('with-fallback-success', {
 				name: 'with-fallback-success',
-				flow: [{ member: 'primary-service' }]
+				flow: [{ agent: 'primary-service' }]
 			});
 
 			const result1 = await conductor.executeEnsemble('with-fallback-success', {});
@@ -389,7 +389,7 @@ describe('Function Workflows', () => {
 			// Test fallback case (ensemble would need to handle error)
 			conductor.addEnsemble('with-fallback-failure', {
 				name: 'with-fallback-failure',
-				flow: [{ member: 'fallback-handler' }]
+				flow: [{ agent: 'fallback-handler' }]
 			});
 
 			const result2 = await conductor.executeEnsemble('with-fallback-failure', {});
@@ -398,9 +398,9 @@ describe('Function Workflows', () => {
 		});
 
 		it('should validate and sanitize input', async () => {
-			const validator: MemberConfig = {
+			const validator: AgentConfig = {
 				name: 'validate-input',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { email?: string; age?: number }) => {
 						const errors: string[] = [];
@@ -425,11 +425,11 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('validate-input', validator);
+			conductor.addAgent('validate-input', validator);
 
 			conductor.addEnsemble('validate', {
 				name: 'validate',
-				flow: [{ member: 'validate-input' }]
+				flow: [{ agent: 'validate-input' }]
 			});
 
 			// Valid input
@@ -454,9 +454,9 @@ describe('Function Workflows', () => {
 
 	describe('Async and Performance', () => {
 		it('should handle asynchronous operations', async () => {
-			const asyncOp: MemberConfig = {
+			const asyncOp: AgentConfig = {
 				name: 'async-operation',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { delay: number }) => {
 						await new Promise((resolve) => setTimeout(resolve, input.delay));
@@ -465,11 +465,11 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('async-operation', asyncOp);
+			conductor.addAgent('async-operation', asyncOp);
 
 			conductor.addEnsemble('async-test', {
 				name: 'async-test',
-				flow: [{ member: 'async-operation' }]
+				flow: [{ agent: 'async-operation' }]
 			});
 
 			const start = performance.now();
@@ -484,9 +484,9 @@ describe('Function Workflows', () => {
 		it('should execute multiple independent operations sequentially', async () => {
 			const times: number[] = [];
 
-			const op1: MemberConfig = {
+			const op1: AgentConfig = {
 				name: 'op1',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						times.push(Date.now());
@@ -495,9 +495,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const op2: MemberConfig = {
+			const op2: AgentConfig = {
 				name: 'op2',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						times.push(Date.now());
@@ -506,9 +506,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const op3: MemberConfig = {
+			const op3: AgentConfig = {
 				name: 'op3',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async () => {
 						times.push(Date.now());
@@ -517,16 +517,16 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('op1', op1);
-			conductor.addMember('op2', op2);
-			conductor.addMember('op3', op3);
+			conductor.addAgent('op1', op1);
+			conductor.addAgent('op2', op2);
+			conductor.addAgent('op3', op3);
 
 			conductor.addEnsemble('sequential-ops', {
 				name: 'sequential-ops',
 				flow: [
-					{ member: 'op1' },
-					{ member: 'op2' },
-					{ member: 'op3' }
+					{ agent: 'op1' },
+					{ agent: 'op2' },
+					{ agent: 'op3' }
 				]
 			});
 
@@ -540,9 +540,9 @@ describe('Function Workflows', () => {
 		});
 
 		it('should track execution metrics for performance monitoring', async () => {
-			const heavy: MemberConfig = {
+			const heavy: AgentConfig = {
 				name: 'heavy-computation',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { iterations: number }) => {
 						// Simulate computation
@@ -555,11 +555,11 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('heavy-computation', heavy);
+			conductor.addAgent('heavy-computation', heavy);
 
 			conductor.addEnsemble('performance-test', {
 				name: 'performance-test',
-				flow: [{ member: 'heavy-computation' }]
+				flow: [{ agent: 'heavy-computation' }]
 			});
 
 			const result = await conductor.executeEnsemble('performance-test', {
@@ -574,9 +574,9 @@ describe('Function Workflows', () => {
 
 	describe('Complex Real-World Scenarios', () => {
 		it('should implement API request enrichment pipeline', async () => {
-			const parseRequest: MemberConfig = {
+			const parseRequest: AgentConfig = {
 				name: 'parse-request',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { query: string }) => {
 						const parts = input.query.split(' ');
@@ -585,9 +585,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const fetchContext: MemberConfig = {
+			const fetchContext: AgentConfig = {
 				name: 'fetch-context',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { entities: string[] }) => {
 						// Simulate fetching context for entities
@@ -601,9 +601,9 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			const formatResponse: MemberConfig = {
+			const formatResponse: AgentConfig = {
 				name: 'format-response',
-				type: 'Function',
+				operation: 'code',
 				config: {
 					handler: async (input: { intent: string; context: any[] }) => {
 						return {
@@ -615,17 +615,17 @@ describe('Function Workflows', () => {
 				}
 			};
 
-			conductor.addMember('parse-request', parseRequest);
-			conductor.addMember('fetch-context', fetchContext);
-			conductor.addMember('format-response', formatResponse);
+			conductor.addAgent('parse-request', parseRequest);
+			conductor.addAgent('fetch-context', fetchContext);
+			conductor.addAgent('format-response', formatResponse);
 
 			conductor.addEnsemble('api-enrichment', {
 				name: 'api-enrichment',
 				flow: [
-					{ member: 'parse-request' },
-					{ member: 'fetch-context', input: '${parse-request.output}' },
+					{ agent: 'parse-request' },
+					{ agent: 'fetch-context', input: '${parse-request.output}' },
 					{
-						member: 'format-response',
+						agent: 'format-response',
 						input: {
 							intent: '${parse-request.output.intent}',
 							context: '${fetch-context.output.context}'

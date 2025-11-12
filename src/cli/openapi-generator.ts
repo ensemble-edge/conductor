@@ -7,7 +7,7 @@
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { Parser, type EnsembleConfig, type MemberConfig } from '../runtime/parser.js'
+import { Parser, type EnsembleConfig, type AgentConfig } from '../runtime/parser.js'
 import YAML from 'yaml'
 
 export interface OpenAPISpec {
@@ -121,7 +121,7 @@ export interface GeneratorOptions {
   projectPath: string
   outputPath?: string
   useAI?: boolean
-  aiMember?: string
+  aiAgent?: string
 }
 
 /**
@@ -131,7 +131,7 @@ export class OpenAPIGenerator {
   private projectPath: string
   private parser: Parser
   private ensembles: Map<string, EnsembleConfig> = new Map()
-  private members: Map<string, MemberConfig> = new Map()
+  private agents: Map<string, AgentConfig> = new Map()
 
   constructor(projectPath: string) {
     this.projectPath = projectPath
@@ -150,14 +150,14 @@ export class OpenAPIGenerator {
 
     // Enhance with AI if enabled
     if (options.useAI) {
-      return await this.enhanceWithAI(spec, options.aiMember)
+      return await this.enhanceWithAI(spec, options.aiAgent)
     }
 
     return spec
   }
 
   /**
-   * Load project catalog (ensembles and members)
+   * Load project catalog (ensembles and agents)
    */
   private async loadCatalog(): Promise<void> {
     // Load ensembles
@@ -179,8 +179,8 @@ export class OpenAPIGenerator {
       // Ensembles directory might not exist
     }
 
-    // Load members
-    const membersPath = path.join(this.projectPath, 'members')
+    // Load agents
+    const membersPath = path.join(this.projectPath, 'agents')
     try {
       const dirs = await fs.readdir(membersPath, { withFileTypes: true })
       for (const dir of dirs) {
@@ -188,13 +188,13 @@ export class OpenAPIGenerator {
         if (dir.name === 'examples') continue
 
         if (dir.isDirectory()) {
-          const memberYamlPath = path.join(membersPath, dir.name, 'member.yaml')
+          const memberYamlPath = path.join(membersPath, dir.name, 'agent.yaml')
           try {
             const content = await fs.readFile(memberYamlPath, 'utf-8')
-            const member = YAML.parse(content) as MemberConfig
-            this.members.set(member.name, member)
+            const agent = YAML.parse(content) as AgentConfig
+            this.agents.set(agent.name, agent)
           } catch {
-            // Member might not have member.yaml
+            // Agent might not have agent.yaml
           }
         }
       }
@@ -297,9 +297,9 @@ export class OpenAPIGenerator {
   /**
    * Enhance documentation with AI
    */
-  private async enhanceWithAI(spec: OpenAPISpec, aiMember?: string): Promise<OpenAPISpec> {
-    // TODO: Call AI member to enhance descriptions, examples, etc.
-    // This will be implemented with the docs-writer member
+  private async enhanceWithAI(spec: OpenAPISpec, aiAgent?: string): Promise<OpenAPISpec> {
+    // TODO: Call AI agent to enhance descriptions, examples, etc.
+    // This will be implemented with the docs-writer agent
     console.log('AI enhancement not yet implemented')
     return spec
   }
@@ -334,7 +334,7 @@ export class OpenAPIGenerator {
 
     // Generate from flow
     const stepCount = ensemble.flow.length
-    const memberNames = ensemble.flow.map((step) => step.member).join(', ')
+    const memberNames = ensemble.flow.map((step) => step.agent).join(', ')
 
     return `Executes ${stepCount} step${stepCount > 1 ? 's' : ''}: ${memberNames}`
   }

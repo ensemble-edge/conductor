@@ -1,16 +1,16 @@
 name: contact-form
 description: Simple contact form with validation and email notification
 
-members:
+agents:
   # Render contact form
   - name: render-form
-    type: Form
+    operation: form
     config:
       title: Contact Us
       description: We'd love to hear from you. Send us a message and we'll respond as soon as possible.
       fields:
         - name: name
-          type: text
+          operation: text
           label: Your Name
           placeholder: John Doe
           validation:
@@ -23,7 +23,7 @@ members:
               message: Name must be at most 100 characters
 
         - name: email
-          type: email
+          operation: email
           label: Email Address
           placeholder: john@example.com
           autocomplete: email
@@ -32,7 +32,7 @@ members:
             email: true
 
         - name: subject
-          type: select
+          operation: select
           label: Subject
           options:
             - label: General Inquiry
@@ -47,7 +47,7 @@ members:
             required: true
 
         - name: message
-          type: textarea
+          operation: textarea
           label: Message
           placeholder: Tell us how we can help...
           rows: 6
@@ -61,7 +61,7 @@ members:
               message: Message must be at most 1000 characters
 
         - name: subscribe
-          type: checkbox
+          operation: checkbox
           label: Subscribe to our newsletter
 
       submitText: Send Message
@@ -80,7 +80,7 @@ members:
 
   # Send notification email when form is submitted
   - name: send-notification
-    type: Email
+    operation: email
     config:
       from:
         email: noreply@example.com
@@ -116,7 +116,7 @@ members:
 
   # Send confirmation email to user
   - name: send-confirmation
-    type: Email
+    operation: email
     config:
       from:
         email: noreply@example.com

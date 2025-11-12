@@ -8,9 +8,9 @@
 import { Executor, MemberLoader } from '@ensemble-edge/conductor';
 import { Parser } from '@ensemble-edge/conductor';
 
-// Import your members
-import greetConfig from '../members/greet/member.yaml';
-import greetFunction from '../members/greet';
+// Import your agents
+import greetConfig from '../agents/greet/agent.yaml';
+import greetFunction from '../agents/greet';
 
 // Import your ensembles
 import helloWorldYAML from '../ensembles/hello-world.yaml';
@@ -36,9 +36,9 @@ export default {
 				// Create loader
 				const loader = new MemberLoader({ env, ctx });
 
-				// Register members
-				const greetMember = loader.registerMember(greetConfig, greetFunction);
-				executor.registerMember(greetMember);
+				// Register agents
+				const greetMember = loader.registerAgent(greetConfig, greetFunction);
+				executor.registerAgent(greetMember);
 
 				// Execute ensemble
 				const result = await executor.executeFromYAML(helloWorldYAML, input);

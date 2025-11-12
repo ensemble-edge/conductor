@@ -75,7 +75,7 @@ describe('Workers Config Loader', () => {
 				env: {
 					CONDUCTOR_DOCS_USE_AI: 'true',
 					CONDUCTOR_DOCS_FORMAT: 'yaml',
-					CONDUCTOR_DOCS_AI_MEMBER: 'gpt-4',
+					CONDUCTOR_DOCS_AI_AGENT: 'gpt-4',
 					CONDUCTOR_DOCS_OUTPUT_DIR: './docs-output'
 				}
 			});
@@ -84,7 +84,7 @@ describe('Workers Config Loader', () => {
 			if (result.success) {
 				expect(result.value.docs.useAI).toBe(true);
 				expect(result.value.docs.format).toBe('yaml');
-				expect(result.value.docs.aiMember).toBe('gpt-4');
+				expect(result.value.docs.aiAgent).toBe('gpt-4');
 				expect(result.value.docs.outputDir).toBe('./docs-output');
 			}
 		});

@@ -1,7 +1,7 @@
 /**
  * CLI Members Command
  *
- * List and inspect members.
+ * List and inspect agents.
  */
 import { Command } from 'commander';
 export declare function createMembersCommand(): Command;

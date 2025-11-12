@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js';
-import { execute, members, health, stream, async, webhooks, executions, schedules, } from './routes/index.js';
+import { execute, agents, health, stream, async, webhooks, executions, schedules, } from './routes/index.js';
 import { openapi } from './openapi/index.js';
 import { ScheduleManager } from '../runtime/schedule-manager.js';
 import { CatalogLoader } from '../runtime/catalog-loader.js';
@@ -54,7 +54,7 @@ export function createConductorAPI(config = {}) {
     app.route('/', openapi);
     // API routes (authenticated)
     app.route('/api/v1/execute', execute);
-    app.route('/api/v1/members', members);
+    app.route('/api/v1/agents', agents);
     app.route('/api/v1/stream', stream);
     app.route('/api/v1/async', async);
     app.route('/api/v1/executions', executions);
@@ -71,7 +71,7 @@ export function createConductorAPI(config = {}) {
             endpoints: {
                 health: '/health',
                 execute: '/api/v1/execute',
-                members: '/api/v1/members',
+                agents: '/api/v1/agents',
             },
         });
     });

@@ -1,11 +1,11 @@
 /**
- * Type-Safe Member Execution Helpers
+ * Type-Safe Agent Execution Helpers
  *
- * Provides type-safe wrappers for each built-in member.
+ * Provides type-safe wrappers for each built-in agent.
  */
 import type { ConductorClient, ExecuteResult } from './client.js';
 /**
- * Fetch Member
+ * Fetch Agent
  */
 export interface FetchInput {
     url: string;
@@ -26,7 +26,7 @@ export interface FetchConfig {
     retryDelay?: number;
 }
 /**
- * Scrape Member
+ * Scrape Agent
  */
 export interface ScrapeInput {
     url: string;
@@ -48,7 +48,7 @@ export interface ScrapeConfig {
     userAgent?: string;
 }
 /**
- * Validate Member
+ * Validate Agent
  */
 export interface ValidateInput {
     content: string;
@@ -68,7 +68,7 @@ export interface ValidateConfig {
     metrics?: string[];
 }
 /**
- * RAG Member
+ * RAG Agent
  */
 export interface RAGInput {
     operation: 'index' | 'search';
@@ -102,7 +102,7 @@ export interface RAGConfig {
     rerank?: boolean;
 }
 /**
- * HITL Member
+ * HITL Agent
  */
 export interface HITLInput {
     operation: 'request' | 'respond';
@@ -130,7 +130,7 @@ export interface HITLConfig {
     timeout?: number;
 }
 /**
- * Queries Member
+ * Queries Agent
  */
 export interface QueriesInput {
     queryName?: string;
@@ -159,54 +159,54 @@ export interface QueriesConfig {
     includeMetadata?: boolean;
 }
 /**
- * Type-Safe Member Execution Helpers
+ * Type-Safe Agent Execution Helpers
  */
 export declare class MemberHelpers {
     private client;
     constructor(client: ConductorClient);
     /**
-     * Execute fetch member
+     * Execute fetch agent
      */
     fetch(input: FetchInput, config?: FetchConfig): Promise<ExecuteResult<FetchOutput>>;
     /**
-     * Execute scrape member
+     * Execute scrape agent
      */
     scrape(input: ScrapeInput, config?: ScrapeConfig): Promise<ExecuteResult<ScrapeOutput>>;
     /**
-     * Execute validate member
+     * Execute validate agent
      */
     validate(input: ValidateInput, config?: ValidateConfig): Promise<ExecuteResult<ValidateOutput>>;
     /**
-     * Execute RAG member - index operation
+     * Execute RAG agent - index operation
      */
     ragIndex(content: string, namespace?: string, config?: RAGConfig): Promise<ExecuteResult<RAGIndexOutput>>;
     /**
-     * Execute RAG member - search operation
+     * Execute RAG agent - search operation
      */
     ragSearch(query: string, namespace?: string, config?: RAGConfig): Promise<ExecuteResult<RAGSearchOutput>>;
     /**
-     * Execute HITL member - request approval
+     * Execute HITL agent - request approval
      */
     hitlRequest(approvalData: Record<string, unknown>, config?: HITLConfig): Promise<ExecuteResult<HITLRequestOutput>>;
     /**
-     * Execute HITL member - respond to approval
+     * Execute HITL agent - respond to approval
      */
     hitlRespond(approvalId: string, approved: boolean, feedback?: string, config?: HITLConfig): Promise<ExecuteResult<HITLRespondOutput>>;
     /**
-     * Execute queries member - from catalog
+     * Execute queries agent - from catalog
      */
     queryCatalog(queryName: string, input: Record<string, unknown>, database?: string, config?: QueriesConfig): Promise<ExecuteResult<QueriesOutput>>;
     /**
-     * Execute queries member - inline SQL
+     * Execute queries agent - inline SQL
      */
     querySql(sql: string, params?: Record<string, unknown> | unknown[], database?: string, config?: QueriesConfig): Promise<ExecuteResult<QueriesOutput>>;
     /**
-     * Execute queries member - generic
+     * Execute queries agent - generic
      */
     queries(input: QueriesInput, config?: QueriesConfig): Promise<ExecuteResult<QueriesOutput>>;
 }
 /**
- * Create member helpers instance
+ * Create agent helpers instance
  */
 export declare function createMemberHelpers(client: ConductorClient): MemberHelpers;
 //# sourceMappingURL=members.d.ts.map

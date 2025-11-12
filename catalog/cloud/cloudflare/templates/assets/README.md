@@ -31,7 +31,7 @@ This directory contains **static assets** deployed to R2 for CDN delivery.
 
 - **Template-specific CSS** → Inline in template `<style>` tags
 - **Template-specific JavaScript** → Inline in template `<script>` tags
-- **Dynamic content** → Use Function members or API calls
+- **Dynamic content** → Use Function agents or API calls
 
 ## Directory Structure
 

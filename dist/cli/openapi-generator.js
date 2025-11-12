@@ -14,7 +14,7 @@ import YAML from 'yaml';
 export class OpenAPIGenerator {
     constructor(projectPath) {
         this.ensembles = new Map();
-        this.members = new Map();
+        this.agents = new Map();
         this.projectPath = projectPath;
         this.parser = new Parser();
     }
@@ -28,12 +28,12 @@ export class OpenAPIGenerator {
         const spec = await this.generateBaseSpec();
         // Enhance with AI if enabled
         if (options.useAI) {
-            return await this.enhanceWithAI(spec, options.aiMember);
+            return await this.enhanceWithAI(spec, options.aiAgent);
         }
         return spec;
     }
     /**
-     * Load project catalog (ensembles and members)
+     * Load project catalog (ensembles and agents)
      */
     async loadCatalog() {
         // Load ensembles
@@ -55,8 +55,8 @@ export class OpenAPIGenerator {
         catch (error) {
             // Ensembles directory might not exist
         }
-        // Load members
-        const membersPath = path.join(this.projectPath, 'members');
+        // Load agents
+        const membersPath = path.join(this.projectPath, 'agents');
         try {
             const dirs = await fs.readdir(membersPath, { withFileTypes: true });
             for (const dir of dirs) {
@@ -64,14 +64,14 @@ export class OpenAPIGenerator {
                 if (dir.name === 'examples')
                     continue;
                 if (dir.isDirectory()) {
-                    const memberYamlPath = path.join(membersPath, dir.name, 'member.yaml');
+                    const memberYamlPath = path.join(membersPath, dir.name, 'agent.yaml');
                     try {
                         const content = await fs.readFile(memberYamlPath, 'utf-8');
-                        const member = YAML.parse(content);
-                        this.members.set(member.name, member);
+                        const agent = YAML.parse(content);
+                        this.agents.set(agent.name, agent);
                     }
                     catch {
-                        // Member might not have member.yaml
+                        // Agent might not have agent.yaml
                     }
                 }
             }
@@ -168,9 +168,9 @@ export class OpenAPIGenerator {
     /**
      * Enhance documentation with AI
      */
-    async enhanceWithAI(spec, aiMember) {
-        // TODO: Call AI member to enhance descriptions, examples, etc.
-        // This will be implemented with the docs-writer member
+    async enhanceWithAI(spec, aiAgent) {
+        // TODO: Call AI agent to enhance descriptions, examples, etc.
+        // This will be implemented with the docs-writer agent
         console.log('AI enhancement not yet implemented');
         return spec;
     }
@@ -208,7 +208,7 @@ export class OpenAPIGenerator {
         }
         // Generate from flow
         const stepCount = ensemble.flow.length;
-        const memberNames = ensemble.flow.map((step) => step.member).join(', ');
+        const memberNames = ensemble.flow.map((step) => step.agent).join(', ');
         return `Executes ${stepCount} step${stepCount > 1 ? 's' : ''}: ${memberNames}`;
     }
     /**

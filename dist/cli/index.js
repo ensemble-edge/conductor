@@ -7,7 +7,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { createInitCommand } from './commands/init.js';
 import { createExecCommand } from './commands/exec.js';
-import { createMembersCommand } from './commands/members.js';
+import { createMembersCommand } from './commands/agents.js';
 import { createDocsCommand } from './commands/docs.js';
 import { createTestCommand } from './commands/test.js';
 import { createLogsCommand } from './commands/logs.js';

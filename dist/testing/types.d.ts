@@ -17,7 +17,7 @@ export interface TestConductorOptions {
  * Mock configurations for testing
  */
 export interface TestMocks {
-    /** Mock AI responses by member name */
+    /** Mock AI responses by agent name */
     ai?: Record<string, unknown | Error>;
     /** Mock database responses */
     database?: Record<string, unknown[]>;
@@ -50,10 +50,10 @@ export interface TestExecutionResult {
     httpRequests: HTTPRequest[];
 }
 /**
- * Result of a test member execution
+ * Result of a test agent execution
  */
 export interface TestMemberResult {
-    /** Member output/data */
+    /** Agent output/data */
     output: unknown;
     /** Execution time in milliseconds */
     executionTime: number;
@@ -64,8 +64,8 @@ export interface TestMemberResult {
  * A step that was executed
  */
 export interface ExecutedStep {
-    /** Member name */
-    member: string;
+    /** Agent name */
+    agent: string;
     /** Step input */
     input: unknown;
     /** Step output */
@@ -92,8 +92,8 @@ export interface StateSnapshot {
  * Record of an AI call
  */
 export interface AICall {
-    /** Member that made the call */
-    member: string;
+    /** Agent that made the call */
+    agent: string;
     /** Model used */
     model: string;
     /** Prompt sent */
@@ -174,7 +174,7 @@ export interface ProjectSnapshot {
     /** Loaded catalog */
     catalog: {
         ensembles: Map<string, EnsembleConfig>;
-        members: Map<string, unknown>;
+        agents: Map<string, unknown>;
     };
     /** Current state */
     state: Record<string, unknown>;

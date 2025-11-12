@@ -1,5 +1,89 @@
 # @ensemble-edge/conductor
 
+## 1.5.0
+
+### Minor Changes
+
+- **BREAKING CHANGE: Nomenclature refactor from "members" to "agents"**
+
+  This release contains breaking changes to the core terminology used throughout Conductor. All references to "members" have been replaced with "agents", and "MemberType" has been replaced with "Operation". **This is not backward compatible.**
+
+  **What Changed:**
+
+  - **Type System:**
+    - `MemberType` → `Operation` enum
+    - `MemberName` → `AgentName` branded type
+    - `MemberReference` → `AgentReference` interface
+    - `MemberConfig` → `AgentConfig`
+    - All member-related types renamed to agent equivalents
+
+  - **Operation Names (lowercase with semantic renames):**
+    - `Think` → `think` (AI operations)
+    - `Function` → `code` (JavaScript/TypeScript execution)
+    - `Data` → `storage` (Database/KV/R2/D1 operations)
+    - `API` → `http` (External HTTP/REST calls)
+    - `MCP` → `tools` (Model Context Protocol/tool integration)
+    - `Scoring`, `Email`, `SMS`, `Form`, `Page`, `HTML`, `PDF` → lowercase versions
+
+  - **YAML Configuration:**
+    ```yaml
+    # OLD syntax (no longer supported)
+    flow:
+      - member: greeter
+        type: Think
+
+    # NEW syntax (required)
+    flow:
+      - agent: greeter
+        operation: think
+    ```
+
+  - **File Structure:**
+    - `src/members/` → `src/agents/`
+    - `member.yaml` → `agent.yaml`
+    - `*-member.ts` → `*-agent.ts`
+    - All catalog and example directories updated
+
+  - **TypeScript/JavaScript Code:**
+    - `import { MemberType } from '@ensemble-edge/conductor'` → `import { Operation } from '@ensemble-edge/conductor'`
+    - `BaseMember` → `BaseAgent`
+    - `executeMember()` → `executeAgent()`
+    - All function and variable names updated
+
+  - **Configuration:**
+    - `aiMember` config option → `aiAgent`
+    - Environment variable: `CONDUCTOR_DOCS_AI_MEMBER` → `CONDUCTOR_DOCS_AI_AGENT`
+
+  **Migration Guide:**
+
+  1. **Update YAML files:**
+     - Replace `member:` with `agent:` in flow definitions
+     - Replace `type:` with `operation:` in agent definitions
+     - Update operation values to lowercase: `Think` → `think`, `Function` → `code`, `Data` → `storage`, etc.
+     - Update variable references: `${members.x}` → `${agents.x}`
+
+  2. **Update TypeScript/JavaScript:**
+     - Replace all `Member` types with `Agent` types
+     - Replace `MemberType` with `Operation`
+     - Update enum references: `Operation.Think` → `Operation.think`, `Operation.Function` → `Operation.code`, etc.
+     - Update import statements
+
+  3. **Update file structure:**
+     - Rename `members/` directories to `agents/`
+     - Rename `member.yaml` files to `agent.yaml`
+
+  4. **No backward compatibility:**
+     - Old YAML syntax will not work
+     - No migration tools provided
+     - Clean break for v1.x (pre-stable)
+
+  **Why This Change:**
+
+  - Aligns with industry-standard AI/agent terminology
+  - Clearer distinction between execution primitives (operations) and autonomous units (agents)
+  - Better conceptual clarity for new users
+  - Foundation for future agent capabilities
+
 ## 1.4.6
 
 ### Patch Changes

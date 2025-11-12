@@ -1,5 +1,5 @@
 name: error-404
-type: page
+operation: page
 description: 404 Not Found error page
 templateEngine: liquid
 

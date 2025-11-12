@@ -3,7 +3,7 @@
  *
  * Central routing system with type-specific defaults and path-based rules
  */
-import type { ConductorConfig, RouteAuthConfig, ResolvedRouteAuthConfig, RouteMatch, MemberType } from './config.js';
+import type { ConductorConfig, RouteAuthConfig, ResolvedRouteAuthConfig, RouteMatch, Operation } from './config.js';
 import type { AuthValidationResult, AuthContext } from '../auth/types.js';
 /**
  * Route registration options
@@ -12,8 +12,8 @@ export interface RouteRegistrationOptions {
     pattern: string | 'default';
     path?: string;
     methods: string[];
-    memberType: MemberType;
-    memberName: string;
+    operation: Operation;
+    agentName: string;
     auth?: Partial<RouteAuthConfig>;
     priority?: number;
     handler?: (request: Request, env: any, ctx: ExecutionContext, auth: AuthContext) => Promise<Response>;
@@ -38,11 +38,11 @@ export declare class UnifiedRouter {
      */
     register(options: RouteRegistrationOptions): void;
     /**
-     * Resolve default path from member directory structure
+     * Resolve default path from agent directory structure
      */
     private resolveDefaultPath;
     /**
-     * Get default priority for member type
+     * Get default priority for agent type
      */
     private getDefaultPriority;
     /**

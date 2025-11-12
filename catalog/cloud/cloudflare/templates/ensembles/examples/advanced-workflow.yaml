@@ -12,7 +12,7 @@ description: |
 
 flow:
   # Feature 1: Retry with Exponential Backoff
-  - member: call-external-api
+  - agent: call-external-api
     input:
       url: ${input.apiUrl}
     retry:
@@ -23,7 +23,7 @@ flow:
       retryOn: ["NETWORK_ERROR", "TIMEOUT"]
 
   # Feature 2: Timeout with Fallback
-  - member: slow-operation
+  - agent: slow-operation
     input:
       data: ${input.data}
     timeout: 5000  # 5 seconds
@@ -32,7 +32,7 @@ flow:
       error: false
 
   # Feature 3: Conditional Execution (when)
-  - member: optional-analytics
+  - agent: optional-analytics
     input:
       event: ${input.event}
     when: ${input.enableAnalytics === true}
@@ -40,27 +40,27 @@ flow:
   # Feature 4: Try/Catch Error Handling
   - type: try
     steps:
-      - member: risky-operation
+      - agent: risky-operation
         input:
           data: ${input.data}
 
-      - member: validate-result
+      - agent: validate-result
         input:
           result: ${risky-operation.output}
 
     catch:
-      - member: handle-error
+      - agent: handle-error
         input:
           error: ${error}
           fallback: true
 
-      - member: log-error
+      - agent: log-error
         input:
           error: ${error}
           timestamp: ${Date.now()}
 
     finally:
-      - member: cleanup-resources
+      - agent: cleanup-resources
         input:
           sessionId: ${input.sessionId}
 
@@ -69,26 +69,26 @@ flow:
     value: ${input.requestType}
     cases:
       urgent:
-        - member: handle-urgent
+        - agent: handle-urgent
           input:
             priority: high
             data: ${input.data}
 
       normal:
-        - member: handle-normal
+        - agent: handle-normal
           input:
             priority: medium
             data: ${input.data}
 
       low-priority:
-        - member: queue-for-later
+        - agent: queue-for-later
           input:
             data: ${input.data}
 
     default:
-      - member: handle-unknown
+      - agent: handle-unknown
         input:
-          type: ${input.requestType}
+          operation: ${input.requestType}
           data: ${input.data}
 
   # Feature 6: While Loop with Safety Limit
@@ -96,11 +96,11 @@ flow:
     condition: ${batch.output.hasMore === true}
     maxIterations: 100
     steps:
-      - member: fetch-batch
+      - agent: fetch-batch
         input:
           cursor: ${batch.output.nextCursor || null}
 
-      - member: process-batch
+      - agent: process-batch
         input:
           items: ${fetch-batch.output.items}
 
@@ -110,7 +110,7 @@ flow:
     maxConcurrency: 5
     breakWhen: ${check-target.output.found === true}
     step:
-      member: check-target
+    agent: check-target
       input:
         target: ${item}
         query: ${input.searchQuery}
@@ -120,11 +120,11 @@ flow:
     items: ${input.documents}
     maxConcurrency: 10
     map:
-      member: analyze-document
+    agent: analyze-document
       input:
         document: ${item}
     reduce:
-      member: aggregate-analysis
+    agent: aggregate-analysis
       input:
         results: ${results}
 
@@ -132,7 +132,7 @@ flow:
   - type: parallel
     waitFor: all
     steps:
-      - member: fetch-user-data
+      - agent: fetch-user-data
         input:
           userId: ${input.userId}
         retry:
@@ -140,7 +140,7 @@ flow:
           backoff: linear
         timeout: 3000
 
-      - member: fetch-preferences
+      - agent: fetch-preferences
         input:
           userId: ${input.userId}
         timeout: 2000
@@ -155,17 +155,17 @@ flow:
         value: ${fetch-user-data.output.accountType}
         cases:
           premium:
-            - member: premium-features
+            - agent: premium-features
               input:
                 userId: ${input.userId}
 
           basic:
-            - member: basic-features
+            - agent: basic-features
               input:
                 userId: ${input.userId}
 
     catch:
-      - member: fallback-features
+      - agent: fallback-features
         input:
           error: ${error}
 
