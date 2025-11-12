@@ -28,7 +28,7 @@
 
 ## Getting Started
 
-### Create a New Project
+### Quick Start
 
 ```bash
 # Install conductor globally
@@ -37,7 +37,7 @@ npm install -g @ensemble-edge/conductor
 # Create a new project
 conductor init my-project
 
-# Start development
+# Start development server
 cd my-project
 npm run dev
 ```
