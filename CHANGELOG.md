@@ -1,5 +1,14 @@
 # @ensemble-edge/conductor
 
+## 1.5.1
+
+### Patch Changes
+
+- b8b13b9: Fix code formatting and add pre-commit checklist to CLAUDE.md
+  - Run prettier to fix formatting in 7 TypeScript files
+  - Add pre-commit checklist section to CLAUDE.md with commands to run before committing
+  - Emphasize running format/typecheck/lint/test locally to prevent CI failures
+
 ## 1.5.0
 
 ### Minor Changes
@@ -9,7 +18,6 @@
   This release contains breaking changes to the core terminology used throughout Conductor. All references to "members" have been replaced with "agents", and "MemberType" has been replaced with "Operation". **This is not backward compatible.**
 
   **What Changed:**
-
   - **Type System:**
     - `MemberType` → `Operation` enum
     - `MemberName` → `AgentName` branded type
@@ -26,6 +34,7 @@
     - `Scoring`, `Email`, `SMS`, `Form`, `Page`, `HTML`, `PDF` → lowercase versions
 
   - **YAML Configuration:**
+
     ```yaml
     # OLD syntax (no longer supported)
     flow:
@@ -55,7 +64,6 @@
     - Environment variable: `CONDUCTOR_DOCS_AI_MEMBER` → `CONDUCTOR_DOCS_AI_AGENT`
 
   **Migration Guide:**
-
   1. **Update YAML files:**
      - Replace `member:` with `agent:` in flow definitions
      - Replace `type:` with `operation:` in agent definitions
@@ -78,7 +86,6 @@
      - Clean break for v1.x (pre-stable)
 
   **Why This Change:**
-
   - Aligns with industry-standard AI/agent terminology
   - Clearer distinction between execution primitives (operations) and autonomous units (agents)
   - Better conceptual clarity for new users
