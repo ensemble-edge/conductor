@@ -48,19 +48,17 @@ jobs:
             echo "has_changesets=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Version packages
+      - name: Version packages (local only)
         if: steps.check.outputs.has_changesets == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           npm run version-packages
           npm run build
-          git add -A
           VERSION=$(node -p "require('./package.json').version")
-          git commit -m "chore: release v${VERSION}"
-          git tag "v${VERSION}"
-          git push
-          git push --tags
+          echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_ENV
+          # Stage changes but DON'T commit or push yet
+          git add -A
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -74,21 +72,31 @@ jobs:
       - name: Create GitHub Release
         if: steps.check.outputs.has_changesets == 'true'
         run: |
-          VERSION=$(node -p "require('./package.json').version")
           CHANGELOG=$(awk '/^## / {if (p) exit; p=1; next} p' CHANGELOG.md)
           # Create release, or update if it already exists
-          if gh release view "v${VERSION}" >/dev/null 2>&1; then
-            echo "Release v${VERSION} already exists, updating..."
-            gh release edit "v${VERSION}" \
-              --title "v${VERSION}" \
+          if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
+            echo "Release v${RELEASE_VERSION} already exists, updating..."
+            gh release edit "v${RELEASE_VERSION}" \
+              --title "v${RELEASE_VERSION}" \
               --notes "${CHANGELOG}" \
               --latest
           else
-            echo "Creating release v${VERSION}..."
-            gh release create "v${VERSION}" \
-              --title "v${VERSION}" \
+            echo "Creating release v${RELEASE_VERSION}..."
+            gh release create "v${RELEASE_VERSION}" \
+              --title "v${RELEASE_VERSION}" \
               --notes "${CHANGELOG}" \
               --latest
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and push version bump (after successful release)
+        if: steps.check.outputs.has_changesets == 'true'
+        run: |
+          # Now that npm publish and GitHub release succeeded, commit and push
+          git commit -m "chore: release v${RELEASE_VERSION} [skip ci]"
+          git tag "v${RELEASE_VERSION}"
+          git push origin HEAD:master
+          git push --tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
