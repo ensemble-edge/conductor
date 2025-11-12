@@ -104,11 +104,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Commit and push version bump (after successful release)
-        if: steps.check.outputs.has_changesets == 'true'
-        run: |
-          # Now that npm publish, tag, and GitHub release succeeded, commit version bump
-          git commit -m "chore: release v${RELEASE_VERSION} [skip ci]"
-          git push origin HEAD:master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
