@@ -45,8 +45,7 @@ export class BuiltInMemberRegistry {
 
     if (!entry) {
       throw new Error(
-        `Built-in agent "${name}" not found. ` +
-          `Available: ${this.getAvailableNames().join(', ')}`
+        `Built-in agent "${name}" not found. ` + `Available: ${this.getAvailableNames().join(', ')}`
       )
     }
 

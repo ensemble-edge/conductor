@@ -97,6 +97,21 @@ See [.planning/README.md](.planning/README.md) for full details.
 - **ESLint** - Linting for code quality
 - **Prettier** - Code formatting
 
+### Pre-Commit Checklist
+**Before committing and pushing code, ALWAYS run:**
+```bash
+npm run format        # Auto-fix formatting issues
+npm run format:check  # Verify formatting is correct
+npm run typecheck     # Check TypeScript types
+npm run lint          # Check code quality
+npm test              # Run all tests
+```
+
+**Why this matters:**
+- CI will fail if formatting/linting/tests don't pass
+- Running these locally saves time and prevents CI failures
+- `npm run format` will automatically fix most formatting issues
+
 ## Git Commit Standards
 
 ### Commit Message Format

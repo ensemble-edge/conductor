@@ -278,10 +278,7 @@ export const isAgentPriority = (value: string): value is AgentPriority => {
 /**
  * Create default agent config
  */
-export const createDefaultAgentConfig = (
-  name: AgentName,
-  operation: Operation
-): AgentConfig => {
+export const createDefaultAgentConfig = (name: AgentName, operation: Operation): AgentConfig => {
   return {
     name,
     operation,

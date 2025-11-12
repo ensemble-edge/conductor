@@ -57,7 +57,9 @@ export function createThinkMember(options: Omit<CreateAgentOptions, 'operation'>
  * });
  * ```
  */
-export function createFunctionMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
+export function createFunctionMember(
+  options: Omit<CreateAgentOptions, 'operation'>
+): MemberHandler {
   return createAgent({ ...options, operation: Operation.code })
 }
 
