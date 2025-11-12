@@ -69,6 +69,20 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Create git tag (before GitHub release)
+        if: steps.check.outputs.has_changesets == 'true'
+        run: |
+          # Create tag if it doesn't exist (needed for GitHub release)
+          if git rev-parse "v${RELEASE_VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${RELEASE_VERSION} already exists"
+          else
+            echo "Creating tag v${RELEASE_VERSION}"
+            git tag "v${RELEASE_VERSION}"
+          fi
+          git push --tags || echo "Tag push failed (may already exist)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
         if: steps.check.outputs.has_changesets == 'true'
         run: |
@@ -93,17 +107,8 @@ jobs:
       - name: Commit and push version bump (after successful release)
         if: steps.check.outputs.has_changesets == 'true'
         run: |
-          # Now that npm publish and GitHub release succeeded, commit and push
+          # Now that npm publish, tag, and GitHub release succeeded, commit version bump
           git commit -m "chore: release v${RELEASE_VERSION} [skip ci]"
-
-          # Only create tag if it doesn't exist
-          if git rev-parse "v${RELEASE_VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${RELEASE_VERSION} already exists, skipping tag creation"
-          else
-            git tag "v${RELEASE_VERSION}"
-          fi
-
           git push origin HEAD:master
-          git push --tags || echo "Tag push failed (may already exist)"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
