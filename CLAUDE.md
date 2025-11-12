@@ -6,16 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) and other AI assista
 
 # 🚨 CRITICAL: RELEASE WORKFLOW - READ THIS FIRST 🚨
 
-## Normal Push Workflow
+## Standard Changesets Workflow (Official)
 
-1. **Create changeset** in `.changeset/`:
+This project uses the official `changesets/action` for automated releases.
+
+### Normal Development Flow
+
+1. **Create changeset** for your changes:
    ```bash
-   cat > .changeset/my-feature.md << 'EOF'
-   ---
-   "@ensemble-edge/conductor": patch
-   ---
-   Description of changes
-   EOF
+   npx changeset add
+   # Or manually create .changeset/my-feature.md
    ```
 
 2. **Commit and push**:
@@ -25,29 +25,28 @@ This file provides guidance to Claude Code (claude.ai/code) and other AI assista
    git push
    ```
 
-3. **Done!** GitHub Actions:
-   - Publishes to npm
-   - Creates git tag
+3. **GitHub Actions creates/updates "Version Packages" PR**:
+   - PR contains all version bumps and CHANGELOG updates
+   - Multiple changesets accumulate in one PR
+   - Review the PR to see what will be released
+
+4. **When ready to release, merge the "Version Packages" PR**:
+   - Action automatically publishes to npm
    - Creates GitHub release
-   - **Does NOT commit back to master** - changesets stay local to workflow
+   - Updates package.json and CHANGELOG.md
+   - All coordination handled automatically
 
-## NEW: Truly Conflict-Free Workflow!
-
-The release workflow does NOT modify the master branch. It only:
-1. Publishes the package to npm
-2. Creates a git tag pointing to your commit
-3. Creates a GitHub release
-
-Benefits:
-✅ **Zero push conflicts** - Workflow never touches master
-✅ **No version drift** - Next push will have correct version via changesets
-✅ **No force-with-lease needed** - Ever
-✅ **Simpler mental model** - Workflow just publishes artifacts
+## Benefits
+✅ **Industry standard** - Official Changesets workflow
+✅ **Zero conflicts** - PR-based coordination
+✅ **Full control** - You decide when to release (by merging PR)
+✅ **Batched releases** - Multiple changes in one release
+✅ **Automatic cleanup** - Changesets deleted on merge
 
 ## Never Do These:
-- ❌ **DO NOT run `git pull`** - Creates merge commits
 - ❌ **DO NOT manually edit package.json or CHANGELOG.md**
 - ❌ **DO NOT manually create or delete tags**
+- ❌ **DO NOT merge Version Packages PR if tests are failing**
 
 ---
 
@@ -206,15 +205,14 @@ conductor/
 
 ## Release Process
 
-### Automated Release Workflow
+### Official Changesets Workflow
 
-This repository uses an automated release workflow powered by [Changesets](https://github.com/changesets/changesets). Version bumping, tagging, and npm publishing are fully automated via GitHub Actions.
+This repository uses the **official** [changesets/action](https://github.com/changesets/action) for automated releases. This is the industry-standard approach used by thousands of open-source projects.
 
 #### How to Release
 
-**Step 1: Create a Changeset** (manual)
+**Step 1: Create a Changeset**
 ```bash
-cd /workspace/ensemble/conductor
 npx changeset add
 ```
 
@@ -224,24 +222,28 @@ You'll be prompted to:
 
 This creates a markdown file in `.changeset/` documenting your changes.
 
-**Step 2: Commit and Push** (triggers automation)
+**Step 2: Commit and Push**
 ```bash
 git add .changeset/
 git commit -m "feat: add new feature X"
 git push
 ```
 
-**Step 3: Automation Takes Over** (GitHub Actions)
+**Step 3: Review the "Version Packages" PR** (created automatically)
 
-Once you push to main/master, the release workflow automatically:
-1. ✅ Runs tests, lint, typecheck, and build
-2. ✅ Detects changeset exists
-3. ✅ Runs `changeset version` (bumps package.json, updates CHANGELOG.md locally in workflow)
-4. ✅ Rebuilds with new version
-5. ✅ Publishes to npm
-6. ✅ Creates git tag pointing to your commit
-7. ✅ Creates GitHub release
-8. ✅ Done - no commits back to master!
+GitHub Actions will create or update a PR titled **"Version Packages"** that:
+- Shows all version bumps across packages
+- Includes updated CHANGELOG.md
+- Combines multiple changesets into one release
+- Runs all tests/lint/build checks
+
+**Step 4: Merge the PR When Ready**
+
+When you merge the "Version Packages" PR, GitHub Actions automatically:
+1. ✅ Publishes to npm
+2. ✅ Creates GitHub release with CHANGELOG
+3. ✅ Commits version bumps to master
+4. ✅ Deletes consumed changesets
 
 #### Complete Example
 
@@ -256,17 +258,17 @@ git add .changeset/
 git commit -m "feat: add batch email sending"
 git push
 
-# GitHub Actions does the rest!
-# → Version bumps to 1.2.0
-# → Publishes to npm
-# → Done! 🎉
+# GitHub Actions creates "Version Packages" PR
+# → Review the PR
+# → Merge when ready to release
+# → npm publish happens automatically! 🎉
 ```
 
-#### Notes
-- No manual version bumps needed
-- No manual tagging needed
-- No manual `npm publish` needed
-- Just create the changeset and push!
+#### Benefits
+- **Batched releases**: Multiple features/fixes released together
+- **Manual control**: You decide when to release by merging the PR
+- **No conflicts**: PR-based workflow handles all coordination
+- **Audit trail**: PR shows exactly what's being released
 
 ### Deploying to Cloudflare Workers
 
