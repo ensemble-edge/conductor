@@ -95,8 +95,15 @@ jobs:
         run: |
           # Now that npm publish and GitHub release succeeded, commit and push
           git commit -m "chore: release v${RELEASE_VERSION} [skip ci]"
-          git tag "v${RELEASE_VERSION}"
+
+          # Only create tag if it doesn't exist
+          if git rev-parse "v${RELEASE_VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${RELEASE_VERSION} already exists, skipping tag creation"
+          else
+            git tag "v${RELEASE_VERSION}"
+          fi
+
           git push origin HEAD:master
-          git push --tags
+          git push --tags || echo "Tag push failed (may already exist)"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
