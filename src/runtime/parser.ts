@@ -39,21 +39,104 @@ const EnsembleSchema = z.object({
       aggregation: z.enum(['weighted_average', 'minimum', 'geometric_mean']).optional(),
     })
     .optional(),
-  webhooks: z
+  expose: z
     .array(
-      z.object({
-        path: z.string().min(1),
-        method: z.enum(['POST', 'GET']).optional(),
-        auth: z
-          .object({
-            type: z.enum(['bearer', 'signature', 'basic']),
-            secret: z.string(),
-          })
-          .optional(),
-        mode: z.enum(['trigger', 'resume']).optional(),
-        async: z.boolean().optional(),
-        timeout: z.number().positive().optional(),
-      })
+      z.discriminatedUnion('type', [
+        // Webhook endpoint (inbound HTTP triggers)
+        z.object({
+          type: z.literal('webhook'),
+          path: z.string().min(1).optional(), // Defaults to /{ensemble-name}
+          methods: z.array(z.enum(['POST', 'GET', 'PUT', 'PATCH', 'DELETE'])).optional(),
+          auth: z
+            .object({
+              type: z.enum(['bearer', 'signature', 'basic']),
+              secret: z.string(),
+            })
+            .optional(),
+          public: z.boolean().optional(), // If true, no auth required
+          mode: z.enum(['trigger', 'resume']).optional(),
+          async: z.boolean().optional(),
+          timeout: z.number().positive().optional(),
+        }),
+        // MCP tool endpoint (expose ensemble as MCP tool)
+        z.object({
+          type: z.literal('mcp'),
+          auth: z
+            .object({
+              type: z.enum(['bearer', 'oauth']),
+              secret: z.string().optional(),
+            })
+            .optional(),
+          public: z.boolean().optional(),
+        }),
+        // Email invocation (trigger via email)
+        z.object({
+          type: z.literal('email'),
+          addresses: z.array(z.string().email()).min(1),
+          auth: z
+            .object({
+              from: z.array(z.string()).min(1), // Whitelist of sender patterns
+            })
+            .optional(),
+          public: z.boolean().optional(),
+          reply_with_output: z.boolean().optional(), // Send results back via email
+        }),
+      ])
+    )
+    .optional()
+    .refine(
+      (expose) => {
+        // Validate that all expose entries have either auth or public: true
+        if (!expose) return true
+        return expose.every((exp) => exp.auth || exp.public === true)
+      },
+      {
+        message: 'All expose endpoints must have auth configuration or explicit public: true',
+      }
+    ),
+  notifications: z
+    .array(
+      z.discriminatedUnion('type', [
+        // Outbound webhook notifications
+        z.object({
+          type: z.literal('webhook'),
+          url: z.string().url(),
+          events: z
+            .array(
+              z.enum([
+                'execution.started',
+                'execution.completed',
+                'execution.failed',
+                'execution.timeout',
+                'agent.completed',
+                'state.updated',
+              ])
+            )
+            .min(1),
+          secret: z.string().optional(),
+          retries: z.number().positive().optional(),
+          timeout: z.number().positive().optional(),
+        }),
+        // Outbound email notifications
+        z.object({
+          type: z.literal('email'),
+          to: z.array(z.string().email()).min(1),
+          events: z
+            .array(
+              z.enum([
+                'execution.started',
+                'execution.completed',
+                'execution.failed',
+                'execution.timeout',
+                'agent.completed',
+                'state.updated',
+              ])
+            )
+            .min(1),
+          subject: z.string().optional(),
+          from: z.string().email().optional(),
+        }),
+      ])
     )
     .optional(),
   schedules: z
@@ -135,7 +218,8 @@ const AgentSchema = z.object({
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>
 export type AgentConfig = z.infer<typeof AgentSchema>
 export type FlowStep = EnsembleConfig['flow'][number]
-export type WebhookConfig = NonNullable<EnsembleConfig['webhooks']>[number]
+export type ExposeConfig = NonNullable<EnsembleConfig['expose']>[number]
+export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number]
 export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number]
 
 export class Parser {

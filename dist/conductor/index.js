@@ -8526,7 +8526,7 @@ var arrayType = ZodArray.create;
 var objectType$1 = ZodObject.create;
 ZodObject.strictCreate;
 var unionType = ZodUnion.create;
-ZodDiscriminatedUnion.create;
+var discriminatedUnionType = ZodDiscriminatedUnion.create;
 ZodIntersection.create;
 ZodTuple.create;
 var recordType = ZodRecord.create;
@@ -8534,7 +8534,7 @@ ZodMap.create;
 ZodSet.create;
 ZodFunction.create;
 ZodLazy.create;
-ZodLiteral.create;
+var literalType = ZodLiteral.create;
 var enumType = ZodEnum.create;
 ZodNativeEnum.create;
 ZodPromise.create;
@@ -8676,21 +8676,77 @@ var EnsembleSchema = objectType$1({
 			"geometric_mean"
 		]).optional()
 	}).optional(),
-	webhooks: arrayType(objectType$1({
-		path: stringType().min(1),
-		method: enumType(["POST", "GET"]).optional(),
-		auth: objectType$1({
-			type: enumType([
-				"bearer",
-				"signature",
-				"basic"
-			]),
-			secret: stringType()
-		}).optional(),
-		mode: enumType(["trigger", "resume"]).optional(),
-		async: booleanType().optional(),
+	expose: arrayType(discriminatedUnionType("type", [
+		objectType$1({
+			type: literalType("webhook"),
+			path: stringType().min(1).optional(),
+			methods: arrayType(enumType([
+				"POST",
+				"GET",
+				"PUT",
+				"PATCH",
+				"DELETE"
+			])).optional(),
+			auth: objectType$1({
+				type: enumType([
+					"bearer",
+					"signature",
+					"basic"
+				]),
+				secret: stringType()
+			}).optional(),
+			public: booleanType().optional(),
+			mode: enumType(["trigger", "resume"]).optional(),
+			async: booleanType().optional(),
+			timeout: numberType().positive().optional()
+		}),
+		objectType$1({
+			type: literalType("mcp"),
+			auth: objectType$1({
+				type: enumType(["bearer", "oauth"]),
+				secret: stringType().optional()
+			}).optional(),
+			public: booleanType().optional()
+		}),
+		objectType$1({
+			type: literalType("email"),
+			addresses: arrayType(stringType().email()).min(1),
+			auth: objectType$1({ from: arrayType(stringType()).min(1) }).optional(),
+			public: booleanType().optional(),
+			reply_with_output: booleanType().optional()
+		})
+	])).optional().refine((expose) => {
+		if (!expose) return true;
+		return expose.every((exp) => exp.auth || exp.public === true);
+	}, { message: "All expose endpoints must have auth configuration or explicit public: true" }),
+	notifications: arrayType(discriminatedUnionType("type", [objectType$1({
+		type: literalType("webhook"),
+		url: stringType().url(),
+		events: arrayType(enumType([
+			"execution.started",
+			"execution.completed",
+			"execution.failed",
+			"execution.timeout",
+			"agent.completed",
+			"state.updated"
+		])).min(1),
+		secret: stringType().optional(),
+		retries: numberType().positive().optional(),
 		timeout: numberType().positive().optional()
-	})).optional(),
+	}), objectType$1({
+		type: literalType("email"),
+		to: arrayType(stringType().email()).min(1),
+		events: arrayType(enumType([
+			"execution.started",
+			"execution.completed",
+			"execution.failed",
+			"execution.timeout",
+			"agent.completed",
+			"state.updated"
+		])).min(1),
+		subject: stringType().optional(),
+		from: stringType().email().optional()
+	})])).optional(),
 	schedules: arrayType(objectType$1({
 		cron: stringType().min(1, "Cron expression is required"),
 		timezone: stringType().optional(),
@@ -9201,16 +9257,21 @@ var AnthropicProvider = class extends BaseAIProvider {
 		const endpoint = config.apiEndpoint || this.defaultEndpoint;
 		const anthropicMessages = messages.filter((m) => m.role !== "system");
 		const systemMessage = messages.find((m) => m.role === "system")?.content || config.systemPrompt;
-		const data = await this.makeRequest(endpoint, {
-			"x-api-key": apiKey,
-			"anthropic-version": "2023-06-01"
-		}, {
+		const requestBody = {
 			model: config.model || this.defaultModel,
 			messages: anthropicMessages,
 			system: systemMessage,
 			temperature: config.temperature,
 			max_tokens: config.maxTokens
-		});
+		};
+		if (config.schema) requestBody.response_format = {
+			type: "json_schema",
+			json_schema: typeof config.schema === "string" ? JSON.parse(config.schema) : config.schema
+		};
+		const data = await this.makeRequest(endpoint, {
+			"x-api-key": apiKey,
+			"anthropic-version": "2023-06-01"
+		}, requestBody);
 		return {
 			content: data.content[0]?.text || "",
 			model: config.model || this.defaultModel,
@@ -9219,7 +9280,8 @@ var AnthropicProvider = class extends BaseAIProvider {
 			metadata: {
 				stopReason: data.stop_reason,
 				inputTokens: data.usage?.input_tokens,
-				outputTokens: data.usage?.output_tokens
+				outputTokens: data.usage?.output_tokens,
+				schema: config.schema ? typeof config.schema === "string" ? config.schema : JSON.stringify(config.schema) : void 0
 			}
 		};
 	}
@@ -9422,12 +9484,14 @@ var ThinkAgent = class extends BaseAgent {
 			apiKey: cfg?.apiKey,
 			apiEndpoint: cfg?.apiEndpoint,
 			systemPrompt: cfg?.systemPrompt,
-			prompt: cfg?.prompt
+			prompt: cfg?.prompt,
+			schema: cfg?.schema
 		};
 	}
 	async run(context) {
 		const { input, env } = context;
 		await this.resolvePrompt(env);
+		await this.resolveSchema(env);
 		const providerId = this.thinkConfig.provider || AIProvider.Anthropic;
 		const provider = this.providerRegistry.get(providerId);
 		if (!provider) throw new Error(`Unknown AI provider: ${providerId}. Available providers: ${this.providerRegistry.getProviderIds().join(", ")}`);
@@ -9437,7 +9501,8 @@ var ThinkAgent = class extends BaseAgent {
 			maxTokens: this.thinkConfig.maxTokens,
 			apiKey: this.thinkConfig.apiKey,
 			apiEndpoint: this.thinkConfig.apiEndpoint,
-			systemPrompt: this.thinkConfig.systemPrompt
+			systemPrompt: this.thinkConfig.systemPrompt,
+			schema: this.thinkConfig.schema
 		};
 		const configError = provider.getConfigError(providerConfig, env);
 		if (configError) throw new Error(configError);
@@ -9462,6 +9527,26 @@ var ThinkAgent = class extends BaseAgent {
 			} catch (error) {
 				throw new Error(`Failed to resolve prompt "${this.thinkConfig.prompt}": ${error instanceof Error ? error.message : String(error)}`);
 			}
+		}
+	}
+	async resolveSchema(env) {
+		if (!this.thinkConfig.schema) return;
+		if (typeof this.thinkConfig.schema !== "string") return;
+		const context = {
+			env,
+			baseDir: process.cwd()
+		};
+		try {
+			const resolved = await resolveValue(this.thinkConfig.schema, context);
+			if (typeof resolved.content === "object" && resolved.content !== null) this.thinkConfig.schema = resolved.content;
+			else if (typeof resolved.content === "string") try {
+				this.thinkConfig.schema = JSON.parse(resolved.content);
+			} catch {
+				throw new Error(`Schema must be valid JSON, got invalid string`);
+			}
+			else throw new Error(`Schema must resolve to an object or JSON string, got ${typeof resolved.content}`);
+		} catch (error) {
+			throw new Error(`Failed to resolve schema "${this.thinkConfig.schema}": ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 	buildMessages(input) {
@@ -11091,7 +11176,7 @@ var require_decorators = /* @__PURE__ */ __commonJSMin(((exports) => {
 var require_logger = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	exports.__esModule = true;
 	var _utils$6 = require_utils();
-	var logger$3 = {
+	var logger$6 = {
 		methodMap: [
 			"debug",
 			"info",
@@ -11101,23 +11186,23 @@ var require_logger = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		level: "info",
 		lookupLevel: function lookupLevel(level) {
 			if (typeof level === "string") {
-				var levelMap = _utils$6.indexOf(logger$3.methodMap, level.toLowerCase());
+				var levelMap = _utils$6.indexOf(logger$6.methodMap, level.toLowerCase());
 				if (levelMap >= 0) level = levelMap;
 				else level = parseInt(level, 10);
 			}
 			return level;
 		},
 		log: function log$1(level) {
-			level = logger$3.lookupLevel(level);
-			if (typeof console !== "undefined" && logger$3.lookupLevel(logger$3.level) <= level) {
-				var method = logger$3.methodMap[level];
+			level = logger$6.lookupLevel(level);
+			if (typeof console !== "undefined" && logger$6.lookupLevel(logger$6.level) <= level) {
+				var method = logger$6.methodMap[level];
 				if (!console[method]) method = "log";
 				for (var _len = arguments.length, message = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) message[_key - 1] = arguments[_key];
 				console[method].apply(console, message);
 			}
 		}
 	};
-	exports["default"] = logger$3;
+	exports["default"] = logger$6;
 	module.exports = exports["default"];
 }));
 var require_create_new_lookup_object = /* @__PURE__ */ __commonJSMin(((exports) => {
@@ -24032,13 +24117,13 @@ function convertHTMLToMarkdown(html) {
 	return markdown;
 }
 var init_html_parser = __esmMin((() => {}));
-var logger$2, ScrapeMember;
+var logger$5, ScrapeMember;
 var init_scrape_agent = __esmMin((() => {
 	init_base_agent();
 	init_bot_detection();
 	init_html_parser();
 	init_observability();
-	logger$2 = createLogger({ serviceName: "scrape-agent" });
+	logger$5 = createLogger({ serviceName: "scrape-agent" });
 	ScrapeMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
@@ -24061,7 +24146,7 @@ var init_scrape_agent = __esmMin((() => {
 				const result$1 = await this.tier1Fast(input.url);
 				if (isContentSuccessful(result$1.html)) return this.formatResult(result$1, 1, Date.now() - startTime);
 			} catch (error) {
-				logger$2.debug("Tier 1 fast scrape failed, trying Tier 2", {
+				logger$5.debug("Tier 1 fast scrape failed, trying Tier 2", {
 					url: input.url,
 					error: error instanceof Error ? error.message : "Unknown error"
 				});
@@ -24071,7 +24156,7 @@ var init_scrape_agent = __esmMin((() => {
 				const result$1 = await this.tier2Slow(input.url);
 				if (isContentSuccessful(result$1.html)) return this.formatResult(result$1, 2, Date.now() - startTime);
 			} catch (error) {
-				logger$2.debug("Tier 2 slow scrape failed, trying Tier 3", {
+				logger$5.debug("Tier 2 slow scrape failed, trying Tier 3", {
 					url: input.url,
 					error: error instanceof Error ? error.message : "Unknown error"
 				});
@@ -24598,11 +24683,11 @@ var init_rag = __esmMin((() => {
 	init_rag_agent();
 	init_chunker();
 }));
-var logger$1, HITLMember;
+var logger$4, HITLMember;
 var init_hitl_agent = __esmMin((() => {
 	init_base_agent();
 	init_observability();
-	logger$1 = createLogger({ serviceName: "hitl-agent" });
+	logger$4 = createLogger({ serviceName: "hitl-agent" });
 	HITLMember = class extends BaseAgent {
 		constructor(config, env) {
 			super(config);
@@ -24747,7 +24832,7 @@ var init_hitl_agent = __esmMin((() => {
 			});
 		}
 		async sendEmailNotification(executionId, approvalData, config) {
-			logger$1.debug("Email notification not yet implemented", { executionId });
+			logger$4.debug("Email notification not yet implemented", { executionId });
 		}
 		async sendWebhookNotification(executionId, approvalData, config) {
 			const webhookUrl = config.webhookUrl;
@@ -24851,6 +24936,141 @@ var init_fetch_agent = __esmMin((() => {
 var fetch_exports = /* @__PURE__ */ __export({ FetchMember: () => FetchMember });
 var init_fetch = __esmMin((() => {
 	init_fetch_agent();
+}));
+var MCPClient;
+var init_mcp_client = __esmMin((() => {
+	MCPClient = class {
+		constructor(config) {
+			this.config = config;
+		}
+		async listTools() {
+			const url = `${this.config.url}/tools`;
+			return await this.request(url, { method: "GET" });
+		}
+		async invokeTool(toolName, args) {
+			const url = `${this.config.url}/tools/${encodeURIComponent(toolName)}`;
+			const body = {
+				name: toolName,
+				arguments: args
+			};
+			return await this.request(url, {
+				method: "POST",
+				body: JSON.stringify(body),
+				headers: { "Content-Type": "application/json" }
+			});
+		}
+		async request(url, options) {
+			const headers = { ...options.headers };
+			if (this.config.auth) {
+				if (this.config.auth.type === "bearer" && this.config.auth.token) headers["Authorization"] = `Bearer ${this.config.auth.token}`;
+				else if (this.config.auth.type === "oauth" && this.config.auth.accessToken) headers["Authorization"] = `Bearer ${this.config.auth.accessToken}`;
+			}
+			const timeout = this.config.timeout || 3e4;
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), timeout);
+			try {
+				const response = await fetch(url, {
+					...options,
+					headers,
+					signal: controller.signal
+				});
+				if (!response.ok) {
+					const errorText = await response.text().catch(() => "Unknown error");
+					throw new Error(`MCP server error: ${response.status} ${response.statusText} - ${errorText}`);
+				}
+				return await response.json();
+			} catch (error) {
+				if (error instanceof Error) {
+					if (error.name === "AbortError") throw new Error(`MCP request timeout after ${timeout}ms`);
+					throw error;
+				}
+				throw new Error("Unknown MCP client error");
+			} finally {
+				clearTimeout(timeoutId);
+			}
+		}
+	};
+}));
+var ToolsMember;
+var init_tools_agent = __esmMin((() => {
+	init_base_agent();
+	init_mcp_client();
+	ToolsMember = class extends BaseAgent {
+		constructor(config, env) {
+			super(config);
+			this.env = env;
+			this.mcpServerConfig = null;
+			const cfg = config.config;
+			if (!cfg || !cfg.mcp || !cfg.tool) throw new Error("Tools agent requires \"mcp\" (server name) and \"tool\" (tool name) in config");
+			this.toolsConfig = {
+				mcp: cfg.mcp,
+				tool: cfg.tool,
+				timeout: cfg.timeout,
+				cacheDiscovery: cfg.cacheDiscovery ?? true,
+				cacheTTL: cfg.cacheTTL || 3600
+			};
+		}
+		async run(context) {
+			const input = context.input;
+			const startTime = Date.now();
+			try {
+				const response = await new MCPClient(await this.loadMCPServerConfig()).invokeTool(this.toolsConfig.tool, input);
+				return {
+					tool: this.toolsConfig.tool,
+					server: this.toolsConfig.mcp,
+					content: response.content,
+					duration: Date.now() - startTime,
+					isError: response.isError
+				};
+			} catch (error) {
+				throw new Error(`Failed to invoke tool "${this.toolsConfig.tool}" on MCP server "${this.toolsConfig.mcp}": ${error instanceof Error ? error.message : "Unknown error"}`);
+			}
+		}
+		async loadMCPServerConfig() {
+			const mcpServers = this.env.MCP_SERVERS;
+			if (!mcpServers) throw new Error("MCP servers not configured. Add MCP_SERVERS binding or configure in conductor.config.ts");
+			const serverConfig = mcpServers[this.toolsConfig.mcp];
+			if (!serverConfig) throw new Error(`MCP server "${this.toolsConfig.mcp}" not found in configuration. Available servers: ${Object.keys(mcpServers).join(", ")}`);
+			if (this.toolsConfig.timeout) serverConfig.timeout = this.toolsConfig.timeout;
+			return serverConfig;
+		}
+		async discoverTools() {
+			const client = new MCPClient(await this.loadMCPServerConfig());
+			if (this.toolsConfig.cacheDiscovery) {
+				const cached = await this.getCachedTools(this.toolsConfig.mcp);
+				if (cached) return cached;
+			}
+			const response = await client.listTools();
+			if (this.toolsConfig.cacheDiscovery) await this.cacheTools(this.toolsConfig.mcp, response.tools);
+			return response.tools;
+		}
+		async getCachedTools(serverName) {
+			try {
+				const kv = this.env.MCP_CACHE;
+				if (!kv) return null;
+				const cacheKey = `mcp:tools:${serverName}`;
+				return await kv.get(cacheKey, "json");
+			} catch (error) {
+				return null;
+			}
+		}
+		async cacheTools(serverName, tools) {
+			try {
+				const kv = this.env.MCP_CACHE;
+				if (!kv) return;
+				const cacheKey = `mcp:tools:${serverName}`;
+				await kv.put(cacheKey, JSON.stringify(tools), { expirationTtl: this.toolsConfig.cacheTTL });
+			} catch (error) {}
+		}
+	};
+}));
+var tools_exports = /* @__PURE__ */ __export({
+	MCPClient: () => MCPClient,
+	ToolsMember: () => ToolsMember
+});
+var init_tools = __esmMin((() => {
+	init_tools_agent();
+	init_mcp_client();
 }));
 var QueriesMember;
 var init_queries_agent = __esmMin((() => {
@@ -25235,6 +25455,56 @@ function registerAllBuiltInMembers(registry$1) {
 		return new FetchMember$1(config, env);
 	});
 	registry$1.register({
+		name: "tools",
+		version: "1.0.0",
+		description: "Invoke external MCP (Model Context Protocol) tools over HTTP",
+		operation: Operation.tools,
+		tags: [
+			"mcp",
+			"tools",
+			"integration",
+			"http"
+		],
+		examples: [{
+			name: "github-tool",
+			description: "Get GitHub pull request data",
+			input: {
+				owner: "anthropics",
+				repo: "anthropic-sdk-typescript",
+				pull_number: 123
+			},
+			config: {
+				mcp: "github",
+				tool: "get_pull_request"
+			},
+			output: {
+				tool: "get_pull_request",
+				server: "github",
+				content: [{
+					type: "text",
+					text: "PR data..."
+				}],
+				duration: 450
+			}
+		}, {
+			name: "search-tool",
+			description: "Search the web",
+			input: {
+				query: "latest AI developments",
+				limit: 10
+			},
+			config: {
+				mcp: "search-engine",
+				tool: "search",
+				timeout: 5e3
+			}
+		}],
+		documentation: "https://docs.conductor.dev/built-in-agents/tools"
+	}, (config, env) => {
+		const { ToolsMember: ToolsMember$1 } = (init_tools(), __toCommonJS(tools_exports));
+		return new ToolsMember$1(config, env);
+	});
+	registry$1.register({
 		name: "queries",
 		version: "1.0.0",
 		description: "Execute SQL queries across Hyperdrive-connected databases with query catalog support",
@@ -25343,7 +25613,7 @@ function registerAllBuiltInMembers(registry$1) {
 	});
 }
 init_observability();
-var logger = createLogger({ serviceName: "scoring-executor" });
+var logger$3 = createLogger({ serviceName: "scoring-executor" });
 var ScoringExecutor = class {
 	async executeWithScoring(executeAgent, evaluateOutput, config) {
 		const startTime = Date.now();
@@ -25383,7 +25653,7 @@ var ScoringExecutor = class {
 						}
 						break;
 					case "continue":
-						logger.warn("Score below threshold, continuing anyway", {
+						logger$3.warn("Score below threshold, continuing anyway", {
 							score: score.score,
 							threshold: config.thresholds?.minimum,
 							attempts
@@ -25570,6 +25840,420 @@ var EnsembleScorer = class {
 		if (recentAvg > olderAvg + changeThreshold) return "improving";
 		else if (recentAvg < olderAvg - changeThreshold) return "declining";
 		return "stable";
+	}
+};
+init_observability();
+var logger$2 = createLogger({ serviceName: "webhook-notifier" });
+var WebhookNotifier = class {
+	constructor(config) {
+		this.config = {
+			retries: config.retries || 3,
+			timeout: config.timeout || 5e3,
+			...config
+		};
+	}
+	async send(eventData) {
+		const startTime = Date.now();
+		const maxRetries = this.config.retries || 0;
+		for (let attempt = 0; attempt <= maxRetries; attempt++) try {
+			const result = await this.sendRequest(eventData, attempt);
+			return {
+				success: true,
+				type: "webhook",
+				target: this.config.url,
+				event: eventData.event,
+				duration: Date.now() - startTime,
+				statusCode: result.status,
+				attempts: attempt + 1
+			};
+		} catch (error) {
+			logger$2.error("Webhook notification failed", error instanceof Error ? error : void 0, {
+				url: this.config.url,
+				attempt: attempt + 1,
+				maxRetries: maxRetries + 1
+			});
+			if (attempt === maxRetries) return {
+				success: false,
+				type: "webhook",
+				target: this.config.url,
+				event: eventData.event,
+				duration: Date.now() - startTime,
+				error: error instanceof Error ? error.message : "Unknown error",
+				attempts: attempt + 1
+			};
+			const delay = this.calculateBackoff(attempt);
+			await this.sleep(delay);
+		}
+		return {
+			success: false,
+			type: "webhook",
+			target: this.config.url,
+			event: eventData.event,
+			duration: Date.now() - startTime,
+			error: "Maximum retries exceeded",
+			attempts: maxRetries + 1
+		};
+	}
+	async sendRequest(eventData, attempt) {
+		const timestamp$1 = Math.floor(Date.now() / 1e3);
+		const payload = {
+			event: eventData.event,
+			timestamp: eventData.timestamp,
+			data: eventData.data
+		};
+		const body = JSON.stringify(payload);
+		const headers = {
+			"Content-Type": "application/json",
+			"User-Agent": "Conductor-Webhook/1.0",
+			"X-Conductor-Event": eventData.event,
+			"X-Conductor-Timestamp": timestamp$1.toString(),
+			"X-Conductor-Delivery-Attempt": (attempt + 1).toString()
+		};
+		if (this.config.secret) headers["X-Conductor-Signature"] = await this.generateSignature(body, timestamp$1, this.config.secret);
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+		try {
+			const response = await fetch(this.config.url, {
+				method: "POST",
+				headers,
+				body,
+				signal: controller.signal
+			});
+			if (!response.ok && response.status >= 400) throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
+			return { status: response.status };
+		} finally {
+			clearTimeout(timeoutId);
+		}
+	}
+	async generateSignature(body, timestamp$1, secret) {
+		const payload = `${timestamp$1}.${body}`;
+		const encoder = new TextEncoder();
+		const key = await crypto.subtle.importKey("raw", encoder.encode(secret), {
+			name: "HMAC",
+			hash: "SHA-256"
+		}, false, ["sign"]);
+		const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+		return `sha256=${Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+	}
+	calculateBackoff(attempt) {
+		const delays = [
+			1e3,
+			5e3,
+			3e4,
+			12e4,
+			3e5
+		];
+		return delays[Math.min(attempt, delays.length - 1)];
+	}
+	sleep(ms) {
+		return new Promise((resolve$2) => setTimeout(resolve$2, ms));
+	}
+};
+init_observability();
+var logger$1 = createLogger({ serviceName: "email-notifier" });
+var EmailNotifier = class {
+	constructor(config) {
+		this.config = config;
+	}
+	async send(eventData, env) {
+		const startTime = Date.now();
+		try {
+			const emailData = this.buildEmailData(eventData);
+			await this.sendEmail(emailData, env);
+			logger$1.info("Email notification sent", {
+				to: emailData.to,
+				event: eventData.event
+			});
+			return {
+				success: true,
+				type: "email",
+				target: emailData.to.join(", "),
+				event: eventData.event,
+				duration: Date.now() - startTime
+			};
+		} catch (error) {
+			logger$1.error("Email notification failed", error instanceof Error ? error : void 0, {
+				to: this.config.to,
+				event: eventData.event
+			});
+			return {
+				success: false,
+				type: "email",
+				target: this.config.to.join(", "),
+				event: eventData.event,
+				duration: Date.now() - startTime,
+				error: error instanceof Error ? error.message : "Unknown error"
+			};
+		}
+	}
+	buildEmailData(eventData) {
+		const subject = this.interpolateSubject(eventData);
+		const text = this.buildTextBody(eventData);
+		const html = this.buildHtmlBody(eventData);
+		return {
+			to: this.config.to,
+			from: this.config.from || "notifications@conductor.dev",
+			subject,
+			text,
+			html,
+			event: eventData.event,
+			eventData: eventData.data
+		};
+	}
+	interpolateSubject(eventData) {
+		if (!this.config.subject) return `Conductor: ${eventData.event}`;
+		let subject = this.config.subject;
+		subject = subject.replace(/\${event}/g, eventData.event);
+		subject = subject.replace(/\${ensemble\.name}/g, eventData.data.ensemble || "Unknown");
+		subject = subject.replace(/\${timestamp}/g, eventData.timestamp);
+		return subject;
+	}
+	buildTextBody(eventData) {
+		return [
+			`Event: ${eventData.event}`,
+			`Timestamp: ${eventData.timestamp}`,
+			"",
+			"Details:",
+			JSON.stringify(eventData.data, null, 2),
+			"",
+			"---",
+			"This is an automated notification from Conductor."
+		].join("\n");
+	}
+	buildHtmlBody(eventData) {
+		eventData.event.split(".")[0];
+		const eventAction = eventData.event.split(".")[1] || "";
+		let color = "#2563eb";
+		if (eventAction === "failed" || eventAction === "timeout") color = "#dc2626";
+		else if (eventAction === "completed") color = "#16a34a";
+		return `
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+			line-height: 1.6;
+			color: #333;
+			max-width: 600px;
+			margin: 0 auto;
+			padding: 20px;
+		}
+		.header {
+			background-color: ${color};
+			color: white;
+			padding: 20px;
+			border-radius: 8px 8px 0 0;
+		}
+		.header h1 {
+			margin: 0;
+			font-size: 24px;
+		}
+		.content {
+			background-color: #f9fafb;
+			padding: 20px;
+			border: 1px solid #e5e7eb;
+			border-top: none;
+			border-radius: 0 0 8px 8px;
+		}
+		.detail {
+			margin: 10px 0;
+		}
+		.label {
+			font-weight: 600;
+			color: #6b7280;
+		}
+		.value {
+			color: #111827;
+		}
+		.data {
+			background-color: white;
+			border: 1px solid #e5e7eb;
+			border-radius: 4px;
+			padding: 15px;
+			margin-top: 15px;
+			overflow-x: auto;
+		}
+		pre {
+			margin: 0;
+			font-size: 12px;
+		}
+		.footer {
+			margin-top: 20px;
+			padding-top: 20px;
+			border-top: 1px solid #e5e7eb;
+			text-align: center;
+			color: #6b7280;
+			font-size: 14px;
+		}
+	</style>
+</head>
+<body>
+	<div class="header">
+		<h1>${eventData.event}</h1>
+	</div>
+	<div class="content">
+		<div class="detail">
+			<span class="label">Timestamp:</span>
+			<span class="value">${eventData.timestamp}</span>
+		</div>
+		<div class="data">
+			<pre>${JSON.stringify(eventData.data, null, 2)}</pre>
+		</div>
+	</div>
+	<div class="footer">
+		This is an automated notification from Conductor.
+	</div>
+</body>
+</html>
+		`.trim();
+	}
+	async sendEmail(emailData, env) {
+		const response = await fetch("https://api.mailchannels.net/tx/v1/send", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				personalizations: [{ to: emailData.to.map((email) => ({ email })) }],
+				from: {
+					email: emailData.from,
+					name: "Conductor Notifications"
+				},
+				subject: emailData.subject,
+				content: [{
+					type: "text/plain",
+					value: emailData.text
+				}, {
+					type: "text/html",
+					value: emailData.html || emailData.text
+				}]
+			})
+		});
+		if (!response.ok) {
+			const errorText = await response.text().catch(() => "Unknown error");
+			throw new Error(`MailChannels API error: ${response.status} - ${errorText}`);
+		}
+	}
+};
+init_observability();
+var logger = createLogger({ serviceName: "notification-manager" });
+var NotificationManager = class {
+	static async notify(ensemble, event, eventData, env) {
+		if (!ensemble.notifications || ensemble.notifications.length === 0) return [];
+		const notificationEvent = {
+			event,
+			timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+			data: {
+				ensemble: ensemble.name,
+				...eventData
+			}
+		};
+		const relevantNotifications = ensemble.notifications.filter((notification) => notification.events.includes(event));
+		if (relevantNotifications.length === 0) return [];
+		logger.info("Sending notifications", {
+			ensemble: ensemble.name,
+			event,
+			count: relevantNotifications.length
+		});
+		const results = await Promise.all(relevantNotifications.map((notification) => this.sendNotification(notification, notificationEvent, env)));
+		const successful = results.filter((r) => r.success).length;
+		const failed = results.filter((r) => !r.success).length;
+		logger.info("Notifications sent", {
+			ensemble: ensemble.name,
+			event,
+			total: results.length,
+			successful,
+			failed
+		});
+		return results;
+	}
+	static async sendNotification(config, eventData, env) {
+		try {
+			if (config.type === "webhook") return await new WebhookNotifier({
+				url: config.url,
+				secret: config.secret,
+				retries: config.retries,
+				timeout: config.timeout
+			}).send(eventData);
+			else if (config.type === "email") return await new EmailNotifier({
+				to: config.to,
+				from: config.from,
+				subject: config.subject,
+				events: config.events
+			}).send(eventData, env);
+			const unknownType$1 = config.type || "unknown";
+			return {
+				success: false,
+				type: unknownType$1,
+				target: "unknown",
+				event: eventData.event,
+				duration: 0,
+				error: `Unknown notification type: ${unknownType$1}`
+			};
+		} catch (error) {
+			logger.error("Notification failed", error instanceof Error ? error : void 0, {
+				type: config.type,
+				event: eventData.event
+			});
+			let target = "unknown";
+			if (config.type === "webhook") target = config.url;
+			else if (config.type === "email") target = config.to.join(", ");
+			return {
+				success: false,
+				type: config.type,
+				target,
+				event: eventData.event,
+				duration: 0,
+				error: error instanceof Error ? error.message : "Unknown error"
+			};
+		}
+	}
+	static async emitExecutionStarted(ensemble, executionId, input, env) {
+		return this.notify(ensemble, "execution.started", {
+			id: executionId,
+			input
+		}, env);
+	}
+	static async emitExecutionCompleted(ensemble, executionId, output, duration, env) {
+		return this.notify(ensemble, "execution.completed", {
+			id: executionId,
+			status: "completed",
+			output,
+			duration
+		}, env);
+	}
+	static async emitExecutionFailed(ensemble, executionId, error, duration, env) {
+		return this.notify(ensemble, "execution.failed", {
+			id: executionId,
+			status: "failed",
+			error: {
+				message: error.message,
+				stack: error.stack
+			},
+			duration
+		}, env);
+	}
+	static async emitExecutionTimeout(ensemble, executionId, duration, timeout, env) {
+		return this.notify(ensemble, "execution.timeout", {
+			id: executionId,
+			duration,
+			timeout
+		}, env);
+	}
+	static async emitAgentCompleted(ensemble, executionId, agentName, output, duration, env) {
+		return this.notify(ensemble, "agent.completed", {
+			executionId,
+			agent: agentName,
+			output,
+			duration
+		}, env);
+	}
+	static async emitStateUpdated(ensemble, executionId, state, env) {
+		return this.notify(ensemble, "state.updated", {
+			executionId,
+			state
+		}, env);
 	}
 };
 init_observability();
@@ -25762,12 +26446,14 @@ var Executor = class {
 	}
 	async executeEnsemble(ensemble, input) {
 		const startTime = Date.now();
+		const executionId = `exec-${crypto.randomUUID()}`;
 		const metrics = {
 			ensemble: ensemble.name,
 			totalDuration: 0,
 			agents: [],
 			cacheHits: 0
 		};
+		this.ctx.waitUntil(NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env));
 		const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
 		let scoringState = null;
 		let ensembleScorer = null;
@@ -25795,7 +26481,14 @@ var Executor = class {
 			scoringExecutor,
 			startTime
 		};
-		return await this.executeFlow(flowContext, 0);
+		const result = await this.executeFlow(flowContext, 0);
+		if (result.success) this.ctx.waitUntil(NotificationManager.emitExecutionCompleted(ensemble, executionId, result.value.output, result.value.metrics.totalDuration, this.env));
+		else {
+			const error = new Error(result.error.message);
+			error.stack = result.error.stack;
+			this.ctx.waitUntil(NotificationManager.emitExecutionFailed(ensemble, executionId, error, Date.now() - startTime, this.env));
+		}
+		return result;
 	}
 	async executeFromYAML(yamlContent, input) {
 		const parseResult = Result.fromThrowable(() => Parser.parseEnsemble(yamlContent));

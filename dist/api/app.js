@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js';
-import { execute, agents, health, stream, async, webhooks, executions, schedules, } from './routes/index.js';
+import { execute, agents, health, stream, async, webhooks, executions, schedules, mcp, email, } from './routes/index.js';
 import { openapi } from './openapi/index.js';
 import { ScheduleManager } from '../runtime/schedule-manager.js';
 import { CatalogLoader } from '../runtime/catalog-loader.js';
@@ -61,6 +61,10 @@ export function createConductorAPI(config = {}) {
     app.route('/api/v1/schedules', schedules);
     // Webhook routes (public by default, auth configured per-webhook)
     app.route('/webhooks', webhooks);
+    // MCP server routes (expose ensembles as MCP tools)
+    app.route('/mcp', mcp);
+    // Email handler routes (Cloudflare Email Routing integration)
+    app.route('/email', email);
     // Root endpoint
     app.get('/', (c) => {
         return c.json({

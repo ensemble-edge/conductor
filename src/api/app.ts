@@ -18,6 +18,8 @@ import {
   webhooks,
   executions,
   schedules,
+  mcp,
+  email,
 } from './routes/index.js'
 import { openapi } from './openapi/index.js'
 import { ScheduleManager, type ScheduledEvent } from '../runtime/schedule-manager.js'
@@ -105,6 +107,12 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 
   // Webhook routes (public by default, auth configured per-webhook)
   app.route('/webhooks', webhooks)
+
+  // MCP server routes (expose ensembles as MCP tools)
+  app.route('/mcp', mcp)
+
+  // Email handler routes (Cloudflare Email Routing integration)
+  app.route('/email', email)
 
   // Root endpoint
   app.get('/', (c) => {

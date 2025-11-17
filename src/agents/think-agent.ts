@@ -25,6 +25,7 @@ export interface ThinkConfig {
   apiEndpoint?: string
   systemPrompt?: string
   prompt?: string // Reference to versioned prompt (e.g., "company-analysis-prompt@v1.0.0")
+  schema?: string | Record<string, unknown> // Reference to versioned schema (e.g., "schemas/invoice@v1") or inline schema
 }
 
 export interface ThinkInput {
@@ -56,6 +57,7 @@ export class ThinkAgent extends BaseAgent {
       apiEndpoint: cfg?.apiEndpoint,
       systemPrompt: cfg?.systemPrompt,
       prompt: cfg?.prompt,
+      schema: cfg?.schema,
     }
   }
 
@@ -67,6 +69,9 @@ export class ThinkAgent extends BaseAgent {
 
     // Load versioned prompt if configured
     await this.resolvePrompt(env)
+
+    // Load versioned schema if configured
+    await this.resolveSchema(env)
 
     // Get provider from registry
     const providerId = this.thinkConfig.provider || AIProvider.Anthropic
@@ -87,6 +92,7 @@ export class ThinkAgent extends BaseAgent {
       apiKey: this.thinkConfig.apiKey,
       apiEndpoint: this.thinkConfig.apiEndpoint,
       systemPrompt: this.thinkConfig.systemPrompt,
+      schema: this.thinkConfig.schema,
     }
 
     // Validate configuration
@@ -136,6 +142,45 @@ export class ThinkAgent extends BaseAgent {
           }`
         )
       }
+    }
+  }
+
+  /**
+   * Resolve schema from Edgit if needed
+   */
+  private async resolveSchema(env: ConductorEnv): Promise<void> {
+    // If schema not configured or already an object, skip resolution
+    if (!this.thinkConfig.schema) return
+    if (typeof this.thinkConfig.schema !== 'string') return
+
+    // If schema is a reference (contains path/name@version format), resolve it
+    const context: ComponentResolutionContext = {
+      env,
+      baseDir: process.cwd(),
+    }
+
+    try {
+      const resolved = await resolveValue(this.thinkConfig.schema, context)
+
+      // Set resolved content as schema (must be an object)
+      if (typeof resolved.content === 'object' && resolved.content !== null) {
+        this.thinkConfig.schema = resolved.content as Record<string, unknown>
+      } else if (typeof resolved.content === 'string') {
+        // Try parsing as JSON if string
+        try {
+          this.thinkConfig.schema = JSON.parse(resolved.content)
+        } catch {
+          throw new Error(`Schema must be valid JSON, got invalid string`)
+        }
+      } else {
+        throw new Error(`Schema must resolve to an object or JSON string, got ${typeof resolved.content}`)
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to resolve schema "${this.thinkConfig.schema}": ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
     }
   }
 

@@ -39,6 +39,7 @@ import {
 } from './scoring/index.js'
 import { ResumptionManager, type SuspendedExecutionState } from './resumption-manager.js'
 import { createLogger, type Logger } from '../observability/index.js'
+import { NotificationManager } from './notifications/index.js'
 
 export interface ExecutorConfig {
   env: ConductorEnv
@@ -572,12 +573,19 @@ export class Executor {
     input: Record<string, any>
   ): AsyncResult<ExecutionOutput, ConductorError> {
     const startTime = Date.now()
+    const executionId = `exec-${crypto.randomUUID()}`
+
     const metrics: ExecutionMetrics = {
       ensemble: ensemble.name,
       totalDuration: 0,
       agents: [],
       cacheHits: 0,
     }
+
+    // Send execution.started notification (fire and forget)
+    this.ctx.waitUntil(
+      NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env as Env)
+    )
 
     // Initialize state manager if configured
     const stateManager = ensemble.state ? new StateManager(ensemble.state) : null
@@ -617,7 +625,36 @@ export class Executor {
     }
 
     // Execute flow from the beginning
-    return await this.executeFlow(flowContext, 0)
+    const result = await this.executeFlow(flowContext, 0)
+
+    // Send notifications based on result
+    if (result.success) {
+      // execution.completed
+      this.ctx.waitUntil(
+        NotificationManager.emitExecutionCompleted(
+          ensemble,
+          executionId,
+          result.value.output,
+          result.value.metrics.totalDuration,
+          this.env as Env
+        )
+      )
+    } else {
+      // execution.failed
+      const error = new Error(result.error.message)
+      error.stack = result.error.stack
+      this.ctx.waitUntil(
+        NotificationManager.emitExecutionFailed(
+          ensemble,
+          executionId,
+          error,
+          Date.now() - startTime,
+          this.env as Env
+        )
+      )
+    }
+
+    return result
   }
 
   /**

@@ -29,19 +29,33 @@ export class AnthropicProvider extends BaseAIProvider {
     const anthropicMessages = messages.filter((m) => m.role !== 'system')
     const systemMessage = messages.find((m) => m.role === 'system')?.content || config.systemPrompt
 
+    // Build request body
+    const requestBody: Record<string, unknown> = {
+      model: config.model || this.defaultModel,
+      messages: anthropicMessages,
+      system: systemMessage,
+      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+    }
+
+    // Add schema for structured outputs if configured
+    if (config.schema) {
+      const schema = typeof config.schema === 'string' ? JSON.parse(config.schema) : config.schema
+
+      // Use Anthropic's native JSON schema support
+      requestBody.response_format = {
+        type: 'json_schema',
+        json_schema: schema,
+      }
+    }
+
     const data = (await this.makeRequest(
       endpoint,
       {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      {
-        model: config.model || this.defaultModel,
-        messages: anthropicMessages,
-        system: systemMessage,
-        temperature: config.temperature,
-        max_tokens: config.maxTokens,
-      }
+      requestBody
     )) as {
       content: Array<{ text?: string }>
       usage?: { input_tokens?: number; output_tokens?: number }
@@ -57,6 +71,7 @@ export class AnthropicProvider extends BaseAIProvider {
         stopReason: data.stop_reason,
         inputTokens: data.usage?.input_tokens,
         outputTokens: data.usage?.output_tokens,
+        schema: config.schema ? (typeof config.schema === 'string' ? config.schema : JSON.stringify(config.schema)) : undefined,
       },
     }
   }

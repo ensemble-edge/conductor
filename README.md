@@ -17,7 +17,7 @@
 - 🧪 **Built-in Testing** - 276 tests passing, comprehensive mocks, custom matchers
 - 🔄 **State Management** - Built-in state sharing across member executions
 - 💾 **Integrated Caching** - KV-based caching for performance and cost optimization
-- 🧩 **Composable Members** - Nine member types: Think (AI), Function (JS), Data (KV/D1/R2), API (HTTP), Email, SMS, HTML, PDF, Page
+- 🧩 **Composable Operations** - Think (AI), Code (JS), Storage (KV/D1/R2), HTTP, Tools (MCP), Email, SMS, HTML, PDF, Page
 - 🛠️ **CLI Tools** - Project scaffolding, member generation, and upgrades
 - 📦 **SDK** - Client library, testing utilities, and member factories
 - 🔁 **Durable Objects** - Stateful workflows with strong consistency (ExecutionState, HITL)
@@ -91,6 +91,12 @@ my-project/
 │                                 #    - Feature flags
 │                                 #    - Environment-specific settings
 │
+├── schemas/                      # 🔄 SHARED SCHEMAS - Versioned with Edgit
+│   ├── invoice.json              #    JSON Schema definitions for:
+│   └── contact.json              #    - Structured AI outputs
+│                                 #    - Data validation
+│                                 #    - Versioned independently
+│
 ├── wrangler.toml                 # 🔧 Cloudflare configuration
 ├── package.json                  # 📦 Dependencies (@ensemble-edge/conductor, @ensemble-edge/edgit)
 ├── tsconfig.json                 # TypeScript config
@@ -106,6 +112,7 @@ my-project/
 | **Prompts** | `prompts/<name>.md` | Create file, register with `edgit tag` | Shared prompt templates - reusable across members/ensembles |
 | **Queries** | `queries/<name>.sql` | Create file, register with `edgit tag` | Shared SQL queries - reusable, versioned, optimized |
 | **Configs** | `configs/<name>.yaml` | Create file, register with `edgit tag` | Shared configuration - model settings, feature flags |
+| **Schemas** | `schemas/<name>.json` | Create file, register with `edgit tag` | JSON Schema for structured AI outputs - versioned, validated |
 | **Utilities** | `src/lib/<name>.ts` | Create file | Shared helper functions across your codebase |
 | **Schedules** | Inside ensemble YAML | Add `schedules:` array | Cron-based automation (daily reports, monitoring) |
 | **Webhooks** | Inside ensemble YAML | Add `webhooks:` array | HTTP triggers (Stripe, GitHub, external events) |

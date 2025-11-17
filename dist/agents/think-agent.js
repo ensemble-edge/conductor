@@ -29,6 +29,7 @@ export class ThinkAgent extends BaseAgent {
             apiEndpoint: cfg?.apiEndpoint,
             systemPrompt: cfg?.systemPrompt,
             prompt: cfg?.prompt,
+            schema: cfg?.schema,
         };
     }
     /**
@@ -38,6 +39,8 @@ export class ThinkAgent extends BaseAgent {
         const { input, env } = context;
         // Load versioned prompt if configured
         await this.resolvePrompt(env);
+        // Load versioned schema if configured
+        await this.resolveSchema(env);
         // Get provider from registry
         const providerId = this.thinkConfig.provider || AIProvider.Anthropic;
         const provider = this.providerRegistry.get(providerId);
@@ -53,6 +56,7 @@ export class ThinkAgent extends BaseAgent {
             apiKey: this.thinkConfig.apiKey,
             apiEndpoint: this.thinkConfig.apiEndpoint,
             systemPrompt: this.thinkConfig.systemPrompt,
+            schema: this.thinkConfig.schema,
         };
         // Validate configuration
         const configError = provider.getConfigError(providerConfig, env);
@@ -94,6 +98,43 @@ export class ThinkAgent extends BaseAgent {
             catch (error) {
                 throw new Error(`Failed to resolve prompt "${this.thinkConfig.prompt}": ${error instanceof Error ? error.message : String(error)}`);
             }
+        }
+    }
+    /**
+     * Resolve schema from Edgit if needed
+     */
+    async resolveSchema(env) {
+        // If schema not configured or already an object, skip resolution
+        if (!this.thinkConfig.schema)
+            return;
+        if (typeof this.thinkConfig.schema !== 'string')
+            return;
+        // If schema is a reference (contains path/name@version format), resolve it
+        const context = {
+            env,
+            baseDir: process.cwd(),
+        };
+        try {
+            const resolved = await resolveValue(this.thinkConfig.schema, context);
+            // Set resolved content as schema (must be an object)
+            if (typeof resolved.content === 'object' && resolved.content !== null) {
+                this.thinkConfig.schema = resolved.content;
+            }
+            else if (typeof resolved.content === 'string') {
+                // Try parsing as JSON if string
+                try {
+                    this.thinkConfig.schema = JSON.parse(resolved.content);
+                }
+                catch {
+                    throw new Error(`Schema must be valid JSON, got invalid string`);
+                }
+            }
+            else {
+                throw new Error(`Schema must resolve to an object or JSON string, got ${typeof resolved.content}`);
+            }
+        }
+        catch (error) {
+            throw new Error(`Failed to resolve schema "${this.thinkConfig.schema}": ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     /**

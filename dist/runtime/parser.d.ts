@@ -71,9 +71,10 @@ declare const EnsembleSchema: z.ZodObject<{
         criteria?: unknown[] | Record<string, string> | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
     }>>;
-    webhooks: z.ZodOptional<z.ZodArray<z.ZodObject<{
-        path: z.ZodString;
-        method: z.ZodOptional<z.ZodEnum<["POST", "GET"]>>;
+    expose: z.ZodEffects<z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
+        type: z.ZodLiteral<"webhook">;
+        path: z.ZodOptional<z.ZodString>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodEnum<["POST", "GET", "PUT", "PATCH", "DELETE"]>, "many">>;
         auth: z.ZodOptional<z.ZodObject<{
             type: z.ZodEnum<["bearer", "signature", "basic"]>;
             secret: z.ZodString;
@@ -84,30 +85,184 @@ declare const EnsembleSchema: z.ZodObject<{
             type: "bearer" | "signature" | "basic";
             secret: string;
         }>>;
+        public: z.ZodOptional<z.ZodBoolean>;
         mode: z.ZodOptional<z.ZodEnum<["trigger", "resume"]>>;
         async: z.ZodOptional<z.ZodBoolean>;
         timeout: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
-        path: string;
-        method?: "POST" | "GET" | undefined;
+        type: "webhook";
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
+        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         timeout?: number | undefined;
     }, {
-        path: string;
-        method?: "POST" | "GET" | undefined;
+        type: "webhook";
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
+        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         timeout?: number | undefined;
-    }>, "many">>;
+    }>, z.ZodObject<{
+        type: z.ZodLiteral<"mcp">;
+        auth: z.ZodOptional<z.ZodObject<{
+            type: z.ZodEnum<["bearer", "oauth"]>;
+            secret: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        }, {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        }>>;
+        public: z.ZodOptional<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        type: "mcp";
+        auth?: {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        } | undefined;
+        public?: boolean | undefined;
+    }, {
+        type: "mcp";
+        auth?: {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        } | undefined;
+        public?: boolean | undefined;
+    }>, z.ZodObject<{
+        type: z.ZodLiteral<"email">;
+        addresses: z.ZodArray<z.ZodString, "many">;
+        auth: z.ZodOptional<z.ZodObject<{
+            from: z.ZodArray<z.ZodString, "many">;
+        }, "strip", z.ZodTypeAny, {
+            from: string[];
+        }, {
+            from: string[];
+        }>>;
+        public: z.ZodOptional<z.ZodBoolean>;
+        reply_with_output: z.ZodOptional<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        type: "email";
+        addresses: string[];
+        auth?: {
+            from: string[];
+        } | undefined;
+        public?: boolean | undefined;
+        reply_with_output?: boolean | undefined;
+    }, {
+        type: "email";
+        addresses: string[];
+        auth?: {
+            from: string[];
+        } | undefined;
+        public?: boolean | undefined;
+        reply_with_output?: boolean | undefined;
+    }>]>, "many">>, ({
+        type: "webhook";
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+    } | {
+        type: "mcp";
+        auth?: {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        } | undefined;
+        public?: boolean | undefined;
+    } | {
+        type: "email";
+        addresses: string[];
+        auth?: {
+            from: string[];
+        } | undefined;
+        public?: boolean | undefined;
+        reply_with_output?: boolean | undefined;
+    })[] | undefined, ({
+        type: "webhook";
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+    } | {
+        type: "mcp";
+        auth?: {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        } | undefined;
+        public?: boolean | undefined;
+    } | {
+        type: "email";
+        addresses: string[];
+        auth?: {
+            from: string[];
+        } | undefined;
+        public?: boolean | undefined;
+        reply_with_output?: boolean | undefined;
+    })[] | undefined>;
+    notifications: z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
+        type: z.ZodLiteral<"webhook">;
+        url: z.ZodString;
+        events: z.ZodArray<z.ZodEnum<["execution.started", "execution.completed", "execution.failed", "execution.timeout", "agent.completed", "state.updated"]>, "many">;
+        secret: z.ZodOptional<z.ZodString>;
+        retries: z.ZodOptional<z.ZodNumber>;
+        timeout: z.ZodOptional<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        type: "webhook";
+        url: string;
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        secret?: string | undefined;
+        timeout?: number | undefined;
+        retries?: number | undefined;
+    }, {
+        type: "webhook";
+        url: string;
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        secret?: string | undefined;
+        timeout?: number | undefined;
+        retries?: number | undefined;
+    }>, z.ZodObject<{
+        type: z.ZodLiteral<"email">;
+        to: z.ZodArray<z.ZodString, "many">;
+        events: z.ZodArray<z.ZodEnum<["execution.started", "execution.completed", "execution.failed", "execution.timeout", "agent.completed", "state.updated"]>, "many">;
+        subject: z.ZodOptional<z.ZodString>;
+        from: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        type: "email";
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        to: string[];
+        from?: string | undefined;
+        subject?: string | undefined;
+    }, {
+        type: "email";
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        to: string[];
+        from?: string | undefined;
+        subject?: string | undefined;
+    }>]>, "many">>;
     schedules: z.ZodOptional<z.ZodArray<z.ZodObject<{
         cron: z.ZodString;
         timezone: z.ZodOptional<z.ZodString>;
@@ -295,17 +450,48 @@ declare const EnsembleSchema: z.ZodObject<{
         schema?: Record<string, unknown> | undefined;
         initial?: Record<string, unknown> | undefined;
     } | undefined;
-    webhooks?: {
-        path: string;
-        method?: "POST" | "GET" | undefined;
+    expose?: ({
+        type: "webhook";
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
+        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         timeout?: number | undefined;
-    }[] | undefined;
+    } | {
+        type: "mcp";
+        auth?: {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        } | undefined;
+        public?: boolean | undefined;
+    } | {
+        type: "email";
+        addresses: string[];
+        auth?: {
+            from: string[];
+        } | undefined;
+        public?: boolean | undefined;
+        reply_with_output?: boolean | undefined;
+    })[] | undefined;
+    notifications?: ({
+        type: "webhook";
+        url: string;
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        secret?: string | undefined;
+        timeout?: number | undefined;
+        retries?: number | undefined;
+    } | {
+        type: "email";
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        to: string[];
+        from?: string | undefined;
+        subject?: string | undefined;
+    })[] | undefined;
     schedules?: {
         cron: string;
         enabled?: boolean | undefined;
@@ -361,17 +547,48 @@ declare const EnsembleSchema: z.ZodObject<{
         schema?: Record<string, unknown> | undefined;
         initial?: Record<string, unknown> | undefined;
     } | undefined;
-    webhooks?: {
-        path: string;
-        method?: "POST" | "GET" | undefined;
+    expose?: ({
+        type: "webhook";
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
+        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         timeout?: number | undefined;
-    }[] | undefined;
+    } | {
+        type: "mcp";
+        auth?: {
+            type: "bearer" | "oauth";
+            secret?: string | undefined;
+        } | undefined;
+        public?: boolean | undefined;
+    } | {
+        type: "email";
+        addresses: string[];
+        auth?: {
+            from: string[];
+        } | undefined;
+        public?: boolean | undefined;
+        reply_with_output?: boolean | undefined;
+    })[] | undefined;
+    notifications?: ({
+        type: "webhook";
+        url: string;
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        secret?: string | undefined;
+        timeout?: number | undefined;
+        retries?: number | undefined;
+    } | {
+        type: "email";
+        events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
+        to: string[];
+        from?: string | undefined;
+        subject?: string | undefined;
+    })[] | undefined;
     schedules?: {
         cron: string;
         enabled?: boolean | undefined;
@@ -418,7 +635,8 @@ declare const AgentSchema: z.ZodObject<{
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>;
 export type AgentConfig = z.infer<typeof AgentSchema>;
 export type FlowStep = EnsembleConfig['flow'][number];
-export type WebhookConfig = NonNullable<EnsembleConfig['webhooks']>[number];
+export type ExposeConfig = NonNullable<EnsembleConfig['expose']>[number];
+export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number];
 export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number];
 export declare class Parser {
     private static interpolator;

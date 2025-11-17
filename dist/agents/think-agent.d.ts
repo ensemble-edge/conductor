@@ -21,6 +21,7 @@ export interface ThinkConfig {
     apiEndpoint?: string;
     systemPrompt?: string;
     prompt?: string;
+    schema?: string | Record<string, unknown>;
 }
 export interface ThinkInput {
     prompt?: string;
@@ -45,6 +46,10 @@ export declare class ThinkAgent extends BaseAgent {
      * Resolve prompt from Edgit if needed
      */
     private resolvePrompt;
+    /**
+     * Resolve schema from Edgit if needed
+     */
+    private resolveSchema;
     /**
      * Build messages array from input
      */
