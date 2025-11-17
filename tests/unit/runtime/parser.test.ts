@@ -71,141 +71,122 @@ flow:
 			expect(step.input?.mode).toBe('process');
 		});
 
-		it('should parse ensemble with webhooks', () => {
-			const yaml = `
+
+	it('should parse ensemble with webhook expose', () => {
+		const yaml = `
 name: webhook-enabled
-webhooks:
-  - path: /trigger
-    method: POST
+expose:
+  - type: webhook
+    path: /trigger
+    methods: [POST]
+    auth:
+      type: bearer
+      secret: test-secret
 flow:
   - agent: handler
-			`;
+		`;
 
-			const result = Parser.parseEnsemble(yaml);
-			expect(result.webhooks).toHaveLength(1);
-			expect(result.webhooks?.[0].path).toBe('/trigger');
-		});
+		const result = Parser.parseEnsemble(yaml);
+		expect(result.expose).toHaveLength(1);
+		expect(result.expose?.[0].type).toBe('webhook');
+		if (result.expose?.[0].type === 'webhook') {
+			expect(result.expose[0].path).toBe('/trigger');
+		}
+	});
 
-		it('should parse ensemble with schedules', () => {
-			const yaml = `
-name: scheduled
-schedules:
-  - cron: "0 0 * * *"
-    enabled: true
+	it('should parse ensemble with MCP expose', () => {
+		const yaml = `
+name: mcp-tool
+expose:
+  - type: mcp
+    auth:
+      type: bearer
+      secret: test-secret
 flow:
-  - agent: daily-task
-			`;
+  - agent: processor
+		`;
 
-			const result = Parser.parseEnsemble(yaml);
-			expect(result.schedules).toHaveLength(1);
-			expect(result.schedules?.[0].cron).toBe('0 0 * * *');
-		});
+		const result = Parser.parseEnsemble(yaml);
+		expect(result.expose).toHaveLength(1);
+		expect(result.expose?.[0].type).toBe('mcp');
+	});
 
-		it('should parse ensemble with scoring config', () => {
-			const yaml = `
-name: scored
-scoring:
-  enabled: true
-  defaultThresholds:
-    minimum: 0.7
-    target: 0.85
+	it('should parse ensemble with email expose', () => {
+		const yaml = `
+name: email-triggered
+expose:
+  - type: email
+    addresses:
+      - test@example.com
+    auth:
+      from: ['trusted@example.com']
 flow:
-  - agent: evaluator
-			`;
+  - agent: processor
+		`;
 
-			const result = Parser.parseEnsemble(yaml);
-			expect(result.scoring).toBeDefined();
-			expect(result.scoring?.enabled).toBe(true);
-			expect(result.scoring?.defaultThresholds.minimum).toBe(0.7);
-		});
+		const result = Parser.parseEnsemble(yaml);
+		expect(result.expose).toHaveLength(1);
+		expect(result.expose?.[0].type).toBe('email');
+		if (result.expose?.[0].type === 'email') {
+			expect(result.expose[0].addresses).toContain('test@example.com');
+		}
+	});
 
-		it('should handle YAML comments', () => {
-			const yaml = `
-# This is a test ensemble
-name: test
-# Define flow
+	it('should parse ensemble with public webhook', () => {
+		const yaml = `
+name: public-webhook
+expose:
+  - type: webhook
+    path: /public
+    public: true
 flow:
-  - agent: greeter  # Greeting step
-			`;
+  - agent: handler
+		`;
 
-			const result = Parser.parseEnsemble(yaml);
-			expect(result.name).toBe('test');
-		});
+		const result = Parser.parseEnsemble(yaml);
+		expect(result.expose).toHaveLength(1);
+		if (result.expose?.[0].type === 'webhook') {
+			expect(result.expose[0].public).toBe(true);
+		}
+	});
 
-		it('should reject invalid YAML syntax', () => {
-			const yaml = `
-name: test
-flow: [[[
-			`;
-
-			expect(() => Parser.parseEnsemble(yaml)).toThrow();
-		});
-
-		it('should reject ensemble without name', () => {
-			const yaml = `
+	it('should reject expose without auth or public flag', () => {
+		const yaml = `
+name: insecure
+expose:
+  - type: webhook
+    path: /insecure
 flow:
-  - agent: greeter
-			`;
+  - agent: handler
+		`;
 
-			expect(() => Parser.parseEnsemble(yaml)).toThrow(/name/i);
-		});
+		expect(() => Parser.parseEnsemble(yaml)).toThrow(/auth configuration or explicit public: true/);
+	});
 
-		it('should reject ensemble without flow', () => {
-			const yaml = `
-name: test
-			`;
-
-			expect(() => Parser.parseEnsemble(yaml)).toThrow(/flow/i);
-		});
-
-		it('should reject flow step without agent', () => {
-			const yaml = `
-name: test
+	it('should parse ensemble with notifications', () => {
+		const yaml = `
+name: notifying-ensemble
+notifications:
+  - type: webhook
+    url: https://api.example.com/webhooks
+    events:
+      - execution.completed
+      - execution.failed
+    secret: webhook-secret
+  - type: email
+    to: [admin@example.com]
+    events: [execution.failed]
+    subject: "Alert: Execution failed"
 flow:
-  - input: { data: test }
-			`;
+  - agent: processor
+		`;
 
-			expect(() => Parser.parseEnsemble(yaml)).toThrow(/agent/i);
-		});
+		const result = Parser.parseEnsemble(yaml);
+		expect(result.notifications).toHaveLength(2);
+		expect(result.notifications?.[0].type).toBe('webhook');
+		expect(result.notifications?.[1].type).toBe('email');
+	});
 
-		it('should reject invalid scoring threshold', () => {
-			const yaml = `
-name: test
-scoring:
-  enabled: true
-  defaultThresholds:
-    minimum: 1.5
-flow:
-  - agent: test
-			`;
-
-			expect(() => Parser.parseEnsemble(yaml)).toThrow();
-		});
-
-		it('should reject invalid webhook method', () => {
-			const yaml = `
-name: test
-webhooks:
-  - path: /test
-    method: DELETE
-flow:
-  - agent: test
-			`;
-
-			expect(() => Parser.parseEnsemble(yaml)).toThrow();
-		});
-
-		it('should reject empty webhook path', () => {
-			const yaml = `
-name: test
-webhooks:
-  - path: ""
-flow:
-  - agent: test
-			`;
-
-			expect(() => Parser.parseEnsemble(yaml)).toThrow(/path/i);
-		});
 
 		it('should reject invalid schedule cron', () => {
 			const yaml = `

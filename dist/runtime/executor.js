@@ -21,6 +21,7 @@ import { Errors, AgentExecutionError, EnsembleExecutionError, } from '../errors/
 import { Operation } from '../types/constants.js';
 import { ScoringExecutor, EnsembleScorer, } from './scoring/index.js';
 import { createLogger } from '../observability/index.js';
+import { NotificationManager } from './notifications/index.js';
 /**
  * Core execution engine for ensembles with Result-based error handling
  */
@@ -364,12 +365,15 @@ export class Executor {
      */
     async executeEnsemble(ensemble, input) {
         const startTime = Date.now();
+        const executionId = `exec-${crypto.randomUUID()}`;
         const metrics = {
             ensemble: ensemble.name,
             totalDuration: 0,
             agents: [],
             cacheHits: 0,
         };
+        // Send execution.started notification (fire and forget)
+        this.ctx.waitUntil(NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env));
         // Initialize state manager if configured
         const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
         // Initialize scoring if enabled
@@ -403,7 +407,19 @@ export class Executor {
             startTime,
         };
         // Execute flow from the beginning
-        return await this.executeFlow(flowContext, 0);
+        const result = await this.executeFlow(flowContext, 0);
+        // Send notifications based on result
+        if (result.success) {
+            // execution.completed
+            this.ctx.waitUntil(NotificationManager.emitExecutionCompleted(ensemble, executionId, result.value.output, result.value.metrics.totalDuration, this.env));
+        }
+        else {
+            // execution.failed
+            const error = new Error(result.error.message);
+            error.stack = result.error.stack;
+            this.ctx.waitUntil(NotificationManager.emitExecutionFailed(ensemble, executionId, error, Date.now() - startTime, this.env));
+        }
+        return result;
     }
     /**
      * Load and execute an ensemble from YAML with Result-based error handling

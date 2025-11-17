@@ -1619,6 +1619,219 @@ var init_fetch = __esm({
   }
 });
 
+// src/agents/built-in/tools/mcp-client.ts
+var MCPClient;
+var init_mcp_client = __esm({
+  "src/agents/built-in/tools/mcp-client.ts"() {
+    "use strict";
+    MCPClient = class {
+      constructor(config) {
+        this.config = config;
+      }
+      /**
+       * Discover available tools from MCP server
+       */
+      async listTools() {
+        const url = `${this.config.url}/tools`;
+        const response = await this.request(url, {
+          method: "GET"
+        });
+        return response;
+      }
+      /**
+       * Invoke a tool on the MCP server
+       */
+      async invokeTool(toolName, args) {
+        const url = `${this.config.url}/tools/${encodeURIComponent(toolName)}`;
+        const body = {
+          name: toolName,
+          arguments: args
+        };
+        const response = await this.request(url, {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+        return response;
+      }
+      /**
+       * Make an authenticated HTTP request to MCP server
+       */
+      async request(url, options) {
+        const headers = {
+          ...options.headers
+        };
+        if (this.config.auth) {
+          if (this.config.auth.type === "bearer" && this.config.auth.token) {
+            headers["Authorization"] = `Bearer ${this.config.auth.token}`;
+          } else if (this.config.auth.type === "oauth" && this.config.auth.accessToken) {
+            headers["Authorization"] = `Bearer ${this.config.auth.accessToken}`;
+          }
+        }
+        const timeout = this.config.timeout || 3e4;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        try {
+          const response = await fetch(url, {
+            ...options,
+            headers,
+            signal: controller.signal
+          });
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "Unknown error");
+            throw new Error(
+              `MCP server error: ${response.status} ${response.statusText} - ${errorText}`
+            );
+          }
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          if (error instanceof Error) {
+            if (error.name === "AbortError") {
+              throw new Error(`MCP request timeout after ${timeout}ms`);
+            }
+            throw error;
+          }
+          throw new Error("Unknown MCP client error");
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+    };
+  }
+});
+
+// src/agents/built-in/tools/tools-agent.ts
+var ToolsMember;
+var init_tools_agent = __esm({
+  "src/agents/built-in/tools/tools-agent.ts"() {
+    "use strict";
+    init_base_agent();
+    init_mcp_client();
+    ToolsMember = class extends BaseAgent {
+      constructor(config, env) {
+        super(config);
+        this.env = env;
+        this.mcpServerConfig = null;
+        const cfg = config.config;
+        if (!cfg || !cfg.mcp || !cfg.tool) {
+          throw new Error('Tools agent requires "mcp" (server name) and "tool" (tool name) in config');
+        }
+        this.toolsConfig = {
+          mcp: cfg.mcp,
+          tool: cfg.tool,
+          timeout: cfg.timeout,
+          cacheDiscovery: cfg.cacheDiscovery ?? true,
+          cacheTTL: cfg.cacheTTL || 3600
+        };
+      }
+      async run(context) {
+        const input = context.input;
+        const startTime = Date.now();
+        try {
+          const serverConfig = await this.loadMCPServerConfig();
+          const client = new MCPClient(serverConfig);
+          const response = await client.invokeTool(this.toolsConfig.tool, input);
+          return {
+            tool: this.toolsConfig.tool,
+            server: this.toolsConfig.mcp,
+            content: response.content,
+            duration: Date.now() - startTime,
+            isError: response.isError
+          };
+        } catch (error) {
+          throw new Error(
+            `Failed to invoke tool "${this.toolsConfig.tool}" on MCP server "${this.toolsConfig.mcp}": ${error instanceof Error ? error.message : "Unknown error"}`
+          );
+        }
+      }
+      /**
+       * Load MCP server configuration from conductor config
+       */
+      async loadMCPServerConfig() {
+        const mcpServers = this.env.MCP_SERVERS;
+        if (!mcpServers) {
+          throw new Error(
+            "MCP servers not configured. Add MCP_SERVERS binding or configure in conductor.config.ts"
+          );
+        }
+        const serverConfig = mcpServers[this.toolsConfig.mcp];
+        if (!serverConfig) {
+          throw new Error(
+            `MCP server "${this.toolsConfig.mcp}" not found in configuration. Available servers: ${Object.keys(mcpServers).join(", ")}`
+          );
+        }
+        if (this.toolsConfig.timeout) {
+          serverConfig.timeout = this.toolsConfig.timeout;
+        }
+        return serverConfig;
+      }
+      /**
+       * Discover available tools from MCP server (for AI agent tool access)
+       */
+      async discoverTools() {
+        const serverConfig = await this.loadMCPServerConfig();
+        const client = new MCPClient(serverConfig);
+        if (this.toolsConfig.cacheDiscovery) {
+          const cached = await this.getCachedTools(this.toolsConfig.mcp);
+          if (cached) {
+            return cached;
+          }
+        }
+        const response = await client.listTools();
+        if (this.toolsConfig.cacheDiscovery) {
+          await this.cacheTools(this.toolsConfig.mcp, response.tools);
+        }
+        return response.tools;
+      }
+      /**
+       * Get cached tools from KV
+       */
+      async getCachedTools(serverName) {
+        try {
+          const kv = this.env.MCP_CACHE;
+          if (!kv) return null;
+          const cacheKey = `mcp:tools:${serverName}`;
+          const cached = await kv.get(cacheKey, "json");
+          return cached;
+        } catch (error) {
+          return null;
+        }
+      }
+      /**
+       * Cache tools in KV
+       */
+      async cacheTools(serverName, tools) {
+        try {
+          const kv = this.env.MCP_CACHE;
+          if (!kv) return;
+          const cacheKey = `mcp:tools:${serverName}`;
+          await kv.put(cacheKey, JSON.stringify(tools), {
+            expirationTtl: this.toolsConfig.cacheTTL
+          });
+        } catch (error) {
+        }
+      }
+    };
+  }
+});
+
+// src/agents/built-in/tools/index.ts
+var tools_exports = {};
+__export(tools_exports, {
+  MCPClient: () => MCPClient,
+  ToolsMember: () => ToolsMember
+});
+var init_tools = __esm({
+  "src/agents/built-in/tools/index.ts"() {
+    "use strict";
+    init_tools_agent();
+    init_mcp_client();
+  }
+});
+
 // src/agents/built-in/queries/queries-agent.ts
 var QueriesMember;
 var init_queries_agent = __esm({
@@ -2246,6 +2459,54 @@ function registerAllBuiltInMembers(registry2) {
   );
   registry2.register(
     {
+      name: "tools",
+      version: "1.0.0",
+      description: "Invoke external MCP (Model Context Protocol) tools over HTTP",
+      operation: "tools" /* tools */,
+      tags: ["mcp", "tools", "integration", "http"],
+      examples: [
+        {
+          name: "github-tool",
+          description: "Get GitHub pull request data",
+          input: {
+            owner: "anthropics",
+            repo: "anthropic-sdk-typescript",
+            pull_number: 123
+          },
+          config: {
+            mcp: "github",
+            tool: "get_pull_request"
+          },
+          output: {
+            tool: "get_pull_request",
+            server: "github",
+            content: [{ type: "text", text: "PR data..." }],
+            duration: 450
+          }
+        },
+        {
+          name: "search-tool",
+          description: "Search the web",
+          input: {
+            query: "latest AI developments",
+            limit: 10
+          },
+          config: {
+            mcp: "search-engine",
+            tool: "search",
+            timeout: 5e3
+          }
+        }
+      ],
+      documentation: "https://docs.conductor.dev/built-in-agents/tools"
+    },
+    (config, env) => {
+      const { ToolsMember: ToolsMember2 } = (init_tools(), __toCommonJS(tools_exports));
+      return new ToolsMember2(config, env);
+    }
+  );
+  registry2.register(
+    {
       name: "queries",
       version: "1.0.0",
       description: "Execute SQL queries across Hyperdrive-connected databases with query catalog support",
@@ -2361,10 +2622,7 @@ var ConductorClient = class {
     return response;
   }
   async listMembers() {
-    const response = await this.request(
-      "GET",
-      "/api/v1/agents"
-    );
+    const response = await this.request("GET", "/api/v1/agents");
     return response.agents;
   }
   async getAgent(name) {
@@ -6875,18 +7133,93 @@ var EnsembleSchema = external_exports.object({
     criteria: external_exports.union([external_exports.record(external_exports.string()), external_exports.array(external_exports.unknown())]).optional(),
     aggregation: external_exports.enum(["weighted_average", "minimum", "geometric_mean"]).optional()
   }).optional(),
-  webhooks: external_exports.array(
-    external_exports.object({
-      path: external_exports.string().min(1),
-      method: external_exports.enum(["POST", "GET"]).optional(),
-      auth: external_exports.object({
-        type: external_exports.enum(["bearer", "signature", "basic"]),
-        secret: external_exports.string()
-      }).optional(),
-      mode: external_exports.enum(["trigger", "resume"]).optional(),
-      async: external_exports.boolean().optional(),
-      timeout: external_exports.number().positive().optional()
-    })
+  expose: external_exports.array(
+    external_exports.discriminatedUnion("type", [
+      // Webhook endpoint (inbound HTTP triggers)
+      external_exports.object({
+        type: external_exports.literal("webhook"),
+        path: external_exports.string().min(1).optional(),
+        // Defaults to /{ensemble-name}
+        methods: external_exports.array(external_exports.enum(["POST", "GET", "PUT", "PATCH", "DELETE"])).optional(),
+        auth: external_exports.object({
+          type: external_exports.enum(["bearer", "signature", "basic"]),
+          secret: external_exports.string()
+        }).optional(),
+        public: external_exports.boolean().optional(),
+        // If true, no auth required
+        mode: external_exports.enum(["trigger", "resume"]).optional(),
+        async: external_exports.boolean().optional(),
+        timeout: external_exports.number().positive().optional()
+      }),
+      // MCP tool endpoint (expose ensemble as MCP tool)
+      external_exports.object({
+        type: external_exports.literal("mcp"),
+        auth: external_exports.object({
+          type: external_exports.enum(["bearer", "oauth"]),
+          secret: external_exports.string().optional()
+        }).optional(),
+        public: external_exports.boolean().optional()
+      }),
+      // Email invocation (trigger via email)
+      external_exports.object({
+        type: external_exports.literal("email"),
+        addresses: external_exports.array(external_exports.string().email()).min(1),
+        auth: external_exports.object({
+          from: external_exports.array(external_exports.string()).min(1)
+          // Whitelist of sender patterns
+        }).optional(),
+        public: external_exports.boolean().optional(),
+        reply_with_output: external_exports.boolean().optional()
+        // Send results back via email
+      })
+    ])
+  ).optional().refine(
+    (expose) => {
+      if (!expose) return true;
+      return expose.every((exp) => exp.auth || exp.public === true);
+    },
+    {
+      message: "All expose endpoints must have auth configuration or explicit public: true"
+    }
+  ),
+  notifications: external_exports.array(
+    external_exports.discriminatedUnion("type", [
+      // Outbound webhook notifications
+      external_exports.object({
+        type: external_exports.literal("webhook"),
+        url: external_exports.string().url(),
+        events: external_exports.array(
+          external_exports.enum([
+            "execution.started",
+            "execution.completed",
+            "execution.failed",
+            "execution.timeout",
+            "agent.completed",
+            "state.updated"
+          ])
+        ).min(1),
+        secret: external_exports.string().optional(),
+        retries: external_exports.number().positive().optional(),
+        timeout: external_exports.number().positive().optional()
+      }),
+      // Outbound email notifications
+      external_exports.object({
+        type: external_exports.literal("email"),
+        to: external_exports.array(external_exports.string().email()).min(1),
+        events: external_exports.array(
+          external_exports.enum([
+            "execution.started",
+            "execution.completed",
+            "execution.failed",
+            "execution.timeout",
+            "agent.completed",
+            "state.updated"
+          ])
+        ).min(1),
+        subject: external_exports.string().optional(),
+        from: external_exports.string().email().optional()
+      })
+    ])
   ).optional(),
   schedules: external_exports.array(
     external_exports.object({

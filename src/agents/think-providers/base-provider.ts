@@ -25,6 +25,8 @@ export interface AIProviderConfig {
   apiKey?: string
   apiEndpoint?: string
   systemPrompt?: string
+  /** JSON Schema for structured output (reference to schema component or inline schema) */
+  schema?: string | Record<string, unknown>
 }
 
 /**

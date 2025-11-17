@@ -1,0 +1,195 @@
+name: research-assistant
+description: AI-powered research assistant using MCP tools
+
+flow:
+  - agent: search-brave
+  - agent: search-github
+  - agent: scrape-result-1
+  - agent: scrape-result-2
+  - agent: scrape-result-3
+  - agent: initial-analysis
+  - agent: deep-analysis
+  - agent: generate-report
+
+# Expose as webhook for easy triggering
+expose:
+  - type: webhook
+    path: /research
+    methods: [POST]
+    public: false
+    auth:
+      type: bearer
+      secret: ${env.API_TOKEN}
+
+  # Also expose as MCP tool
+  - type: mcp
+    public: false
+    auth:
+      type: bearer
+      secret: ${env.MCP_CLIENT_TOKEN}
+
+# Email results when research completes
+notifications:
+  - type: email
+    to:
+      - ${env.RESEARCHER_EMAIL}
+    from: research@conductor.dev
+    subject: "Research Complete: ${input.topic}"
+    events:
+      - execution.completed
+
+agents:
+  # Phase 1: Discovery - Search multiple sources
+  - name: search-brave
+    operation: tools
+    config:
+      mcp: brave
+      tool: web_search
+      timeout: 15000
+      cacheDiscovery: true
+      cacheTTL: 3600
+
+  - name: search-github
+    condition: ${input.include_code === true}
+    operation: tools
+    config:
+      mcp: github
+      tool: search_code
+      timeout: 15000
+      cacheDiscovery: true
+
+  # Phase 2: Deep Dive - Get top 3 results
+  - name: scrape-result-1
+    condition: ${search-brave.output.results.length > 0}
+    operation: tools
+    config:
+      mcp: custom
+      tool: web_scrape
+      timeout: 30000
+
+  - name: scrape-result-2
+    condition: ${search-brave.output.results.length > 1}
+    operation: tools
+    config:
+      mcp: custom
+      tool: web_scrape
+      timeout: 30000
+
+  - name: scrape-result-3
+    condition: ${search-brave.output.results.length > 2}
+    operation: tools
+    config:
+      mcp: custom
+      tool: web_scrape
+      timeout: 30000
+
+  # Phase 3: Analysis - Synthesize findings
+  - name: initial-analysis
+    operation: think
+    config:
+      provider: anthropic
+      model: claude-sonnet-4
+      prompt: |
+        Research Topic: ${input.topic}
+
+        Web Search Results:
+        ${search-brave.output}
+
+        Code Search Results:
+        ${search-github.output}
+
+        Scraped Content 1:
+        ${scrape-result-1.output}
+
+        Scraped Content 2:
+        ${scrape-result-2.output}
+
+        Scraped Content 3:
+        ${scrape-result-3.output}
+
+        Provide a preliminary analysis with:
+        1. Key findings
+        2. Patterns and trends
+        3. Areas requiring deeper investigation
+        4. Initial recommendations
+
+  # Phase 4: Deep Analysis
+  - name: deep-analysis
+    condition: ${input.deep_analysis === true}
+    operation: think
+    config:
+      provider: anthropic
+      model: claude-opus-4
+      prompt: |
+        Topic: ${input.topic}
+
+        Initial Analysis:
+        ${initial-analysis.output}
+
+        All Research Data:
+        Web: ${search-brave.output}
+        Code: ${search-github.output}
+        Content: ${scrape-result-1.output}, ${scrape-result-2.output}, ${scrape-result-3.output}
+
+        Provide comprehensive research report:
+        1. Executive Summary
+        2. Detailed Findings
+        3. Data Analysis
+        4. Trends and Insights
+        5. Recommendations
+        6. Next Steps
+        7. References
+
+        Format as structured markdown.
+
+  # Phase 5: Generate Report
+  - name: generate-report
+    operation: data
+    config:
+      operations:
+        - type: transform
+          template: |
+            # Research Report: {{input.topic}}
+
+            **Generated:** {{timestamp}}
+            **Researcher:** AI Research Assistant
+
+            ## Executive Summary
+            {{analysis.executive_summary}}
+
+            ## Key Findings
+            {{analysis.findings}}
+
+            ## Recommendations
+            {{analysis.recommendations}}
+
+            ## Sources
+            {{analysis.sources}}
+
+inputs:
+  topic:
+    type: string
+    required: true
+    description: Research topic or question
+  include_code:
+    type: boolean
+    required: false
+    default: false
+    description: Include code/repository search
+  deep_analysis:
+    type: boolean
+    required: false
+    default: false
+    description: Use Claude Opus for deeper analysis
+  max_sources:
+    type: number
+    required: false
+    default: 10
+    description: Maximum number of sources to search
+
+outputs:
+  summary: ${initial-analysis.output}
+  detailed_analysis: ${deep-analysis.output}
+  report: ${generate-report.output}
+  sources_count: ${search-brave.output.results.length}
+  code_results: ${search-github.output.items.length}

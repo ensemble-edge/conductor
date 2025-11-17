@@ -308,6 +308,56 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
     }
   )
 
+  // Tools agent (MCP client)
+  registry.register(
+    {
+      name: 'tools',
+      version: '1.0.0',
+      description: 'Invoke external MCP (Model Context Protocol) tools over HTTP',
+      operation: Operation.tools,
+      tags: ['mcp', 'tools', 'integration', 'http'],
+      examples: [
+        {
+          name: 'github-tool',
+          description: 'Get GitHub pull request data',
+          input: {
+            owner: 'anthropics',
+            repo: 'anthropic-sdk-typescript',
+            pull_number: 123,
+          },
+          config: {
+            mcp: 'github',
+            tool: 'get_pull_request',
+          },
+          output: {
+            tool: 'get_pull_request',
+            server: 'github',
+            content: [{ type: 'text', text: 'PR data...' }],
+            duration: 450,
+          },
+        },
+        {
+          name: 'search-tool',
+          description: 'Search the web',
+          input: {
+            query: 'latest AI developments',
+            limit: 10,
+          },
+          config: {
+            mcp: 'search-engine',
+            tool: 'search',
+            timeout: 5000,
+          },
+        },
+      ],
+      documentation: 'https://docs.conductor.dev/built-in-agents/tools',
+    },
+    (config, env) => {
+      const { ToolsMember } = require('./tools')
+      return new ToolsMember(config, env)
+    }
+  )
+
   // Queries agent
   registry.register(
     {

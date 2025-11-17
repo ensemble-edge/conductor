@@ -63,7 +63,8 @@ export type {
   EnsembleConfig,
   AgentConfig,
   FlowStep,
-  WebhookConfig,
+  ExposeConfig,
+  NotificationConfig,
   ScheduleConfig,
 } from './runtime/parser.js'
 

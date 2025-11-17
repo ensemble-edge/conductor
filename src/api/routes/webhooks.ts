@@ -41,34 +41,46 @@ flow:
 
     const ensemble = Parser.parseEnsemble(ensembleYAML)
 
-    // Check if ensemble has webhooks configured
-    if (!ensemble.webhooks || ensemble.webhooks.length === 0) {
+    // Check if ensemble has webhook exposure configured
+    if (!ensemble.expose || ensemble.expose.length === 0) {
       return c.json(
         {
-          error: 'Ensemble does not have webhooks configured',
+          error: 'Ensemble does not have any exposed endpoints',
           ensemble: ensembleName,
         },
         400
       )
     }
 
-    // Find matching webhook configuration
+    // Find matching webhook configuration in expose array
     const webhookPath = `/webhooks/${ensembleName}`
-    const webhookConfig = ensemble.webhooks.find((wh) => wh.path === webhookPath)
+    const webhookExpose = ensemble.expose.find(
+      (exp) => exp.type === 'webhook' && (exp.path === webhookPath || exp.path === `/${ensembleName}`)
+    )
 
-    if (!webhookConfig) {
+    if (!webhookExpose || webhookExpose.type !== 'webhook') {
       return c.json(
         {
-          error: 'No webhook configuration found for this path',
+          error: 'No webhook exposure found for this path',
           path: webhookPath,
         },
         404
       )
     }
 
-    // Authenticate webhook if configured
-    if (webhookConfig.auth) {
-      const authResult = await authenticateWebhook(c, webhookConfig.auth)
+    // Authenticate webhook if not public
+    if (!webhookExpose.public) {
+      if (!webhookExpose.auth) {
+        return c.json(
+          {
+            error: 'Webhook requires authentication but none configured',
+            path: webhookPath,
+          },
+          500
+        )
+      }
+
+      const authResult = await authenticateWebhook(c, webhookExpose.auth)
       if (!authResult.success) {
         return c.json(
           {
@@ -81,7 +93,7 @@ flow:
     }
 
     // Determine execution mode
-    const mode = webhookConfig.mode || 'trigger'
+    const mode = webhookExpose.mode || 'trigger'
 
     if (mode === 'trigger') {
       // Trigger new execution
@@ -93,7 +105,7 @@ flow:
       } as ExecutionContext
 
       const executor = new Executor({ env, ctx })
-      const isAsync = webhookConfig.async ?? true
+      const isAsync = webhookExpose.async ?? true
 
       if (isAsync) {
         // Return immediately, execute in background
@@ -195,7 +207,7 @@ flow:
         )
       } else {
         // Wait for completion
-        const timeout = webhookConfig.timeout || 30000
+        const timeout = webhookExpose.timeout || 30000
         const result = await Promise.race([
           executor.executeEnsemble(ensemble, webhookData),
           new Promise((_, reject) =>
@@ -525,7 +537,7 @@ async function authenticateWebhook(
   c: unknown,
   auth: { type: 'bearer' | 'signature' | 'basic'; secret: string }
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = c as { req: { header: (name: string) => string | undefined } }
+  const ctx = c as { req: { header: (name: string) => string | undefined; text: () => Promise<string> } }
   switch (auth.type) {
     case 'bearer': {
       const authHeader = ctx.req.header('Authorization')
@@ -542,19 +554,46 @@ async function authenticateWebhook(
     }
 
     case 'signature': {
-      // Verify HMAC signature (e.g., GitHub/Stripe style)
-      const signature = ctx.req.header('X-Webhook-Signature')
+      // Verify HMAC signature (GitHub/Stripe/Slack style)
+      const signature = ctx.req.header('X-Webhook-Signature') || ctx.req.header('X-Hub-Signature-256')
+      const timestamp = ctx.req.header('X-Webhook-Timestamp')
+
       if (!signature) {
-        return { success: false, error: 'Missing X-Webhook-Signature header' }
+        return { success: false, error: 'Missing signature header (X-Webhook-Signature or X-Hub-Signature-256)' }
       }
 
-      // TODO: Implement HMAC verification
-      // For now, simple comparison
-      if (signature !== auth.secret) {
-        return { success: false, error: 'Invalid webhook signature' }
+      if (!timestamp) {
+        return { success: false, error: 'Missing X-Webhook-Timestamp header' }
       }
 
-      return { success: true }
+      // Verify timestamp to prevent replay attacks (within 5 minutes)
+      const requestTime = parseInt(timestamp, 10)
+      const currentTime = Math.floor(Date.now() / 1000)
+      const timeDiff = Math.abs(currentTime - requestTime)
+
+      if (timeDiff > 300) { // 5 minutes
+        return { success: false, error: 'Request timestamp too old (replay attack prevention)' }
+      }
+
+      try {
+        // Get request body
+        const body = await ctx.req.text()
+
+        // Generate expected signature
+        const expectedSignature = await generateWebhookSignature(body, requestTime, auth.secret)
+
+        // Constant-time comparison to prevent timing attacks
+        if (!constantTimeCompare(signature, expectedSignature)) {
+          return { success: false, error: 'Invalid webhook signature' }
+        }
+
+        return { success: true }
+      } catch (error) {
+        return {
+          success: false,
+          error: `Signature verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }
+      }
     }
 
     case 'basic': {
@@ -574,6 +613,47 @@ async function authenticateWebhook(
     default:
       return { success: false, error: 'Unknown auth type' }
   }
+}
+
+/**
+ * Generate HMAC-SHA256 signature for webhook verification
+ */
+async function generateWebhookSignature(body: string, timestamp: number, secret: string): Promise<string> {
+  const payload = `${timestamp}.${body}`
+
+  // Use Web Crypto API (available in Cloudflare Workers)
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload))
+
+  // Convert to hex string
+  const hashArray = Array.from(new Uint8Array(signature))
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+
+  return `sha256=${hashHex}`
+}
+
+/**
+ * Constant-time string comparison to prevent timing attacks
+ */
+function constantTimeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false
+  }
+
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+
+  return result === 0
 }
 
 /**

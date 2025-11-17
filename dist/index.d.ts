@@ -20,7 +20,7 @@ export * from './auth/index.js';
 export { UnifiedRouter } from './routing/router.js';
 export type { ConductorConfig, RoutingConfig, RouteConfig, RouteAuthConfig as RoutingAuthConfig, ResolvedRouteAuthConfig, RouteMatch, Operation, AuthDefaults, RateLimitConfig as RoutingRateLimitConfig, AuthFailureAction, } from './routing/config.js';
 export type { ConductorConfig as FullConductorConfig } from './config/types.js';
-export type { EnsembleConfig, AgentConfig, FlowStep, WebhookConfig, ScheduleConfig, } from './runtime/parser.js';
+export type { EnsembleConfig, AgentConfig, FlowStep, ExposeConfig, NotificationConfig, ScheduleConfig, } from './runtime/parser.js';
 export type { StateConfig, MemberStateConfig, StateContext, AccessReport, } from './runtime/state-manager.js';
 export type { AgentExecutionContext, AgentResponse } from './agents/base-agent.js';
 export type { ExecutorConfig, ExecutionResult, ExecutionMetrics } from './runtime/executor.js';
