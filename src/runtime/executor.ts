@@ -10,6 +10,7 @@ import { StateManager, type AccessReport, type AccessLogEntry } from './state-ma
 import type { BaseAgent, AgentExecutionContext, AgentResponse } from '../agents/base-agent.js'
 import type { ConductorEnv } from '../types/env.js'
 import { FunctionAgent } from '../agents/function-agent.js'
+import { CodeAgent } from '../agents/code-agent.js'
 import { ThinkAgent } from '../agents/think-agent.js'
 import { DataAgent } from '../agents/data-agent.js'
 import { APIAgent } from '../agents/api-agent.js'
@@ -40,6 +41,7 @@ import {
 import { ResumptionManager, type SuspendedExecutionState } from './resumption-manager.js'
 import { createLogger, type Logger } from '../observability/index.js'
 import { NotificationManager } from './notifications/index.js'
+import { createComponentLoader, type ComponentLoader } from './component-loader.js'
 
 export interface ExecutorConfig {
   env: ConductorEnv
@@ -245,10 +247,22 @@ export class Executor {
         return Result.ok(new PdfMember(config))
 
       case Operation.code:
+        // Try to create CodeAgent (supports both inline and script:// URIs)
+        const codeAgent = CodeAgent.fromConfig(config)
+        if (codeAgent) {
+          return Result.ok(codeAgent)
+        }
+
+        // Fallback to FunctionAgent for backwards compatibility
+        const inlineAgent = FunctionAgent.fromConfig(config)
+        if (inlineAgent) {
+          return Result.ok(inlineAgent)
+        }
+
         return Result.err(
           Errors.agentConfig(
             config.name,
-            'Function agents require code implementation and must be registered manually'
+            'Code agents require either a script:// URI or an inline handler function'
           )
         )
 

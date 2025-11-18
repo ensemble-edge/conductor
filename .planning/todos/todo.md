@@ -24,3 +24,9 @@ is to have a seperate provider in case the main is down or billing is do wn etc
 
 - make sure auto docs are easily bindable and accessible via /docs/ (password optionsl?).
 - need to configure backup models and come up with a smart way. best practice reccomendation 
+
+Add new query protocol vs updating current one
+Add graphql to ComponentProtocol type
+Add graphql/ prefix mapping in ComponentLoader
+Update edgit CLI to recognize graphql components
+Add tests

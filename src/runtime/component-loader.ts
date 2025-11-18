@@ -6,9 +6,8 @@
  * - Prompts (AI instructions)
  * - Queries (SQL)
  * - Configs (JSON settings)
- * - Components (Compiled JSX)
- * - Pages (Compiled JSX pages)
- * - Forms (Form definitions)
+ * - Scripts (JavaScript/TypeScript)
+ * - Schemas (JSON Schema definitions)
  *
  * URI Format: {protocol}://{path}[@{version}]
  * Version defaults to "latest" if not specified.
@@ -18,6 +17,8 @@
  * - template://components/header@latest   → templates/components/header@latest
  * - template://components/header@v1.0.0   → templates/components/header@v1.0.0
  * - prompt://analyze-company@prod         → prompts/analyze-company@prod
+ * - script://transform-data@v1.0.0        → scripts/transform-data@v1.0.0
+ * - schema://invoice@latest               → schemas/invoice@latest
  *
  * Cache Configuration:
  * - Default: All components cached for 1 hour (3600 seconds)
@@ -39,9 +40,8 @@ export type ComponentProtocol =
   | 'prompt' // AI prompts for Think agents
   | 'query' // SQL queries for Data agents
   | 'config' // Configuration objects
-  | 'component' // Compiled JSX components
-  | 'page' // Compiled JSX pages
-  | 'form' // Form definitions
+  | 'script' // JavaScript/TypeScript scripts
+  | 'schema' // JSON Schema definitions
 
 export interface ParsedComponentURI {
   protocol: ComponentProtocol
@@ -109,9 +109,8 @@ export class ComponentLoader {
       'prompt',
       'query',
       'config',
-      'component',
-      'page',
-      'form',
+      'script',
+      'schema',
     ]
 
     if (!validProtocols.includes(protocol as ComponentProtocol)) {
@@ -137,9 +136,8 @@ export class ComponentLoader {
       prompt: 'prompts',
       query: 'queries',
       config: 'configs',
-      component: 'components',
-      page: 'pages',
-      form: 'forms',
+      script: 'scripts',
+      schema: 'schemas',
     }
     return prefixMap[protocol]
   }
