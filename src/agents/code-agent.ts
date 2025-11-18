@@ -102,9 +102,12 @@ export class CodeAgent extends BaseAgent {
     }
 
     // Create component loader
+    if (!context.env.COMPONENTS) {
+      throw new Error('COMPONENTS KV namespace not configured')
+    }
+
     const componentLoader = createComponentLoader({
       kv: context.env.COMPONENTS,
-      cache: context.cache,
       logger: context.logger,
     })
 
