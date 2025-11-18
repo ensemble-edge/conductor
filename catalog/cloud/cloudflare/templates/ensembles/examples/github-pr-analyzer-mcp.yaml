@@ -11,7 +11,7 @@ flow:
   - agent: post-comment
 
 # Expose this ensemble as an MCP tool for external systems
-expose:
+trigger:
   - type: mcp
     public: false
     auth:

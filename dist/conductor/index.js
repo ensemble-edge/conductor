@@ -8632,6 +8632,7 @@ let Operation = /* @__PURE__ */ function(Operation$1) {
 	Operation$1["page"] = "page";
 	Operation$1["html"] = "html";
 	Operation$1["pdf"] = "pdf";
+	Operation$1["queue"] = "queue";
 	return Operation$1;
 }({});
 let AIProvider = /* @__PURE__ */ function(AIProvider$1) {
@@ -8676,7 +8677,7 @@ var EnsembleSchema = objectType$1({
 			"geometric_mean"
 		]).optional()
 	}).optional(),
-	expose: arrayType(discriminatedUnionType("type", [
+	trigger: arrayType(discriminatedUnionType("type", [
 		objectType$1({
 			type: literalType("webhook"),
 			path: stringType().min(1).optional(),
@@ -8714,11 +8715,29 @@ var EnsembleSchema = objectType$1({
 			auth: objectType$1({ from: arrayType(stringType()).min(1) }).optional(),
 			public: booleanType().optional(),
 			reply_with_output: booleanType().optional()
+		}),
+		objectType$1({
+			type: literalType("queue"),
+			queue: stringType().min(1),
+			batch_size: numberType().positive().optional(),
+			max_retries: numberType().nonnegative().optional(),
+			max_wait_time: numberType().positive().optional()
+		}),
+		objectType$1({
+			type: literalType("cron"),
+			cron: stringType().min(1, "Cron expression is required"),
+			timezone: stringType().optional(),
+			enabled: booleanType().optional(),
+			input: recordType(unknownType()).optional(),
+			metadata: recordType(unknownType()).optional()
 		})
-	])).optional().refine((expose) => {
-		if (!expose) return true;
-		return expose.every((exp) => exp.auth || exp.public === true);
-	}, { message: "All expose endpoints must have auth configuration or explicit public: true" }),
+	])).optional().refine((trigger) => {
+		if (!trigger) return true;
+		return trigger.every((t) => {
+			if (t.type === "queue" || t.type === "cron") return true;
+			return t.auth || t.public === true;
+		});
+	}, { message: "All webhook, MCP, and email triggers must have auth configuration or explicit public: true" }),
 	notifications: arrayType(discriminatedUnionType("type", [objectType$1({
 		type: literalType("webhook"),
 		url: stringType().url(),
@@ -8747,13 +8766,6 @@ var EnsembleSchema = objectType$1({
 		subject: stringType().optional(),
 		from: stringType().email().optional()
 	})])).optional(),
-	schedules: arrayType(objectType$1({
-		cron: stringType().min(1, "Cron expression is required"),
-		timezone: stringType().optional(),
-		enabled: booleanType().optional(),
-		input: recordType(unknownType()).optional(),
-		metadata: recordType(unknownType()).optional()
-	})).optional(),
 	flow: arrayType(objectType$1({
 		agent: stringType().min(1, "Agent name is required"),
 		input: recordType(unknownType()).optional(),
@@ -8800,7 +8812,8 @@ var AgentSchema = objectType$1({
 		Operation.form,
 		Operation.page,
 		Operation.html,
-		Operation.pdf
+		Operation.pdf,
+		Operation.queue
 	]),
 	description: stringType().optional(),
 	config: recordType(unknownType()).optional(),

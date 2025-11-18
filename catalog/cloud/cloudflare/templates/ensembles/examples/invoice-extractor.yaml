@@ -4,8 +4,8 @@ description: Extract structured invoice data from documents using schema compone
 flow:
   - agent: extract-invoice
 
-# Expose as webhook for easy integration
-expose:
+# Trigger via webhook for easy integration
+trigger:
   - type: webhook
     path: /extract/invoice
     methods: [POST]

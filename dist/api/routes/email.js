@@ -47,7 +47,7 @@ app.post('/', async (c) => {
             return c.text('OK');
         }
         // Check if ensemble has email exposure configured
-        const emailExpose = ensemble.expose?.find((exp) => exp.type === 'email');
+        const emailExpose = ensemble.trigger?.find((exp) => exp.type === 'email');
         if (!emailExpose || emailExpose.type !== 'email') {
             logger.warn('Ensemble found but no email exposure configured', {
                 ensemble: ensemble.name,

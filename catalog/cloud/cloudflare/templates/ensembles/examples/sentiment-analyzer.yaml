@@ -4,7 +4,7 @@ description: Analyze sentiment with structured output using inline schema
 flow:
   - agent: analyze-sentiment
 
-expose:
+trigger:
   - type: webhook
     path: /analyze/sentiment
     methods: [POST]

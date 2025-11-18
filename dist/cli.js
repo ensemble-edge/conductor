@@ -7133,7 +7133,7 @@ var EnsembleSchema = external_exports.object({
     criteria: external_exports.union([external_exports.record(external_exports.string()), external_exports.array(external_exports.unknown())]).optional(),
     aggregation: external_exports.enum(["weighted_average", "minimum", "geometric_mean"]).optional()
   }).optional(),
-  expose: external_exports.array(
+  trigger: external_exports.array(
     external_exports.discriminatedUnion("type", [
       // Webhook endpoint (inbound HTTP triggers)
       external_exports.object({
@@ -7171,15 +7171,37 @@ var EnsembleSchema = external_exports.object({
         public: external_exports.boolean().optional(),
         reply_with_output: external_exports.boolean().optional()
         // Send results back via email
+      }),
+      // Queue message trigger
+      external_exports.object({
+        type: external_exports.literal("queue"),
+        queue: external_exports.string().min(1),
+        // Queue binding name
+        batch_size: external_exports.number().positive().optional(),
+        max_retries: external_exports.number().nonnegative().optional(),
+        max_wait_time: external_exports.number().positive().optional()
+        // Max seconds to wait for batch
+      }),
+      // Cron schedule trigger
+      external_exports.object({
+        type: external_exports.literal("cron"),
+        cron: external_exports.string().min(1, "Cron expression is required"),
+        timezone: external_exports.string().optional(),
+        enabled: external_exports.boolean().optional(),
+        input: external_exports.record(external_exports.unknown()).optional(),
+        metadata: external_exports.record(external_exports.unknown()).optional()
       })
     ])
   ).optional().refine(
-    (expose) => {
-      if (!expose) return true;
-      return expose.every((exp) => exp.auth || exp.public === true);
+    (trigger) => {
+      if (!trigger) return true;
+      return trigger.every((t) => {
+        if (t.type === "queue" || t.type === "cron") return true;
+        return t.auth || t.public === true;
+      });
     },
     {
-      message: "All expose endpoints must have auth configuration or explicit public: true"
+      message: "All webhook, MCP, and email triggers must have auth configuration or explicit public: true"
     }
   ),
   notifications: external_exports.array(
@@ -7220,15 +7242,6 @@ var EnsembleSchema = external_exports.object({
         from: external_exports.string().email().optional()
       })
     ])
-  ).optional(),
-  schedules: external_exports.array(
-    external_exports.object({
-      cron: external_exports.string().min(1, "Cron expression is required"),
-      timezone: external_exports.string().optional(),
-      enabled: external_exports.boolean().optional(),
-      input: external_exports.record(external_exports.unknown()).optional(),
-      metadata: external_exports.record(external_exports.unknown()).optional()
-    })
   ).optional(),
   flow: external_exports.array(
     external_exports.object({
@@ -7274,7 +7287,8 @@ var AgentSchema = external_exports.object({
     "form" /* form */,
     "page" /* page */,
     "html" /* html */,
-    "pdf" /* pdf */
+    "pdf" /* pdf */,
+    "queue" /* queue */
   ]),
   description: external_exports.string().optional(),
   config: external_exports.record(external_exports.unknown()).optional(),
@@ -8735,7 +8749,7 @@ function createHistoryCommand() {
 }
 
 // src/cli/index.ts
-var version = "1.5.0";
+var version = "1.5.1";
 var program = new Command10();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

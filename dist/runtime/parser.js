@@ -36,7 +36,7 @@ const EnsembleSchema = z.object({
         aggregation: z.enum(['weighted_average', 'minimum', 'geometric_mean']).optional(),
     })
         .optional(),
-    expose: z
+    trigger: z
         .array(z.discriminatedUnion('type', [
         // Webhook endpoint (inbound HTTP triggers)
         z.object({
@@ -77,15 +77,37 @@ const EnsembleSchema = z.object({
             public: z.boolean().optional(),
             reply_with_output: z.boolean().optional(), // Send results back via email
         }),
+        // Queue message trigger
+        z.object({
+            type: z.literal('queue'),
+            queue: z.string().min(1), // Queue binding name
+            batch_size: z.number().positive().optional(),
+            max_retries: z.number().nonnegative().optional(),
+            max_wait_time: z.number().positive().optional(), // Max seconds to wait for batch
+        }),
+        // Cron schedule trigger
+        z.object({
+            type: z.literal('cron'),
+            cron: z.string().min(1, 'Cron expression is required'),
+            timezone: z.string().optional(),
+            enabled: z.boolean().optional(),
+            input: z.record(z.unknown()).optional(),
+            metadata: z.record(z.unknown()).optional(),
+        }),
     ]))
         .optional()
-        .refine((expose) => {
-        // Validate that all expose entries have either auth or public: true
-        if (!expose)
+        .refine((trigger) => {
+        // Validate that all trigger entries have either auth or public: true
+        // (except queue and cron which are internally triggered)
+        if (!trigger)
             return true;
-        return expose.every((exp) => exp.auth || exp.public === true);
+        return trigger.every((t) => {
+            if (t.type === 'queue' || t.type === 'cron')
+                return true;
+            return t.auth || t.public === true;
+        });
     }, {
-        message: 'All expose endpoints must have auth configuration or explicit public: true',
+        message: 'All webhook, MCP, and email triggers must have auth configuration or explicit public: true',
     }),
     notifications: z
         .array(z.discriminatedUnion('type', [
@@ -125,15 +147,6 @@ const EnsembleSchema = z.object({
             from: z.string().email().optional(),
         }),
     ]))
-        .optional(),
-    schedules: z
-        .array(z.object({
-        cron: z.string().min(1, 'Cron expression is required'),
-        timezone: z.string().optional(),
-        enabled: z.boolean().optional(),
-        input: z.record(z.unknown()).optional(),
-        metadata: z.record(z.unknown()).optional(),
-    }))
         .optional(),
     flow: z.array(z.object({
         agent: z.string().min(1, 'Agent name is required'),
@@ -186,6 +199,7 @@ const AgentSchema = z.object({
         Operation.page,
         Operation.html,
         Operation.pdf,
+        Operation.queue,
     ]),
     description: z.string().optional(),
     config: z.record(z.unknown()).optional(),

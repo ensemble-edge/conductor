@@ -5,7 +5,7 @@
  * Handles registration, execution, and coordination of scheduled ensembles.
  */
 
-import type { EnsembleConfig, ScheduleConfig } from './parser.js'
+import type { EnsembleConfig, ScheduleConfig, TriggerConfig } from './parser.js'
 import { Executor } from './executor.js'
 import { createLogger, type Logger } from '../observability/index.js'
 
@@ -43,10 +43,12 @@ export class ScheduleManager {
   }
 
   /**
-   * Register ensemble with schedules
+   * Register ensemble with cron triggers
    */
   register(ensemble: EnsembleConfig): void {
-    if (!ensemble.schedules || ensemble.schedules.length === 0) {
+    // Check if ensemble has any cron triggers
+    const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || []
+    if (cronTriggers.length === 0) {
       return
     }
 
@@ -194,9 +196,14 @@ export class ScheduleManager {
     const matches: Array<{ ensemble: EnsembleConfig; schedule: ScheduleConfig }> = []
 
     for (const ensemble of this.ensembles.values()) {
-      if (!ensemble.schedules) continue
+      if (!ensemble.trigger) continue
 
-      for (const schedule of ensemble.schedules) {
+      // Find all cron triggers
+      const cronTriggers = ensemble.trigger.filter(
+        (t): t is Extract<TriggerConfig, { type: 'cron' }> => t.type === 'cron'
+      )
+
+      for (const schedule of cronTriggers) {
         if (schedule.cron === cron) {
           matches.push({ ensemble, schedule })
         }
@@ -214,8 +221,13 @@ export class ScheduleManager {
     const crons = new Set<string>()
 
     for (const ensemble of this.ensembles.values()) {
-      if (ensemble.schedules) {
-        for (const schedule of ensemble.schedules) {
+      if (ensemble.trigger) {
+        // Find all cron triggers
+        const cronTriggers = ensemble.trigger.filter(
+          (t): t is Extract<TriggerConfig, { type: 'cron' }> => t.type === 'cron'
+        )
+
+        for (const schedule of cronTriggers) {
           if (schedule.enabled !== false) {
             crons.add(schedule.cron)
           }
@@ -236,11 +248,18 @@ export class ScheduleManager {
     const scheduled: Array<{ ensembleName: string; schedules: ScheduleConfig[] }> = []
 
     for (const ensemble of this.ensembles.values()) {
-      if (ensemble.schedules && ensemble.schedules.length > 0) {
-        scheduled.push({
-          ensembleName: ensemble.name,
-          schedules: ensemble.schedules,
-        })
+      if (ensemble.trigger) {
+        // Find all cron triggers
+        const cronTriggers = ensemble.trigger.filter(
+          (t): t is Extract<TriggerConfig, { type: 'cron' }> => t.type === 'cron'
+        )
+
+        if (cronTriggers.length > 0) {
+          scheduled.push({
+            ensembleName: ensemble.name,
+            schedules: cronTriggers,
+          })
+        }
       }
     }
 
@@ -252,7 +271,14 @@ export class ScheduleManager {
    */
   getEnsembleSchedules(ensembleName: string): ScheduleConfig[] | null {
     const ensemble = this.ensembles.get(ensembleName)
-    return ensemble?.schedules || null
+    if (!ensemble?.trigger) return null
+
+    // Find all cron triggers
+    const cronTriggers = ensemble.trigger.filter(
+      (t): t is Extract<TriggerConfig, { type: 'cron' }> => t.type === 'cron'
+    )
+
+    return cronTriggers.length > 0 ? cronTriggers : null
   }
 
   /**
@@ -261,7 +287,8 @@ export class ScheduleManager {
   getScheduledCount(): number {
     let count = 0
     for (const ensemble of this.ensembles.values()) {
-      if (ensemble.schedules && ensemble.schedules.length > 0) {
+      const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || []
+      if (cronTriggers.length > 0) {
         count++
       }
     }

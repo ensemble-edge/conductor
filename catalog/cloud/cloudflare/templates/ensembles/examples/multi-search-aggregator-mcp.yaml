@@ -6,8 +6,8 @@ flow:
   - agent: search-github
   - agent: synthesize
 
-# Expose as MCP tool for Claude Desktop and other clients
-expose:
+# Trigger via MCP tool for Claude Desktop and other clients
+trigger:
   - type: mcp
     public: false
     auth:
