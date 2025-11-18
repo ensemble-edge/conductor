@@ -72,10 +72,10 @@ flow:
 		});
 
 
-	it('should parse ensemble with webhook expose', () => {
+	it('should parse ensemble with webhook trigger', () => {
 		const yaml = `
 name: webhook-enabled
-expose:
+trigger:
   - type: webhook
     path: /trigger
     methods: [POST]
@@ -87,17 +87,17 @@ flow:
 		`;
 
 		const result = Parser.parseEnsemble(yaml);
-		expect(result.expose).toHaveLength(1);
-		expect(result.expose?.[0].type).toBe('webhook');
-		if (result.expose?.[0].type === 'webhook') {
-			expect(result.expose[0].path).toBe('/trigger');
+		expect(result.trigger).toHaveLength(1);
+		expect(result.trigger?.[0].type).toBe('webhook');
+		if (result.trigger?.[0].type === 'webhook') {
+			expect(result.trigger[0].path).toBe('/trigger');
 		}
 	});
 
-	it('should parse ensemble with MCP expose', () => {
+	it('should parse ensemble with MCP trigger', () => {
 		const yaml = `
 name: mcp-tool
-expose:
+trigger:
   - type: mcp
     auth:
       type: bearer
@@ -107,14 +107,14 @@ flow:
 		`;
 
 		const result = Parser.parseEnsemble(yaml);
-		expect(result.expose).toHaveLength(1);
-		expect(result.expose?.[0].type).toBe('mcp');
+		expect(result.trigger).toHaveLength(1);
+		expect(result.trigger?.[0].type).toBe('mcp');
 	});
 
-	it('should parse ensemble with email expose', () => {
+	it('should parse ensemble with email trigger', () => {
 		const yaml = `
 name: email-triggered
-expose:
+trigger:
   - type: email
     addresses:
       - test@example.com
@@ -125,17 +125,17 @@ flow:
 		`;
 
 		const result = Parser.parseEnsemble(yaml);
-		expect(result.expose).toHaveLength(1);
-		expect(result.expose?.[0].type).toBe('email');
-		if (result.expose?.[0].type === 'email') {
-			expect(result.expose[0].addresses).toContain('test@example.com');
+		expect(result.trigger).toHaveLength(1);
+		expect(result.trigger?.[0].type).toBe('email');
+		if (result.trigger?.[0].type === 'email') {
+			expect(result.trigger[0].addresses).toContain('test@example.com');
 		}
 	});
 
 	it('should parse ensemble with public webhook', () => {
 		const yaml = `
 name: public-webhook
-expose:
+trigger:
   - type: webhook
     path: /public
     public: true
@@ -144,16 +144,16 @@ flow:
 		`;
 
 		const result = Parser.parseEnsemble(yaml);
-		expect(result.expose).toHaveLength(1);
-		if (result.expose?.[0].type === 'webhook') {
-			expect(result.expose[0].public).toBe(true);
+		expect(result.trigger).toHaveLength(1);
+		if (result.trigger?.[0].type === 'webhook') {
+			expect(result.trigger[0].public).toBe(true);
 		}
 	});
 
-	it('should reject expose without auth or public flag', () => {
+	it('should reject trigger without auth or public flag', () => {
 		const yaml = `
 name: insecure
-expose:
+trigger:
   - type: webhook
     path: /insecure
 flow:
@@ -188,11 +188,12 @@ flow:
 	});
 
 
-		it('should reject invalid schedule cron', () => {
+		it('should reject invalid cron trigger', () => {
 			const yaml = `
 name: test
-schedules:
-  - cron: ""
+trigger:
+  - type: cron
+    cron: ""
 flow:
   - agent: test
 			`;
