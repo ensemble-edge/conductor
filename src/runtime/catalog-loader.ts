@@ -141,7 +141,7 @@ export class CatalogLoader {
 
             // Filter by schedules if needed
             if (scheduledOnly) {
-              if (ensemble.schedules && ensemble.schedules.length > 0) {
+              if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
                 ensembles.push(ensemble)
               }
             } else {
@@ -194,7 +194,7 @@ export class CatalogLoader {
 
           // Double-check schedules filter
           if (scheduledOnly) {
-            if (ensemble.schedules && ensemble.schedules.length > 0) {
+            if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
               ensembles.push(ensemble)
             }
           } else {
@@ -241,7 +241,7 @@ export class CatalogLoader {
 
             // Filter by schedules if needed
             if (scheduledOnly) {
-              if (ensemble.schedules && ensemble.schedules.length > 0) {
+              if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
                 ensembles.push(ensemble)
               }
             } else {
@@ -292,10 +292,11 @@ export class CatalogLoader {
     }
 
     if (env.DB) {
+      const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || []
       await env.DB.prepare(
         'INSERT OR REPLACE INTO ensembles (name, yaml, schedules) VALUES (?, ?, ?)'
       )
-        .bind(ensemble.name, yaml, JSON.stringify(ensemble.schedules || []))
+        .bind(ensemble.name, yaml, JSON.stringify(cronTriggers))
         .run()
       return
     }

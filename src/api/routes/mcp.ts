@@ -77,7 +77,7 @@ app.post('/tools/:name', async (c) => {
 		const ensemble = Parser.parseEnsemble(ensembleYAML)
 
 		// Check if ensemble is exposed as MCP tool
-		const mcpExpose = ensemble.expose?.find((exp) => exp.type === 'mcp')
+		const mcpExpose = ensemble.trigger?.find((exp) => exp.type === 'mcp')
 		if (!mcpExpose) {
 			return c.json(
 				{

@@ -33,31 +33,31 @@ flow:
       data: \${input}
 `;
         const ensemble = Parser.parseEnsemble(ensembleYAML);
-        // Check if ensemble has webhook exposure configured
-        if (!ensemble.expose || ensemble.expose.length === 0) {
+        // Check if ensemble has webhook trigger configured
+        if (!ensemble.trigger || ensemble.trigger.length === 0) {
             return c.json({
-                error: 'Ensemble does not have any exposed endpoints',
+                error: 'Ensemble does not have any trigger endpoints',
                 ensemble: ensembleName,
             }, 400);
         }
         // Find matching webhook configuration in expose array
         const webhookPath = `/webhooks/${ensembleName}`;
-        const webhookExpose = ensemble.expose.find((exp) => exp.type === 'webhook' && (exp.path === webhookPath || exp.path === `/${ensembleName}`));
-        if (!webhookExpose || webhookExpose.type !== 'webhook') {
+        const webhookTrigger = ensemble.trigger.find((exp) => exp.type === 'webhook' && (exp.path === webhookPath || exp.path === `/${ensembleName}`));
+        if (!webhookTrigger || webhookTrigger.type !== 'webhook') {
             return c.json({
-                error: 'No webhook exposure found for this path',
+                error: 'No webhook trigger found for this path',
                 path: webhookPath,
             }, 404);
         }
         // Authenticate webhook if not public
-        if (!webhookExpose.public) {
-            if (!webhookExpose.auth) {
+        if (!webhookTrigger.public) {
+            if (!webhookTrigger.auth) {
                 return c.json({
                     error: 'Webhook requires authentication but none configured',
                     path: webhookPath,
                 }, 500);
             }
-            const authResult = await authenticateWebhook(c, webhookExpose.auth);
+            const authResult = await authenticateWebhook(c, webhookTrigger.auth);
             if (!authResult.success) {
                 return c.json({
                     error: 'Webhook authentication failed',
@@ -66,7 +66,7 @@ flow:
             }
         }
         // Determine execution mode
-        const mode = webhookExpose.mode || 'trigger';
+        const mode = webhookTrigger.mode || 'trigger';
         if (mode === 'trigger') {
             // Trigger new execution
             // Note: Hono context doesn't directly expose ExecutionContext
@@ -76,7 +76,7 @@ flow:
                 passThroughOnException: () => { },
             };
             const executor = new Executor({ env, ctx });
-            const isAsync = webhookExpose.async ?? true;
+            const isAsync = webhookTrigger.async ?? true;
             if (isAsync) {
                 // Return immediately, execute in background
                 const executionId = generateExecutionId();
@@ -156,7 +156,7 @@ flow:
             }
             else {
                 // Wait for completion
-                const timeout = webhookExpose.timeout || 30000;
+                const timeout = webhookTrigger.timeout || 30000;
                 const result = await Promise.race([
                     executor.executeEnsemble(ensemble, webhookData),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Webhook execution timeout')), timeout)),

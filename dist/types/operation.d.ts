@@ -20,6 +20,7 @@
  * - page: Full-stack web page generation
  * - html: HTML content generation
  * - pdf: PDF document generation
+ * - queue: Cloudflare Queues message processing and batch operations
  */
 export declare enum Operation {
     think = "think",
@@ -33,12 +34,13 @@ export declare enum Operation {
     form = "form",
     page = "page",
     html = "html",
-    pdf = "pdf"
+    pdf = "pdf",
+    queue = "queue"
 }
 /**
  * String union type for operations
  */
-export type OperationType = 'think' | 'code' | 'storage' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'page' | 'html' | 'pdf';
+export type OperationType = 'think' | 'code' | 'storage' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'page' | 'html' | 'pdf' | 'queue';
 /**
  * Type guard to check if a value is a valid Operation
  */

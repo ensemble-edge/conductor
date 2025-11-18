@@ -21,6 +21,7 @@
  * - page: Full-stack web page generation
  * - html: HTML content generation
  * - pdf: PDF document generation
+ * - queue: Cloudflare Queues message processing and batch operations
  */
 export enum Operation {
   think = 'think',
@@ -35,6 +36,7 @@ export enum Operation {
   page = 'page',
   html = 'html',
   pdf = 'pdf',
+  queue = 'queue',
 }
 
 /**
@@ -53,6 +55,7 @@ export type OperationType =
   | 'page'
   | 'html'
   | 'pdf'
+  | 'queue'
 
 /**
  * Type guard to check if a value is a valid Operation
@@ -85,6 +88,7 @@ export const getOperationDisplayName = (operation: Operation): string => {
     [Operation.page]: 'Page Agent',
     [Operation.html]: 'HTML Agent',
     [Operation.pdf]: 'PDF Agent',
+    [Operation.queue]: 'Queue Agent',
   }
   return names[operation]
 }
@@ -106,6 +110,7 @@ export const getOperationDescription = (operation: Operation): string => {
     [Operation.page]: 'Web page generation and rendering',
     [Operation.html]: 'HTML content generation',
     [Operation.pdf]: 'PDF document generation and processing',
+    [Operation.queue]: 'Message queue processing and batch operations',
   }
   return descriptions[operation]
 }

@@ -71,7 +71,7 @@ declare const EnsembleSchema: z.ZodObject<{
         criteria?: unknown[] | Record<string, string> | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
     }>>;
-    expose: z.ZodEffects<z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
+    trigger: z.ZodEffects<z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
         type: z.ZodLiteral<"webhook">;
         path: z.ZodOptional<z.ZodString>;
         methods: z.ZodOptional<z.ZodArray<z.ZodEnum<["POST", "GET", "PUT", "PATCH", "DELETE"]>, "many">>;
@@ -168,6 +168,45 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
+    }>, z.ZodObject<{
+        type: z.ZodLiteral<"queue">;
+        queue: z.ZodString;
+        batch_size: z.ZodOptional<z.ZodNumber>;
+        max_retries: z.ZodOptional<z.ZodNumber>;
+        max_wait_time: z.ZodOptional<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        queue: string;
+        type: "queue";
+        batch_size?: number | undefined;
+        max_retries?: number | undefined;
+        max_wait_time?: number | undefined;
+    }, {
+        queue: string;
+        type: "queue";
+        batch_size?: number | undefined;
+        max_retries?: number | undefined;
+        max_wait_time?: number | undefined;
+    }>, z.ZodObject<{
+        type: z.ZodLiteral<"cron">;
+        cron: z.ZodString;
+        timezone: z.ZodOptional<z.ZodString>;
+        enabled: z.ZodOptional<z.ZodBoolean>;
+        input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    }, "strip", z.ZodTypeAny, {
+        type: "cron";
+        cron: string;
+        enabled?: boolean | undefined;
+        timezone?: string | undefined;
+        input?: Record<string, unknown> | undefined;
+        metadata?: Record<string, unknown> | undefined;
+    }, {
+        type: "cron";
+        cron: string;
+        enabled?: boolean | undefined;
+        timezone?: string | undefined;
+        input?: Record<string, unknown> | undefined;
+        metadata?: Record<string, unknown> | undefined;
     }>]>, "many">>, ({
         type: "webhook";
         path?: string | undefined;
@@ -195,6 +234,19 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
+    } | {
+        queue: string;
+        type: "queue";
+        batch_size?: number | undefined;
+        max_retries?: number | undefined;
+        max_wait_time?: number | undefined;
+    } | {
+        type: "cron";
+        cron: string;
+        enabled?: boolean | undefined;
+        timezone?: string | undefined;
+        input?: Record<string, unknown> | undefined;
+        metadata?: Record<string, unknown> | undefined;
     })[] | undefined, ({
         type: "webhook";
         path?: string | undefined;
@@ -222,6 +274,19 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
+    } | {
+        queue: string;
+        type: "queue";
+        batch_size?: number | undefined;
+        max_retries?: number | undefined;
+        max_wait_time?: number | undefined;
+    } | {
+        type: "cron";
+        cron: string;
+        enabled?: boolean | undefined;
+        timezone?: string | undefined;
+        input?: Record<string, unknown> | undefined;
+        metadata?: Record<string, unknown> | undefined;
     })[] | undefined>;
     notifications: z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
         type: z.ZodLiteral<"webhook">;
@@ -263,25 +328,6 @@ declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     }>]>, "many">>;
-    schedules: z.ZodOptional<z.ZodArray<z.ZodObject<{
-        cron: z.ZodString;
-        timezone: z.ZodOptional<z.ZodString>;
-        enabled: z.ZodOptional<z.ZodBoolean>;
-        input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
-        metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
-    }, "strip", z.ZodTypeAny, {
-        cron: string;
-        enabled?: boolean | undefined;
-        timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
-        metadata?: Record<string, unknown> | undefined;
-    }, {
-        cron: string;
-        enabled?: boolean | undefined;
-        timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
-        metadata?: Record<string, unknown> | undefined;
-    }>, "many">>;
     flow: z.ZodArray<z.ZodObject<{
         agent: z.ZodString;
         input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
@@ -450,7 +496,7 @@ declare const EnsembleSchema: z.ZodObject<{
         schema?: Record<string, unknown> | undefined;
         initial?: Record<string, unknown> | undefined;
     } | undefined;
-    expose?: ({
+    trigger?: ({
         type: "webhook";
         path?: string | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
@@ -477,6 +523,19 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
+    } | {
+        queue: string;
+        type: "queue";
+        batch_size?: number | undefined;
+        max_retries?: number | undefined;
+        max_wait_time?: number | undefined;
+    } | {
+        type: "cron";
+        cron: string;
+        enabled?: boolean | undefined;
+        timezone?: string | undefined;
+        input?: Record<string, unknown> | undefined;
+        metadata?: Record<string, unknown> | undefined;
     })[] | undefined;
     notifications?: ({
         type: "webhook";
@@ -492,13 +551,6 @@ declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     })[] | undefined;
-    schedules?: {
-        cron: string;
-        enabled?: boolean | undefined;
-        timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
-        metadata?: Record<string, unknown> | undefined;
-    }[] | undefined;
     output?: Record<string, unknown> | undefined;
 }, {
     name: string;
@@ -547,7 +599,7 @@ declare const EnsembleSchema: z.ZodObject<{
         schema?: Record<string, unknown> | undefined;
         initial?: Record<string, unknown> | undefined;
     } | undefined;
-    expose?: ({
+    trigger?: ({
         type: "webhook";
         path?: string | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
@@ -574,6 +626,19 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
+    } | {
+        queue: string;
+        type: "queue";
+        batch_size?: number | undefined;
+        max_retries?: number | undefined;
+        max_wait_time?: number | undefined;
+    } | {
+        type: "cron";
+        cron: string;
+        enabled?: boolean | undefined;
+        timezone?: string | undefined;
+        input?: Record<string, unknown> | undefined;
+        metadata?: Record<string, unknown> | undefined;
     })[] | undefined;
     notifications?: ({
         type: "webhook";
@@ -589,18 +654,11 @@ declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     })[] | undefined;
-    schedules?: {
-        cron: string;
-        enabled?: boolean | undefined;
-        timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
-        metadata?: Record<string, unknown> | undefined;
-    }[] | undefined;
     output?: Record<string, unknown> | undefined;
 }>;
 declare const AgentSchema: z.ZodObject<{
     name: z.ZodString;
-    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.page, Operation.html, Operation.pdf]>;
+    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.page, Operation.html, Operation.pdf, Operation.queue]>;
     description: z.ZodOptional<z.ZodString>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     schema: z.ZodOptional<z.ZodObject<{
@@ -635,9 +693,12 @@ declare const AgentSchema: z.ZodObject<{
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>;
 export type AgentConfig = z.infer<typeof AgentSchema>;
 export type FlowStep = EnsembleConfig['flow'][number];
-export type ExposeConfig = NonNullable<EnsembleConfig['expose']>[number];
+export type TriggerConfig = NonNullable<EnsembleConfig['trigger']>[number];
 export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number];
-export type ScheduleConfig = NonNullable<EnsembleConfig['schedules']>[number];
+export type ExposeConfig = TriggerConfig;
+export type ScheduleConfig = Extract<TriggerConfig, {
+    type: 'cron';
+}>;
 export declare class Parser {
     private static interpolator;
     /**

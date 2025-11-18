@@ -17,10 +17,12 @@ export class ScheduleManager {
         this.logger = logger || createLogger({ serviceName: 'schedule-manager' });
     }
     /**
-     * Register ensemble with schedules
+     * Register ensemble with cron triggers
      */
     register(ensemble) {
-        if (!ensemble.schedules || ensemble.schedules.length === 0) {
+        // Check if ensemble has any cron triggers
+        const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || [];
+        if (cronTriggers.length === 0) {
             return;
         }
         this.ensembles.set(ensemble.name, ensemble);
@@ -133,9 +135,11 @@ export class ScheduleManager {
     findMatchingEnsembles(cron) {
         const matches = [];
         for (const ensemble of this.ensembles.values()) {
-            if (!ensemble.schedules)
+            if (!ensemble.trigger)
                 continue;
-            for (const schedule of ensemble.schedules) {
+            // Find all cron triggers
+            const cronTriggers = ensemble.trigger.filter((t) => t.type === 'cron');
+            for (const schedule of cronTriggers) {
                 if (schedule.cron === cron) {
                     matches.push({ ensemble, schedule });
                 }
@@ -150,8 +154,10 @@ export class ScheduleManager {
     getAllCronExpressions() {
         const crons = new Set();
         for (const ensemble of this.ensembles.values()) {
-            if (ensemble.schedules) {
-                for (const schedule of ensemble.schedules) {
+            if (ensemble.trigger) {
+                // Find all cron triggers
+                const cronTriggers = ensemble.trigger.filter((t) => t.type === 'cron');
+                for (const schedule of cronTriggers) {
                     if (schedule.enabled !== false) {
                         crons.add(schedule.cron);
                     }
@@ -166,11 +172,15 @@ export class ScheduleManager {
     listScheduledEnsembles() {
         const scheduled = [];
         for (const ensemble of this.ensembles.values()) {
-            if (ensemble.schedules && ensemble.schedules.length > 0) {
-                scheduled.push({
-                    ensembleName: ensemble.name,
-                    schedules: ensemble.schedules,
-                });
+            if (ensemble.trigger) {
+                // Find all cron triggers
+                const cronTriggers = ensemble.trigger.filter((t) => t.type === 'cron');
+                if (cronTriggers.length > 0) {
+                    scheduled.push({
+                        ensembleName: ensemble.name,
+                        schedules: cronTriggers,
+                    });
+                }
             }
         }
         return scheduled;
@@ -180,7 +190,11 @@ export class ScheduleManager {
      */
     getEnsembleSchedules(ensembleName) {
         const ensemble = this.ensembles.get(ensembleName);
-        return ensemble?.schedules || null;
+        if (!ensemble?.trigger)
+            return null;
+        // Find all cron triggers
+        const cronTriggers = ensemble.trigger.filter((t) => t.type === 'cron');
+        return cronTriggers.length > 0 ? cronTriggers : null;
     }
     /**
      * Get count of registered ensembles with schedules
@@ -188,7 +202,8 @@ export class ScheduleManager {
     getScheduledCount() {
         let count = 0;
         for (const ensemble of this.ensembles.values()) {
-            if (ensemble.schedules && ensemble.schedules.length > 0) {
+            const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || [];
+            if (cronTriggers.length > 0) {
                 count++;
             }
         }

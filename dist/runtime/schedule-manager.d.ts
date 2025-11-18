@@ -34,7 +34,7 @@ export declare class ScheduleManager {
     private readonly logger;
     constructor(logger?: Logger);
     /**
-     * Register ensemble with schedules
+     * Register ensemble with cron triggers
      */
     register(ensemble: EnsembleConfig): void;
     /**

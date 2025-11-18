@@ -50,7 +50,9 @@ app.get('/:ensembleName', async (c) => {
                 ensembleName,
             }, 404);
         }
-        if (!ensemble.schedules || ensemble.schedules.length === 0) {
+        // Extract cron triggers
+        const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || [];
+        if (cronTriggers.length === 0) {
             return c.json({
                 error: 'Ensemble has no schedules configured',
                 ensembleName,
@@ -58,9 +60,9 @@ app.get('/:ensembleName', async (c) => {
         }
         return c.json({
             ensembleName,
-            schedules: ensemble.schedules,
-            totalSchedules: ensemble.schedules.length,
-            crons: ensemble.schedules.map((s) => s.cron),
+            schedules: cronTriggers,
+            totalSchedules: cronTriggers.length,
+            crons: cronTriggers.map((s) => s.cron),
             timestamp: Date.now(),
         });
     }
@@ -87,7 +89,9 @@ app.post('/:ensembleName/trigger', async (c) => {
                 ensembleName,
             }, 404);
         }
-        if (!ensemble.schedules || ensemble.schedules.length === 0) {
+        // Extract cron triggers
+        const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || [];
+        if (cronTriggers.length === 0) {
             return c.json({
                 error: 'Ensemble has no schedules configured',
                 ensembleName,
@@ -95,14 +99,14 @@ app.post('/:ensembleName/trigger', async (c) => {
         }
         // Get optional schedule index from query
         const scheduleIndex = parseInt(c.req.query('schedule') || '0', 10);
-        if (scheduleIndex < 0 || scheduleIndex >= ensemble.schedules.length) {
+        if (scheduleIndex < 0 || scheduleIndex >= cronTriggers.length) {
             return c.json({
                 error: 'Invalid schedule index',
                 scheduleIndex,
-                available: ensemble.schedules.length,
+                available: cronTriggers.length,
             }, 400);
         }
-        const schedule = ensemble.schedules[scheduleIndex];
+        const schedule = cronTriggers[scheduleIndex];
         // Create execution context
         const ctx = {
             waitUntil: (promise) => { },

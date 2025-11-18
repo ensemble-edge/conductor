@@ -11,8 +11,8 @@ flow:
   - agent: deep-analysis
   - agent: generate-report
 
-# Expose as webhook for easy triggering
-expose:
+# Trigger via webhook for easy triggering
+trigger:
   - type: webhook
     path: /research
     methods: [POST]

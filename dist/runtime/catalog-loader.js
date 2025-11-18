@@ -107,7 +107,7 @@ export class CatalogLoader {
                         const ensemble = Parser.parseEnsemble(yaml);
                         // Filter by schedules if needed
                         if (scheduledOnly) {
-                            if (ensemble.schedules && ensemble.schedules.length > 0) {
+                            if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
                                 ensembles.push(ensemble);
                             }
                         }
@@ -149,7 +149,7 @@ export class CatalogLoader {
                     const ensemble = Parser.parseEnsemble(row.yaml);
                     // Double-check schedules filter
                     if (scheduledOnly) {
-                        if (ensemble.schedules && ensemble.schedules.length > 0) {
+                        if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
                             ensembles.push(ensemble);
                         }
                     }
@@ -187,7 +187,7 @@ export class CatalogLoader {
                         const ensemble = Parser.parseEnsemble(yaml);
                         // Filter by schedules if needed
                         if (scheduledOnly) {
-                            if (ensemble.schedules && ensemble.schedules.length > 0) {
+                            if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
                                 ensembles.push(ensemble);
                             }
                         }
@@ -227,8 +227,9 @@ export class CatalogLoader {
             return;
         }
         if (env.DB) {
+            const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || [];
             await env.DB.prepare('INSERT OR REPLACE INTO ensembles (name, yaml, schedules) VALUES (?, ?, ?)')
-                .bind(ensemble.name, yaml, JSON.stringify(ensemble.schedules || []))
+                .bind(ensemble.name, yaml, JSON.stringify(cronTriggers))
                 .run();
             return;
         }
