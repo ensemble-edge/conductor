@@ -141,7 +141,7 @@ export class CatalogLoader {
 
             // Filter by schedules if needed
             if (scheduledOnly) {
-              if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
+              if (ensemble.trigger?.filter((t) => t.type === 'cron').length ?? 0 > 0) {
                 ensembles.push(ensemble)
               }
             } else {
@@ -194,7 +194,7 @@ export class CatalogLoader {
 
           // Double-check schedules filter
           if (scheduledOnly) {
-            if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
+            if (ensemble.trigger?.filter((t) => t.type === 'cron').length ?? 0 > 0) {
               ensembles.push(ensemble)
             }
           } else {
@@ -241,7 +241,7 @@ export class CatalogLoader {
 
             // Filter by schedules if needed
             if (scheduledOnly) {
-              if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
+              if (ensemble.trigger?.filter((t) => t.type === 'cron').length ?? 0 > 0) {
                 ensembles.push(ensemble)
               }
             } else {

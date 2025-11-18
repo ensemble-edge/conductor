@@ -4,142 +4,149 @@
  * Sends email notifications using Cloudflare Email Routing / MailChannels
  */
 
-import type { NotificationEventData, NotificationDeliveryResult, EmailNotificationData } from './types.js'
+import type {
+  NotificationEventData,
+  NotificationDeliveryResult,
+  EmailNotificationData,
+} from './types.js'
 import { createLogger } from '../../observability/index.js'
 
 const logger = createLogger({ serviceName: 'email-notifier' })
 
 export interface EmailNotificationConfig {
-	/** Recipient email addresses */
-	to: string[]
-	/** Sender email address */
-	from?: string
-	/** Email subject (supports template variables) */
-	subject?: string
-	/** Events that trigger this email */
-	events: string[]
+  /** Recipient email addresses */
+  to: string[]
+  /** Sender email address */
+  from?: string
+  /** Email subject (supports template variables) */
+  subject?: string
+  /** Events that trigger this email */
+  events: string[]
 }
 
 export class EmailNotifier {
-	private config: EmailNotificationConfig
+  private config: EmailNotificationConfig
 
-	constructor(config: EmailNotificationConfig) {
-		this.config = config
-	}
+  constructor(config: EmailNotificationConfig) {
+    this.config = config
+  }
 
-	/**
-	 * Send email notification
-	 */
-	async send(eventData: NotificationEventData, env: Env): Promise<NotificationDeliveryResult> {
-		const startTime = Date.now()
+  /**
+   * Send email notification
+   */
+  async send(eventData: NotificationEventData, env: Env): Promise<NotificationDeliveryResult> {
+    const startTime = Date.now()
 
-		try {
-			// Build email content
-			const emailData = this.buildEmailData(eventData)
+    try {
+      // Build email content
+      const emailData = this.buildEmailData(eventData)
 
-			// Send email using MailChannels
-			await this.sendEmail(emailData, env)
+      // Send email using MailChannels
+      await this.sendEmail(emailData, env)
 
-			logger.info('Email notification sent', {
-				to: emailData.to,
-				event: eventData.event,
-			})
+      logger.info('Email notification sent', {
+        to: emailData.to,
+        event: eventData.event,
+      })
 
-			return {
-				success: true,
-				type: 'email',
-				target: emailData.to.join(', '),
-				event: eventData.event,
-				duration: Date.now() - startTime,
-			}
-		} catch (error) {
-			logger.error('Email notification failed', error instanceof Error ? error : undefined, {
-				to: this.config.to,
-				event: eventData.event,
-			})
+      return {
+        success: true,
+        type: 'email',
+        target: emailData.to.join(', '),
+        event: eventData.event,
+        duration: Date.now() - startTime,
+      }
+    } catch (error) {
+      logger.error('Email notification failed', error instanceof Error ? error : undefined, {
+        to: this.config.to,
+        event: eventData.event,
+      })
 
-			return {
-				success: false,
-				type: 'email',
-				target: this.config.to.join(', '),
-				event: eventData.event,
-				duration: Date.now() - startTime,
-				error: error instanceof Error ? error.message : 'Unknown error',
-			}
-		}
-	}
+      return {
+        success: false,
+        type: 'email',
+        target: this.config.to.join(', '),
+        event: eventData.event,
+        duration: Date.now() - startTime,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  }
 
-	/**
-	 * Build email data from event
-	 */
-	private buildEmailData(eventData: NotificationEventData): EmailNotificationData {
-		const subject = this.interpolateSubject(eventData)
-		const text = this.buildTextBody(eventData)
-		const html = this.buildHtmlBody(eventData)
+  /**
+   * Build email data from event
+   */
+  private buildEmailData(eventData: NotificationEventData): EmailNotificationData {
+    const subject = this.interpolateSubject(eventData)
+    const text = this.buildTextBody(eventData)
+    const html = this.buildHtmlBody(eventData)
 
-		return {
-			to: this.config.to,
-			from: this.config.from || 'notifications@conductor.dev',
-			subject,
-			text,
-			html,
-			event: eventData.event,
-			eventData: eventData.data,
-		}
-	}
+    return {
+      to: this.config.to,
+      from: this.config.from || 'notifications@conductor.dev',
+      subject,
+      text,
+      html,
+      event: eventData.event,
+      eventData: eventData.data,
+    }
+  }
 
-	/**
-	 * Interpolate subject template with event data
-	 */
-	private interpolateSubject(eventData: NotificationEventData): string {
-		if (!this.config.subject) {
-			// Default subject
-			return `Conductor: ${eventData.event}`
-		}
+  /**
+   * Interpolate subject template with event data
+   */
+  private interpolateSubject(eventData: NotificationEventData): string {
+    if (!this.config.subject) {
+      // Default subject
+      return `Conductor: ${eventData.event}`
+    }
 
-		// Simple template interpolation
-		let subject = this.config.subject
-		subject = subject.replace(/\${event}/g, eventData.event)
-		subject = subject.replace(/\${ensemble\.name}/g, (eventData.data.ensemble as string) || 'Unknown')
-		subject = subject.replace(/\${timestamp}/g, eventData.timestamp)
+    // Simple template interpolation
+    let subject = this.config.subject
+    subject = subject.replace(/\${event}/g, eventData.event)
+    subject = subject.replace(
+      /\${ensemble\.name}/g,
+      (eventData.data.ensemble as string) || 'Unknown'
+    )
+    subject = subject.replace(/\${timestamp}/g, eventData.timestamp)
 
-		return subject
-	}
+    return subject
+  }
 
-	/**
-	 * Build plain text email body
-	 */
-	private buildTextBody(eventData: NotificationEventData): string {
-		const lines = [
-			`Event: ${eventData.event}`,
-			`Timestamp: ${eventData.timestamp}`,
-			'',
-			'Details:',
-			JSON.stringify(eventData.data, null, 2),
-			'',
-			'---',
-			'This is an automated notification from Conductor.',
-		]
+  /**
+   * Build plain text email body
+   */
+  private buildTextBody(eventData: NotificationEventData): string {
+    const lines = [
+      `Event: ${eventData.event}`,
+      `Timestamp: ${eventData.timestamp}`,
+      '',
+      'Details:',
+      JSON.stringify(eventData.data, null, 2),
+      '',
+      '---',
+      'This is an automated notification from Conductor.',
+    ]
 
-		return lines.join('\n')
-	}
+    return lines.join('\n')
+  }
 
-	/**
-	 * Build HTML email body
-	 */
-	private buildHtmlBody(eventData: NotificationEventData): string {
-		const eventType = eventData.event.split('.')[0]
-		const eventAction = eventData.event.split('.')[1] || ''
+  /**
+   * Build HTML email body
+   */
+  private buildHtmlBody(eventData: NotificationEventData): string {
+    const eventType = eventData.event.split('.')[0]
+    const eventAction = eventData.event.split('.')[1] || ''
 
-		// Color based on event type
-		let color = '#2563eb' // blue
-		if (eventAction === 'failed' || eventAction === 'timeout') {
-			color = '#dc2626' // red
-		} else if (eventAction === 'completed') {
-			color = '#16a34a' // green
-		}
+    // Color based on event type
+    let color = '#2563eb' // blue
+    if (eventAction === 'failed' || eventAction === 'timeout') {
+      color = '#dc2626' // red
+    } else if (eventAction === 'completed') {
+      color = '#16a34a' // green
+    }
 
-		return `
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -222,45 +229,45 @@ export class EmailNotifier {
 </body>
 </html>
 		`.trim()
-	}
+  }
 
-	/**
-	 * Send email using MailChannels API
-	 */
-	private async sendEmail(emailData: EmailNotificationData, env: Env): Promise<void> {
-		// Use MailChannels API (free for Cloudflare Workers)
-		const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				personalizations: [
-					{
-						to: emailData.to.map((email) => ({ email })),
-					},
-				],
-				from: {
-					email: emailData.from,
-					name: 'Conductor Notifications',
-				},
-				subject: emailData.subject,
-				content: [
-					{
-						type: 'text/plain',
-						value: emailData.text,
-					},
-					{
-						type: 'text/html',
-						value: emailData.html || emailData.text,
-					},
-				],
-			}),
-		})
+  /**
+   * Send email using MailChannels API
+   */
+  private async sendEmail(emailData: EmailNotificationData, env: Env): Promise<void> {
+    // Use MailChannels API (free for Cloudflare Workers)
+    const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [
+          {
+            to: emailData.to.map((email) => ({ email })),
+          },
+        ],
+        from: {
+          email: emailData.from,
+          name: 'Conductor Notifications',
+        },
+        subject: emailData.subject,
+        content: [
+          {
+            type: 'text/plain',
+            value: emailData.text,
+          },
+          {
+            type: 'text/html',
+            value: emailData.html || emailData.text,
+          },
+        ],
+      }),
+    })
 
-		if (!response.ok) {
-			const errorText = await response.text().catch(() => 'Unknown error')
-			throw new Error(`MailChannels API error: ${response.status} - ${errorText}`)
-		}
-	}
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error')
+      throw new Error(`MailChannels API error: ${response.status} - ${errorText}`)
+    }
+  }
 }
