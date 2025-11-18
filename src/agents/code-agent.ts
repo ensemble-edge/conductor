@@ -54,9 +54,7 @@ export class CodeAgent extends BaseAgent {
 
     // Validate config
     if (!this.codeConfig.script && !this.codeConfig.handler) {
-      throw new Error(
-        `Code agent "${config.name}" requires either a script URI or inline handler`
-      )
+      throw new Error(`Code agent "${config.name}" requires either a script URI or inline handler`)
     }
 
     // If inline handler, store it
@@ -121,13 +119,17 @@ export class CodeAgent extends BaseAgent {
     // Scripts should export a default function or return a function
     try {
       // Try as ES module export
-      const module = new Function('exports', 'context', `
+      const module = new Function(
+        'exports',
+        'context',
+        `
         ${scriptContent}
         if (typeof exports.default === 'function') {
           return exports.default;
         }
         throw new Error('Script must export a default function');
-      `)
+      `
+      )
 
       const exports: any = {}
       const fn = module(exports, context)
@@ -141,9 +143,9 @@ export class CodeAgent extends BaseAgent {
       context.logger?.error('Script compilation failed', error as Error, { uri: scriptUri })
       throw new Error(
         `Failed to compile script: ${scriptUri}\n` +
-        `Error: ${error instanceof Error ? error.message : String(error)}\n` +
-        `Make sure your script exports a default function:\n` +
-        `  export default async function(context) { ... }`
+          `Error: ${error instanceof Error ? error.message : String(error)}\n` +
+          `Make sure your script exports a default function:\n` +
+          `  export default async function(context) { ... }`
       )
     }
   }
