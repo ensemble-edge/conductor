@@ -173,7 +173,9 @@ export class ThinkAgent extends BaseAgent {
           throw new Error(`Schema must be valid JSON, got invalid string`)
         }
       } else {
-        throw new Error(`Schema must resolve to an object or JSON string, got ${typeof resolved.content}`)
+        throw new Error(
+          `Schema must resolve to an object or JSON string, got ${typeof resolved.content}`
+        )
       }
     } catch (error) {
       throw new Error(

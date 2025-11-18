@@ -55,7 +55,8 @@ flow:
     // Find matching webhook configuration in expose array
     const webhookPath = `/webhooks/${ensembleName}`
     const webhookTrigger = ensemble.trigger.find(
-      (exp) => exp.type === 'webhook' && (exp.path === webhookPath || exp.path === `/${ensembleName}`)
+      (exp) =>
+        exp.type === 'webhook' && (exp.path === webhookPath || exp.path === `/${ensembleName}`)
     )
 
     if (!webhookTrigger || webhookTrigger.type !== 'webhook') {
@@ -537,7 +538,9 @@ async function authenticateWebhook(
   c: unknown,
   auth: { type: 'bearer' | 'signature' | 'basic'; secret: string }
 ): Promise<{ success: boolean; error?: string }> {
-  const ctx = c as { req: { header: (name: string) => string | undefined; text: () => Promise<string> } }
+  const ctx = c as {
+    req: { header: (name: string) => string | undefined; text: () => Promise<string> }
+  }
   switch (auth.type) {
     case 'bearer': {
       const authHeader = ctx.req.header('Authorization')
@@ -555,11 +558,15 @@ async function authenticateWebhook(
 
     case 'signature': {
       // Verify HMAC signature (GitHub/Stripe/Slack style)
-      const signature = ctx.req.header('X-Webhook-Signature') || ctx.req.header('X-Hub-Signature-256')
+      const signature =
+        ctx.req.header('X-Webhook-Signature') || ctx.req.header('X-Hub-Signature-256')
       const timestamp = ctx.req.header('X-Webhook-Timestamp')
 
       if (!signature) {
-        return { success: false, error: 'Missing signature header (X-Webhook-Signature or X-Hub-Signature-256)' }
+        return {
+          success: false,
+          error: 'Missing signature header (X-Webhook-Signature or X-Hub-Signature-256)',
+        }
       }
 
       if (!timestamp) {
@@ -571,7 +578,8 @@ async function authenticateWebhook(
       const currentTime = Math.floor(Date.now() / 1000)
       const timeDiff = Math.abs(currentTime - requestTime)
 
-      if (timeDiff > 300) { // 5 minutes
+      if (timeDiff > 300) {
+        // 5 minutes
         return { success: false, error: 'Request timestamp too old (replay attack prevention)' }
       }
 
@@ -591,7 +599,7 @@ async function authenticateWebhook(
       } catch (error) {
         return {
           success: false,
-          error: `Signature verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          error: `Signature verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         }
       }
     }
@@ -618,7 +626,11 @@ async function authenticateWebhook(
 /**
  * Generate HMAC-SHA256 signature for webhook verification
  */
-async function generateWebhookSignature(body: string, timestamp: number, secret: string): Promise<string> {
+async function generateWebhookSignature(
+  body: string,
+  timestamp: number,
+  secret: string
+): Promise<string> {
   const payload = `${timestamp}.${body}`
 
   // Use Web Crypto API (available in Cloudflare Workers)
