@@ -143,7 +143,7 @@ describe('MCP Integration', () => {
 	})
 
 	describe('Parser - MCP Configuration', () => {
-		it('should parse MCP expose configuration', () => {
+		it('should parse MCP trigger configuration', () => {
 			const yaml = `
 name: test-mcp
 ensemble: test-mcp
@@ -151,7 +151,7 @@ ensemble: test-mcp
 flow:
   - agent: test
 
-expose:
+trigger:
   - type: mcp
     public: false
     auth:
@@ -170,16 +170,16 @@ outputs:
 
 			const result = Parser.parseEnsemble(yaml)
 
-			expect(result.expose).toBeDefined()
-			expect(result.expose?.length).toBe(1)
+			expect(result.trigger).toBeDefined()
+			expect(result.trigger?.length).toBe(1)
 
-			const mcpExpose = result.expose![0]
-			expect(mcpExpose.type).toBe('mcp')
-			expect(mcpExpose.public).toBe(false)
+			const mcpTrigger = result.trigger![0]
+			expect(mcpTrigger.type).toBe('mcp')
+			expect(mcpTrigger.public).toBe(false)
 
-			if (mcpExpose.type === 'mcp' && mcpExpose.auth) {
-				expect(mcpExpose.auth.type).toBe('bearer')
-				expect(mcpExpose.auth.secret).toBe('test-secret-123')
+			if (mcpTrigger.type === 'mcp' && mcpTrigger.auth) {
+				expect(mcpTrigger.auth.type).toBe('bearer')
+				expect(mcpTrigger.auth.secret).toBe('test-secret-123')
 			}
 		})
 
@@ -216,7 +216,7 @@ outputs:
 			expect(result.flow[0].agent).toBe('call-tool')
 		})
 
-		it('should validate MCP expose requires auth or public flag', () => {
+		it('should validate MCP trigger requires auth or public flag', () => {
 			const yaml = `
 name: test-invalid
 ensemble: test-invalid
@@ -224,7 +224,7 @@ ensemble: test-invalid
 flow:
   - agent: test
 
-expose:
+trigger:
   - type: mcp
     # Missing both auth and public flag
 
@@ -238,7 +238,7 @@ agents:
 			expect(() => Parser.parseEnsemble(yaml)).toThrow('public')
 		})
 
-		it('should allow public MCP exposure', () => {
+		it('should allow public MCP trigger', () => {
 			const yaml = `
 name: test-public
 ensemble: test-public
@@ -246,7 +246,7 @@ ensemble: test-public
 flow:
   - agent: test
 
-expose:
+trigger:
   - type: mcp
     public: true
 
@@ -262,9 +262,9 @@ outputs:
 
 			const result = Parser.parseEnsemble(yaml)
 
-			const mcpExpose = result.expose![0]
-			expect(mcpExpose.type).toBe('mcp')
-			expect(mcpExpose.public).toBe(true)
+			const mcpTrigger = result.trigger![0]
+			expect(mcpTrigger.type).toBe('mcp')
+			expect(mcpTrigger.public).toBe(true)
 		})
 
 		it('should parse OAuth configuration', () => {
@@ -275,7 +275,7 @@ ensemble: test-oauth
 flow:
   - agent: test
 
-expose:
+trigger:
   - type: mcp
     public: false
     auth:
@@ -290,9 +290,9 @@ agents:
 
 			const result = Parser.parseEnsemble(yaml)
 
-			const mcpExpose = result.expose![0]
-			if (mcpExpose.type === 'mcp' && mcpExpose.auth) {
-				expect(mcpExpose.auth.type).toBe('oauth')
+			const mcpTrigger = result.trigger![0]
+			if (mcpTrigger.type === 'mcp' && mcpTrigger.auth) {
+				expect(mcpTrigger.auth.type).toBe('oauth')
 			}
 		})
 	})
@@ -307,8 +307,8 @@ flow:
   - agent: call-github
   - agent: process
 
-# Expose this ensemble as MCP tool
-expose:
+# Trigger this ensemble as MCP tool
+trigger:
   - type: mcp
     public: false
     auth:
@@ -340,9 +340,9 @@ outputs:
 
 			const result = Parser.parseEnsemble(yaml)
 
-			// Has MCP exposure (inbound)
-			expect(result.expose).toBeDefined()
-			expect(result.expose![0].type).toBe('mcp')
+			// Has MCP trigger (inbound)
+			expect(result.trigger).toBeDefined()
+			expect(result.trigger![0].type).toBe('mcp')
 
 			// Flow references tools agent (outbound)
 			expect(result.flow).toHaveLength(2)
@@ -350,7 +350,7 @@ outputs:
 			expect(result.flow[1].agent).toBe('process')
 		})
 
-		it('should support ensemble with notifications and MCP exposure', () => {
+		it('should support ensemble with notifications and MCP trigger', () => {
 			const yaml = `
 name: notified-mcp-tool
 ensemble: notified-mcp-tool
@@ -358,7 +358,7 @@ ensemble: notified-mcp-tool
 flow:
   - agent: work
 
-expose:
+trigger:
   - type: mcp
     auth:
       type: bearer
@@ -384,7 +384,7 @@ outputs:
 
 			const result = Parser.parseEnsemble(yaml)
 
-			expect(result.expose).toBeDefined()
+			expect(result.trigger).toBeDefined()
 			expect(result.notifications).toBeDefined()
 			expect(result.notifications![0].type).toBe('webhook')
 		})
