@@ -79,25 +79,25 @@ describe('ComponentLoader', () => {
       })
     })
 
-    it('should parse form URIs', () => {
-      const result = loader.parseURI('form://contact@prod')
+    it('should parse script URIs', () => {
+      const result = loader.parseURI('script://transform-data@v1.0.0')
 
       expect(result).toEqual({
-        protocol: 'form',
-        path: 'contact',
-        version: 'prod',
-        originalURI: 'form://contact@prod',
+        protocol: 'script',
+        path: 'transform-data',
+        version: 'v1.0.0',
+        originalURI: 'script://transform-data@v1.0.0',
       })
     })
 
-    it('should parse page URIs', () => {
-      const result = loader.parseURI('page://Dashboard@latest')
+    it('should parse schema URIs', () => {
+      const result = loader.parseURI('schema://invoice@latest')
 
       expect(result).toEqual({
-        protocol: 'page',
-        path: 'Dashboard',
+        protocol: 'schema',
+        path: 'invoice',
         version: 'latest',
-        originalURI: 'page://Dashboard@latest',
+        originalURI: 'schema://invoice@latest',
       })
     })
 
@@ -263,6 +263,24 @@ describe('ComponentLoader', () => {
       expect(mockKV.get).toHaveBeenCalledWith('queries/active-users@latest', 'text')
     })
 
+    it('should load script from correct KV key', async () => {
+      const content = 'export default async function(context) { return context.input * 2; }'
+      mockKV.get.mockResolvedValue(content)
+
+      await loader.load('script://transform-data@v1.0.0')
+
+      expect(mockKV.get).toHaveBeenCalledWith('scripts/transform-data@v1.0.0', 'text')
+    })
+
+    it('should load schema from correct KV key', async () => {
+      const content = JSON.stringify({ type: 'object', properties: {} })
+      mockKV.get.mockResolvedValue(content)
+
+      await loader.load('schema://invoice@v2.0.0')
+
+      expect(mockKV.get).toHaveBeenCalledWith('schemas/invoice@v2.0.0', 'text')
+    })
+
     it('should provide helpful error message with deployment instructions', async () => {
       mockKV.get.mockResolvedValue(null)
 
@@ -296,53 +314,59 @@ describe('ComponentLoader', () => {
       )
     })
 
-    it('should load form definition as JSON', async () => {
-      const formDef = JSON.stringify({
-        fields: [{ name: 'email', type: 'email', required: true }],
+    it('should load config definition as JSON', async () => {
+      const configDef = JSON.stringify({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4',
+        temperature: 0.3,
       })
-      mockKV.get.mockResolvedValue(formDef)
+      mockKV.get.mockResolvedValue(configDef)
 
-      const result = await loader.loadJSON('form://contact@v1.0.0')
+      const result = await loader.loadJSON('config://anthropic-settings@v1.0.0')
 
-      expect(result.fields).toHaveLength(1)
-      expect(result.fields[0].name).toBe('email')
+      expect(result.provider).toBe('anthropic')
+      expect(result.model).toBe('claude-sonnet-4')
+      expect(result.temperature).toBe(0.3)
     })
   })
 
   describe('loadCompiled', () => {
-    it('should load and evaluate compiled component', async () => {
+    it('should load and evaluate compiled script', async () => {
       const compiledCode = `
-				exports.default = function Component(props) {
-					return '<div>' + props.text + '</div>';
+				exports.default = function transformData(context) {
+					const data = context.input.items;
+					return data.map(item => item * 2);
 				};
 			`
       mockKV.get.mockResolvedValue(compiledCode)
 
-      const component = await loader.loadCompiled('component://Button@latest')
+      const script = await loader.loadCompiled('script://transform-data@latest')
 
-      expect(typeof component).toBe('function')
-      expect(component({ text: 'Click me' })).toBe('<div>Click me</div>')
+      expect(typeof script).toBe('function')
+      const result = script({ input: { items: [1, 2, 3] } })
+      expect(result).toEqual([2, 4, 6])
     })
 
-    it('should handle compiled page exports', async () => {
-      const compiledPage = `
-				exports.default = function Dashboard(props) {
-					return '<h1>' + props.title + '</h1>';
+    it('should handle compiled script with exports', async () => {
+      const compiledScript = `
+				exports.default = async function processData(context) {
+					return { processed: true, count: context.input.items.length };
 				};
-				exports.metadata = { title: 'Dashboard' };
 			`
-      mockKV.get.mockResolvedValue(compiledPage)
+      mockKV.get.mockResolvedValue(compiledScript)
 
-      const page = await loader.loadCompiled<any>('page://Dashboard@v1.0.0')
+      const script = await loader.loadCompiled<any>('script://process-data@v1.0.0')
 
-      expect(typeof page).toBe('function')
-      expect(page({ title: 'My Dashboard' })).toBe('<h1>My Dashboard</h1>')
+      expect(typeof script).toBe('function')
+      const result = await script({ input: { items: [1, 2, 3] } })
+      expect(result.processed).toBe(true)
+      expect(result.count).toBe(3)
     })
 
     it('should throw on compilation error', async () => {
       mockKV.get.mockResolvedValue('invalid javascript code }{')
 
-      await expect(loader.loadCompiled('component://Broken@latest')).rejects.toThrow(
+      await expect(loader.loadCompiled('script://broken-script@latest')).rejects.toThrow(
         'Failed to load compiled component'
       )
     })

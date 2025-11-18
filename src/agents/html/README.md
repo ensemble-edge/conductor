@@ -70,9 +70,6 @@ agents:
 
 **Protocols**:
 - `template://` - HTML/Handlebars templates
-- `component://` - Compiled JSX components
-- `form://` - Form definitions
-- `page://` - Full page components
 
 **Version Handling**:
 - `template://components/header` → Uses `@latest`
