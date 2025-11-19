@@ -191,9 +191,9 @@ Content`
     })
 
     it('should throw if template not found', async () => {
-      await expect(
-        manager.renderByName('nonexistent', {})
-      ).rejects.toThrow('Docs template not found: nonexistent')
+      await expect(manager.renderByName('nonexistent', {})).rejects.toThrow(
+        'Docs template not found: nonexistent'
+      )
     })
   })
 
