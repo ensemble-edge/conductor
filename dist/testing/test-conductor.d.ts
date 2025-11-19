@@ -81,6 +81,11 @@ export declare class TestConductor {
      */
     private loadCatalog;
     /**
+     * Recursively load agents from directory tree
+     * Supports three-tier organization: agents/, agents/docs/, agents/examples/
+     */
+    private loadAgentsRecursive;
+    /**
      * Register loaded agents with the executor
      */
     private registerLoadedMembers;

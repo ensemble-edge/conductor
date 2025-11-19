@@ -8633,6 +8633,7 @@ let Operation = /* @__PURE__ */ function(Operation$1) {
 	Operation$1["html"] = "html";
 	Operation$1["pdf"] = "pdf";
 	Operation$1["queue"] = "queue";
+	Operation$1["docs"] = "docs";
 	return Operation$1;
 }({});
 let AIProvider = /* @__PURE__ */ function(AIProvider$1) {
@@ -8813,7 +8814,8 @@ var AgentSchema = objectType$1({
 		Operation.page,
 		Operation.html,
 		Operation.pdf,
-		Operation.queue
+		Operation.queue,
+		Operation.docs
 	]),
 	description: stringType().optional(),
 	config: recordType(unknownType()).optional(),
@@ -24124,6 +24126,277 @@ var PdfMember = class extends BaseAgent {
 		return rendered;
 	}
 };
+init_base_agent();
+var DocsMember = class extends BaseAgent {
+	constructor(config) {
+		super(config);
+		this.docsConfig = config;
+		this.docsConfig.ui = this.docsConfig.ui || "stoplight";
+		this.docsConfig.openApiVersion = this.docsConfig.openApiVersion || "3.1";
+		this.docsConfig.paths = this.docsConfig.paths || {
+			docs: "/docs",
+			yaml: "/openapi.yaml",
+			json: "/openapi.json"
+		};
+	}
+	async run(context) {
+		const input = context.input;
+		const pathname = new URL(input.request?.url || "").pathname;
+		if (this.docsConfig.cache?.enabled) {
+			const cached = await this.checkCache(pathname, context);
+			if (cached) return cached;
+		}
+		if (pathname === this.docsConfig.paths?.docs) return await this.serveDocsUI(context);
+		else if (pathname === this.docsConfig.paths?.yaml) return await this.serveSpec("yaml", context);
+		else if (pathname === this.docsConfig.paths?.json) return await this.serveSpec("json", context);
+		return {
+			content: "Not Found",
+			contentType: "text/plain",
+			status: 404,
+			headers: {}
+		};
+	}
+	async serveDocsUI(context) {
+		const ui = this.docsConfig.ui;
+		const branding = this.docsConfig.branding;
+		const specUrl = this.docsConfig.paths.yaml;
+		let html = "";
+		switch (ui) {
+			case "stoplight":
+				html = this.generateStoplightUI(specUrl, branding);
+				break;
+			case "redoc":
+				html = this.generateRedocUI(specUrl, branding);
+				break;
+			case "swagger":
+				html = this.generateSwaggerUI(specUrl, branding);
+				break;
+			case "scalar":
+				html = this.generateScalarUI(specUrl, branding);
+				break;
+			case "rapidoc":
+				html = this.generateRapidocUI(specUrl, branding);
+				break;
+			default: html = this.generateStoplightUI(specUrl, branding);
+		}
+		const output = {
+			content: html,
+			contentType: "text/html; charset=utf-8",
+			status: 200,
+			headers: { "Cache-Control": this.docsConfig.cache?.enabled ? `public, max-age=${this.docsConfig.cache.ttl}` : "no-cache" },
+			cacheStatus: "miss"
+		};
+		if (this.docsConfig.cache?.enabled) await this.cacheOutput(this.docsConfig.paths.docs, output, context);
+		return output;
+	}
+	async serveSpec(format$1, context) {
+		const spec = await this.generateSpec(context);
+		let content;
+		let contentType;
+		if (format$1 === "yaml") {
+			content = JSON.stringify(spec, null, 2);
+			contentType = "application/x-yaml";
+		} else {
+			content = JSON.stringify(spec, null, 2);
+			contentType = "application/json";
+		}
+		const output = {
+			content,
+			contentType,
+			status: 200,
+			headers: { "Cache-Control": this.docsConfig.cache?.enabled ? `public, max-age=${this.docsConfig.cache.ttl}` : "no-cache" },
+			cacheStatus: "miss"
+		};
+		if (this.docsConfig.cache?.enabled) {
+			const path$1 = format$1 === "yaml" ? this.docsConfig.paths.yaml : this.docsConfig.paths.json;
+			await this.cacheOutput(path$1, output, context);
+		}
+		return output;
+	}
+	async generateSpec(context) {
+		if (this.docsConfig.customSpec) return this.docsConfig.customSpec;
+		if (this.docsConfig.autoGenerate?.enabled) return await this.autoGenerateSpec(context);
+		return {
+			openapi: "3.1.0",
+			info: {
+				title: this.docsConfig.branding?.title || "API Documentation",
+				description: this.docsConfig.branding?.description || "API Documentation",
+				version: "1.0.0"
+			},
+			servers: this.docsConfig.servers || [{
+				url: "/",
+				description: "Current server"
+			}],
+			paths: {}
+		};
+	}
+	async autoGenerateSpec(context) {
+		return {
+			openapi: "3.1.0",
+			info: {
+				title: this.docsConfig.branding?.title || "API Documentation",
+				description: this.docsConfig.branding?.description || "Auto-generated API documentation",
+				version: "1.0.0"
+			},
+			servers: this.docsConfig.servers || [],
+			paths: { "/api/v1/execute": { post: {
+				summary: "Execute an ensemble",
+				description: "Execute a named ensemble with input data",
+				requestBody: {
+					required: true,
+					content: { "application/json": { schema: {
+						type: "object",
+						properties: {
+							ensemble: { type: "string" },
+							input: { type: "object" }
+						}
+					} } }
+				},
+				responses: { "200": {
+					description: "Execution result",
+					content: { "application/json": { schema: {
+						type: "object",
+						properties: {
+							success: { type: "boolean" },
+							result: { type: "object" }
+						}
+					} } }
+				} }
+			} } }
+		};
+	}
+	generateStoplightUI(specUrl, branding) {
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>${branding?.title || "API Documentation"}</title>
+	${branding?.favicon ? `<link rel="icon" href="${branding.favicon}">` : ""}
+	<script src="https://unpkg.com/@stoplight/elements/web-components.min.js"><\/script>
+	<link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+	${branding?.customCss ? `<style>${branding.customCss}</style>` : ""}
+</head>
+<body>
+	<elements-api
+		apiDescriptionUrl="${specUrl}"
+		router="hash"
+		layout="sidebar"
+		${branding?.logo ? `logo="${branding.logo}"` : ""}
+	/>
+</body>
+</html>`;
+	}
+	generateRedocUI(specUrl, branding) {
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>${branding?.title || "API Documentation"}</title>
+	${branding?.favicon ? `<link rel="icon" href="${branding.favicon}">` : ""}
+	<style>
+		body { margin: 0; padding: 0; }
+		${branding?.customCss || ""}
+	</style>
+</head>
+<body>
+	<redoc spec-url="${specUrl}"></redoc>
+	<script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"><\/script>
+</body>
+</html>`;
+	}
+	generateSwaggerUI(specUrl, branding) {
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>${branding?.title || "API Documentation"}</title>
+	${branding?.favicon ? `<link rel="icon" href="${branding.favicon}">` : ""}
+	<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@latest/swagger-ui.css">
+	<style>
+		body { margin: 0; }
+		${branding?.customCss || ""}
+	</style>
+</head>
+<body>
+	<div id="swagger-ui"></div>
+	<script src="https://unpkg.com/swagger-ui-dist@latest/swagger-ui-bundle.js"><\/script>
+	<script>
+		window.onload = () => {
+			SwaggerUIBundle({
+				url: '${specUrl}',
+				dom_id: '#swagger-ui',
+			});
+		};
+	<\/script>
+</body>
+</html>`;
+	}
+	generateScalarUI(specUrl, branding) {
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>${branding?.title || "API Documentation"}</title>
+	${branding?.favicon ? `<link rel="icon" href="${branding.favicon}">` : ""}
+	<style>
+		body { margin: 0; }
+		${branding?.customCss || ""}
+	</style>
+</head>
+<body>
+	<script
+		id="api-reference"
+		data-url="${specUrl}"
+		${branding?.theme ? `data-theme="${branding.theme}"` : ""}
+	><\/script>
+	<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"><\/script>
+</body>
+</html>`;
+	}
+	generateRapidocUI(specUrl, branding) {
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>${branding?.title || "API Documentation"}</title>
+	${branding?.favicon ? `<link rel="icon" href="${branding.favicon}">` : ""}
+	<script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"><\/script>
+	<style>
+		${branding?.customCss || ""}
+	</style>
+</head>
+<body>
+	<rapi-doc
+		spec-url="${specUrl}"
+		render-style="read"
+		${branding?.primaryColor ? `theme="dark" primary-color="${branding.primaryColor}"` : ""}
+		${branding?.logo ? `logo="${branding.logo}"` : ""}
+	></rapi-doc>
+</body>
+</html>`;
+	}
+	async checkCache(path$1, context) {
+		if (!this.docsConfig.cache?.enabled) return null;
+		const cacheKey = `docs:${this.name}:${path$1}`;
+		const cached = await context.env.DOCS_CACHE?.get(cacheKey, "json");
+		if (cached) return {
+			...cached,
+			cacheStatus: "hit"
+		};
+		return null;
+	}
+	async cacheOutput(path$1, output, context) {
+		if (!this.docsConfig.cache?.enabled) return;
+		const cacheKey = `docs:${this.name}:${path$1}`;
+		const ttl = this.docsConfig.cache.ttl || 300;
+		await context.env.DOCS_CACHE?.put(cacheKey, JSON.stringify(output), { expirationTtl: ttl });
+	}
+};
 function detectBotProtection(content) {
 	const reasons = [];
 	const lowercaseContent = content.toLowerCase();
@@ -26396,6 +26669,7 @@ var Executor = class {
 			case Operation.page: return Result.ok(new PageAgent(config));
 			case Operation.html: return Result.ok(new HtmlMember(config));
 			case Operation.pdf: return Result.ok(new PdfMember(config));
+			case Operation.docs: return Result.ok(new DocsMember(config));
 			case Operation.code:
 				const codeAgent = CodeAgent.fromConfig(config);
 				if (codeAgent) return Result.ok(codeAgent);

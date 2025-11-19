@@ -427,45 +427,81 @@ export class TestConductor {
       // Ensembles directory doesn't exist or is empty
     }
 
-    // Load agents
+    // Load agents (supports nested directories for three-tier organization)
     const membersPath = path.join(absoluteProjectPath, 'agents')
     try {
-      const memberEntries = await fs.readdir(membersPath, { withFileTypes: true })
-      for (const entry of memberEntries) {
-        // Case 1: Direct YAML file (e.g., agents/greet.yaml)
-        if (entry.isFile() && (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))) {
-          const content = await fs.readFile(path.join(membersPath, entry.name), 'utf-8')
-          const config = YAML.parse(content) as AgentConfig
-          const name = entry.name.replace(/\.(yaml|yml)$/, '')
-          this.catalog.agents.set(name, config)
-        }
-        // Case 2: Subdirectory with agent.yaml (e.g., agents/greet/agent.yaml)
-        else if (entry.isDirectory()) {
-          const memberFilePath = path.join(membersPath, entry.name, 'agent.yaml')
-          try {
-            const content = await fs.readFile(memberFilePath, 'utf-8')
-            const config = YAML.parse(content) as AgentConfig
-            // Use the agent name from the config, not the directory name
-            this.catalog.agents.set(config.name, config)
-          } catch {
-            // Try agent.yml as fallback
-            try {
-              const memberFilePathYml = path.join(membersPath, entry.name, 'agent.yml')
-              const content = await fs.readFile(memberFilePathYml, 'utf-8')
-              const config = YAML.parse(content) as AgentConfig
-              this.catalog.agents.set(config.name, config)
-            } catch {
-              // No agent.yaml or agent.yml in this directory, skip it
-            }
-          }
-        }
-      }
+      await this.loadAgentsRecursive(membersPath, fs, path, YAML)
     } catch (error) {
       // Members directory doesn't exist or is empty - silently skip
     }
 
     // Register loaded agents with the executor
     await this.registerLoadedMembers()
+  }
+
+  /**
+   * Recursively load agents from directory tree
+   * Supports three-tier organization: agents/, agents/docs/, agents/examples/
+   */
+  private async loadAgentsRecursive(
+    dirPath: string,
+    fs: typeof import('fs/promises'),
+    path: typeof import('path'),
+    YAML: typeof import('yaml')
+  ): Promise<void> {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true })
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name)
+
+        // Case 1: Direct YAML file (e.g., agents/greet.yaml or agents/docs/docs-simple.yaml)
+        if (entry.isFile() && (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))) {
+          try {
+            const content = await fs.readFile(fullPath, 'utf-8')
+            const config = YAML.parse(content) as AgentConfig
+            const name = entry.name.replace(/\.(yaml|yml)$/, '')
+            this.catalog.agents.set(name, config)
+          } catch (error) {
+            // Failed to parse agent config, skip it
+          }
+        }
+        // Case 2: Directory - check for agent.yaml inside or recurse
+        else if (entry.isDirectory()) {
+          // First, try to load agent.yaml from this directory
+          const agentYamlPath = path.join(fullPath, 'agent.yaml')
+          const agentYmlPath = path.join(fullPath, 'agent.yml')
+
+          let configLoaded = false
+
+          // Try agent.yaml
+          try {
+            const content = await fs.readFile(agentYamlPath, 'utf-8')
+            const config = YAML.parse(content) as AgentConfig
+            this.catalog.agents.set(config.name, config)
+            configLoaded = true
+          } catch {
+            // Try agent.yml as fallback
+            try {
+              const content = await fs.readFile(agentYmlPath, 'utf-8')
+              const config = YAML.parse(content) as AgentConfig
+              this.catalog.agents.set(config.name, config)
+              configLoaded = true
+            } catch {
+              // No agent config in this directory
+            }
+          }
+
+          // If no agent config was found, recurse into subdirectories
+          // This allows for organization directories like agents/docs/ or agents/examples/
+          if (!configLoaded) {
+            await this.loadAgentsRecursive(fullPath, fs, path, YAML)
+          }
+        }
+      }
+    } catch (error) {
+      // Directory doesn't exist or can't be read - silently skip
+    }
   }
 
   /**
@@ -491,6 +527,10 @@ export class TestConductor {
         } else if (normalizedType === Operation.code) {
           // For function agents, we'd need to load the actual function
           // For now, skip registration - function agents need special handling
+          continue
+        } else if (normalizedType === Operation.docs) {
+          // Docs agents are configuration-only, skip registration in testing
+          // They work in full runtime but not in isolated agent testing
           continue
         } else {
           // Skip unknown types - they might be built-in agents that don't need registration

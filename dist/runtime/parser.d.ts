@@ -658,7 +658,7 @@ declare const EnsembleSchema: z.ZodObject<{
 }>;
 declare const AgentSchema: z.ZodObject<{
     name: z.ZodString;
-    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.page, Operation.html, Operation.pdf, Operation.queue]>;
+    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.page, Operation.html, Operation.pdf, Operation.queue, Operation.docs]>;
     description: z.ZodOptional<z.ZodString>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     schema: z.ZodOptional<z.ZodObject<{

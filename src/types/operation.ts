@@ -22,6 +22,7 @@
  * - html: HTML content generation
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
+ * - docs: API documentation generation and serving
  */
 export enum Operation {
   think = 'think',
@@ -37,6 +38,7 @@ export enum Operation {
   html = 'html',
   pdf = 'pdf',
   queue = 'queue',
+  docs = 'docs',
 }
 
 /**
@@ -56,6 +58,7 @@ export type OperationType =
   | 'html'
   | 'pdf'
   | 'queue'
+  | 'docs'
 
 /**
  * Type guard to check if a value is a valid Operation
@@ -89,6 +92,7 @@ export const getOperationDisplayName = (operation: Operation): string => {
     [Operation.html]: 'HTML Agent',
     [Operation.pdf]: 'PDF Agent',
     [Operation.queue]: 'Queue Agent',
+    [Operation.docs]: 'Docs Agent',
   }
   return names[operation]
 }
@@ -111,6 +115,7 @@ export const getOperationDescription = (operation: Operation): string => {
     [Operation.html]: 'HTML content generation',
     [Operation.pdf]: 'PDF document generation and processing',
     [Operation.queue]: 'Message queue processing and batch operations',
+    [Operation.docs]: 'API documentation generation and serving',
   }
   return descriptions[operation]
 }
@@ -133,9 +138,14 @@ export const isExternalOperation = (operation: Operation): boolean => {
  * Check if an operation generates content
  */
 export const isContentGenerationOperation = (operation: Operation): boolean => {
-  return [Operation.think, Operation.html, Operation.pdf, Operation.page, Operation.form].includes(
-    operation
-  )
+  return [
+    Operation.think,
+    Operation.html,
+    Operation.pdf,
+    Operation.page,
+    Operation.form,
+    Operation.docs,
+  ].includes(operation)
 }
 
 /**

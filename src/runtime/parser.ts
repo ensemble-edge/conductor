@@ -216,6 +216,7 @@ const AgentSchema = z.object({
     Operation.html,
     Operation.pdf,
     Operation.queue,
+    Operation.docs,
   ]),
   description: z.string().optional(),
   config: z.record(z.unknown()).optional(),
