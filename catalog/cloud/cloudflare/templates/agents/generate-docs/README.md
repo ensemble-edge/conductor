@@ -51,11 +51,18 @@ curl http://localhost:8787/docs/openapi.json
 
 ### 2. Public Docs (`docs-public.yaml`)
 
-**Purpose**: Public-facing API documentation for external developers
+**Purpose**: Advanced API documentation with AI-powered descriptions and interactive UI
 
-**Access**: `GET /docs-public`
+**Access**: `GET /api/docs` (also serves OpenAPI at `/api/openapi.yaml` and `/api/openapi.json`)
 
-**Best for**: External APIs, partner documentation, developer portals
+**Best for**: External APIs, partner documentation, developer portals, production docs
+
+**Features**:
+- Stoplight Elements interactive UI
+- AI-enhanced descriptions
+- Auto-generates from your API agents
+- OpenAPI 3.1 spec generation
+- 1-hour caching
 
 ### 3. Authenticated Docs (`docs-authenticated.yaml`)
 
