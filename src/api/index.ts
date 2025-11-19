@@ -7,6 +7,13 @@
 export { createConductorAPI } from './app.js'
 export type { APIConfig } from './app.js'
 
+export {
+  createAutoDiscoveryAPI,
+  getMemberLoader,
+  getEnsembleLoader,
+} from './auto-discovery.js'
+export type { AutoDiscoveryAPIConfig } from './auto-discovery.js'
+
 export type {
   ExecuteRequest,
   ExecuteResponse,

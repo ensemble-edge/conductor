@@ -22,6 +22,7 @@ export { PageAgent } from './agents/page/page-agent.js';
 export { DocsMember } from './agents/docs/docs-agent.js';
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js';
+export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js';
 // export { CacheManager } from './utils/cache.js';
 // export { Normalizer } from './utils/normalize.js';
 // API Layer
