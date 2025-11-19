@@ -8,6 +8,7 @@
  * - Configs (JSON settings)
  * - Scripts (JavaScript/TypeScript)
  * - Schemas (JSON Schema definitions)
+ * - Docs (Markdown documentation)
  *
  * URI Format: {protocol}://{path}[@{version}]
  * Version defaults to "latest" if not specified.
@@ -19,6 +20,7 @@
  * - prompt://analyze-company@prod         → prompts/analyze-company@prod
  * - script://transform-data@v1.0.0        → scripts/transform-data@v1.0.0
  * - schema://invoice@latest               → schemas/invoice@latest
+ * - docs://getting-started@latest         → docs/getting-started@latest
  *
  * Cache Configuration:
  * - Default: All components cached for 1 hour (3600 seconds)
@@ -66,6 +68,7 @@ export class ComponentLoader {
             'config',
             'script',
             'schema',
+            'docs',
         ];
         if (!validProtocols.includes(protocol)) {
             throw new Error(`Invalid protocol: ${protocol}\n` + `Valid protocols: ${validProtocols.join(', ')}`);
@@ -88,6 +91,7 @@ export class ComponentLoader {
             config: 'configs',
             script: 'scripts',
             schema: 'schemas',
+            docs: 'docs',
         };
         return prefixMap[protocol];
     }

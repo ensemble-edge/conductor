@@ -48,6 +48,7 @@ export default app;
 import { Executor, MemberLoader, PageRouter, UnifiedRouter, PageAgent, type AgentConfig } from '@ensemble-edge/conductor';
 import { parse as parseYAML } from 'yaml';
 import conductorConfig from '../conductor.config';
+import { DocsRouter } from './lib/docs-router';
 
 // Import your agents (add more as you create them)
 import greetConfigRaw from '../agents/examples/hello/agent.yaml';
@@ -57,10 +58,72 @@ import greetFunction from '../agents/examples/hello';
 // Import your ensembles (add more as you create them)
 import helloWorldYAML from '../ensembles/hello-world.yaml';
 
+// Import docs agents
+import docsSimpleConfigRaw from '../agents/generate-docs/docs-simple.yaml';
+import docsPublicConfigRaw from '../agents/generate-docs/docs-public.yaml';
+import docsAuthenticatedConfigRaw from '../agents/generate-docs/docs-authenticated.yaml';
+import docsAdminConfigRaw from '../agents/generate-docs/docs-admin.yaml';
+
 // ==================== Auto-Discovery: Pages via Virtual Module ====================
 // Pages are automatically discovered from the pages/ directory at build time
 // No need to manually import each page - Vite plugin handles this!
 import { pages as discoveredPages } from 'virtual:conductor-pages';
+
+// ==================== Auto-Discovery: Docs via Virtual Module ====================
+// Docs are automatically discovered from the docs/ directory at build time
+// Works exactly like prompts/ with Handlebars rendering and component references
+import { docs as discoveredDocs } from 'virtual:conductor-docs';
+import { DocsLoader } from './lib/docs-loader';
+
+// ==================== Lazy Initialization for Docs ====================
+// Docs router initialization happens on first request
+let docsRouter: DocsRouter | null = null;
+let docsLoader: DocsLoader | null = null;
+let docsInitialized = false;
+
+async function initializeDocs(): Promise<void> {
+	if (docsInitialized) return;
+
+	// Initialize DocsRouter for API documentation generation
+	docsRouter = new DocsRouter({
+		docsDir: 'agents/generate-docs',
+		autoRoute: true,
+	});
+
+	// Parse and register docs agents
+	const docsConfigs = [
+		{ name: 'docs-simple', raw: docsSimpleConfigRaw },
+		{ name: 'docs-public', raw: docsPublicConfigRaw },
+		{ name: 'docs-authenticated', raw: docsAuthenticatedConfigRaw },
+		{ name: 'docs-admin', raw: docsAdminConfigRaw },
+	];
+
+	for (const { name, raw } of docsConfigs) {
+		try {
+			const config = parseYAML(raw as unknown as string) as AgentConfig;
+			docsRouter.registerDocs(config);
+		} catch (error) {
+			console.error(`[DocsRouter] Failed to load docs agent ${name}:`, error);
+		}
+	}
+
+	// Initialize DocsLoader for markdown documentation (first-class components)
+	docsLoader = new DocsLoader({
+		docsDir: 'docs',
+		cacheEnabled: true,
+		handlebarsEnabled: true,
+	});
+
+	// Auto-discovered docs are already parsed and ready to use!
+	// Convert the discovered docs array into the docsMap format
+	const docsMap = new Map(
+		discoveredDocs.map((doc) => [doc.name, { name: doc.name, content: doc.content }])
+	);
+
+	await docsLoader.init(docsMap);
+
+	docsInitialized = true;
+}
 
 // ==================== Lazy Initialization for Pages ====================
 // All page parsing and initialization happens on first request
@@ -220,6 +283,16 @@ export default {
 					},
 					{ status: 500 }
 				);
+			}
+		}
+
+		// CRITICAL: Check docs routing BEFORE pages
+		// PageRouter has a 404 handler that returns Response (not null)
+		await initializeDocs();
+		if (docsRouter) {
+			const docsResponse = await docsRouter.handle(request, env, ctx);
+			if (docsResponse) {
+				return docsResponse;
 			}
 		}
 

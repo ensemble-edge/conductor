@@ -22,6 +22,7 @@ export { ThinkAgent } from './agents/think-agent.js'
 export { DataAgent } from './agents/data-agent.js'
 export { APIAgent } from './agents/api-agent.js'
 export { PageAgent } from './agents/page/page-agent.js'
+export { DocsMember } from './agents/docs/docs-agent.js'
 
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js'
@@ -88,6 +89,15 @@ export type {
 } from './durable-objects/execution-state.js'
 
 export type { HITLStatus, StoredHITLState, HITLEvent } from './durable-objects/hitl-state.js'
+
+// Docs - First-class component support for markdown documentation
+export { DocsManager, getGlobalDocsManager } from './docs/index.js'
+export type {
+  DocsTemplate,
+  DocsManagerConfig,
+  RenderOptions as DocsRenderOptions,
+  RenderedDocs,
+} from './docs/index.js'
 
 /**
  * Create a Cloudflare Worker handler with Conductor
