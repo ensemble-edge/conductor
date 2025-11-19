@@ -5,10 +5,9 @@ operation: docs
 description: Public API documentation with interactive UI
 
 # Route configuration
-# You can use 'default' to auto-resolve path from file location
-# Or specify explicit path like /docs
+# Changed to /api/docs to avoid conflict with docs-simple agent
 route:
-  path: /docs  # Or use 'default' for /docs-public
+  path: /api/docs
   methods: [GET]
   auth:
     requirement: public  # No authentication required
@@ -41,6 +40,6 @@ cache:
 
 # Paths for different formats
 paths:
-  docs: /docs  # Interactive UI
-  yaml: /openapi.yaml  # OpenAPI spec in YAML
-  json: /openapi.json  # OpenAPI spec in JSON
+  docs: /api/docs  # Interactive UI
+  yaml: /api/openapi.yaml  # OpenAPI spec in YAML
+  json: /api/openapi.json  # OpenAPI spec in JSON
