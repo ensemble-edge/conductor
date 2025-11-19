@@ -26,6 +26,11 @@
 			"types": "./dist/testing/index.d.ts",
 			"import": "./dist/testing/index.js",
 			"require": "./dist/testing/index.js"
+		},
+		"./agents/docs": {
+			"types": "./dist/agents/docs/index.d.ts",
+			"import": "./dist/agents/docs/index.js",
+			"require": "./dist/agents/docs/index.js"
 		}
 	},
 	"bin": {

@@ -13,6 +13,7 @@ export { ThinkAgent } from './agents/think-agent.js';
 export { DataAgent } from './agents/data-agent.js';
 export { APIAgent } from './agents/api-agent.js';
 export { PageAgent } from './agents/page/page-agent.js';
+export { DocsMember } from './agents/docs/docs-agent.js';
 export { MemberLoader, createLoader } from './utils/loader.js';
 export { PageRouter } from './pages/index.js';
 export type { PageRoute, PageRouterConfig } from './pages/index.js';
@@ -26,6 +27,8 @@ export type { AgentExecutionContext, AgentResponse } from './agents/base-agent.j
 export type { ExecutorConfig, ExecutionResult, ExecutionMetrics } from './runtime/executor.js';
 export type { ExecutionStatus, StoredExecutionState, ExecutionProgressEvent, ExecutionCompletionEvent, ExecutionEvent, } from './durable-objects/execution-state.js';
 export type { HITLStatus, StoredHITLState, HITLEvent } from './durable-objects/hitl-state.js';
+export { DocsManager, getGlobalDocsManager } from './docs/index.js';
+export type { DocsTemplate, DocsManagerConfig, RenderOptions as DocsRenderOptions, RenderedDocs, } from './docs/index.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *

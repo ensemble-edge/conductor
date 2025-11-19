@@ -8,6 +8,7 @@
  * - Configs (JSON settings)
  * - Scripts (JavaScript/TypeScript)
  * - Schemas (JSON Schema definitions)
+ * - Docs (Markdown documentation)
  *
  * URI Format: {protocol}://{path}[@{version}]
  * Version defaults to "latest" if not specified.
@@ -19,6 +20,7 @@
  * - prompt://analyze-company@prod         → prompts/analyze-company@prod
  * - script://transform-data@v1.0.0        → scripts/transform-data@v1.0.0
  * - schema://invoice@latest               → schemas/invoice@latest
+ * - docs://getting-started@latest         → docs/getting-started@latest
  *
  * Cache Configuration:
  * - Default: All components cached for 1 hour (3600 seconds)
@@ -32,7 +34,7 @@
  */
 import type { Cache } from '../cache/cache.js';
 import type { Logger } from '../observability/types.js';
-export type ComponentProtocol = 'template' | 'prompt' | 'query' | 'config' | 'script' | 'schema';
+export type ComponentProtocol = 'template' | 'prompt' | 'query' | 'config' | 'script' | 'schema' | 'docs';
 export interface ParsedComponentURI {
     protocol: ComponentProtocol;
     path: string;

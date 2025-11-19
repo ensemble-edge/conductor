@@ -9244,7 +9244,8 @@ var ComponentLoader = class {
 			"query",
 			"config",
 			"script",
-			"schema"
+			"schema",
+			"docs"
 		];
 		if (!validProtocols.includes(protocol)) throw new Error(`Invalid protocol: ${protocol}\nValid protocols: ${validProtocols.join(", ")}`);
 		return {
@@ -9261,7 +9262,8 @@ var ComponentLoader = class {
 			query: "queries",
 			config: "configs",
 			script: "scripts",
-			schema: "schemas"
+			schema: "schemas",
+			docs: "docs"
 		}[protocol];
 	}
 	buildKVKey(parsed) {
@@ -28110,6 +28112,94 @@ var UnifiedRouter = class {
 		});
 	}
 };
+var DocsManager = class {
+	constructor(config = {}) {
+		this.cache = /* @__PURE__ */ new Map();
+		this.config = {
+			cacheEnabled: config.cacheEnabled ?? true,
+			handlebarsEnabled: config.handlebarsEnabled ?? true
+		};
+		this.handlebars = new HandlebarsTemplateEngine();
+	}
+	register(template$1) {
+		const key = template$1.name;
+		this.cache.set(key, template$1);
+	}
+	get(name) {
+		return this.cache.get(name) || null;
+	}
+	has(name) {
+		return this.cache.has(name);
+	}
+	list() {
+		return Array.from(this.cache.values()).map((template$1) => ({
+			name: template$1.name,
+			title: template$1.metadata?.title
+		}));
+	}
+	clearCache() {
+		this.cache.clear();
+	}
+	async render(template$1, options) {
+		let content = template$1.content;
+		if (this.config.handlebarsEnabled && !options?.skipHandlebars) {
+			const variables = options?.variables || {};
+			content = await this.handlebars.render(content, variables);
+		}
+		return {
+			content,
+			metadata: template$1.metadata
+		};
+	}
+	async renderByName(name, options) {
+		const template$1 = this.get(name);
+		if (!template$1) throw new Error(`Docs template not found: ${name}`);
+		return this.render(template$1, options);
+	}
+	loadFromMarkdown(markdown, name) {
+		const { content, metadata } = this.parseFrontmatter(markdown);
+		const template$1 = {
+			name,
+			content,
+			metadata
+		};
+		if (this.config.cacheEnabled) this.register(template$1);
+		return template$1;
+	}
+	parseFrontmatter(markdown) {
+		const match = markdown.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+		if (!match) return { content: markdown };
+		const [, frontmatterYaml, content] = match;
+		try {
+			const metadata = {};
+			const lines = frontmatterYaml.split("\n");
+			for (const line of lines) {
+				const colonIndex = line.indexOf(":");
+				if (colonIndex === -1) continue;
+				const key = line.substring(0, colonIndex).trim();
+				metadata[key] = line.substring(colonIndex + 1).trim().replace(/^["']|["']$/g, "");
+			}
+			return {
+				content,
+				metadata
+			};
+		} catch (error) {
+			console.warn("Failed to parse frontmatter, using raw markdown:", error);
+			return { content: markdown };
+		}
+	}
+	registerHelper(name, fn) {
+		this.handlebars.registerHelper(name, fn);
+	}
+	registerPartial(name, template$1) {
+		this.handlebars.registerPartial(name, template$1);
+	}
+};
+var globalManager = null;
+function getGlobalDocsManager(config) {
+	if (!globalManager) globalManager = new DocsManager(config);
+	return globalManager;
+}
 init_base_agent();
 function createConductorHandler(config) {
 	return { async fetch(request, env, ctx) {
@@ -28117,6 +28207,6 @@ function createConductorHandler(config) {
 	} };
 }
 var worker_entry_default = {};
-export { APIAgent, ApiKeyValidator, BaseAgent, BearerValidator, CookieValidator, CustomValidatorRegistry, DataAgent, Executor, FunctionAgent, GitHubSignatureValidator, MemberLoader, PageAgent, PageRouter, Parser, StateManager, StripeSignatureValidator, ThinkAgent, TwilioSignatureValidator, UnifiedRouter, UnkeyValidator, createApiKeyValidator, createBearerValidator, createConductorHandler, createCookieValidator, createCustomValidatorRegistry, createLoader, createUnkeyValidator, worker_entry_default as default };
+export { APIAgent, ApiKeyValidator, BaseAgent, BearerValidator, CookieValidator, CustomValidatorRegistry, DataAgent, DocsManager, DocsMember, Executor, FunctionAgent, GitHubSignatureValidator, MemberLoader, PageAgent, PageRouter, Parser, StateManager, StripeSignatureValidator, ThinkAgent, TwilioSignatureValidator, UnifiedRouter, UnkeyValidator, createApiKeyValidator, createBearerValidator, createConductorHandler, createCookieValidator, createCustomValidatorRegistry, createLoader, createUnkeyValidator, worker_entry_default as default, getGlobalDocsManager };
 
 //# sourceMappingURL=index.js.map

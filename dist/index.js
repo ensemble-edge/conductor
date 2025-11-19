@@ -19,6 +19,7 @@ export { ThinkAgent } from './agents/think-agent.js';
 export { DataAgent } from './agents/data-agent.js';
 export { APIAgent } from './agents/api-agent.js';
 export { PageAgent } from './agents/page/page-agent.js';
+export { DocsMember } from './agents/docs/docs-agent.js';
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js';
 // export { CacheManager } from './utils/cache.js';
@@ -33,6 +34,8 @@ export { PageRouter } from './pages/index.js';
 export * from './auth/index.js';
 // Routing Module
 export { UnifiedRouter } from './routing/router.js';
+// Docs - First-class component support for markdown documentation
+export { DocsManager, getGlobalDocsManager } from './docs/index.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *
