@@ -107,7 +107,7 @@ export class CatalogLoader {
                         const ensemble = Parser.parseEnsemble(yaml);
                         // Filter by schedules if needed
                         if (scheduledOnly) {
-                            if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
+                            if (ensemble.trigger?.filter((t) => t.type === 'cron').length ?? 0 > 0) {
                                 ensembles.push(ensemble);
                             }
                         }
@@ -149,7 +149,7 @@ export class CatalogLoader {
                     const ensemble = Parser.parseEnsemble(row.yaml);
                     // Double-check schedules filter
                     if (scheduledOnly) {
-                        if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
+                        if (ensemble.trigger?.filter((t) => t.type === 'cron').length ?? 0 > 0) {
                             ensembles.push(ensemble);
                         }
                     }
@@ -187,7 +187,7 @@ export class CatalogLoader {
                         const ensemble = Parser.parseEnsemble(yaml);
                         // Filter by schedules if needed
                         if (scheduledOnly) {
-                            if (ensemble.trigger?.filter(t => t.type === "cron").length ?? 0 > 0) {
+                            if (ensemble.trigger?.filter((t) => t.type === 'cron').length ?? 0 > 0) {
                                 ensembles.push(ensemble);
                             }
                         }

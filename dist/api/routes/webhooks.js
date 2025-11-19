@@ -417,7 +417,10 @@ async function authenticateWebhook(c, auth) {
             const signature = ctx.req.header('X-Webhook-Signature') || ctx.req.header('X-Hub-Signature-256');
             const timestamp = ctx.req.header('X-Webhook-Timestamp');
             if (!signature) {
-                return { success: false, error: 'Missing signature header (X-Webhook-Signature or X-Hub-Signature-256)' };
+                return {
+                    success: false,
+                    error: 'Missing signature header (X-Webhook-Signature or X-Hub-Signature-256)',
+                };
             }
             if (!timestamp) {
                 return { success: false, error: 'Missing X-Webhook-Timestamp header' };
@@ -426,7 +429,8 @@ async function authenticateWebhook(c, auth) {
             const requestTime = parseInt(timestamp, 10);
             const currentTime = Math.floor(Date.now() / 1000);
             const timeDiff = Math.abs(currentTime - requestTime);
-            if (timeDiff > 300) { // 5 minutes
+            if (timeDiff > 300) {
+                // 5 minutes
                 return { success: false, error: 'Request timestamp too old (replay attack prevention)' };
             }
             try {
@@ -443,7 +447,7 @@ async function authenticateWebhook(c, auth) {
             catch (error) {
                 return {
                     success: false,
-                    error: `Signature verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    error: `Signature verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 };
             }
         }

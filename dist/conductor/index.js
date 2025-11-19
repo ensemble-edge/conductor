@@ -9197,6 +9197,219 @@ var init_base_agent = __esmMin((() => {
 		}
 	};
 }));
+init_base_agent();
+var FunctionAgent = class FunctionAgent extends BaseAgent {
+	constructor(config, implementation) {
+		super(config);
+		if (typeof implementation !== "function") throw new Error(`Function agent "${config.name}" requires a function implementation`);
+		this.implementation = implementation;
+	}
+	async run(context) {
+		try {
+			return await this.implementation(context);
+		} catch (error) {
+			throw new Error(`Function agent "${this.name}" execution failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+		}
+	}
+	getImplementation() {
+		return this.implementation;
+	}
+	static fromConfig(config) {
+		const handler = config.config?.handler;
+		if (typeof handler === "function") {
+			const implementation = async (context) => {
+				return await handler(context.input, context);
+			};
+			return new FunctionAgent(config, implementation);
+		}
+		return null;
+	}
+};
+var ComponentLoader = class {
+	constructor(options) {
+		this.kv = options.kv;
+		this.cache = options.cache;
+		this.logger = options.logger;
+		this.defaultVersion = options.defaultVersion || "latest";
+	}
+	parseURI(uri) {
+		const match = uri.match(/^(\w+):\/\/([^@]+)(?:@(.+))?$/);
+		if (!match) throw new Error(`Invalid component URI: ${uri}\nExpected format: {protocol}://{path}[@{version}]\nExamples:\n  - template://components/header\n  - template://components/header@latest\n  - prompt://analyze-company@v1.0.0`);
+		const [, protocol, path$1, version] = match;
+		const validProtocols = [
+			"template",
+			"prompt",
+			"query",
+			"config",
+			"script",
+			"schema"
+		];
+		if (!validProtocols.includes(protocol)) throw new Error(`Invalid protocol: ${protocol}\nValid protocols: ${validProtocols.join(", ")}`);
+		return {
+			protocol,
+			path: path$1,
+			version: version || this.defaultVersion,
+			originalURI: uri
+		};
+	}
+	getPrefix(protocol) {
+		return {
+			template: "templates",
+			prompt: "prompts",
+			query: "queries",
+			config: "configs",
+			script: "scripts",
+			schema: "schemas"
+		}[protocol];
+	}
+	buildKVKey(parsed) {
+		return `${this.getPrefix(parsed.protocol)}/${parsed.path}@${parsed.version}`;
+	}
+	buildCacheKey(uri) {
+		return `components:${uri}`;
+	}
+	async load(uri, options) {
+		const cacheKey = this.buildCacheKey(uri);
+		const bypass = options?.cache?.bypass ?? false;
+		const ttl = options?.cache?.ttl ?? 3600;
+		if (this.cache && !bypass) {
+			const cacheResult = await this.cache.get(cacheKey);
+			if (cacheResult.success && cacheResult.value !== null) {
+				this.logger?.debug("Component cache hit", {
+					uri,
+					cacheKey
+				});
+				return cacheResult.value;
+			}
+		}
+		const parsed = this.parseURI(uri);
+		const kvKey = this.buildKVKey(parsed);
+		this.logger?.debug("Loading component from KV", {
+			uri,
+			kvKey,
+			bypass
+		});
+		const content = await this.kv.get(kvKey, "text");
+		if (!content) {
+			this.logger?.warn("Component not found", {
+				uri,
+				kvKey
+			});
+			throw new Error(`Component not found: ${uri}\nKV key: ${kvKey}\nMake sure the component is deployed to KV with:\n  edgit components add <name> <path> ${parsed.protocol}\n  edgit tag create <name> ${parsed.version}\n  edgit deploy set <name> ${parsed.version} --to production`);
+		}
+		if (this.cache && !bypass) {
+			if ((await this.cache.set(cacheKey, content, { ttl })).success) this.logger?.debug("Component cached", {
+				uri,
+				cacheKey,
+				ttl
+			});
+		}
+		return content;
+	}
+	async loadJSON(uri, options) {
+		const content = await this.load(uri, options);
+		try {
+			return JSON.parse(content);
+		} catch (error) {
+			const err = error instanceof Error ? error : new Error(String(error));
+			this.logger?.error("JSON parse error", err, { uri });
+			throw new Error(`Failed to parse JSON component: ${uri}\nError: ${err.message}`);
+		}
+	}
+	async loadCompiled(uri, options) {
+		const content = await this.load(uri, options);
+		try {
+			const module$1 = new Function("exports", content);
+			const exports$1 = {};
+			module$1(exports$1);
+			return exports$1.default || exports$1;
+		} catch (error) {
+			const err = error instanceof Error ? error : new Error(String(error));
+			this.logger?.error("Component compilation error", err, { uri });
+			throw new Error(`Failed to load compiled component: ${uri}\nError: ${err.message}\nMake sure the component was compiled with: npm run build:pages`);
+		}
+	}
+	async exists(uri) {
+		try {
+			const parsed = this.parseURI(uri);
+			const kvKey = this.buildKVKey(parsed);
+			return (await this.kv.getWithMetadata(kvKey)).value !== null;
+		} catch (error) {
+			this.logger?.debug("Component exists check failed", {
+				uri,
+				error
+			});
+			return false;
+		}
+	}
+	async listVersions(protocol, path$1) {
+		const listPrefix = `${this.getPrefix(protocol)}/${path$1}@`;
+		return (await this.kv.list({ prefix: listPrefix })).keys.map((key) => {
+			const match = key.name.match(/@(.+)$/);
+			return match ? match[1] : "unknown";
+		});
+	}
+	async invalidateCache(uri) {
+		if (this.cache) {
+			const cacheKey = this.buildCacheKey(uri);
+			if ((await this.cache.delete(cacheKey)).success) this.logger?.info("Component cache invalidated", {
+				uri,
+				cacheKey
+			});
+		}
+	}
+};
+function createComponentLoader(options) {
+	return new ComponentLoader(options);
+}
+init_base_agent();
+var CodeAgent = class CodeAgent extends BaseAgent {
+	constructor(config) {
+		super(config);
+		this.codeConfig = config.config || {};
+		if (!this.codeConfig.script && !this.codeConfig.handler) throw new Error(`Code agent "${config.name}" requires either a script URI or inline handler`);
+		if (this.codeConfig.handler) this.compiledFunction = this.codeConfig.handler;
+	}
+	async run(context) {
+		try {
+			if (!this.compiledFunction && this.codeConfig.script) this.compiledFunction = await this.loadScript(context);
+			if (!this.compiledFunction) throw new Error("No code implementation available");
+			return await this.compiledFunction(context);
+		} catch (error) {
+			throw new Error(`Code agent "${this.name}" execution failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+		}
+	}
+	async loadScript(context) {
+		const scriptUri = this.codeConfig.script;
+		if (!scriptUri) throw new Error("No script URI provided");
+		if (!context.env.COMPONENTS) throw new Error("COMPONENTS KV namespace not configured");
+		const componentLoader = createComponentLoader({
+			kv: context.env.COMPONENTS,
+			logger: context.logger
+		});
+		context.logger?.debug("Loading script from KV", { uri: scriptUri });
+		const scriptContent = await componentLoader.load(scriptUri, { cache: this.codeConfig.cache });
+		try {
+			const fn = new Function("exports", "context", `
+        ${scriptContent}
+        if (typeof exports.default === 'function') {
+          return exports.default;
+        }
+        throw new Error('Script must export a default function');
+      `)({}, context);
+			if (typeof fn !== "function") throw new Error("Script must export a default function");
+			return fn;
+		} catch (error) {
+			context.logger?.error("Script compilation failed", error, { uri: scriptUri });
+			throw new Error(`Failed to compile script: ${scriptUri}\nError: ${error instanceof Error ? error.message : String(error)}\nMake sure your script exports a default function:\n  export default async function(context) { ... }`);
+		}
+	}
+	static fromConfig(config) {
+		const codeConfig = config.config;
+		if (codeConfig?.script || codeConfig?.handler) return new CodeAgent(config);
+		return null;
+	}
+};
 var BaseAIProvider = class {
 	validateConfig(config, env) {
 		return this.getConfigError(config, env) === null;
@@ -9395,7 +9608,6 @@ function getProviderRegistry() {
 	if (!globalRegistry) globalRegistry = new ProviderRegistry();
 	return globalRegistry;
 }
-init_base_agent();
 function isComponentReference(value) {
 	return /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i.test(value);
 }
@@ -9484,6 +9696,7 @@ async function resolveValue(value, context) {
 		originalRef: value
 	};
 }
+init_base_agent();
 var ThinkAgent = class extends BaseAgent {
 	constructor(config, providerRegistry) {
 		super(config);
@@ -23333,145 +23546,6 @@ function normalizeTemplateSource(source) {
 	}
 	return source;
 }
-var ComponentLoader = class {
-	constructor(options) {
-		this.kv = options.kv;
-		this.cache = options.cache;
-		this.logger = options.logger;
-		this.defaultVersion = options.defaultVersion || "latest";
-	}
-	parseURI(uri) {
-		const match = uri.match(/^(\w+):\/\/([^@]+)(?:@(.+))?$/);
-		if (!match) throw new Error(`Invalid component URI: ${uri}\nExpected format: {protocol}://{path}[@{version}]\nExamples:\n  - template://components/header\n  - template://components/header@latest\n  - prompt://analyze-company@v1.0.0`);
-		const [, protocol, path$1, version] = match;
-		const validProtocols = [
-			"template",
-			"prompt",
-			"query",
-			"config",
-			"component",
-			"page",
-			"form"
-		];
-		if (!validProtocols.includes(protocol)) throw new Error(`Invalid protocol: ${protocol}\nValid protocols: ${validProtocols.join(", ")}`);
-		return {
-			protocol,
-			path: path$1,
-			version: version || this.defaultVersion,
-			originalURI: uri
-		};
-	}
-	getPrefix(protocol) {
-		return {
-			template: "templates",
-			prompt: "prompts",
-			query: "queries",
-			config: "configs",
-			component: "components",
-			page: "pages",
-			form: "forms"
-		}[protocol];
-	}
-	buildKVKey(parsed) {
-		return `${this.getPrefix(parsed.protocol)}/${parsed.path}@${parsed.version}`;
-	}
-	buildCacheKey(uri) {
-		return `components:${uri}`;
-	}
-	async load(uri, options) {
-		const cacheKey = this.buildCacheKey(uri);
-		const bypass = options?.cache?.bypass ?? false;
-		const ttl = options?.cache?.ttl ?? 3600;
-		if (this.cache && !bypass) {
-			const cacheResult = await this.cache.get(cacheKey);
-			if (cacheResult.success && cacheResult.value !== null) {
-				this.logger?.debug("Component cache hit", {
-					uri,
-					cacheKey
-				});
-				return cacheResult.value;
-			}
-		}
-		const parsed = this.parseURI(uri);
-		const kvKey = this.buildKVKey(parsed);
-		this.logger?.debug("Loading component from KV", {
-			uri,
-			kvKey,
-			bypass
-		});
-		const content = await this.kv.get(kvKey, "text");
-		if (!content) {
-			this.logger?.warn("Component not found", {
-				uri,
-				kvKey
-			});
-			throw new Error(`Component not found: ${uri}\nKV key: ${kvKey}\nMake sure the component is deployed to KV with:\n  edgit components add <name> <path> ${parsed.protocol}\n  edgit tag create <name> ${parsed.version}\n  edgit deploy set <name> ${parsed.version} --to production`);
-		}
-		if (this.cache && !bypass) {
-			if ((await this.cache.set(cacheKey, content, { ttl })).success) this.logger?.debug("Component cached", {
-				uri,
-				cacheKey,
-				ttl
-			});
-		}
-		return content;
-	}
-	async loadJSON(uri, options) {
-		const content = await this.load(uri, options);
-		try {
-			return JSON.parse(content);
-		} catch (error) {
-			const err = error instanceof Error ? error : new Error(String(error));
-			this.logger?.error("JSON parse error", err, { uri });
-			throw new Error(`Failed to parse JSON component: ${uri}\nError: ${err.message}`);
-		}
-	}
-	async loadCompiled(uri, options) {
-		const content = await this.load(uri, options);
-		try {
-			const module$1 = new Function("exports", content);
-			const exports$1 = {};
-			module$1(exports$1);
-			return exports$1.default || exports$1;
-		} catch (error) {
-			const err = error instanceof Error ? error : new Error(String(error));
-			this.logger?.error("Component compilation error", err, { uri });
-			throw new Error(`Failed to load compiled component: ${uri}\nError: ${err.message}\nMake sure the component was compiled with: npm run build:pages`);
-		}
-	}
-	async exists(uri) {
-		try {
-			const parsed = this.parseURI(uri);
-			const kvKey = this.buildKVKey(parsed);
-			return (await this.kv.getWithMetadata(kvKey)).value !== null;
-		} catch (error) {
-			this.logger?.debug("Component exists check failed", {
-				uri,
-				error
-			});
-			return false;
-		}
-	}
-	async listVersions(protocol, path$1) {
-		const listPrefix = `${this.getPrefix(protocol)}/${path$1}@`;
-		return (await this.kv.list({ prefix: listPrefix })).keys.map((key) => {
-			const match = key.name.match(/@(.+)$/);
-			return match ? match[1] : "unknown";
-		});
-	}
-	async invalidateCache(uri) {
-		if (this.cache) {
-			const cacheKey = this.buildCacheKey(uri);
-			if ((await this.cache.delete(cacheKey)).success) this.logger?.info("Component cache invalidated", {
-				uri,
-				cacheKey
-			});
-		}
-	}
-};
-function createComponentLoader(options) {
-	return new ComponentLoader(options);
-}
 function serializeCookie(name, value, options = {}) {
 	const pairs$1 = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
 	if (options.maxAge !== void 0) pairs$1.push(`Max-Age=${options.maxAge}`);
@@ -26322,7 +26396,12 @@ var Executor = class {
 			case Operation.page: return Result.ok(new PageAgent(config));
 			case Operation.html: return Result.ok(new HtmlMember(config));
 			case Operation.pdf: return Result.ok(new PdfMember(config));
-			case Operation.code: return Result.err(Errors.agentConfig(config.name, "Function agents require code implementation and must be registered manually"));
+			case Operation.code:
+				const codeAgent = CodeAgent.fromConfig(config);
+				if (codeAgent) return Result.ok(codeAgent);
+				const inlineAgent = FunctionAgent.fromConfig(config);
+				if (inlineAgent) return Result.ok(inlineAgent);
+				return Result.err(Errors.agentConfig(config.name, "Code agents require either a script:// URI or an inline handler function"));
 			case Operation.tools: return Result.err(Errors.agentConfig(config.name, "MCP agent type not yet implemented"));
 			case Operation.scoring: return Result.err(Errors.agentConfig(config.name, "Scoring agent type not yet implemented"));
 			default: return Result.err(Errors.agentConfig(config.name, `Unknown agent operation: ${config.operation}`));
@@ -26562,34 +26641,6 @@ var Executor = class {
 		return await this.executeFlow(flowContext, resumeFromStep);
 	}
 };
-init_base_agent();
-var FunctionAgent = class FunctionAgent extends BaseAgent {
-	constructor(config, implementation) {
-		super(config);
-		if (typeof implementation !== "function") throw new Error(`Function agent "${config.name}" requires a function implementation`);
-		this.implementation = implementation;
-	}
-	async run(context) {
-		try {
-			return await this.implementation(context);
-		} catch (error) {
-			throw new Error(`Function agent "${this.name}" execution failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-		}
-	}
-	getImplementation() {
-		return this.implementation;
-	}
-	static fromConfig(config) {
-		const handler = config.config?.handler;
-		if (typeof handler === "function") {
-			const implementation = async (context) => {
-				return await handler(context.input, context);
-			};
-			return new FunctionAgent(config, implementation);
-		}
-		return null;
-	}
-};
 var MemberLoader = class {
 	constructor(config) {
 		this.config = {
@@ -26662,7 +26713,7 @@ var PageRouter = class {
 		};
 	}
 	registerPage(pageConfig, pageMember) {
-		const routeConfig = pageConfig.config?.route;
+		const routeConfig = pageConfig?.route || pageConfig.config?.route;
 		if (!routeConfig) return;
 		const path$1 = this.normalizePath(routeConfig.path || `/${pageConfig.name}`);
 		const params = this.extractParams(path$1);
@@ -26686,7 +26737,7 @@ var PageRouter = class {
 		if (!this.config.autoRoute) return;
 		for (const [pageName, { config, agent }] of pagesMap) {
 			this.pages.set(pageName, agent);
-			if (config.config?.route) {
+			if (config?.route || config.config?.route) {
 				this.registerPage(config, agent);
 				continue;
 			}
