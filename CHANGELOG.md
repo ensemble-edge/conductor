@@ -1,5 +1,82 @@
 # @ensemble-edge/conductor
 
+## 1.10.0
+
+### Minor Changes
+
+- 4356268: Template reorganization and comprehensive documentation improvements
+
+  **Dynamic Routing Fix**:
+  - Fixed PageRouter to properly handle dynamic route parameters like `/blog/:slug`
+  - Routes are now checked at both root level (`pageConfig.route`) and nested level (`pageConfig.config.route`) for backward compatibility
+  - Dynamic routes now return 200 with proper content instead of 404
+
+  **Agent Signature Documentation**:
+  - Documented that agents must use `AgentExecutionContext` signature to work in ensembles
+  - Added comprehensive examples and troubleshooting to documentation
+  - All template agents now follow correct pattern
+
+  **Test Template Fix**:
+  - Fixed ExecutionContext mock in test template (`catalog/cloud/cloudflare/templates/tests/basic.test.ts`)
+  - Added proper `waitUntil()` and `passThroughOnException()` methods to mock
+  - All template tests now pass without TypeError
+
+  **Template Reorganization**:
+  - Implemented three-tier agent organization: production (root), docs (infrastructure), examples (learning)
+  - Created comprehensive README.md files for each tier (~1,200 lines total)
+  - Moved docs agents to `agents/docs/` subdirectory
+  - Moved example agents to `agents/examples/` subdirectory
+  - Updated main README to reflect new structure (agents/ instead of members/)
+  - Fixed all import paths in template files to reflect new directory structure
+  - Updated hello agent relative imports to src/lib/ (now ../../../src/lib/)
+  - Updated src/index.ts to import from agents/examples/hello
+  - Updated tests/basic.test.ts to import from agents/examples/hello
+
+  **Documentation**:
+  - Added "Your First Documentation" comprehensive guide (950+ lines)
+  - Updated all path references from `agents/hello/` to `agents/examples/hello/`
+  - Documented AgentExecutionContext requirement throughout all guides
+
+  **Testing**:
+  - All 811 conductor tests passing
+  - Dynamic routes verified working with curl tests
+  - Template tests verified in fresh init project
+  - Template reorganization verified with auto-discovery
+
+- 75f6548: Add `docs` operation and fix nested agent discovery
+
+  **New Feature: Docs Operation**
+  - Added new `docs` operation type for API documentation generation
+  - DocsMember agent serves interactive API documentation (Stoplight, Redoc, Swagger, Scalar, RapiDoc)
+  - Auto-generates OpenAPI 3.1 specs from your ensembles and agents
+  - Supports multiple documentation UIs, custom branding, and caching
+  - Template includes pre-configured docs agents: docs-simple, docs-public, docs-authenticated, docs-admin
+  - Full documentation infrastructure ready to use out of the box
+
+  **Bug Fix: Nested Agent Discovery**
+  - TestConductor.loadCatalog() now recursively discovers agents in nested directories
+  - Supports three-tier agent organization: `agents/`, `agents/docs/`, `agents/examples/`
+  - Previously only discovered agents one level deep (e.g., `agents/hello/`)
+  - Now discovers agents at any depth (e.g., `agents/examples/hello/`, `agents/docs/docs-simple.yaml`)
+
+  **Type System Updates:**
+  - Added `Operation.docs` to Operation enum
+  - Added `docs` to OperationType union
+  - Updated AgentSchema to validate docs operation
+  - Updated Executor to instantiate DocsMember agents
+
+  **Impact:**
+  - Template test suite now passes (9/9 tests, including debug.test.ts)
+  - Auto-discovery works with new template organization structure
+  - Documentation feature now fully functional
+  - Backward compatible with flat agent structures
+
+  **Testing:**
+  - All 811 conductor tests passing
+  - All 9 template tests passing (was 8/9, debug.test.ts now fixed)
+  - Successfully discovers 9 agents in template (6 docs + 3 examples)
+  - DocsMember agent properly registered and instantiated
+
 ## 1.8.1
 
 ### Patch Changes
