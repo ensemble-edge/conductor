@@ -14,11 +14,23 @@ This project uses the official `changesets/action` for automated releases.
 
 **When user asks to create a release, ALWAYS follow this exact sequence:**
 
-### Step 1: Sync with Remote (CRITICAL)
+### Step 1: Sync with Remote (CRITICAL - DO THIS FIRST!)
 ```bash
+cd /workspace/ensemble/conductor
 git pull origin master
 ```
-**Why**: Prevents merge conflicts and ensures you're working on latest version
+
+**If pull fails with "divergent branches":**
+```bash
+git pull --no-rebase origin master  # Use merge strategy
+# This creates a merge commit and resolves conflicts
+```
+
+**Why**:
+- Prevents merge conflicts later
+- Ensures you're working on latest version
+- Remote may have been updated (Version Packages PR merged, etc.)
+- **NEVER skip this step** - always pull before creating changeset
 
 ### Step 2: Check Current Version
 ```bash
