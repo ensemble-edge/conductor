@@ -94,7 +94,10 @@ async function initializeLoaders(
 
     initialized = true
   } catch (error) {
-    logger.error('[Auto-Discovery] Failed to initialize loaders', error instanceof Error ? error : undefined)
+    logger.error(
+      '[Auto-Discovery] Failed to initialize loaders',
+      error instanceof Error ? error : undefined
+    )
     throw error
   }
 }
@@ -179,7 +182,9 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
             }
           }
 
-          const cronTrigger = ensemble.trigger?.find((t: any) => t.type === 'cron' && t.cron === event.cron) as any
+          const cronTrigger = ensemble.trigger?.find(
+            (t: any) => t.type === 'cron' && t.cron === event.cron
+          ) as any
 
           await executor.executeEnsemble(ensemble, {
             input: cronTrigger?.input || {},
