@@ -108,10 +108,7 @@ export class DocsManager {
   /**
    * Render markdown with Handlebars
    */
-  async render(
-    template: DocsTemplate,
-    options?: RenderOptions
-  ): Promise<RenderedDocs> {
+  async render(template: DocsTemplate, options?: RenderOptions): Promise<RenderedDocs> {
     let content = template.content
 
     // Apply Handlebars rendering if enabled
@@ -129,10 +126,7 @@ export class DocsManager {
   /**
    * Render docs by name from cache
    */
-  async renderByName(
-    name: string,
-    options?: RenderOptions
-  ): Promise<RenderedDocs> {
+  async renderByName(name: string, options?: RenderOptions): Promise<RenderedDocs> {
     const template = this.get(name)
     if (!template) {
       throw new Error(`Docs template not found: ${name}`)
