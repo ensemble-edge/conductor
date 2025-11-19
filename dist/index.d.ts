@@ -15,6 +15,7 @@ export { APIAgent } from './agents/api-agent.js';
 export { PageAgent } from './agents/page/page-agent.js';
 export { DocsMember } from './agents/docs/docs-agent.js';
 export { MemberLoader, createLoader } from './utils/loader.js';
+export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js';
 export { PageRouter } from './pages/index.js';
 export type { PageRoute, PageRouterConfig } from './pages/index.js';
 export * from './auth/index.js';

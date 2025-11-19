@@ -1,6 +1,8 @@
 import { defineConfig, Plugin } from 'vite'
 import { pageDiscoveryPlugin } from './scripts/vite-plugin-page-discovery.js'
 import { docsDiscoveryPlugin } from './scripts/vite-plugin-docs-discovery.js'
+import { agentDiscoveryPlugin } from './scripts/vite-plugin-agent-discovery.js'
+import { ensembleDiscoveryPlugin } from './scripts/vite-plugin-ensemble-discovery.js'
 import * as fs from 'node:fs'
 
 // Plugin to load YAML files as raw text
@@ -25,6 +27,8 @@ export default defineConfig({
     yamlRawPlugin(),
     pageDiscoveryPlugin(),
     docsDiscoveryPlugin(), // Auto-discover docs/ markdown files
+    agentDiscoveryPlugin(), // Auto-discover agents/**/*.yaml files
+    ensembleDiscoveryPlugin(), // Auto-discover ensembles/**/*.yaml files
   ],
   build: {
     outDir: 'dist',

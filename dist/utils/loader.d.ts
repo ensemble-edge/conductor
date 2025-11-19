@@ -45,6 +45,27 @@ export declare class MemberLoader {
     private loadedMembers;
     constructor(config: LoaderConfig);
     /**
+     * Auto-discover and register agents from virtual module
+     *
+     * This method is designed to work with the Vite plugin system that generates
+     * a virtual module containing all agent definitions at build time.
+     *
+     * @param discoveredAgents - Array of agent definitions from virtual:conductor-agents
+     *
+     * @example
+     * ```typescript
+     * import { agents as discoveredAgents } from 'virtual:conductor-agents';
+     *
+     * const loader = new MemberLoader({ env, ctx });
+     * await loader.autoDiscover(discoveredAgents);
+     * ```
+     */
+    autoDiscover(discoveredAgents: Array<{
+        name: string;
+        config: string;
+        handler?: () => Promise<any>;
+    }>): Promise<void>;
+    /**
      * Register a agent manually
      *
      * @example

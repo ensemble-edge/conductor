@@ -26927,6 +26927,21 @@ var MemberLoader = class {
 		};
 		this.loadedMembers = /* @__PURE__ */ new Map();
 	}
+	async autoDiscover(discoveredAgents) {
+		for (const agentDef of discoveredAgents) try {
+			const config = Parser.parseAgent(agentDef.config);
+			let implementation;
+			if (agentDef.handler) {
+				const handlerModule = await agentDef.handler();
+				implementation = handlerModule?.default || handlerModule;
+			}
+			this.registerAgent(config, implementation);
+			console.log(`[MemberLoader] Auto-discovered agent: ${agentDef.name}`);
+		} catch (error) {
+			console.error(`[MemberLoader] Failed to load agent "${agentDef.name}":`, error);
+		}
+		console.log(`[MemberLoader] Auto-discovery complete: ${this.loadedMembers.size} agents loaded`);
+	}
 	registerAgent(agentConfig, implementation) {
 		const config = typeof agentConfig === "string" ? Parser.parseAgent(agentConfig) : agentConfig;
 		const instance = this.createMemberInstance(config, implementation);
@@ -26974,6 +26989,49 @@ var MemberLoader = class {
 };
 function createLoader(config) {
 	return new MemberLoader(config);
+}
+var EnsembleLoader = class {
+	constructor(config) {
+		this.config = {
+			ensemblesDir: config.ensemblesDir || "./ensembles",
+			env: config.env,
+			ctx: config.ctx
+		};
+		this.loadedEnsembles = /* @__PURE__ */ new Map();
+	}
+	async autoDiscover(discoveredEnsembles) {
+		for (const ensembleDef of discoveredEnsembles) try {
+			const config = Parser.parseEnsemble(ensembleDef.config);
+			this.registerEnsemble(config);
+			console.log(`[EnsembleLoader] Auto-discovered ensemble: ${ensembleDef.name}`);
+		} catch (error) {
+			console.error(`[EnsembleLoader] Failed to load ensemble "${ensembleDef.name}":`, error);
+		}
+		console.log(`[EnsembleLoader] Auto-discovery complete: ${this.loadedEnsembles.size} ensembles loaded`);
+	}
+	registerEnsemble(ensembleConfig) {
+		const config = typeof ensembleConfig === "string" ? Parser.parseEnsemble(ensembleConfig) : ensembleConfig;
+		this.loadedEnsembles.set(config.name, { config });
+		return config;
+	}
+	getEnsemble(name) {
+		return this.loadedEnsembles.get(name)?.config;
+	}
+	getAllEnsembles() {
+		return Array.from(this.loadedEnsembles.values()).map((e) => e.config);
+	}
+	getEnsembleNames() {
+		return Array.from(this.loadedEnsembles.keys());
+	}
+	hasEnsemble(name) {
+		return this.loadedEnsembles.has(name);
+	}
+	clear() {
+		this.loadedEnsembles.clear();
+	}
+};
+function createEnsembleLoader(config) {
+	return new EnsembleLoader(config);
 }
 var PageRouter = class {
 	constructor(config = {}) {
@@ -28207,6 +28265,6 @@ function createConductorHandler(config) {
 	} };
 }
 var worker_entry_default = {};
-export { APIAgent, ApiKeyValidator, BaseAgent, BearerValidator, CookieValidator, CustomValidatorRegistry, DataAgent, DocsManager, DocsMember, Executor, FunctionAgent, GitHubSignatureValidator, MemberLoader, PageAgent, PageRouter, Parser, StateManager, StripeSignatureValidator, ThinkAgent, TwilioSignatureValidator, UnifiedRouter, UnkeyValidator, createApiKeyValidator, createBearerValidator, createConductorHandler, createCookieValidator, createCustomValidatorRegistry, createLoader, createUnkeyValidator, worker_entry_default as default, getGlobalDocsManager };
+export { APIAgent, ApiKeyValidator, BaseAgent, BearerValidator, CookieValidator, CustomValidatorRegistry, DataAgent, DocsManager, DocsMember, EnsembleLoader, Executor, FunctionAgent, GitHubSignatureValidator, MemberLoader, PageAgent, PageRouter, Parser, StateManager, StripeSignatureValidator, ThinkAgent, TwilioSignatureValidator, UnifiedRouter, UnkeyValidator, createApiKeyValidator, createBearerValidator, createConductorHandler, createCookieValidator, createCustomValidatorRegistry, createEnsembleLoader, createLoader, createUnkeyValidator, worker_entry_default as default, getGlobalDocsManager };
 
 //# sourceMappingURL=index.js.map
