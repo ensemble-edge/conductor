@@ -50,9 +50,9 @@ import { parse as parseYAML } from 'yaml';
 import conductorConfig from '../conductor.config';
 
 // Import your agents (add more as you create them)
-import greetConfigRaw from '../agents/hello/agent.yaml';
+import greetConfigRaw from '../agents/examples/hello/agent.yaml';
 let greetConfig: AgentConfig | null = null;  // ✅ Lazy initialization
-import greetFunction from '../agents/hello';
+import greetFunction from '../agents/examples/hello';
 
 // Import your ensembles (add more as you create them)
 import helloWorldYAML from '../ensembles/hello-world.yaml';

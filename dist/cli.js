@@ -7288,7 +7288,8 @@ var AgentSchema = external_exports.object({
     "page" /* page */,
     "html" /* html */,
     "pdf" /* pdf */,
-    "queue" /* queue */
+    "queue" /* queue */,
+    "docs" /* docs */
   ]),
   description: external_exports.string().optional(),
   config: external_exports.record(external_exports.unknown()).optional(),
@@ -8749,7 +8750,7 @@ function createHistoryCommand() {
 }
 
 // src/cli/index.ts
-var version = "1.8.0";
+var version = "1.8.1";
 var program = new Command10();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

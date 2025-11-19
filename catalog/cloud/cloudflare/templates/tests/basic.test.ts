@@ -10,8 +10,8 @@ import { Executor, MemberLoader } from '@ensemble-edge/conductor';
 import type { AgentConfig } from '@ensemble-edge/conductor';
 import { stringify as stringifyYAML } from 'yaml';
 import helloWorldYAML from '../ensembles/hello-world.yaml';
-import greetConfig from '../agents/hello/agent.yaml';
-import greetFunction from '../agents/hello';
+import greetConfig from '../agents/examples/hello/agent.yaml';
+import greetFunction from '../agents/examples/hello';
 
 describe('Basic Hello World Test', () => {
 	it('should execute hello-world ensemble successfully', async () => {

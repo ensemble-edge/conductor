@@ -12,7 +12,7 @@
  */
 
 import type { AgentExecutionContext } from '@ensemble-edge/conductor';
-import { sanitizeInput, formatMessage } from '../../src/lib/formatting';
+import { sanitizeInput, formatMessage } from '../../../src/lib/formatting';
 export default async function greet({ input }: AgentExecutionContext) {
 	// Sanitize user input using shared utility
 	const name = sanitizeInput(input.name || 'World');
