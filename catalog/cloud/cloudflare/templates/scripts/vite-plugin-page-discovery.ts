@@ -118,8 +118,10 @@ export const pages = [];
     // Import handler if exists (no need to import config - we embed it)
     if (handlerExists) {
       const relativePath = path.relative(root, handlerPath)
+      // Normalize to forward slashes for ESM (path.relative uses OS separators)
+      const normalizedPath = relativePath.replace(/\\/g, '/')
       // Ensure path starts with ./ for proper module resolution
-      const importPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`
+      const importPath = normalizedPath.startsWith('.') ? normalizedPath : `./${normalizedPath}`
       imports.push(`import * as ${handlerVarName} from '${importPath}'`)
     }
 
