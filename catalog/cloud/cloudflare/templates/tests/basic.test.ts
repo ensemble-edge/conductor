@@ -16,7 +16,10 @@ import greetFunction from '../agents/hello';
 describe('Basic Hello World Test', () => {
 	it('should execute hello-world ensemble successfully', async () => {
 		const env = {} as Env;
-		const ctx = {} as ExecutionContext;
+		const ctx = {
+			waitUntil: (promise: Promise<any>) => promise,
+			passThroughOnException: () => {}
+		} as ExecutionContext;
 
 		const executor = new Executor({ env, ctx });
 		const loader = new MemberLoader({ env, ctx });
@@ -50,7 +53,10 @@ describe('Basic Hello World Test', () => {
 
 	it('should handle different input names', async () => {
 		const env = {} as Env;
-		const ctx = {} as ExecutionContext;
+		const ctx = {
+			waitUntil: (promise: Promise<any>) => promise,
+			passThroughOnException: () => {}
+		} as ExecutionContext;
 
 		const executor = new Executor({ env, ctx });
 		const loader = new MemberLoader({ env, ctx });
@@ -72,7 +78,10 @@ describe('Basic Hello World Test', () => {
 
 	it('should complete within reasonable time', async () => {
 		const env = {} as Env;
-		const ctx = {} as ExecutionContext;
+		const ctx = {
+			waitUntil: (promise: Promise<any>) => promise,
+			passThroughOnException: () => {}
+		} as ExecutionContext;
 
 		const executor = new Executor({ env, ctx });
 		const loader = new MemberLoader({ env, ctx });

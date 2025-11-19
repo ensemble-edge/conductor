@@ -60,7 +60,8 @@ export class PageRouter {
    * Register a page with explicit route configuration
    */
   registerPage(pageConfig: AgentConfig, pageMember: PageAgent): void {
-    const routeConfig = (pageConfig.config as any)?.route
+    // Route can be at root level (pageConfig.route) or nested (pageConfig.config.route) for backward compatibility
+    const routeConfig = (pageConfig as any)?.route || (pageConfig.config as any)?.route
 
     if (!routeConfig) {
       // No route config - skip for now (will be handled by auto-discovery)
@@ -113,7 +114,8 @@ export class PageRouter {
       this.pages.set(pageName, agent)
 
       // Check if page has explicit route configuration
-      const routeConfig = (config.config as any)?.route
+      // Route can be at root level (config.route) or nested (config.config.route) for backward compatibility
+      const routeConfig = (config as any)?.route || (config.config as any)?.route
       if (routeConfig) {
         // Register with explicit route configuration
         this.registerPage(config, agent)
