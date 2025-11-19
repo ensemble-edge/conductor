@@ -6,6 +6,8 @@
  */
 import { Parser } from './parser.js';
 import { StateManager } from './state-manager.js';
+import { FunctionAgent } from '../agents/function-agent.js';
+import { CodeAgent } from '../agents/code-agent.js';
 import { ThinkAgent } from '../agents/think-agent.js';
 import { DataAgent } from '../agents/data-agent.js';
 import { APIAgent } from '../agents/api-agent.js';
@@ -120,7 +122,17 @@ export class Executor {
             case Operation.pdf:
                 return Result.ok(new PdfMember(config));
             case Operation.code:
-                return Result.err(Errors.agentConfig(config.name, 'Function agents require code implementation and must be registered manually'));
+                // Try to create CodeAgent (supports both inline and script:// URIs)
+                const codeAgent = CodeAgent.fromConfig(config);
+                if (codeAgent) {
+                    return Result.ok(codeAgent);
+                }
+                // Fallback to FunctionAgent for backwards compatibility
+                const inlineAgent = FunctionAgent.fromConfig(config);
+                if (inlineAgent) {
+                    return Result.ok(inlineAgent);
+                }
+                return Result.err(Errors.agentConfig(config.name, 'Code agents require either a script:// URI or an inline handler function'));
             case Operation.tools:
                 return Result.err(Errors.agentConfig(config.name, 'MCP agent type not yet implemented'));
             case Operation.scoring:

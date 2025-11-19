@@ -14,7 +14,7 @@
 - 🚀 **Edge-Native** - Runs on Cloudflare Workers for sub-50ms latency globally
 - 📝 **YAML-Driven** - Define workflows as simple, readable YAML files
 - 🎯 **Type-Safe** - Full TypeScript support with strong typing
-- 🧪 **Built-in Testing** - 276 tests passing, comprehensive mocks, custom matchers
+- 🧪 **Built-in Testing** - 812 tests passing, comprehensive mocks, custom matchers
 - 🔄 **State Management** - Built-in state sharing across member executions
 - 💾 **Integrated Caching** - KV-based caching for performance and cost optimization
 - 🧩 **Composable Operations** - Think (AI), Code (JS), Storage (KV/D1/R2), HTTP, Tools (MCP), Email, SMS, HTML, PDF, Page
@@ -32,22 +32,25 @@
 ### Quick Start
 
 ```bash
-# Install conductor globally
-npm install -g @ensemble-edge/conductor
+# Create a new project with templates
+npx @ensemble-edge/conductor@latest init my-project
+cd my-project
 
-# Create a new project
-conductor init my-project
+# Install and build
+npm install
+npm run build
 
 # Start development server
-cd my-project
-npm run dev
+npx wrangler dev --local-protocol http
 ```
 
-The `conductor init` command:
-- ✅ Creates project structure
-- ✅ Installs dependencies (including Edgit)
-- ✅ Sets up example member and ensemble
-- ✅ Initializes git repository
+> **Note**: Dev container users should add `--ip 0.0.0.0` flag: `npx wrangler dev --local-protocol http --ip 0.0.0.0`
+
+The init command creates:
+- ✅ Complete project structure
+- ✅ 10 example pages (static, dynamic, forms, SSR)
+- ✅ Working hello-world ensemble
+- ✅ Example agents and tests
 - ✅ Ready to run immediately
 
 ### Your Project Structure
@@ -61,10 +64,12 @@ my-project/
 │   └── lib/                     # 👈 YOUR UTILITIES - Shared helpers, utilities
 │       └── helpers.ts           #    Reusable functions across members
 │
-├── members/                      # 👈 YOUR MEMBERS - Business logic implementations
-│   └── greet/                    #    Each member is a folder with:
-│       ├── member.yaml           #    - member.yaml (configuration)
-│       └── index.ts              #    - index.ts (implementation code)
+├── agents/                       # 👈 YOUR AGENTS - Business logic implementations
+│   ├── docs/                     #    Documentation infrastructure (keep!)
+│   ├── examples/                 #    Learning examples (delete when ready)
+│   └── (your agents here)        #    Each agent is a folder with:
+│                                 #    - agent.yaml (configuration)
+│                                 #    - index.ts (implementation code)
 │
 ├── ensembles/                    # 👈 YOUR WORKFLOWS - Orchestration definitions
 │   └── hello-world.yaml          #    YAML files defining:
@@ -107,7 +112,7 @@ my-project/
 
 | Component | Location | Created With | Purpose |
 |-----------|----------|--------------|---------|
-| **Members** | `members/<name>/` | `conductor add member <name>` | Business logic: AI, functions, API calls, data operations |
+| **Agents** | `agents/<name>/` | Create folder manually | Business logic: AI, functions, API calls, data operations |
 | **Ensembles** | `ensembles/<name>.yaml` | Create YAML file manually | Workflow orchestration: define flow, schedules, webhooks |
 | **Prompts** | `prompts/<name>.md` | Create file, register with `edgit tag` | Shared prompt templates - reusable across members/ensembles |
 | **Queries** | `queries/<name>.sql` | Create file, register with `edgit tag` | Shared SQL queries - reusable, versioned, optimized |
@@ -132,10 +137,10 @@ my-project/
    - Versioned independently (e.g., `extraction-prompt@v1.0.0`, `extraction-prompt@v2.0.0`)
    - **Example**: 5 different members can all use `company-analysis-prompt@v2.1.0`
 
-3. **Member implementations** (👈):
-   - `members/` contains your business logic code
-   - Each member can reference shared prompts/queries at specific versions
-   - **Example**: `member.yaml` can specify `prompt: company-analysis@v2.1.0`
+3. **Agent implementations** (👈):
+   - `agents/` contains your business logic code
+   - Each agent can reference shared prompts/queries at specific versions
+   - **Example**: `agent.yaml` can specify `prompt: company-analysis@v2.1.0`
 
 4. **Workflow orchestration**:
    - `ensembles/` defines how members work together
@@ -251,9 +256,9 @@ Conductor provides **first-class testing support** built into the core package. 
 
 ### Test Infrastructure
 
-**276 tests passing** covering:
-- 🧪 **Unit Tests** (205 tests) - Core runtime, members, state management
-- 🔗 **Integration Tests** (71 tests) - End-to-end workflows, catalog loading
+**812 tests passing** covering:
+- 🧪 **Unit Tests** - Core runtime, agents, state management, pages
+- 🔗 **Integration Tests** - End-to-end workflows, catalog loading, dynamic routing
 
 **Test Coverage:**
 - Lines: 40%+ | Functions: 40%+ | Branches: 35%+ | Statements: 40%+
@@ -671,15 +676,20 @@ Conductor automatically validates inputs/outputs against your schema at runtime.
 Create a new Conductor project
 
 ```bash
-conductor init my-project
+npx @ensemble-edge/conductor@latest init my-project
 cd my-project
-npm run dev
+npm install
+npm run build
+npx wrangler dev --local-protocol http
 ```
 
-**Options:**
-- `--no-install` - Skip npm install
-- `--no-git` - Skip git initialization
-- `--template <name>` - Use specific template
+> **Note**: Dev container users should add `--ip 0.0.0.0` flag
+
+Creates a complete project with:
+- 10 example pages (static, dynamic, forms)
+- Working hello-world ensemble
+- Example agents with implementations
+- Test suite with passing examples
 
 ### `conductor add member <name>`
 

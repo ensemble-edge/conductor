@@ -6,9 +6,8 @@
  * - Prompts (AI instructions)
  * - Queries (SQL)
  * - Configs (JSON settings)
- * - Components (Compiled JSX)
- * - Pages (Compiled JSX pages)
- * - Forms (Form definitions)
+ * - Scripts (JavaScript/TypeScript)
+ * - Schemas (JSON Schema definitions)
  *
  * URI Format: {protocol}://{path}[@{version}]
  * Version defaults to "latest" if not specified.
@@ -18,6 +17,8 @@
  * - template://components/header@latest   → templates/components/header@latest
  * - template://components/header@v1.0.0   → templates/components/header@v1.0.0
  * - prompt://analyze-company@prod         → prompts/analyze-company@prod
+ * - script://transform-data@v1.0.0        → scripts/transform-data@v1.0.0
+ * - schema://invoice@latest               → schemas/invoice@latest
  *
  * Cache Configuration:
  * - Default: All components cached for 1 hour (3600 seconds)
@@ -31,7 +32,7 @@
  */
 import type { Cache } from '../cache/cache.js';
 import type { Logger } from '../observability/types.js';
-export type ComponentProtocol = 'template' | 'prompt' | 'query' | 'config' | 'component' | 'page' | 'form';
+export type ComponentProtocol = 'template' | 'prompt' | 'query' | 'config' | 'script' | 'schema';
 export interface ParsedComponentURI {
     protocol: ComponentProtocol;
     path: string;

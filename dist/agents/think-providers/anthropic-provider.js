@@ -52,7 +52,11 @@ export class AnthropicProvider extends BaseAIProvider {
                 stopReason: data.stop_reason,
                 inputTokens: data.usage?.input_tokens,
                 outputTokens: data.usage?.output_tokens,
-                schema: config.schema ? (typeof config.schema === 'string' ? config.schema : JSON.stringify(config.schema)) : undefined,
+                schema: config.schema
+                    ? typeof config.schema === 'string'
+                        ? config.schema
+                        : JSON.stringify(config.schema)
+                    : undefined,
             },
         };
     }
