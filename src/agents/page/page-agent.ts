@@ -22,7 +22,6 @@ import type {
 } from './types/index.js'
 import { renderPageHead } from './utils/head-renderer.js'
 import { renderHydrationScript } from './utils/hydration.js'
-import { HandlebarsTemplateEngine } from '../../utils/templates/engines/handlebars.js'
 import { SimpleTemplateEngine } from '../../utils/templates/engines/simple.js'
 import { LiquidTemplateEngine } from '../../utils/templates/engines/liquid.js'
 import type { BaseTemplateEngine } from '../../utils/templates/engines/base.js'
@@ -35,7 +34,7 @@ export class PageAgent extends BaseAgent {
     super(config)
     this.pageConfig = config as AgentConfig & PageAgentConfig
 
-    // Initialize template engine based on config (default: liquid)
+    // Initialize template engine based on config (default: liquid, Workers-compatible)
     const engineType = this.pageConfig.templateEngine || 'liquid'
     switch (engineType) {
       case 'simple':
@@ -43,9 +42,6 @@ export class PageAgent extends BaseAgent {
         break
       case 'liquid':
         this.templateEngine = new LiquidTemplateEngine()
-        break
-      case 'handlebars':
-        this.templateEngine = new HandlebarsTemplateEngine()
         break
       default:
         this.templateEngine = new LiquidTemplateEngine()

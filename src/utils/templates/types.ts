@@ -5,9 +5,10 @@
 import type { KVNamespace } from '@cloudflare/workers-types'
 
 /**
- * Supported template engines
+ * Supported template engines (Workers-compatible)
+ * Note: Only 'simple' and 'liquid' - both work in Cloudflare Workers without eval()
  */
-export type TemplateEngine = 'simple' | 'handlebars' | 'liquid' | 'mjml'
+export type TemplateEngine = 'simple' | 'liquid'
 
 /**
  * Template context data

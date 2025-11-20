@@ -2,33 +2,27 @@
  * Template Engine Factory
  *
  * Creates template engines based on type.
- * Currently supports 'simple' engine out of the box.
- * Handlebars, Liquid, and MJML support can be added as optional dependencies.
+ * Supports Workers-compatible engines: 'simple' and 'liquid'
+ * Note: handlebars/mjml removed - use eval(), fail in Cloudflare Workers
  */
 
 import type { TemplateEngine } from '../types.js'
 import { BaseTemplateEngine } from './base.js'
 import { SimpleTemplateEngine } from './simple.js'
-import { HandlebarsTemplateEngine } from './handlebars.js'
+import { HandlebarsTemplateEngine } from './handlebars.js' // Kept for DocsManager (server-side only)
 import { LiquidTemplateEngine } from './liquid.js'
-import { MJMLTemplateEngine } from './mjml.js'
+import { MJMLTemplateEngine } from './mjml.js' // Kept for EmailAgent (server-side rendering)
 
 /**
- * Create a template engine instance
+ * Create a template engine instance (Workers-compatible only)
  */
 export function createTemplateEngine(engine: TemplateEngine): BaseTemplateEngine {
   switch (engine) {
     case 'simple':
       return new SimpleTemplateEngine()
 
-    case 'handlebars':
-      return new HandlebarsTemplateEngine()
-
     case 'liquid':
       return new LiquidTemplateEngine()
-
-    case 'mjml':
-      return new MJMLTemplateEngine()
 
     default:
       throw new Error(`Unknown template engine: ${engine}`)
@@ -36,17 +30,17 @@ export function createTemplateEngine(engine: TemplateEngine): BaseTemplateEngine
 }
 
 /**
- * Check if an engine is available
+ * Check if an engine is available (Workers-compatible)
  */
 export function isEngineAvailable(engine: TemplateEngine): boolean {
-  return engine === 'simple' || engine === 'handlebars' || engine === 'liquid' || engine === 'mjml'
+  return engine === 'simple' || engine === 'liquid'
 }
 
 /**
- * Get list of available engines
+ * Get list of available engines (Workers-compatible)
  */
 export function getAvailableEngines(): TemplateEngine[] {
-  return ['simple', 'handlebars', 'liquid', 'mjml'] // simple first as default
+  return ['simple', 'liquid'] // simple first as default
 }
 
 // Re-export types and classes

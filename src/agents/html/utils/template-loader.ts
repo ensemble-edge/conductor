@@ -11,38 +11,21 @@
 import type { TemplateSource, TemplateLoadResult, TemplateEngine } from '../types/index.js'
 
 /**
- * Detect template engine from file extension or content
+ * Detect template engine from file extension or content (Workers-compatible)
+ * Note: Only supports 'simple' and 'liquid' - both work in Workers without eval()
  */
 export function detectTemplateEngine(key: string, content?: string): TemplateEngine {
   // Check file extension
-  if (key.endsWith('.hbs') || key.endsWith('.handlebars')) {
-    return 'handlebars'
-  }
   if (key.endsWith('.liquid')) {
     return 'liquid'
   }
-  if (key.endsWith('.mjml')) {
-    return 'mjml'
-  }
 
-  // Check content for MJML tags
-  if (content && content.includes('<mjml>')) {
-    return 'mjml'
-  }
-
-  // Check content for Liquid syntax (must come before Handlebars check)
+  // Check content for Liquid syntax
   if (content && /\{%.*%\}/.test(content)) {
     return 'liquid'
   }
 
-  // Check content for Handlebars-specific syntax (advanced features)
-  // Simple syntax like {{variable}}, {{#if}}, {{#each}} is supported by both Simple and Handlebars
-  // Only detect as Handlebars if it has Handlebars-specific helpers/syntax
-  if (content && /\{\{(#(unless|with|lookup|log)|@root|@index|@key|>\s*\w+\.\w+)/.test(content)) {
-    return 'handlebars'
-  }
-
-  // Default to simple template engine (which supports {{variable}}, {{#if}}, {{#each}})
+  // Default to simple template engine (Workers-compatible, supports {{variable}}, {{#if}}, {{#each}})
   return 'simple'
 }
 
