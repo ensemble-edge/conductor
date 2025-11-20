@@ -60,9 +60,7 @@ export const createThinkMember = createThinkAgent
  * });
  * ```
  */
-export function createFunctionAgent(
-  options: Omit<CreateAgentOptions, 'operation'>
-): MemberHandler {
+export function createFunctionAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
   return createAgent({ ...options, operation: Operation.code })
 }
 
