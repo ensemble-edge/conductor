@@ -28,7 +28,7 @@ export function createAgent(options) {
  *
  * @example
  * ```typescript
- * export default createThinkMember({
+ * export default createThinkAgent({
  *   async handler({ input, env }) {
  *     // Your AI logic here
  *     return { analysis: '...' };
@@ -36,30 +36,34 @@ export function createAgent(options) {
  * });
  * ```
  */
-export function createThinkMember(options) {
+export function createThinkAgent(options) {
     return createAgent({ ...options, operation: Operation.think });
 }
+// Backward compatibility alias
+export const createThinkMember = createThinkAgent;
 /**
  * Create a Function agent (JavaScript execution)
  *
  * @example
  * ```typescript
- * export default createFunctionMember({
+ * export default createFunctionAgent({
  *   async handler({ input }) {
  *     return { result: input.value * 2 };
  *   }
  * });
  * ```
  */
-export function createFunctionMember(options) {
+export function createFunctionAgent(options) {
     return createAgent({ ...options, operation: Operation.code });
 }
+// Backward compatibility alias
+export const createFunctionMember = createFunctionAgent;
 /**
  * Create a Data agent (storage operations)
  *
  * @example
  * ```typescript
- * export default createDataMember({
+ * export default createDataAgent({
  *   async handler({ input, env }) {
  *     const value = await env.CACHE.get(input.key);
  *     return { value, found: !!value };
@@ -67,15 +71,17 @@ export function createFunctionMember(options) {
  * });
  * ```
  */
-export function createDataMember(options) {
+export function createDataAgent(options) {
     return createAgent({ ...options, operation: Operation.storage });
 }
+// Backward compatibility alias
+export const createDataMember = createDataAgent;
 /**
  * Create an API agent (HTTP requests)
  *
  * @example
  * ```typescript
- * export default createAPIMember({
+ * export default createAPIAgent({
  *   async handler({ input }) {
  *     const response = await fetch(input.url);
  *     return { data: await response.json() };
@@ -83,9 +89,11 @@ export function createDataMember(options) {
  * });
  * ```
  */
-export function createAPIMember(options) {
+export function createAPIAgent(options) {
     return createAgent({ ...options, operation: Operation.http });
 }
+// Backward compatibility alias
+export const createAPIMember = createAPIAgent;
 /**
  * Create an Email agent (email sending)
  *
@@ -121,7 +129,7 @@ export function createSMSMember(options) {
 /**
  * Generate an agent config (for programmatic agent creation)
  */
-export function generateMemberConfig(options) {
+export function generateAgentConfig(options) {
     return {
         name: options.name,
         operation: options.operation,
@@ -130,3 +138,5 @@ export function generateMemberConfig(options) {
         schema: options.schema,
     };
 }
+// Backward compatibility alias
+export const generateMemberConfig = generateAgentConfig;

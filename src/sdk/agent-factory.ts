@@ -33,7 +33,7 @@ export function createAgent(options: CreateAgentOptions): MemberHandler {
  *
  * @example
  * ```typescript
- * export default createThinkMember({
+ * export default createThinkAgent({
  *   async handler({ input, env }) {
  *     // Your AI logic here
  *     return { analysis: '...' };
@@ -41,34 +41,40 @@ export function createAgent(options: CreateAgentOptions): MemberHandler {
  * });
  * ```
  */
-export function createThinkMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
+export function createThinkAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
   return createAgent({ ...options, operation: Operation.think })
 }
+
+// Backward compatibility alias
+export const createThinkMember = createThinkAgent
 
 /**
  * Create a Function agent (JavaScript execution)
  *
  * @example
  * ```typescript
- * export default createFunctionMember({
+ * export default createFunctionAgent({
  *   async handler({ input }) {
  *     return { result: input.value * 2 };
  *   }
  * });
  * ```
  */
-export function createFunctionMember(
+export function createFunctionAgent(
   options: Omit<CreateAgentOptions, 'operation'>
 ): MemberHandler {
   return createAgent({ ...options, operation: Operation.code })
 }
+
+// Backward compatibility alias
+export const createFunctionMember = createFunctionAgent
 
 /**
  * Create a Data agent (storage operations)
  *
  * @example
  * ```typescript
- * export default createDataMember({
+ * export default createDataAgent({
  *   async handler({ input, env }) {
  *     const value = await env.CACHE.get(input.key);
  *     return { value, found: !!value };
@@ -76,16 +82,19 @@ export function createFunctionMember(
  * });
  * ```
  */
-export function createDataMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
+export function createDataAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
   return createAgent({ ...options, operation: Operation.storage })
 }
+
+// Backward compatibility alias
+export const createDataMember = createDataAgent
 
 /**
  * Create an API agent (HTTP requests)
  *
  * @example
  * ```typescript
- * export default createAPIMember({
+ * export default createAPIAgent({
  *   async handler({ input }) {
  *     const response = await fetch(input.url);
  *     return { data: await response.json() };
@@ -93,9 +102,12 @@ export function createDataMember(options: Omit<CreateAgentOptions, 'operation'>)
  * });
  * ```
  */
-export function createAPIMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
+export function createAPIAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler {
   return createAgent({ ...options, operation: Operation.http })
 }
+
+// Backward compatibility alias
+export const createAPIMember = createAPIAgent
 
 /**
  * Create an Email agent (email sending)
@@ -134,7 +146,7 @@ export function createSMSMember(options: Omit<CreateAgentOptions, 'operation'>):
 /**
  * Generate an agent config (for programmatic agent creation)
  */
-export function generateMemberConfig(options: CreateAgentOptions): AgentConfig {
+export function generateAgentConfig(options: CreateAgentOptions): AgentConfig {
   return {
     name: options.name,
     operation: options.operation,
@@ -143,3 +155,6 @@ export function generateMemberConfig(options: CreateAgentOptions): AgentConfig {
     schema: options.schema,
   }
 }
+
+// Backward compatibility alias
+export const generateMemberConfig = generateAgentConfig
