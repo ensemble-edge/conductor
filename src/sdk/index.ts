@@ -43,11 +43,11 @@ export type {
 // Agent factory functions
 export {
   createAgent,
-  createThinkMember,
-  createFunctionMember,
-  createDataMember,
-  createAPIMember,
-  generateMemberConfig,
+  createThinkAgent,
+  createFunctionAgent,
+  createDataAgent,
+  createAPIAgent,
+  generateAgentConfig,
 } from './agent-factory.js'
 
 export type { CreateAgentOptions, MemberHandler } from './types.js'

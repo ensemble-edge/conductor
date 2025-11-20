@@ -25,7 +25,7 @@ export declare function createAgent(options: CreateAgentOptions): MemberHandler;
  *
  * @example
  * ```typescript
- * export default createThinkMember({
+ * export default createThinkAgent({
  *   async handler({ input, env }) {
  *     // Your AI logic here
  *     return { analysis: '...' };
@@ -33,26 +33,28 @@ export declare function createAgent(options: CreateAgentOptions): MemberHandler;
  * });
  * ```
  */
-export declare function createThinkMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare function createThinkAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare const createThinkMember: typeof createThinkAgent;
 /**
  * Create a Function agent (JavaScript execution)
  *
  * @example
  * ```typescript
- * export default createFunctionMember({
+ * export default createFunctionAgent({
  *   async handler({ input }) {
  *     return { result: input.value * 2 };
  *   }
  * });
  * ```
  */
-export declare function createFunctionMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare function createFunctionAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare const createFunctionMember: typeof createFunctionAgent;
 /**
  * Create a Data agent (storage operations)
  *
  * @example
  * ```typescript
- * export default createDataMember({
+ * export default createDataAgent({
  *   async handler({ input, env }) {
  *     const value = await env.CACHE.get(input.key);
  *     return { value, found: !!value };
@@ -60,13 +62,14 @@ export declare function createFunctionMember(options: Omit<CreateAgentOptions, '
  * });
  * ```
  */
-export declare function createDataMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare function createDataAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare const createDataMember: typeof createDataAgent;
 /**
  * Create an API agent (HTTP requests)
  *
  * @example
  * ```typescript
- * export default createAPIMember({
+ * export default createAPIAgent({
  *   async handler({ input }) {
  *     const response = await fetch(input.url);
  *     return { data: await response.json() };
@@ -74,7 +77,8 @@ export declare function createDataMember(options: Omit<CreateAgentOptions, 'oper
  * });
  * ```
  */
-export declare function createAPIMember(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare function createAPIAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare const createAPIMember: typeof createAPIAgent;
 /**
  * Create an Email agent (email sending)
  *
@@ -106,5 +110,6 @@ export declare function createSMSMember(options: Omit<CreateAgentOptions, 'opera
 /**
  * Generate an agent config (for programmatic agent creation)
  */
-export declare function generateMemberConfig(options: CreateAgentOptions): AgentConfig;
+export declare function generateAgentConfig(options: CreateAgentOptions): AgentConfig;
+export declare const generateMemberConfig: typeof generateAgentConfig;
 //# sourceMappingURL=agent-factory.d.ts.map
