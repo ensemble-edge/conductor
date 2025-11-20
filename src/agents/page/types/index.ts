@@ -301,8 +301,8 @@ export interface PageAgentConfig extends AgentConfig {
   dev?: boolean
   /** Default input props for the page component */
   input?: Record<string, unknown>
-  /** Template engine to use for rendering (default: 'handlebars') */
-  templateEngine?: 'handlebars' | 'liquid' | 'simple' | 'mjml'
+  /** Template engine to use for rendering (default: 'liquid', Workers-compatible) */
+  templateEngine?: 'simple' | 'liquid'
   /** Handler function for fetching data based on route params */
   handler?: HandlerFunction
 }

@@ -20,7 +20,9 @@ import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-pr
 import { AIProvider } from '../types/constants.js'
 import type { ConductorEnv } from '../types/env.js'
 import { resolveValue, type ComponentResolutionContext } from '../utils/component-resolver.js'
-import * as Handlebars from 'handlebars'
+import { SimpleTemplateEngine } from '../utils/templates/engines/simple.js'
+import { LiquidTemplateEngine } from '../utils/templates/engines/liquid.js'
+import type { BaseTemplateEngine } from '../utils/templates/engines/base.js'
 
 export interface ThinkConfig {
   model?: string
@@ -32,6 +34,7 @@ export interface ThinkConfig {
   systemPrompt?: string
   prompt?: string // Reference to versioned prompt (e.g., "company-analysis-prompt@v1.0.0")
   schema?: string | Record<string, unknown> // Reference to versioned schema (e.g., "schemas/invoice@v1") or inline schema
+  templateEngine?: 'simple' | 'liquid' // Template engine for systemPrompt rendering (default: 'simple', Cloudflare Workers compatible)
 }
 
 export interface ThinkInput {
@@ -46,6 +49,7 @@ export interface ThinkInput {
 export class ThinkAgent extends BaseAgent {
   private thinkConfig: ThinkConfig
   private providerRegistry: ProviderRegistry
+  private templateEngine: BaseTemplateEngine
 
   constructor(config: AgentConfig, providerRegistry?: ProviderRegistry) {
     super(config)
@@ -54,6 +58,21 @@ export class ThinkAgent extends BaseAgent {
     this.providerRegistry = providerRegistry || getProviderRegistry()
 
     const cfg = config.config as ThinkConfig | undefined
+
+    // Initialize template engine based on config (default: simple - Workers compatible)
+    const engineType = cfg?.templateEngine || 'simple'
+    switch (engineType) {
+      case 'simple':
+        this.templateEngine = new SimpleTemplateEngine()
+        break
+      case 'liquid':
+        this.templateEngine = new LiquidTemplateEngine()
+        break
+      default:
+        this.templateEngine = new SimpleTemplateEngine()
+        break
+    }
+
     const model = cfg?.model || 'claude-3-5-haiku-20241022'
 
     // Auto-detect provider from model name if not explicitly set
@@ -104,17 +123,20 @@ export class ThinkAgent extends BaseAgent {
     // Load versioned prompt if configured
     await this.resolvePrompt(env)
 
-    // Render template variables in systemPrompt using Handlebars (e.g., {{input.name}})
+    // Render template variables in systemPrompt (e.g., {{input.name}})
+    // Uses configurable template engine (simple or liquid) - both are Cloudflare Workers compatible
     if (this.thinkConfig.systemPrompt) {
       console.log('[ThinkAgent] BEFORE template rendering:', this.thinkConfig.systemPrompt)
       console.log('[ThinkAgent] Input data:', JSON.stringify(input))
       try {
-        const template = Handlebars.compile(this.thinkConfig.systemPrompt)
-        this.thinkConfig.systemPrompt = template({
-          input,
-          env,
-          context,
-        })
+        this.thinkConfig.systemPrompt = await this.templateEngine.render(
+          this.thinkConfig.systemPrompt,
+          {
+            input,
+            env,
+            context,
+          }
+        )
         console.log('[ThinkAgent] AFTER template rendering:', this.thinkConfig.systemPrompt)
       } catch (error) {
         console.error('[ThinkAgent] Template rendering error:', error)

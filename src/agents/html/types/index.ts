@@ -41,9 +41,10 @@ export interface Cookie {
 }
 
 /**
- * Template engine types
+ * Template engine types (Workers-compatible)
+ * Note: Only 'simple' and 'liquid' - both work in Cloudflare Workers without eval()
  */
-export type TemplateEngine = 'handlebars' | 'liquid' | 'mjml' | 'simple'
+export type TemplateEngine = 'simple' | 'liquid'
 
 /**
  * Template source configuration
