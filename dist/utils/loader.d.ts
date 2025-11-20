@@ -40,7 +40,7 @@ export interface LoadedMember {
  * For now, users will need to manually import and register their agents.
  * Future: We can build a CLI tool that generates the registration code.
  */
-export declare class MemberLoader {
+export declare class AgentLoader {
     private config;
     private loadedMembers;
     constructor(config: LoaderConfig);
@@ -121,5 +121,6 @@ export declare class MemberLoader {
 /**
  * Helper function to create a loader instance
  */
-export declare function createLoader(config: LoaderConfig): MemberLoader;
+export declare function createLoader(config: LoaderConfig): AgentLoader;
+export declare const MemberLoader: typeof AgentLoader;
 //# sourceMappingURL=loader.d.ts.map

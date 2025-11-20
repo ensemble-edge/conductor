@@ -50,7 +50,7 @@ export interface LoadedMember {
  * For now, users will need to manually import and register their agents.
  * Future: We can build a CLI tool that generates the registration code.
  */
-export class MemberLoader {
+export class AgentLoader {
   private config: LoaderConfig
   private loadedMembers: Map<string, LoadedMember>
 
@@ -258,6 +258,9 @@ export class MemberLoader {
 /**
  * Helper function to create a loader instance
  */
-export function createLoader(config: LoaderConfig): MemberLoader {
-  return new MemberLoader(config)
+export function createLoader(config: LoaderConfig): AgentLoader {
+  return new AgentLoader(config)
 }
+
+// Backward compatibility alias
+export const MemberLoader = AgentLoader

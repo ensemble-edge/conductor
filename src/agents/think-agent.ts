@@ -20,7 +20,7 @@ import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-pr
 import { AIProvider } from '../types/constants.js'
 import type { ConductorEnv } from '../types/env.js'
 import { resolveValue, type ComponentResolutionContext } from '../utils/component-resolver.js'
-import { PromptParser } from '../prompts/prompt-parser.js'
+import * as Handlebars from 'handlebars'
 
 export interface ThinkConfig {
   model?: string
@@ -104,14 +104,24 @@ export class ThinkAgent extends BaseAgent {
     // Load versioned prompt if configured
     await this.resolvePrompt(env)
 
-    // Render template variables in systemPrompt (e.g., {{input.name}})
+    // Render template variables in systemPrompt using Handlebars (e.g., {{input.name}})
     if (this.thinkConfig.systemPrompt) {
-      const parser = new PromptParser({ allowUndefined: true })
-      this.thinkConfig.systemPrompt = parser.parse(this.thinkConfig.systemPrompt, {
-        input,
-        env,
-        context,
-      })
+      console.log('[ThinkAgent] BEFORE template rendering:', this.thinkConfig.systemPrompt)
+      console.log('[ThinkAgent] Input data:', JSON.stringify(input))
+      try {
+        const template = Handlebars.compile(this.thinkConfig.systemPrompt)
+        this.thinkConfig.systemPrompt = template({
+          input,
+          env,
+          context,
+        })
+        console.log('[ThinkAgent] AFTER template rendering:', this.thinkConfig.systemPrompt)
+      } catch (error) {
+        console.error('[ThinkAgent] Template rendering error:', error)
+        throw new Error(
+          `Failed to render systemPrompt template: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
     }
 
     // Load versioned schema if configured

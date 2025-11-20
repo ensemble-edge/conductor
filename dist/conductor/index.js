@@ -9700,1473 +9700,6 @@ async function resolveValue(value, context) {
 		originalRef: value
 	};
 }
-var PromptParser = class {
-	constructor(options = {}) {
-		this.options = options;
-		this.defaultOptions = {
-			strict: false,
-			escapeHtml: false,
-			allowUndefined: true
-		};
-		this.options = {
-			...this.defaultOptions,
-			...options
-		};
-	}
-	parse(template$1, variables, options) {
-		const opts = {
-			...this.defaultOptions,
-			...this.options,
-			...options
-		};
-		let result = template$1;
-		result = this.parseConditionals(result, variables, opts);
-		result = this.parseLoops(result, variables, opts);
-		result = this.parseVariables(result, variables, opts);
-		return result;
-	}
-	parseVariables(template$1, variables, options) {
-		return template$1.replace(/\{\{([^#/][^}]*)\}\}/g, (match, varPath) => {
-			const trimmedPath = varPath.trim();
-			const value = this.resolveVariable(trimmedPath, variables);
-			if (value === void 0 || value === null) {
-				if (options.strict && !options.allowUndefined) throw new Error(`Variable not found: ${trimmedPath}`);
-				return options.allowUndefined ? "" : match;
-			}
-			const stringValue = String(value);
-			return options.escapeHtml ? this.escapeHtml(stringValue) : stringValue;
-		});
-	}
-	parseConditionals(template$1, variables, options) {
-		return template$1.replace(/\{\{#if\s+([^}]+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
-			const conditionValue = this.resolveVariable(condition.trim(), variables);
-			return this.isTruthy(conditionValue) ? content : "";
-		});
-	}
-	parseLoops(template$1, variables, options) {
-		return template$1.replace(/\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (match, arrayPath, content) => {
-			const array = this.resolveVariable(arrayPath.trim(), variables);
-			if (!Array.isArray(array)) {
-				if (options.strict) throw new Error(`Variable "${arrayPath}" is not an array`);
-				return "";
-			}
-			return array.map((item, index) => {
-				const itemContext = {
-					...variables,
-					this: item,
-					index,
-					first: index === 0,
-					last: index === array.length - 1
-				};
-				return this.parseVariables(content, itemContext, options);
-			}).join("");
-		});
-	}
-	resolveVariable(path$1, variables) {
-		if (path$1 === "this") return variables.this;
-		const parts = path$1.split(/[.\[\]]+/).filter((p) => p.length > 0);
-		let value = variables;
-		for (const part of parts) {
-			if (value === void 0 || value === null) return;
-			if (typeof value !== "object") return;
-			const index = parseInt(part, 10);
-			if (!isNaN(index) && Array.isArray(value)) value = value[index];
-			else if (typeof value === "object" && value !== null) value = value[part];
-			else return;
-		}
-		return value;
-	}
-	isTruthy(value) {
-		if (value === void 0 || value === null) return false;
-		if (typeof value === "boolean") return value;
-		if (typeof value === "number") return value !== 0;
-		if (typeof value === "string") return value.length > 0;
-		if (Array.isArray(value)) return value.length > 0;
-		if (typeof value === "object") return Object.keys(value).length > 0;
-		return true;
-	}
-	escapeHtml(text) {
-		const map$2 = {
-			"&": "&amp;",
-			"<": "&lt;",
-			">": "&gt;",
-			"\"": "&quot;",
-			"'": "&#039;"
-		};
-		return text.replace(/[&<>"']/g, (char) => map$2[char]);
-	}
-	static extractVariables(template$1) {
-		const regex = /\{\{([^}]+)\}\}/g;
-		const variables = /* @__PURE__ */ new Set();
-		let match;
-		while ((match = regex.exec(template$1)) !== null) {
-			const varPath = match[1].trim();
-			if (!varPath.startsWith("#") && !varPath.startsWith("/")) variables.add(varPath);
-		}
-		return Array.from(variables);
-	}
-};
-init_base_agent();
-var ThinkAgent = class extends BaseAgent {
-	constructor(config, providerRegistry) {
-		super(config);
-		this.providerRegistry = providerRegistry || getProviderRegistry();
-		const cfg = config.config;
-		const model = cfg?.model || "claude-3-5-haiku-20241022";
-		this.thinkConfig = {
-			model,
-			provider: cfg?.provider || this.detectProvider(model),
-			temperature: cfg?.temperature || .7,
-			maxTokens: cfg?.maxTokens || 1e3,
-			apiKey: cfg?.apiKey,
-			apiEndpoint: cfg?.apiEndpoint,
-			systemPrompt: cfg?.systemPrompt,
-			prompt: cfg?.prompt,
-			schema: cfg?.schema
-		};
-	}
-	detectProvider(model) {
-		if (model.startsWith("@cf/")) return AIProvider.Cloudflare;
-		if (model.startsWith("gpt-") || model.startsWith("o1-") || model.startsWith("text-")) return AIProvider.OpenAI;
-		if (model.startsWith("claude-")) return AIProvider.Anthropic;
-		return AIProvider.Anthropic;
-	}
-	async run(context) {
-		const { input, env } = context;
-		await this.resolvePrompt(env);
-		if (this.thinkConfig.systemPrompt) {
-			const parser = new PromptParser({ allowUndefined: true });
-			this.thinkConfig.systemPrompt = parser.parse(this.thinkConfig.systemPrompt, {
-				input,
-				env,
-				context
-			});
-		}
-		await this.resolveSchema(env);
-		const providerId = this.thinkConfig.provider || AIProvider.Anthropic;
-		const provider = this.providerRegistry.get(providerId);
-		if (!provider) throw new Error(`Unknown AI provider: ${providerId}. Available providers: ${this.providerRegistry.getProviderIds().join(", ")}`);
-		const providerConfig = {
-			model: this.thinkConfig.model || "claude-3-5-haiku-20241022",
-			temperature: this.thinkConfig.temperature,
-			maxTokens: this.thinkConfig.maxTokens,
-			apiKey: this.thinkConfig.apiKey,
-			apiEndpoint: this.thinkConfig.apiEndpoint,
-			systemPrompt: this.thinkConfig.systemPrompt,
-			schema: this.thinkConfig.schema
-		};
-		const configError = provider.getConfigError(providerConfig, env);
-		if (configError) throw new Error(configError);
-		const messages = this.buildMessages(input);
-		return await provider.execute({
-			messages,
-			config: providerConfig,
-			env
-		});
-	}
-	async resolvePrompt(env) {
-		if (this.thinkConfig.systemPrompt) return;
-		if (this.thinkConfig.prompt) {
-			const context = {
-				env,
-				baseDir: process.cwd()
-			};
-			try {
-				const resolved = await resolveValue(this.thinkConfig.prompt, context);
-				if (typeof resolved.content === "string") this.thinkConfig.systemPrompt = resolved.content;
-				else throw new Error(`Prompt must resolve to a string, got ${typeof resolved.content}`);
-			} catch (error) {
-				throw new Error(`Failed to resolve prompt "${this.thinkConfig.prompt}": ${error instanceof Error ? error.message : String(error)}`);
-			}
-		}
-	}
-	async resolveSchema(env) {
-		if (!this.thinkConfig.schema) return;
-		if (typeof this.thinkConfig.schema !== "string") return;
-		const context = {
-			env,
-			baseDir: process.cwd()
-		};
-		try {
-			const resolved = await resolveValue(this.thinkConfig.schema, context);
-			if (typeof resolved.content === "object" && resolved.content !== null) this.thinkConfig.schema = resolved.content;
-			else if (typeof resolved.content === "string") try {
-				this.thinkConfig.schema = JSON.parse(resolved.content);
-			} catch {
-				throw new Error(`Schema must be valid JSON, got invalid string`);
-			}
-			else throw new Error(`Schema must resolve to an object or JSON string, got ${typeof resolved.content}`);
-		} catch (error) {
-			throw new Error(`Failed to resolve schema "${this.thinkConfig.schema}": ${error instanceof Error ? error.message : String(error)}`);
-		}
-	}
-	buildMessages(input) {
-		const messages = [];
-		if (this.thinkConfig.systemPrompt) messages.push({
-			role: "system",
-			content: this.thinkConfig.systemPrompt
-		});
-		if (input.messages && Array.isArray(input.messages)) messages.push(...input.messages);
-		else if (input.prompt) messages.push({
-			role: "user",
-			content: input.prompt
-		});
-		else {
-			const promptParts = [];
-			for (const [key, value] of Object.entries(input)) if (typeof value === "string") promptParts.push(`${key}: ${value}`);
-			else promptParts.push(`${key}: ${JSON.stringify(value, null, 2)}`);
-			messages.push({
-				role: "user",
-				content: promptParts.join("\n\n")
-			});
-		}
-		return messages;
-	}
-	getThinkConfig() {
-		return { ...this.thinkConfig };
-	}
-};
-var JSONSerializer = class {
-	serialize(value) {
-		return JSON.stringify(value);
-	}
-	deserialize(raw) {
-		return JSON.parse(raw);
-	}
-};
-var KVRepository = class {
-	constructor(binding, serializer = new JSONSerializer()) {
-		this.binding = binding;
-		this.serializer = serializer;
-	}
-	async get(key) {
-		try {
-			const raw = await this.binding.get(key);
-			if (raw === null) return Result.err(Errors.storageNotFound(key, "KV"));
-			const value = this.serializer.deserialize(raw);
-			return Result.ok(value);
-		} catch (error) {
-			return Result.err(Errors.internal(`KV get operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async put(key, value, options) {
-		try {
-			const serialized = this.serializer.serialize(value);
-			const kvOptions = {};
-			if (options?.ttl) kvOptions.expirationTtl = options.ttl;
-			if (options?.expiration) kvOptions.expiration = options.expiration;
-			if (options?.metadata) kvOptions.metadata = options.metadata;
-			await this.binding.put(key, serialized, kvOptions);
-			return Result.ok(void 0);
-		} catch (error) {
-			return Result.err(Errors.internal(`KV put operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async delete(key) {
-		try {
-			await this.binding.delete(key);
-			return Result.ok(void 0);
-		} catch (error) {
-			return Result.err(Errors.internal(`KV delete operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async list(options) {
-		try {
-			const listOptions = {};
-			if (options?.prefix) listOptions.prefix = options.prefix;
-			if (options?.limit) listOptions.limit = options.limit;
-			if (options?.cursor) listOptions.cursor = options.cursor;
-			const result = await this.binding.list(listOptions);
-			const values = [];
-			for (const key of result.keys) {
-				const getResult = await this.get(key.name);
-				if (getResult.success) values.push(getResult.value);
-			}
-			return Result.ok(values);
-		} catch (error) {
-			return Result.err(Errors.internal("KV list operation failed", error instanceof Error ? error : void 0));
-		}
-	}
-	async has(key) {
-		try {
-			const value = await this.binding.get(key);
-			return Result.ok(value !== null);
-		} catch (error) {
-			return Result.err(Errors.internal(`KV has operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async getWithMetadata(key) {
-		try {
-			const result = await this.binding.getWithMetadata(key);
-			if (result.value === null) return Result.err(Errors.storageNotFound(key, "KV"));
-			const value = this.serializer.deserialize(result.value);
-			return Result.ok({
-				value,
-				metadata: result.metadata
-			});
-		} catch (error) {
-			return Result.err(Errors.internal(`KV getWithMetadata operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-};
-var D1Repository = class {
-	constructor(binding, config, serializer = new JSONSerializer()) {
-		this.binding = binding;
-		this.serializer = serializer;
-		this.tableName = config.tableName;
-		this.idColumn = config.idColumn || "id";
-		this.valueColumn = config.valueColumn || "value";
-		this.createdAtColumn = config.createdAtColumn || "created_at";
-		this.updatedAtColumn = config.updatedAtColumn || "updated_at";
-		this.expirationColumn = config.expirationColumn;
-	}
-	async get(id$1) {
-		try {
-			const query = `
-				SELECT ${this.valueColumn}, ${this.expirationColumn || "NULL as expiration"}
-				FROM ${this.tableName}
-				WHERE ${this.idColumn} = ?
-			`;
-			const result = await this.binding.prepare(query).bind(id$1).first();
-			if (!result) return Result.err(Errors.storageNotFound(id$1, "D1"));
-			if (this.expirationColumn && result.expiration) {
-				if (new Date(result.expiration).getTime() < Date.now()) {
-					await this.delete(id$1);
-					return Result.err(Errors.storageNotFound(id$1, "D1"));
-				}
-			}
-			const value = this.serializer.deserialize(result[this.valueColumn]);
-			return Result.ok(value);
-		} catch (error) {
-			return Result.err(Errors.internal(`D1 get operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async put(id$1, value, options) {
-		try {
-			const serialized = this.serializer.serialize(value);
-			const now = (/* @__PURE__ */ new Date()).toISOString();
-			let query;
-			let params;
-			if (this.expirationColumn && (options?.ttl || options?.expiration)) {
-				const expiration = options.expiration ? (/* @__PURE__ */ new Date(options.expiration * 1e3)).toISOString() : new Date(Date.now() + options.ttl * 1e3).toISOString();
-				query = `
-					INSERT INTO ${this.tableName}
-					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn}, ${this.expirationColumn})
-					VALUES (?, ?, ?, ?, ?)
-					ON CONFLICT(${this.idColumn})
-					DO UPDATE SET
-						${this.valueColumn} = excluded.${this.valueColumn},
-						${this.updatedAtColumn} = excluded.${this.updatedAtColumn},
-						${this.expirationColumn} = excluded.${this.expirationColumn}
-				`;
-				params = [
-					id$1,
-					serialized,
-					now,
-					now,
-					expiration
-				];
-			} else {
-				query = `
-					INSERT INTO ${this.tableName}
-					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn})
-					VALUES (?, ?, ?, ?)
-					ON CONFLICT(${this.idColumn})
-					DO UPDATE SET
-						${this.valueColumn} = excluded.${this.valueColumn},
-						${this.updatedAtColumn} = excluded.${this.updatedAtColumn}
-				`;
-				params = [
-					id$1,
-					serialized,
-					now,
-					now
-				];
-			}
-			await this.binding.prepare(query).bind(...params).run();
-			return Result.ok(void 0);
-		} catch (error) {
-			return Result.err(Errors.internal(`D1 put operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async delete(id$1) {
-		try {
-			const query = `DELETE FROM ${this.tableName} WHERE ${this.idColumn} = ?`;
-			await this.binding.prepare(query).bind(id$1).run();
-			return Result.ok(void 0);
-		} catch (error) {
-			return Result.err(Errors.internal(`D1 delete operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async list(options) {
-		try {
-			let query = `SELECT ${this.valueColumn} FROM ${this.tableName}`;
-			const params = [];
-			if (options?.prefix) {
-				query += ` WHERE ${this.idColumn} LIKE ?`;
-				params.push(`${options.prefix}%`);
-			}
-			if (this.expirationColumn) {
-				const whereOrAnd = options?.prefix ? "AND" : "WHERE";
-				query += ` ${whereOrAnd} (${this.expirationColumn} IS NULL OR ${this.expirationColumn} > datetime('now'))`;
-			}
-			query += ` ORDER BY ${this.createdAtColumn} DESC`;
-			if (options?.limit) {
-				query += ` LIMIT ?`;
-				params.push(options.limit);
-			}
-			const values = (await this.binding.prepare(query).bind(...params).all()).results.map((row) => this.serializer.deserialize(row[this.valueColumn]));
-			return Result.ok(values);
-		} catch (error) {
-			return Result.err(Errors.internal("D1 list operation failed", error instanceof Error ? error : void 0));
-		}
-	}
-	async has(id$1) {
-		try {
-			const query = `SELECT 1 FROM ${this.tableName} WHERE ${this.idColumn} = ? LIMIT 1`;
-			const result = await this.binding.prepare(query).bind(id$1).first();
-			return Result.ok(result !== null);
-		} catch (error) {
-			return Result.err(Errors.internal(`D1 has operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async cleanExpired() {
-		if (!this.expirationColumn) return Result.ok(0);
-		try {
-			const query = `
-				DELETE FROM ${this.tableName}
-				WHERE ${this.expirationColumn} IS NOT NULL
-				AND ${this.expirationColumn} <= datetime('now')
-			`;
-			const result = await this.binding.prepare(query).run();
-			return Result.ok(result.meta.changes || 0);
-		} catch (error) {
-			return Result.err(Errors.internal("D1 cleanExpired operation failed", error instanceof Error ? error : void 0));
-		}
-	}
-};
-var R2Repository = class {
-	constructor(binding, serializer = new JSONSerializer()) {
-		this.binding = binding;
-		this.serializer = serializer;
-	}
-	async get(key) {
-		try {
-			const object = await this.binding.get(key);
-			if (object === null) return Result.err(Errors.storageNotFound(key, "R2"));
-			const text = await object.text();
-			const value = this.serializer.deserialize(text);
-			return Result.ok(value);
-		} catch (error) {
-			return Result.err(Errors.internal(`R2 get operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async put(key, value, options) {
-		try {
-			const serialized = this.serializer.serialize(value);
-			const r2Options = {};
-			if (options?.metadata) r2Options.customMetadata = options.metadata;
-			if (options?.ttl) {
-				const expiration = Date.now() + options.ttl * 1e3;
-				r2Options.customMetadata = {
-					...r2Options.customMetadata,
-					"x-expiration": expiration.toString()
-				};
-			}
-			if (options?.expiration) r2Options.customMetadata = {
-				...r2Options.customMetadata,
-				"x-expiration": (options.expiration * 1e3).toString()
-			};
-			await this.binding.put(key, serialized, r2Options);
-			return Result.ok(void 0);
-		} catch (error) {
-			return Result.err(Errors.internal(`R2 put operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async delete(key) {
-		try {
-			await this.binding.delete(key);
-			return Result.ok(void 0);
-		} catch (error) {
-			return Result.err(Errors.internal(`R2 delete operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async list(options) {
-		try {
-			const listOptions = {};
-			if (options?.prefix) listOptions.prefix = options.prefix;
-			if (options?.limit) listOptions.limit = options.limit;
-			if (options?.cursor) listOptions.cursor = options.cursor;
-			const result = await this.binding.list(listOptions);
-			const values = [];
-			for (const object of result.objects) {
-				const getResult = await this.get(object.key);
-				if (getResult.success) {
-					const expiration = object.customMetadata?.["x-expiration"];
-					if (expiration) {
-						if (parseInt(expiration, 10) < Date.now()) {
-							await this.delete(object.key);
-							continue;
-						}
-					}
-					values.push(getResult.value);
-				}
-			}
-			return Result.ok(values);
-		} catch (error) {
-			return Result.err(Errors.internal("R2 list operation failed", error instanceof Error ? error : void 0));
-		}
-	}
-	async has(key) {
-		try {
-			const object = await this.binding.head(key);
-			return Result.ok(object !== null);
-		} catch (error) {
-			return Result.err(Errors.internal(`R2 has operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async getWithMetadata(key) {
-		try {
-			const object = await this.binding.get(key);
-			if (object === null) return Result.err(Errors.storageNotFound(key, "R2"));
-			const text = await object.text();
-			const value = this.serializer.deserialize(text);
-			return Result.ok({
-				value,
-				metadata: object
-			});
-		} catch (error) {
-			return Result.err(Errors.internal(`R2 getWithMetadata operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-	async getMetadata(key) {
-		try {
-			const metadata = await this.binding.head(key);
-			return Result.ok(metadata);
-		} catch (error) {
-			return Result.err(Errors.internal(`R2 getMetadata operation failed for key "${key}"`, error instanceof Error ? error : void 0));
-		}
-	}
-};
-async function exportData(data, options) {
-	switch (options.format) {
-		case "csv": return exportToCSV(data, options);
-		case "json": return exportToJSON(data, options);
-		case "ndjson": return exportToNDJSON(data, options);
-		case "xlsx": return exportToExcel(data, options);
-		default: throw new Error(`Unsupported export format: ${options.format}`);
-	}
-}
-function exportToCSV(data, options) {
-	const delimiter = options.delimiter || ",";
-	const includeHeaders = options.headers !== false;
-	if (data.length === 0) return {
-		data: "",
-		contentType: "text/csv",
-		extension: "csv",
-		size: 0,
-		streaming: false
-	};
-	const fields = options.fields || Object.keys(data[0]);
-	const lines = [];
-	if (includeHeaders) lines.push(fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter));
-	for (const row of data) {
-		const rowData = row;
-		const values = fields.map((field) => {
-			const value = rowData[field];
-			return escapeCsvValue(String(value ?? ""), delimiter);
-		});
-		lines.push(values.join(delimiter));
-	}
-	const csv = lines.join("\n");
-	return {
-		data: csv,
-		contentType: "text/csv",
-		extension: "csv",
-		size: new Blob([csv]).size,
-		streaming: false
-	};
-}
-function exportToJSON(data, options) {
-	const json$1 = options.pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data);
-	return {
-		data: json$1,
-		contentType: "application/json",
-		extension: "json",
-		size: new Blob([json$1]).size,
-		streaming: false
-	};
-}
-function exportToNDJSON(data, options) {
-	const ndjson = data.map((item) => JSON.stringify(item)).join("\n");
-	return {
-		data: ndjson,
-		contentType: "application/x-ndjson",
-		extension: "ndjson",
-		size: new Blob([ndjson]).size,
-		streaming: false
-	};
-}
-function exportToExcel(data, options) {
-	return {
-		...exportToCSV(data, options),
-		contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-		extension: "xlsx"
-	};
-}
-function escapeCsvValue(value, delimiter) {
-	if (value.includes(delimiter) || value.includes("\n") || value.includes("\"")) return `"${value.replace(/"/g, "\"\"")}"`;
-	return value;
-}
-function createStreamingExport(dataSource, options) {
-	let isFirst = true;
-	let fields = [];
-	return {
-		data: new ReadableStream({ async start(controller) {
-			const encoder = new TextEncoder();
-			try {
-				for await (const batch of dataSource) {
-					if (batch.length === 0) continue;
-					if (isFirst) {
-						fields = options.fields || Object.keys(batch[0]);
-						if (options.format === "csv" && options.headers !== false) {
-							const delimiter = options.delimiter || ",";
-							const headerLine = fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter) + "\n";
-							controller.enqueue(encoder.encode(headerLine));
-						}
-						if (options.format === "json") controller.enqueue(encoder.encode("[\n"));
-						isFirst = false;
-					}
-					const chunk = formatBatch(batch, fields, options, isFirst);
-					controller.enqueue(encoder.encode(chunk));
-				}
-				if (options.format === "json") controller.enqueue(encoder.encode("\n]"));
-				controller.close();
-			} catch (error) {
-				controller.error(error);
-			}
-		} }),
-		contentType: getContentType(options.format),
-		extension: getExtension(options.format),
-		streaming: true
-	};
-}
-function formatBatch(batch, fields, options, isFirst) {
-	switch (options.format) {
-		case "csv": return formatCsvBatch(batch, fields, options.delimiter || ",");
-		case "json": return formatJsonBatch(batch, isFirst);
-		case "ndjson": return formatNdjsonBatch(batch);
-		default: return "";
-	}
-}
-function formatCsvBatch(batch, fields, delimiter) {
-	const lines = [];
-	for (const row of batch) {
-		const rowData = row;
-		const values = fields.map((field) => {
-			const value = rowData[field];
-			return escapeCsvValue(String(value ?? ""), delimiter);
-		});
-		lines.push(values.join(delimiter));
-	}
-	return lines.join("\n") + "\n";
-}
-function formatJsonBatch(batch, isFirst) {
-	return batch.map((item, index) => {
-		const json$1 = JSON.stringify(item, null, 2);
-		return (isFirst && index === 0 ? "  " : ",\n  ") + json$1;
-	}).join("");
-}
-function formatNdjsonBatch(batch) {
-	return batch.map((item) => JSON.stringify(item)).join("\n") + "\n";
-}
-function getContentType(format$1) {
-	switch (format$1) {
-		case "csv": return "text/csv";
-		case "json": return "application/json";
-		case "ndjson": return "application/x-ndjson";
-		case "xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-		default: return "application/octet-stream";
-	}
-}
-function getExtension(format$1) {
-	switch (format$1) {
-		case "csv": return "csv";
-		case "json": return "json";
-		case "ndjson": return "ndjson";
-		case "xlsx": return "xlsx";
-		default: return "bin";
-	}
-}
-init_base_agent();
-var DataAgent = class extends BaseAgent {
-	constructor(config, repository) {
-		super(config);
-		this.repository = repository;
-		const cfg = config.config;
-		this.dataConfig = {
-			storage: cfg?.storage,
-			operation: cfg?.operation,
-			binding: cfg?.binding,
-			ttl: cfg?.ttl
-		};
-		if (!this.dataConfig.storage) throw new Error(`Data agent "${config.name}" requires storage type (kv, d1, or r2)`);
-		if (!this.dataConfig.operation) throw new Error(`Data agent "${config.name}" requires operation type`);
-	}
-	async run(context) {
-		const { input, env } = context;
-		const repo = this.repository || this.createRepository(env);
-		switch (this.dataConfig.operation) {
-			case "get": return await this.executeGet(repo, input);
-			case "put": return await this.executePut(repo, input);
-			case "delete": return await this.executeDelete(repo, input);
-			case "list": return await this.executeList(repo, input);
-			case "query": return await this.executeQuery(repo, input);
-			case "export": return await this.executeExport(repo, input);
-			default: throw new Error(`Unknown operation: ${this.dataConfig.operation}`);
-		}
-	}
-	async executeGet(repo, input) {
-		if (!input.key) throw new Error("GET operation requires \"key\" in input");
-		const result = await repo.get(input.key);
-		if (result.success) return {
-			key: input.key,
-			value: result.value,
-			found: true
-		};
-		else return {
-			key: input.key,
-			value: null,
-			found: false,
-			error: result.error.message
-		};
-	}
-	async executePut(repo, input) {
-		if (!input.key || input.value === void 0) throw new Error("PUT operation requires \"key\" and \"value\" in input");
-		const result = await repo.put(input.key, input.value, { ttl: input.ttl || this.dataConfig.ttl });
-		if (result.success) return {
-			key: input.key,
-			success: true
-		};
-		else return {
-			key: input.key,
-			success: false,
-			error: result.error.message
-		};
-	}
-	async executeDelete(repo, input) {
-		if (!input.key) throw new Error("DELETE operation requires \"key\" in input");
-		const result = await repo.delete(input.key);
-		if (result.success) return {
-			key: input.key,
-			success: true
-		};
-		else return {
-			key: input.key,
-			success: false,
-			error: result.error.message
-		};
-	}
-	async executeList(repo, input) {
-		const result = await repo.list({
-			prefix: input.prefix,
-			limit: input.limit,
-			cursor: input.cursor
-		});
-		if (result.success) return {
-			items: result.value,
-			success: true
-		};
-		else return {
-			items: [],
-			success: false,
-			error: result.error.message
-		};
-	}
-	createRepository(env) {
-		const bindingName = this.getBindingName();
-		const binding = env[bindingName];
-		if (!binding) throw new Error(`Binding "${bindingName}" not found. Add it to wrangler.toml or inject a repository in constructor.`);
-		switch (this.dataConfig.storage) {
-			case StorageType.KV: return new KVRepository(binding, new JSONSerializer());
-			case StorageType.D1: return new D1Repository(binding, {
-				tableName: "data",
-				idColumn: "key",
-				valueColumn: "value"
-			}, new JSONSerializer());
-			case StorageType.R2: return new R2Repository(binding, new JSONSerializer());
-			default: throw new Error(`Unknown storage type: ${this.dataConfig.storage}`);
-		}
-	}
-	getBindingName() {
-		if (this.dataConfig.binding) return this.dataConfig.binding;
-		switch (this.dataConfig.storage) {
-			case StorageType.KV: return "CACHE";
-			case StorageType.D1: return "DB";
-			case StorageType.R2: return "STORAGE";
-			default: return "DATA";
-		}
-	}
-	async executeQuery(repo, input) {
-		const listResult = await repo.list({
-			prefix: input.prefix,
-			limit: input.limit,
-			cursor: input.cursor
-		});
-		if (!listResult.success) return {
-			items: [],
-			success: false,
-			error: listResult.error.message
-		};
-		let items = listResult.value;
-		if (input.filter) items = items.filter((item) => {
-			return Object.entries(input.filter).every(([key, value]) => {
-				return item[key] === value;
-			});
-		});
-		if (input.sort) {
-			const [field, order = "asc"] = input.sort.split(":");
-			items = items.sort((a, b) => {
-				const aVal = a[field];
-				const bVal = b[field];
-				if (order === "desc") return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
-				return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-			});
-		}
-		return {
-			items,
-			count: items.length,
-			success: true
-		};
-	}
-	async executeExport(repo, input) {
-		const listResult = await repo.list({
-			prefix: input.prefix,
-			limit: input.limit || 1e4,
-			cursor: input.cursor
-		});
-		if (!listResult.success) return {
-			success: false,
-			error: listResult.error.message
-		};
-		let items = listResult.value;
-		if (input.filter) items = items.filter((item) => {
-			return Object.entries(input.filter).every(([key, value]) => {
-				return item[key] === value;
-			});
-		});
-		const exportOptions = {
-			format: input.format || this.dataConfig.exportFormat || "json",
-			...this.dataConfig.exportOptions,
-			...input.exportOptions
-		};
-		if (input.streaming || items.length > 1e3) {
-			async function* dataSource() {
-				const batchSize = exportOptions.batchSize || 100;
-				for (let i = 0; i < items.length; i += batchSize) yield items.slice(i, i + batchSize);
-			}
-			const exportResult$1 = createStreamingExport(dataSource(), exportOptions);
-			return {
-				success: true,
-				streaming: true,
-				stream: exportResult$1.data,
-				contentType: exportResult$1.contentType,
-				extension: exportResult$1.extension,
-				count: items.length
-			};
-		}
-		const exportResult = await exportData(items, exportOptions);
-		return {
-			success: true,
-			streaming: false,
-			data: exportResult.data,
-			contentType: exportResult.contentType,
-			extension: exportResult.extension,
-			size: exportResult.size,
-			count: items.length
-		};
-	}
-	getDataConfig() {
-		return { ...this.dataConfig };
-	}
-};
-init_base_agent();
-var APIAgent = class extends BaseAgent {
-	constructor(config) {
-		super(config);
-		const cfg = config.config;
-		this.apiConfig = {
-			url: cfg?.url,
-			method: cfg?.method || "GET",
-			headers: cfg?.headers || {},
-			timeout: cfg?.timeout || 3e4,
-			retries: cfg?.retries || 0
-		};
-	}
-	async run(context) {
-		const { input } = context;
-		const url = this.apiConfig.url || input.url;
-		if (!url) throw new Error(`API agent "${this.name}" requires a URL (in config or input)`);
-		const requestInit = {
-			method: this.apiConfig.method,
-			headers: this.resolveHeaders(this.apiConfig.headers || {}, context)
-		};
-		if ([
-			"POST",
-			"PUT",
-			"PATCH"
-		].includes(this.apiConfig.method)) {
-			if (input.body) {
-				requestInit.body = typeof input.body === "string" ? input.body : JSON.stringify(input.body);
-				const headers = requestInit.headers;
-				if (!headers["content-type"] && !headers["Content-Type"]) headers["content-type"] = "application/json";
-			}
-		}
-		return await this.executeWithRetries(url, requestInit);
-	}
-	resolveHeaders(headers, context) {
-		const resolved = {};
-		for (const [key, value] of Object.entries(headers)) resolved[key] = value.replace(/\$\{env\.(\w+)\}/g, (_, varName) => {
-			return context.env[varName] || "";
-		});
-		return resolved;
-	}
-	async executeWithRetries(url, init, attempt = 0) {
-		try {
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), this.apiConfig.timeout);
-			try {
-				const response = await fetch(url, {
-					...init,
-					signal: controller.signal
-				});
-				clearTimeout(timeoutId);
-				const contentType = response.headers.get("content-type");
-				let data;
-				if (contentType?.includes("application/json")) data = await response.json();
-				else data = await response.text();
-				if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-				return {
-					status: response.status,
-					headers: Object.fromEntries(response.headers.entries()),
-					data
-				};
-			} finally {
-				clearTimeout(timeoutId);
-			}
-		} catch (error) {
-			if (attempt < (this.apiConfig.retries || 0)) {
-				const delay = Math.min(1e3 * Math.pow(2, attempt), 1e4);
-				await new Promise((resolve$2) => setTimeout(resolve$2, delay));
-				return this.executeWithRetries(url, init, attempt + 1);
-			}
-			throw new Error(`API request to ${url} failed after ${attempt + 1} attempts: ${error instanceof Error ? error.message : "Unknown error"}`);
-		}
-	}
-	getAPIConfig() {
-		return { ...this.apiConfig };
-	}
-};
-var BaseEmailProvider = class {
-	normalizeRecipients(recipients) {
-		return Array.isArray(recipients) ? recipients : [recipients];
-	}
-	validateEmail(email) {
-		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-	}
-	validateMessage(message) {
-		const errors = [];
-		if (!message.to || Array.isArray(message.to) && message.to.length === 0) errors.push("Recipient (to) is required");
-		if (!message.subject || message.subject.trim() === "") errors.push("Subject is required");
-		if (!message.html && !message.text) errors.push("Either html or text content is required");
-		const recipients = this.normalizeRecipients(message.to);
-		for (const email of recipients) if (!this.validateEmail(email)) errors.push(`Invalid email address: ${email}`);
-		return {
-			valid: errors.length === 0,
-			errors: errors.length > 0 ? errors : void 0
-		};
-	}
-};
-var CloudflareEmailProvider = class extends BaseEmailProvider {
-	constructor(binding, defaultFrom, enableDkim = true) {
-		super();
-		this.binding = binding;
-		this.defaultFrom = defaultFrom;
-		this.enableDkim = enableDkim;
-		this.name = "cloudflare";
-	}
-	async send(message) {
-		const validation = this.validateMessage(message);
-		if (!validation.valid) return {
-			messageId: "",
-			status: "failed",
-			provider: this.name,
-			error: validation.errors?.join(", ")
-		};
-		try {
-			const request = {
-				from: message.from || this.defaultFrom,
-				to: message.to,
-				subject: message.subject,
-				html: message.html,
-				text: message.text,
-				headers: message.headers
-			};
-			if (this.enableDkim && request.headers) request.headers["X-Cloudflare-DKIM"] = "enabled";
-			const response = await this.binding.send(request);
-			if (!response.success) return {
-				messageId: "",
-				status: "failed",
-				provider: this.name,
-				error: response.error || "Unknown error"
-			};
-			return {
-				messageId: response.messageId || `cf-${Date.now()}`,
-				status: "sent",
-				provider: this.name
-			};
-		} catch (error) {
-			return {
-				messageId: "",
-				status: "failed",
-				provider: this.name,
-				error: error instanceof Error ? error.message : "Unknown error"
-			};
-		}
-	}
-	async validateConfig() {
-		const errors = [];
-		if (!this.binding) errors.push("Cloudflare Email binding is not configured");
-		if (!this.defaultFrom) errors.push("Default from address is required");
-		else if (!this.validateEmail(this.defaultFrom)) errors.push("Default from address is invalid");
-		return {
-			valid: errors.length === 0,
-			errors: errors.length > 0 ? errors : void 0
-		};
-	}
-};
-var ResendProvider = class extends BaseEmailProvider {
-	constructor(apiKey, defaultFrom) {
-		super();
-		this.apiKey = apiKey;
-		this.defaultFrom = defaultFrom;
-		this.name = "resend";
-		this.apiUrl = "https://api.resend.com/emails";
-	}
-	async send(message) {
-		const validation = this.validateMessage(message);
-		if (!validation.valid) return {
-			messageId: "",
-			status: "failed",
-			provider: this.name,
-			error: validation.errors?.join(", ")
-		};
-		try {
-			const request = {
-				from: message.from || this.defaultFrom,
-				to: message.to,
-				subject: message.subject,
-				html: message.html,
-				text: message.text
-			};
-			if (message.cc) request.cc = message.cc;
-			if (message.bcc) request.bcc = message.bcc;
-			if (message.replyTo) request.reply_to = message.replyTo;
-			if (message.headers) request.headers = message.headers;
-			if (message.attachments) request.attachments = message.attachments.map((att) => ({
-				filename: att.filename,
-				content: typeof att.content === "string" ? att.content : att.content.toString("base64")
-			}));
-			if (message.tags) request.tags = message.tags.map((tag) => ({
-				name: tag,
-				value: "true"
-			}));
-			const response = await fetch(this.apiUrl, {
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.apiKey}`,
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify(request)
-			});
-			const data = await response.json();
-			if (!response.ok || data.error) return {
-				messageId: "",
-				status: "failed",
-				provider: this.name,
-				error: data.error?.message || `HTTP ${response.status}`
-			};
-			return {
-				messageId: data.id,
-				status: "sent",
-				provider: this.name
-			};
-		} catch (error) {
-			return {
-				messageId: "",
-				status: "failed",
-				provider: this.name,
-				error: error instanceof Error ? error.message : "Unknown error"
-			};
-		}
-	}
-	async validateConfig() {
-		const errors = [];
-		if (!this.apiKey) errors.push("Resend API key is required");
-		if (!this.defaultFrom) errors.push("Default from address is required");
-		else if (!this.validateEmail(this.defaultFrom)) errors.push("Default from address is invalid");
-		return {
-			valid: errors.length === 0,
-			errors: errors.length > 0 ? errors : void 0
-		};
-	}
-};
-var SmtpProvider = class extends BaseEmailProvider {
-	constructor(config, defaultFrom) {
-		super();
-		this.config = config;
-		this.defaultFrom = defaultFrom;
-		this.name = "smtp";
-	}
-	async send(message) {
-		const validation = this.validateMessage(message);
-		if (!validation.valid) return {
-			messageId: "",
-			status: "failed",
-			provider: this.name,
-			error: validation.errors?.join(", ")
-		};
-		try {
-			const from = message.from || this.defaultFrom;
-			const to = this.normalizeRecipients(message.to);
-			const messageId = `<${Date.now()}.${Math.random().toString(36)}@${from.split("@")[1]}>`;
-			const headers = [
-				`Message-ID: ${messageId}`,
-				`From: ${from}`,
-				`To: ${to.join(", ")}`,
-				`Subject: ${message.subject}`,
-				`Date: ${(/* @__PURE__ */ new Date()).toUTCString()}`,
-				"MIME-Version: 1.0"
-			];
-			if (message.cc) headers.push(`Cc: ${this.normalizeRecipients(message.cc).join(", ")}`);
-			if (message.bcc) headers.push(`Bcc: ${this.normalizeRecipients(message.bcc).join(", ")}`);
-			if (message.replyTo) headers.push(`Reply-To: ${message.replyTo}`);
-			if (message.headers) for (const [key, value] of Object.entries(message.headers)) headers.push(`${key}: ${value}`);
-			let body = "";
-			if (message.html && message.text) {
-				const boundary = `boundary_${Date.now()}_${Math.random().toString(36)}`;
-				headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
-				body = [
-					"",
-					`--${boundary}`,
-					"Content-Type: text/plain; charset=utf-8",
-					"Content-Transfer-Encoding: quoted-printable",
-					"",
-					this.encodeQuotedPrintable(message.text),
-					"",
-					`--${boundary}`,
-					"Content-Type: text/html; charset=utf-8",
-					"Content-Transfer-Encoding: quoted-printable",
-					"",
-					this.encodeQuotedPrintable(message.html),
-					"",
-					`--${boundary}--`
-				].join("\r\n");
-			} else if (message.html) {
-				headers.push("Content-Type: text/html; charset=utf-8");
-				headers.push("Content-Transfer-Encoding: quoted-printable");
-				body = "\r\n" + this.encodeQuotedPrintable(message.html);
-			} else if (message.text) {
-				headers.push("Content-Type: text/plain; charset=utf-8");
-				headers.push("Content-Transfer-Encoding: quoted-printable");
-				body = "\r\n" + this.encodeQuotedPrintable(message.text);
-			}
-			const response = await this.sendSmtp(from, to, headers.join("\r\n") + body);
-			if (!response.success) return {
-				messageId: "",
-				status: "failed",
-				provider: this.name,
-				error: response.error || "SMTP send failed"
-			};
-			return {
-				messageId: messageId.slice(1, -1),
-				status: "sent",
-				provider: this.name
-			};
-		} catch (error) {
-			return {
-				messageId: "",
-				status: "failed",
-				provider: this.name,
-				error: error instanceof Error ? error.message : "Unknown error"
-			};
-		}
-	}
-	async validateConfig() {
-		const errors = [];
-		if (!this.config.host) errors.push("SMTP host is required");
-		if (!this.config.port || this.config.port < 1 || this.config.port > 65535) errors.push("Valid SMTP port is required (1-65535)");
-		if (!this.config.auth?.user) errors.push("SMTP username is required");
-		if (!this.config.auth?.pass) errors.push("SMTP password is required");
-		if (!this.defaultFrom) errors.push("Default from address is required");
-		else if (!this.validateEmail(this.defaultFrom)) errors.push("Default from address is invalid");
-		return {
-			valid: errors.length === 0,
-			errors: errors.length > 0 ? errors : void 0
-		};
-	}
-	async sendSmtp(from, to, message) {
-		try {
-			const url = `${this.config.secure ? "smtps" : "smtp"}://${this.config.host}:${this.config.port}`;
-			const response = await fetch(url, {
-				method: "POST",
-				headers: {
-					"Content-Type": "message/rfc822",
-					Authorization: `Basic ${btoa(`${this.config.auth.user}:${this.config.auth.pass}`)}`
-				},
-				body: `MAIL FROM:<${from}>\r\nRCPT TO:<${to.join(">,<")}>\r\nDATA\r\n${message}\r\n.\r\n`
-			});
-			if (!response.ok) return {
-				success: false,
-				error: `SMTP error: ${response.status} ${response.statusText}`
-			};
-			return { success: true };
-		} catch (error) {
-			return {
-				success: false,
-				error: error instanceof Error ? error.message : "Unknown SMTP error"
-			};
-		}
-	}
-	encodeQuotedPrintable(text) {
-		return text.replace(/[^\x20-\x7E]/g, (char) => {
-			const hex = char.charCodeAt(0).toString(16).toUpperCase();
-			return "=" + (hex.length === 1 ? "0" + hex : hex);
-		}).replace(/=/g, "=3D").replace(/\r\n/g, "\n").split("\n").map((line) => {
-			if (line.length <= 76) return line;
-			const result = [];
-			for (let i = 0; i < line.length; i += 75) result.push(line.slice(i, i + 75) + "=");
-			return result.join("\r\n");
-		}).join("\r\n");
-	}
-};
-function createEmailProvider(config) {
-	const from = config.from || "noreply@example.com";
-	switch (config.provider) {
-		case "cloudflare":
-			if (!config.cloudflare?.binding) throw new Error("Cloudflare Email binding is required");
-			return new CloudflareEmailProvider(config.cloudflare.binding, from, config.cloudflare.dkim ?? true);
-		case "resend":
-			if (!config.resend?.apiKey) throw new Error("Resend API key is required");
-			return new ResendProvider(config.resend.apiKey, from);
-		case "smtp":
-			if (!config.smtp) throw new Error("SMTP configuration is required");
-			return new SmtpProvider(config.smtp, from);
-		default: throw new Error(`Unknown email provider: ${config.provider}`);
-	}
-}
-var BaseTemplateEngine = class {
-	async compile(template$1) {
-		return template$1;
-	}
-	registerHelper(name, fn) {}
-	registerPartial(name, template$1) {}
-};
-var SimpleTemplateEngine = class extends BaseTemplateEngine {
-	constructor(..._args) {
-		super(..._args);
-		this.name = "simple";
-		this.partials = /* @__PURE__ */ new Map();
-	}
-	setComponentLoader(loader) {
-		this.componentLoader = loader;
-	}
-	registerPartial(name, content) {
-		this.partials.set(name, content);
-	}
-	async render(template$1, context) {
-		let result = template$1;
-		const data = context.data !== void 0 ? context.data : context;
-		const helpers = context.helpers;
-		result = await this.processConditionalsRecursive(result, data, context);
-		result = await this.processLoopsRecursive(result, data, context);
-		result = await this.processPartials(result, {
-			...context,
-			data
-		});
-		result = result.replace(/\{\{(\s*[\w.]+\s*)\}\}/g, (match, key) => {
-			const trimmedKey = key.trim();
-			const value = this.resolveValue(data, trimmedKey);
-			if (value === void 0) return "";
-			if (value === null) return "null";
-			return String(value);
-		});
-		if (helpers) result = this.processHelpers(result, helpers);
-		return result;
-	}
-	async validate(template$1) {
-		const errors = [];
-		const openBraces = (template$1.match(/\{\{/g) || []).length;
-		const closeBraces = (template$1.match(/\}\}/g) || []).length;
-		if (openBraces !== closeBraces) errors.push(`Unbalanced braces: ${openBraces} opening {{ but ${closeBraces} closing }}`);
-		const ifBlocks = (template$1.match(/\{\{#if\s+\w+\}\}/g) || []).length;
-		const endifBlocks = (template$1.match(/\{\{\/if\}\}/g) || []).length;
-		if (ifBlocks !== endifBlocks) errors.push(`Unbalanced conditionals: ${ifBlocks} {{#if}} but ${endifBlocks} {{/if}}`);
-		const eachBlocks = (template$1.match(/\{\{#each\s+\w+\}\}/g) || []).length;
-		const endEachBlocks = (template$1.match(/\{\{\/each\}\}/g) || []).length;
-		if (eachBlocks !== endEachBlocks) errors.push(`Unbalanced loops: ${eachBlocks} {{#each}} but ${endEachBlocks} {{/each}}`);
-		return {
-			valid: errors.length === 0,
-			errors: errors.length > 0 ? errors : void 0
-		};
-	}
-	resolveValue(data, path$1) {
-		const keys = path$1.split(".");
-		let value = data;
-		for (const key of keys) if (value && typeof value === "object" && key in value) value = value[key];
-		else return;
-		return value;
-	}
-	async processConditionalsRecursive(template$1, data, context) {
-		const conditionalRegex = /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/;
-		let result = template$1;
-		let match;
-		while ((match = conditionalRegex.exec(result)) !== null) {
-			const [fullMatch, key, content] = match;
-			const value = this.resolveValue(data, key);
-			const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/);
-			let selectedContent;
-			if (elseMatch) {
-				const [, ifContent, elseContent] = elseMatch;
-				selectedContent = value ? ifContent : elseContent;
-			} else selectedContent = value ? content : "";
-			const rendered = await this.render(selectedContent, {
-				...context,
-				data
-			});
-			result = result.replace(fullMatch, rendered);
-		}
-		return result;
-	}
-	async processLoopsRecursive(template$1, data, context) {
-		const loopRegex = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/;
-		let result = template$1;
-		let match;
-		while ((match = loopRegex.exec(result)) !== null) {
-			const [fullMatch, key, content] = match;
-			const array = this.resolveValue(data, key);
-			if (!Array.isArray(array)) {
-				result = result.replace(fullMatch, "");
-				continue;
-			}
-			const renderedItems = await Promise.all(array.map(async (item, index) => {
-				const itemData = typeof item === "object" && item !== null ? {
-					...data,
-					...item,
-					"@index": index,
-					"@first": index === 0,
-					"@last": index === array.length - 1
-				} : {
-					...data,
-					this: item,
-					"@index": index,
-					"@first": index === 0,
-					"@last": index === array.length - 1
-				};
-				return await this.render(content, {
-					...context,
-					data: itemData
-				});
-			}));
-			result = result.replace(fullMatch, renderedItems.join(""));
-		}
-		return result;
-	}
-	processConditionals(template$1, data) {
-		return template$1.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, key, content) => {
-			const value = this.resolveValue(data, key);
-			const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/);
-			if (elseMatch) {
-				const [, ifContent, elseContent] = elseMatch;
-				return value ? ifContent : elseContent;
-			}
-			return value ? content : "";
-		});
-	}
-	processLoops(template$1, data) {
-		return template$1.replace(/\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (match, key, content) => {
-			const array = this.resolveValue(data, key);
-			if (!Array.isArray(array)) return "";
-			return array.map((item, index) => {
-				let itemContent = content;
-				itemContent = itemContent.replace(/\{\{this\}\}/g, String(item));
-				itemContent = itemContent.replace(/\{\{@index\}\}/g, String(index));
-				itemContent = itemContent.replace(/\{\{@first\}\}/g, String(index === 0));
-				itemContent = itemContent.replace(/\{\{@last\}\}/g, String(index === array.length - 1));
-				if (typeof item === "object" && item !== null) itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (m, k) => {
-					const val = item[k];
-					return val !== void 0 ? String(val) : m;
-				});
-				return itemContent;
-			}).join("");
-		});
-	}
-	async processPartials(template$1, context) {
-		const matches = Array.from(template$1.matchAll(/\{\{>\s*([^}\s]+)(?:\s+([^}]+))?\s*\}\}/g));
-		if (matches.length === 0) return template$1;
-		let result = template$1;
-		for (const match of matches) {
-			const [fullMatch, partialRef, argsStr] = match;
-			const partialData = argsStr ? this.parsePartialArgs(argsStr, context.data) : context.data;
-			try {
-				let partialContent;
-				if (partialRef.includes("://")) {
-					if (!this.componentLoader) throw new Error(`Component loader not configured. Cannot load component: ${partialRef}`);
-					partialContent = await this.componentLoader.load(partialRef);
-				} else {
-					partialContent = this.partials.get(partialRef) || "";
-					if (!partialContent) throw new Error(`Partial not found: ${partialRef}`);
-				}
-				const rendered = await this.render(partialContent, {
-					...context,
-					data: partialData
-				});
-				result = result.replace(fullMatch, rendered);
-			} catch (error) {
-				const errorMsg = error instanceof Error ? error.message : String(error);
-				result = result.replace(fullMatch, `<!-- Partial error: ${errorMsg} -->`);
-			}
-		}
-		return result;
-	}
-	parsePartialArgs(argsStr, contextData) {
-		const args = { ...contextData };
-		const argRegex = /(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g;
-		let match;
-		while ((match = argRegex.exec(argsStr)) !== null) {
-			const [, key, quotedVal1, quotedVal2, unquotedVal] = match;
-			const value = quotedVal1 || quotedVal2 || unquotedVal;
-			if (value && !value.startsWith("\"") && !value.startsWith("'")) {
-				const contextValue = this.resolveValue(contextData, value);
-				args[key] = contextValue !== void 0 ? contextValue : value;
-			} else args[key] = value;
-		}
-		return args;
-	}
-	processHelpers(template$1, helpers) {
-		return template$1.replace(/\{\{(\w+)\s+([^}]+)\}\}/g, (match, helperName, args) => {
-			const helper = helpers[helperName];
-			if (!helper) return match;
-			const parsedArgs = args.split(/\s+/);
-			try {
-				const result = helper(...parsedArgs);
-				return String(result);
-			} catch {
-				return match;
-			}
-		});
-	}
-};
 var require_utils = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.__esModule = true;
 	exports.extend = extend;
@@ -17530,7 +16063,7 @@ var require_printer = /* @__PURE__ */ __commonJSMin(((exports) => {
 		return pair.key + "=" + this.accept(pair.value);
 	};
 }));
-var import_lib = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin(((exports, module) => {
+var require_lib = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var handlebars = require_handlebars()["default"];
 	var printer = require_printer();
 	handlebars.PrintVisitor = printer.PrintVisitor;
@@ -17545,7 +16078,1378 @@ var import_lib = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin(((export
 		__require.extensions[".handlebars"] = extension;
 		__require.extensions[".hbs"] = extension;
 	}
-})))(), 1);
+}));
+init_base_agent();
+var import_lib$1 = /* @__PURE__ */ __toESM(require_lib(), 1);
+var ThinkAgent = class extends BaseAgent {
+	constructor(config, providerRegistry) {
+		super(config);
+		this.providerRegistry = providerRegistry || getProviderRegistry();
+		const cfg = config.config;
+		const model = cfg?.model || "claude-3-5-haiku-20241022";
+		this.thinkConfig = {
+			model,
+			provider: cfg?.provider || this.detectProvider(model),
+			temperature: cfg?.temperature || .7,
+			maxTokens: cfg?.maxTokens || 1e3,
+			apiKey: cfg?.apiKey,
+			apiEndpoint: cfg?.apiEndpoint,
+			systemPrompt: cfg?.systemPrompt,
+			prompt: cfg?.prompt,
+			schema: cfg?.schema
+		};
+	}
+	detectProvider(model) {
+		if (model.startsWith("@cf/")) return AIProvider.Cloudflare;
+		if (model.startsWith("gpt-") || model.startsWith("o1-") || model.startsWith("text-")) return AIProvider.OpenAI;
+		if (model.startsWith("claude-")) return AIProvider.Anthropic;
+		return AIProvider.Anthropic;
+	}
+	async run(context) {
+		const { input, env } = context;
+		await this.resolvePrompt(env);
+		if (this.thinkConfig.systemPrompt) {
+			console.log("[ThinkAgent] BEFORE template rendering:", this.thinkConfig.systemPrompt);
+			console.log("[ThinkAgent] Input data:", JSON.stringify(input));
+			try {
+				const template$1 = import_lib$1.compile(this.thinkConfig.systemPrompt);
+				this.thinkConfig.systemPrompt = template$1({
+					input,
+					env,
+					context
+				});
+				console.log("[ThinkAgent] AFTER template rendering:", this.thinkConfig.systemPrompt);
+			} catch (error) {
+				console.error("[ThinkAgent] Template rendering error:", error);
+				throw new Error(`Failed to render systemPrompt template: ${error instanceof Error ? error.message : String(error)}`);
+			}
+		}
+		await this.resolveSchema(env);
+		const providerId = this.thinkConfig.provider || AIProvider.Anthropic;
+		const provider = this.providerRegistry.get(providerId);
+		if (!provider) throw new Error(`Unknown AI provider: ${providerId}. Available providers: ${this.providerRegistry.getProviderIds().join(", ")}`);
+		const providerConfig = {
+			model: this.thinkConfig.model || "claude-3-5-haiku-20241022",
+			temperature: this.thinkConfig.temperature,
+			maxTokens: this.thinkConfig.maxTokens,
+			apiKey: this.thinkConfig.apiKey,
+			apiEndpoint: this.thinkConfig.apiEndpoint,
+			systemPrompt: this.thinkConfig.systemPrompt,
+			schema: this.thinkConfig.schema
+		};
+		const configError = provider.getConfigError(providerConfig, env);
+		if (configError) throw new Error(configError);
+		const messages = this.buildMessages(input);
+		return await provider.execute({
+			messages,
+			config: providerConfig,
+			env
+		});
+	}
+	async resolvePrompt(env) {
+		if (this.thinkConfig.systemPrompt) return;
+		if (this.thinkConfig.prompt) {
+			const context = {
+				env,
+				baseDir: process.cwd()
+			};
+			try {
+				const resolved = await resolveValue(this.thinkConfig.prompt, context);
+				if (typeof resolved.content === "string") this.thinkConfig.systemPrompt = resolved.content;
+				else throw new Error(`Prompt must resolve to a string, got ${typeof resolved.content}`);
+			} catch (error) {
+				throw new Error(`Failed to resolve prompt "${this.thinkConfig.prompt}": ${error instanceof Error ? error.message : String(error)}`);
+			}
+		}
+	}
+	async resolveSchema(env) {
+		if (!this.thinkConfig.schema) return;
+		if (typeof this.thinkConfig.schema !== "string") return;
+		const context = {
+			env,
+			baseDir: process.cwd()
+		};
+		try {
+			const resolved = await resolveValue(this.thinkConfig.schema, context);
+			if (typeof resolved.content === "object" && resolved.content !== null) this.thinkConfig.schema = resolved.content;
+			else if (typeof resolved.content === "string") try {
+				this.thinkConfig.schema = JSON.parse(resolved.content);
+			} catch {
+				throw new Error(`Schema must be valid JSON, got invalid string`);
+			}
+			else throw new Error(`Schema must resolve to an object or JSON string, got ${typeof resolved.content}`);
+		} catch (error) {
+			throw new Error(`Failed to resolve schema "${this.thinkConfig.schema}": ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+	buildMessages(input) {
+		const messages = [];
+		if (this.thinkConfig.systemPrompt) messages.push({
+			role: "system",
+			content: this.thinkConfig.systemPrompt
+		});
+		if (input.messages && Array.isArray(input.messages)) messages.push(...input.messages);
+		else if (input.prompt) messages.push({
+			role: "user",
+			content: input.prompt
+		});
+		else {
+			const promptParts = [];
+			for (const [key, value] of Object.entries(input)) if (typeof value === "string") promptParts.push(`${key}: ${value}`);
+			else promptParts.push(`${key}: ${JSON.stringify(value, null, 2)}`);
+			messages.push({
+				role: "user",
+				content: promptParts.join("\n\n")
+			});
+		}
+		return messages;
+	}
+	getThinkConfig() {
+		return { ...this.thinkConfig };
+	}
+};
+var JSONSerializer = class {
+	serialize(value) {
+		return JSON.stringify(value);
+	}
+	deserialize(raw) {
+		return JSON.parse(raw);
+	}
+};
+var KVRepository = class {
+	constructor(binding, serializer = new JSONSerializer()) {
+		this.binding = binding;
+		this.serializer = serializer;
+	}
+	async get(key) {
+		try {
+			const raw = await this.binding.get(key);
+			if (raw === null) return Result.err(Errors.storageNotFound(key, "KV"));
+			const value = this.serializer.deserialize(raw);
+			return Result.ok(value);
+		} catch (error) {
+			return Result.err(Errors.internal(`KV get operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async put(key, value, options) {
+		try {
+			const serialized = this.serializer.serialize(value);
+			const kvOptions = {};
+			if (options?.ttl) kvOptions.expirationTtl = options.ttl;
+			if (options?.expiration) kvOptions.expiration = options.expiration;
+			if (options?.metadata) kvOptions.metadata = options.metadata;
+			await this.binding.put(key, serialized, kvOptions);
+			return Result.ok(void 0);
+		} catch (error) {
+			return Result.err(Errors.internal(`KV put operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async delete(key) {
+		try {
+			await this.binding.delete(key);
+			return Result.ok(void 0);
+		} catch (error) {
+			return Result.err(Errors.internal(`KV delete operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async list(options) {
+		try {
+			const listOptions = {};
+			if (options?.prefix) listOptions.prefix = options.prefix;
+			if (options?.limit) listOptions.limit = options.limit;
+			if (options?.cursor) listOptions.cursor = options.cursor;
+			const result = await this.binding.list(listOptions);
+			const values = [];
+			for (const key of result.keys) {
+				const getResult = await this.get(key.name);
+				if (getResult.success) values.push(getResult.value);
+			}
+			return Result.ok(values);
+		} catch (error) {
+			return Result.err(Errors.internal("KV list operation failed", error instanceof Error ? error : void 0));
+		}
+	}
+	async has(key) {
+		try {
+			const value = await this.binding.get(key);
+			return Result.ok(value !== null);
+		} catch (error) {
+			return Result.err(Errors.internal(`KV has operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async getWithMetadata(key) {
+		try {
+			const result = await this.binding.getWithMetadata(key);
+			if (result.value === null) return Result.err(Errors.storageNotFound(key, "KV"));
+			const value = this.serializer.deserialize(result.value);
+			return Result.ok({
+				value,
+				metadata: result.metadata
+			});
+		} catch (error) {
+			return Result.err(Errors.internal(`KV getWithMetadata operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+};
+var D1Repository = class {
+	constructor(binding, config, serializer = new JSONSerializer()) {
+		this.binding = binding;
+		this.serializer = serializer;
+		this.tableName = config.tableName;
+		this.idColumn = config.idColumn || "id";
+		this.valueColumn = config.valueColumn || "value";
+		this.createdAtColumn = config.createdAtColumn || "created_at";
+		this.updatedAtColumn = config.updatedAtColumn || "updated_at";
+		this.expirationColumn = config.expirationColumn;
+	}
+	async get(id$1) {
+		try {
+			const query = `
+				SELECT ${this.valueColumn}, ${this.expirationColumn || "NULL as expiration"}
+				FROM ${this.tableName}
+				WHERE ${this.idColumn} = ?
+			`;
+			const result = await this.binding.prepare(query).bind(id$1).first();
+			if (!result) return Result.err(Errors.storageNotFound(id$1, "D1"));
+			if (this.expirationColumn && result.expiration) {
+				if (new Date(result.expiration).getTime() < Date.now()) {
+					await this.delete(id$1);
+					return Result.err(Errors.storageNotFound(id$1, "D1"));
+				}
+			}
+			const value = this.serializer.deserialize(result[this.valueColumn]);
+			return Result.ok(value);
+		} catch (error) {
+			return Result.err(Errors.internal(`D1 get operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async put(id$1, value, options) {
+		try {
+			const serialized = this.serializer.serialize(value);
+			const now = (/* @__PURE__ */ new Date()).toISOString();
+			let query;
+			let params;
+			if (this.expirationColumn && (options?.ttl || options?.expiration)) {
+				const expiration = options.expiration ? (/* @__PURE__ */ new Date(options.expiration * 1e3)).toISOString() : new Date(Date.now() + options.ttl * 1e3).toISOString();
+				query = `
+					INSERT INTO ${this.tableName}
+					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn}, ${this.expirationColumn})
+					VALUES (?, ?, ?, ?, ?)
+					ON CONFLICT(${this.idColumn})
+					DO UPDATE SET
+						${this.valueColumn} = excluded.${this.valueColumn},
+						${this.updatedAtColumn} = excluded.${this.updatedAtColumn},
+						${this.expirationColumn} = excluded.${this.expirationColumn}
+				`;
+				params = [
+					id$1,
+					serialized,
+					now,
+					now,
+					expiration
+				];
+			} else {
+				query = `
+					INSERT INTO ${this.tableName}
+					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn})
+					VALUES (?, ?, ?, ?)
+					ON CONFLICT(${this.idColumn})
+					DO UPDATE SET
+						${this.valueColumn} = excluded.${this.valueColumn},
+						${this.updatedAtColumn} = excluded.${this.updatedAtColumn}
+				`;
+				params = [
+					id$1,
+					serialized,
+					now,
+					now
+				];
+			}
+			await this.binding.prepare(query).bind(...params).run();
+			return Result.ok(void 0);
+		} catch (error) {
+			return Result.err(Errors.internal(`D1 put operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async delete(id$1) {
+		try {
+			const query = `DELETE FROM ${this.tableName} WHERE ${this.idColumn} = ?`;
+			await this.binding.prepare(query).bind(id$1).run();
+			return Result.ok(void 0);
+		} catch (error) {
+			return Result.err(Errors.internal(`D1 delete operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async list(options) {
+		try {
+			let query = `SELECT ${this.valueColumn} FROM ${this.tableName}`;
+			const params = [];
+			if (options?.prefix) {
+				query += ` WHERE ${this.idColumn} LIKE ?`;
+				params.push(`${options.prefix}%`);
+			}
+			if (this.expirationColumn) {
+				const whereOrAnd = options?.prefix ? "AND" : "WHERE";
+				query += ` ${whereOrAnd} (${this.expirationColumn} IS NULL OR ${this.expirationColumn} > datetime('now'))`;
+			}
+			query += ` ORDER BY ${this.createdAtColumn} DESC`;
+			if (options?.limit) {
+				query += ` LIMIT ?`;
+				params.push(options.limit);
+			}
+			const values = (await this.binding.prepare(query).bind(...params).all()).results.map((row) => this.serializer.deserialize(row[this.valueColumn]));
+			return Result.ok(values);
+		} catch (error) {
+			return Result.err(Errors.internal("D1 list operation failed", error instanceof Error ? error : void 0));
+		}
+	}
+	async has(id$1) {
+		try {
+			const query = `SELECT 1 FROM ${this.tableName} WHERE ${this.idColumn} = ? LIMIT 1`;
+			const result = await this.binding.prepare(query).bind(id$1).first();
+			return Result.ok(result !== null);
+		} catch (error) {
+			return Result.err(Errors.internal(`D1 has operation failed for id "${id$1}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async cleanExpired() {
+		if (!this.expirationColumn) return Result.ok(0);
+		try {
+			const query = `
+				DELETE FROM ${this.tableName}
+				WHERE ${this.expirationColumn} IS NOT NULL
+				AND ${this.expirationColumn} <= datetime('now')
+			`;
+			const result = await this.binding.prepare(query).run();
+			return Result.ok(result.meta.changes || 0);
+		} catch (error) {
+			return Result.err(Errors.internal("D1 cleanExpired operation failed", error instanceof Error ? error : void 0));
+		}
+	}
+};
+var R2Repository = class {
+	constructor(binding, serializer = new JSONSerializer()) {
+		this.binding = binding;
+		this.serializer = serializer;
+	}
+	async get(key) {
+		try {
+			const object = await this.binding.get(key);
+			if (object === null) return Result.err(Errors.storageNotFound(key, "R2"));
+			const text = await object.text();
+			const value = this.serializer.deserialize(text);
+			return Result.ok(value);
+		} catch (error) {
+			return Result.err(Errors.internal(`R2 get operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async put(key, value, options) {
+		try {
+			const serialized = this.serializer.serialize(value);
+			const r2Options = {};
+			if (options?.metadata) r2Options.customMetadata = options.metadata;
+			if (options?.ttl) {
+				const expiration = Date.now() + options.ttl * 1e3;
+				r2Options.customMetadata = {
+					...r2Options.customMetadata,
+					"x-expiration": expiration.toString()
+				};
+			}
+			if (options?.expiration) r2Options.customMetadata = {
+				...r2Options.customMetadata,
+				"x-expiration": (options.expiration * 1e3).toString()
+			};
+			await this.binding.put(key, serialized, r2Options);
+			return Result.ok(void 0);
+		} catch (error) {
+			return Result.err(Errors.internal(`R2 put operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async delete(key) {
+		try {
+			await this.binding.delete(key);
+			return Result.ok(void 0);
+		} catch (error) {
+			return Result.err(Errors.internal(`R2 delete operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async list(options) {
+		try {
+			const listOptions = {};
+			if (options?.prefix) listOptions.prefix = options.prefix;
+			if (options?.limit) listOptions.limit = options.limit;
+			if (options?.cursor) listOptions.cursor = options.cursor;
+			const result = await this.binding.list(listOptions);
+			const values = [];
+			for (const object of result.objects) {
+				const getResult = await this.get(object.key);
+				if (getResult.success) {
+					const expiration = object.customMetadata?.["x-expiration"];
+					if (expiration) {
+						if (parseInt(expiration, 10) < Date.now()) {
+							await this.delete(object.key);
+							continue;
+						}
+					}
+					values.push(getResult.value);
+				}
+			}
+			return Result.ok(values);
+		} catch (error) {
+			return Result.err(Errors.internal("R2 list operation failed", error instanceof Error ? error : void 0));
+		}
+	}
+	async has(key) {
+		try {
+			const object = await this.binding.head(key);
+			return Result.ok(object !== null);
+		} catch (error) {
+			return Result.err(Errors.internal(`R2 has operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async getWithMetadata(key) {
+		try {
+			const object = await this.binding.get(key);
+			if (object === null) return Result.err(Errors.storageNotFound(key, "R2"));
+			const text = await object.text();
+			const value = this.serializer.deserialize(text);
+			return Result.ok({
+				value,
+				metadata: object
+			});
+		} catch (error) {
+			return Result.err(Errors.internal(`R2 getWithMetadata operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+	async getMetadata(key) {
+		try {
+			const metadata = await this.binding.head(key);
+			return Result.ok(metadata);
+		} catch (error) {
+			return Result.err(Errors.internal(`R2 getMetadata operation failed for key "${key}"`, error instanceof Error ? error : void 0));
+		}
+	}
+};
+async function exportData(data, options) {
+	switch (options.format) {
+		case "csv": return exportToCSV(data, options);
+		case "json": return exportToJSON(data, options);
+		case "ndjson": return exportToNDJSON(data, options);
+		case "xlsx": return exportToExcel(data, options);
+		default: throw new Error(`Unsupported export format: ${options.format}`);
+	}
+}
+function exportToCSV(data, options) {
+	const delimiter = options.delimiter || ",";
+	const includeHeaders = options.headers !== false;
+	if (data.length === 0) return {
+		data: "",
+		contentType: "text/csv",
+		extension: "csv",
+		size: 0,
+		streaming: false
+	};
+	const fields = options.fields || Object.keys(data[0]);
+	const lines = [];
+	if (includeHeaders) lines.push(fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter));
+	for (const row of data) {
+		const rowData = row;
+		const values = fields.map((field) => {
+			const value = rowData[field];
+			return escapeCsvValue(String(value ?? ""), delimiter);
+		});
+		lines.push(values.join(delimiter));
+	}
+	const csv = lines.join("\n");
+	return {
+		data: csv,
+		contentType: "text/csv",
+		extension: "csv",
+		size: new Blob([csv]).size,
+		streaming: false
+	};
+}
+function exportToJSON(data, options) {
+	const json$1 = options.pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data);
+	return {
+		data: json$1,
+		contentType: "application/json",
+		extension: "json",
+		size: new Blob([json$1]).size,
+		streaming: false
+	};
+}
+function exportToNDJSON(data, options) {
+	const ndjson = data.map((item) => JSON.stringify(item)).join("\n");
+	return {
+		data: ndjson,
+		contentType: "application/x-ndjson",
+		extension: "ndjson",
+		size: new Blob([ndjson]).size,
+		streaming: false
+	};
+}
+function exportToExcel(data, options) {
+	return {
+		...exportToCSV(data, options),
+		contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		extension: "xlsx"
+	};
+}
+function escapeCsvValue(value, delimiter) {
+	if (value.includes(delimiter) || value.includes("\n") || value.includes("\"")) return `"${value.replace(/"/g, "\"\"")}"`;
+	return value;
+}
+function createStreamingExport(dataSource, options) {
+	let isFirst = true;
+	let fields = [];
+	return {
+		data: new ReadableStream({ async start(controller) {
+			const encoder = new TextEncoder();
+			try {
+				for await (const batch of dataSource) {
+					if (batch.length === 0) continue;
+					if (isFirst) {
+						fields = options.fields || Object.keys(batch[0]);
+						if (options.format === "csv" && options.headers !== false) {
+							const delimiter = options.delimiter || ",";
+							const headerLine = fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter) + "\n";
+							controller.enqueue(encoder.encode(headerLine));
+						}
+						if (options.format === "json") controller.enqueue(encoder.encode("[\n"));
+						isFirst = false;
+					}
+					const chunk = formatBatch(batch, fields, options, isFirst);
+					controller.enqueue(encoder.encode(chunk));
+				}
+				if (options.format === "json") controller.enqueue(encoder.encode("\n]"));
+				controller.close();
+			} catch (error) {
+				controller.error(error);
+			}
+		} }),
+		contentType: getContentType(options.format),
+		extension: getExtension(options.format),
+		streaming: true
+	};
+}
+function formatBatch(batch, fields, options, isFirst) {
+	switch (options.format) {
+		case "csv": return formatCsvBatch(batch, fields, options.delimiter || ",");
+		case "json": return formatJsonBatch(batch, isFirst);
+		case "ndjson": return formatNdjsonBatch(batch);
+		default: return "";
+	}
+}
+function formatCsvBatch(batch, fields, delimiter) {
+	const lines = [];
+	for (const row of batch) {
+		const rowData = row;
+		const values = fields.map((field) => {
+			const value = rowData[field];
+			return escapeCsvValue(String(value ?? ""), delimiter);
+		});
+		lines.push(values.join(delimiter));
+	}
+	return lines.join("\n") + "\n";
+}
+function formatJsonBatch(batch, isFirst) {
+	return batch.map((item, index) => {
+		const json$1 = JSON.stringify(item, null, 2);
+		return (isFirst && index === 0 ? "  " : ",\n  ") + json$1;
+	}).join("");
+}
+function formatNdjsonBatch(batch) {
+	return batch.map((item) => JSON.stringify(item)).join("\n") + "\n";
+}
+function getContentType(format$1) {
+	switch (format$1) {
+		case "csv": return "text/csv";
+		case "json": return "application/json";
+		case "ndjson": return "application/x-ndjson";
+		case "xlsx": return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+		default: return "application/octet-stream";
+	}
+}
+function getExtension(format$1) {
+	switch (format$1) {
+		case "csv": return "csv";
+		case "json": return "json";
+		case "ndjson": return "ndjson";
+		case "xlsx": return "xlsx";
+		default: return "bin";
+	}
+}
+init_base_agent();
+var DataAgent = class extends BaseAgent {
+	constructor(config, repository) {
+		super(config);
+		this.repository = repository;
+		const cfg = config.config;
+		this.dataConfig = {
+			storage: cfg?.storage,
+			operation: cfg?.operation,
+			binding: cfg?.binding,
+			ttl: cfg?.ttl
+		};
+		if (!this.dataConfig.storage) throw new Error(`Data agent "${config.name}" requires storage type (kv, d1, or r2)`);
+		if (!this.dataConfig.operation) throw new Error(`Data agent "${config.name}" requires operation type`);
+	}
+	async run(context) {
+		const { input, env } = context;
+		const repo = this.repository || this.createRepository(env);
+		switch (this.dataConfig.operation) {
+			case "get": return await this.executeGet(repo, input);
+			case "put": return await this.executePut(repo, input);
+			case "delete": return await this.executeDelete(repo, input);
+			case "list": return await this.executeList(repo, input);
+			case "query": return await this.executeQuery(repo, input);
+			case "export": return await this.executeExport(repo, input);
+			default: throw new Error(`Unknown operation: ${this.dataConfig.operation}`);
+		}
+	}
+	async executeGet(repo, input) {
+		if (!input.key) throw new Error("GET operation requires \"key\" in input");
+		const result = await repo.get(input.key);
+		if (result.success) return {
+			key: input.key,
+			value: result.value,
+			found: true
+		};
+		else return {
+			key: input.key,
+			value: null,
+			found: false,
+			error: result.error.message
+		};
+	}
+	async executePut(repo, input) {
+		if (!input.key || input.value === void 0) throw new Error("PUT operation requires \"key\" and \"value\" in input");
+		const result = await repo.put(input.key, input.value, { ttl: input.ttl || this.dataConfig.ttl });
+		if (result.success) return {
+			key: input.key,
+			success: true
+		};
+		else return {
+			key: input.key,
+			success: false,
+			error: result.error.message
+		};
+	}
+	async executeDelete(repo, input) {
+		if (!input.key) throw new Error("DELETE operation requires \"key\" in input");
+		const result = await repo.delete(input.key);
+		if (result.success) return {
+			key: input.key,
+			success: true
+		};
+		else return {
+			key: input.key,
+			success: false,
+			error: result.error.message
+		};
+	}
+	async executeList(repo, input) {
+		const result = await repo.list({
+			prefix: input.prefix,
+			limit: input.limit,
+			cursor: input.cursor
+		});
+		if (result.success) return {
+			items: result.value,
+			success: true
+		};
+		else return {
+			items: [],
+			success: false,
+			error: result.error.message
+		};
+	}
+	createRepository(env) {
+		const bindingName = this.getBindingName();
+		const binding = env[bindingName];
+		if (!binding) throw new Error(`Binding "${bindingName}" not found. Add it to wrangler.toml or inject a repository in constructor.`);
+		switch (this.dataConfig.storage) {
+			case StorageType.KV: return new KVRepository(binding, new JSONSerializer());
+			case StorageType.D1: return new D1Repository(binding, {
+				tableName: "data",
+				idColumn: "key",
+				valueColumn: "value"
+			}, new JSONSerializer());
+			case StorageType.R2: return new R2Repository(binding, new JSONSerializer());
+			default: throw new Error(`Unknown storage type: ${this.dataConfig.storage}`);
+		}
+	}
+	getBindingName() {
+		if (this.dataConfig.binding) return this.dataConfig.binding;
+		switch (this.dataConfig.storage) {
+			case StorageType.KV: return "CACHE";
+			case StorageType.D1: return "DB";
+			case StorageType.R2: return "STORAGE";
+			default: return "DATA";
+		}
+	}
+	async executeQuery(repo, input) {
+		const listResult = await repo.list({
+			prefix: input.prefix,
+			limit: input.limit,
+			cursor: input.cursor
+		});
+		if (!listResult.success) return {
+			items: [],
+			success: false,
+			error: listResult.error.message
+		};
+		let items = listResult.value;
+		if (input.filter) items = items.filter((item) => {
+			return Object.entries(input.filter).every(([key, value]) => {
+				return item[key] === value;
+			});
+		});
+		if (input.sort) {
+			const [field, order = "asc"] = input.sort.split(":");
+			items = items.sort((a, b) => {
+				const aVal = a[field];
+				const bVal = b[field];
+				if (order === "desc") return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+				return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+			});
+		}
+		return {
+			items,
+			count: items.length,
+			success: true
+		};
+	}
+	async executeExport(repo, input) {
+		const listResult = await repo.list({
+			prefix: input.prefix,
+			limit: input.limit || 1e4,
+			cursor: input.cursor
+		});
+		if (!listResult.success) return {
+			success: false,
+			error: listResult.error.message
+		};
+		let items = listResult.value;
+		if (input.filter) items = items.filter((item) => {
+			return Object.entries(input.filter).every(([key, value]) => {
+				return item[key] === value;
+			});
+		});
+		const exportOptions = {
+			format: input.format || this.dataConfig.exportFormat || "json",
+			...this.dataConfig.exportOptions,
+			...input.exportOptions
+		};
+		if (input.streaming || items.length > 1e3) {
+			async function* dataSource() {
+				const batchSize = exportOptions.batchSize || 100;
+				for (let i = 0; i < items.length; i += batchSize) yield items.slice(i, i + batchSize);
+			}
+			const exportResult$1 = createStreamingExport(dataSource(), exportOptions);
+			return {
+				success: true,
+				streaming: true,
+				stream: exportResult$1.data,
+				contentType: exportResult$1.contentType,
+				extension: exportResult$1.extension,
+				count: items.length
+			};
+		}
+		const exportResult = await exportData(items, exportOptions);
+		return {
+			success: true,
+			streaming: false,
+			data: exportResult.data,
+			contentType: exportResult.contentType,
+			extension: exportResult.extension,
+			size: exportResult.size,
+			count: items.length
+		};
+	}
+	getDataConfig() {
+		return { ...this.dataConfig };
+	}
+};
+init_base_agent();
+var APIAgent = class extends BaseAgent {
+	constructor(config) {
+		super(config);
+		const cfg = config.config;
+		this.apiConfig = {
+			url: cfg?.url,
+			method: cfg?.method || "GET",
+			headers: cfg?.headers || {},
+			timeout: cfg?.timeout || 3e4,
+			retries: cfg?.retries || 0
+		};
+	}
+	async run(context) {
+		const { input } = context;
+		const url = this.apiConfig.url || input.url;
+		if (!url) throw new Error(`API agent "${this.name}" requires a URL (in config or input)`);
+		const requestInit = {
+			method: this.apiConfig.method,
+			headers: this.resolveHeaders(this.apiConfig.headers || {}, context)
+		};
+		if ([
+			"POST",
+			"PUT",
+			"PATCH"
+		].includes(this.apiConfig.method)) {
+			if (input.body) {
+				requestInit.body = typeof input.body === "string" ? input.body : JSON.stringify(input.body);
+				const headers = requestInit.headers;
+				if (!headers["content-type"] && !headers["Content-Type"]) headers["content-type"] = "application/json";
+			}
+		}
+		return await this.executeWithRetries(url, requestInit);
+	}
+	resolveHeaders(headers, context) {
+		const resolved = {};
+		for (const [key, value] of Object.entries(headers)) resolved[key] = value.replace(/\$\{env\.(\w+)\}/g, (_, varName) => {
+			return context.env[varName] || "";
+		});
+		return resolved;
+	}
+	async executeWithRetries(url, init, attempt = 0) {
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), this.apiConfig.timeout);
+			try {
+				const response = await fetch(url, {
+					...init,
+					signal: controller.signal
+				});
+				clearTimeout(timeoutId);
+				const contentType = response.headers.get("content-type");
+				let data;
+				if (contentType?.includes("application/json")) data = await response.json();
+				else data = await response.text();
+				if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+				return {
+					status: response.status,
+					headers: Object.fromEntries(response.headers.entries()),
+					data
+				};
+			} finally {
+				clearTimeout(timeoutId);
+			}
+		} catch (error) {
+			if (attempt < (this.apiConfig.retries || 0)) {
+				const delay = Math.min(1e3 * Math.pow(2, attempt), 1e4);
+				await new Promise((resolve$2) => setTimeout(resolve$2, delay));
+				return this.executeWithRetries(url, init, attempt + 1);
+			}
+			throw new Error(`API request to ${url} failed after ${attempt + 1} attempts: ${error instanceof Error ? error.message : "Unknown error"}`);
+		}
+	}
+	getAPIConfig() {
+		return { ...this.apiConfig };
+	}
+};
+var BaseEmailProvider = class {
+	normalizeRecipients(recipients) {
+		return Array.isArray(recipients) ? recipients : [recipients];
+	}
+	validateEmail(email) {
+		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+	}
+	validateMessage(message) {
+		const errors = [];
+		if (!message.to || Array.isArray(message.to) && message.to.length === 0) errors.push("Recipient (to) is required");
+		if (!message.subject || message.subject.trim() === "") errors.push("Subject is required");
+		if (!message.html && !message.text) errors.push("Either html or text content is required");
+		const recipients = this.normalizeRecipients(message.to);
+		for (const email of recipients) if (!this.validateEmail(email)) errors.push(`Invalid email address: ${email}`);
+		return {
+			valid: errors.length === 0,
+			errors: errors.length > 0 ? errors : void 0
+		};
+	}
+};
+var CloudflareEmailProvider = class extends BaseEmailProvider {
+	constructor(binding, defaultFrom, enableDkim = true) {
+		super();
+		this.binding = binding;
+		this.defaultFrom = defaultFrom;
+		this.enableDkim = enableDkim;
+		this.name = "cloudflare";
+	}
+	async send(message) {
+		const validation = this.validateMessage(message);
+		if (!validation.valid) return {
+			messageId: "",
+			status: "failed",
+			provider: this.name,
+			error: validation.errors?.join(", ")
+		};
+		try {
+			const request = {
+				from: message.from || this.defaultFrom,
+				to: message.to,
+				subject: message.subject,
+				html: message.html,
+				text: message.text,
+				headers: message.headers
+			};
+			if (this.enableDkim && request.headers) request.headers["X-Cloudflare-DKIM"] = "enabled";
+			const response = await this.binding.send(request);
+			if (!response.success) return {
+				messageId: "",
+				status: "failed",
+				provider: this.name,
+				error: response.error || "Unknown error"
+			};
+			return {
+				messageId: response.messageId || `cf-${Date.now()}`,
+				status: "sent",
+				provider: this.name
+			};
+		} catch (error) {
+			return {
+				messageId: "",
+				status: "failed",
+				provider: this.name,
+				error: error instanceof Error ? error.message : "Unknown error"
+			};
+		}
+	}
+	async validateConfig() {
+		const errors = [];
+		if (!this.binding) errors.push("Cloudflare Email binding is not configured");
+		if (!this.defaultFrom) errors.push("Default from address is required");
+		else if (!this.validateEmail(this.defaultFrom)) errors.push("Default from address is invalid");
+		return {
+			valid: errors.length === 0,
+			errors: errors.length > 0 ? errors : void 0
+		};
+	}
+};
+var ResendProvider = class extends BaseEmailProvider {
+	constructor(apiKey, defaultFrom) {
+		super();
+		this.apiKey = apiKey;
+		this.defaultFrom = defaultFrom;
+		this.name = "resend";
+		this.apiUrl = "https://api.resend.com/emails";
+	}
+	async send(message) {
+		const validation = this.validateMessage(message);
+		if (!validation.valid) return {
+			messageId: "",
+			status: "failed",
+			provider: this.name,
+			error: validation.errors?.join(", ")
+		};
+		try {
+			const request = {
+				from: message.from || this.defaultFrom,
+				to: message.to,
+				subject: message.subject,
+				html: message.html,
+				text: message.text
+			};
+			if (message.cc) request.cc = message.cc;
+			if (message.bcc) request.bcc = message.bcc;
+			if (message.replyTo) request.reply_to = message.replyTo;
+			if (message.headers) request.headers = message.headers;
+			if (message.attachments) request.attachments = message.attachments.map((att) => ({
+				filename: att.filename,
+				content: typeof att.content === "string" ? att.content : att.content.toString("base64")
+			}));
+			if (message.tags) request.tags = message.tags.map((tag) => ({
+				name: tag,
+				value: "true"
+			}));
+			const response = await fetch(this.apiUrl, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${this.apiKey}`,
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify(request)
+			});
+			const data = await response.json();
+			if (!response.ok || data.error) return {
+				messageId: "",
+				status: "failed",
+				provider: this.name,
+				error: data.error?.message || `HTTP ${response.status}`
+			};
+			return {
+				messageId: data.id,
+				status: "sent",
+				provider: this.name
+			};
+		} catch (error) {
+			return {
+				messageId: "",
+				status: "failed",
+				provider: this.name,
+				error: error instanceof Error ? error.message : "Unknown error"
+			};
+		}
+	}
+	async validateConfig() {
+		const errors = [];
+		if (!this.apiKey) errors.push("Resend API key is required");
+		if (!this.defaultFrom) errors.push("Default from address is required");
+		else if (!this.validateEmail(this.defaultFrom)) errors.push("Default from address is invalid");
+		return {
+			valid: errors.length === 0,
+			errors: errors.length > 0 ? errors : void 0
+		};
+	}
+};
+var SmtpProvider = class extends BaseEmailProvider {
+	constructor(config, defaultFrom) {
+		super();
+		this.config = config;
+		this.defaultFrom = defaultFrom;
+		this.name = "smtp";
+	}
+	async send(message) {
+		const validation = this.validateMessage(message);
+		if (!validation.valid) return {
+			messageId: "",
+			status: "failed",
+			provider: this.name,
+			error: validation.errors?.join(", ")
+		};
+		try {
+			const from = message.from || this.defaultFrom;
+			const to = this.normalizeRecipients(message.to);
+			const messageId = `<${Date.now()}.${Math.random().toString(36)}@${from.split("@")[1]}>`;
+			const headers = [
+				`Message-ID: ${messageId}`,
+				`From: ${from}`,
+				`To: ${to.join(", ")}`,
+				`Subject: ${message.subject}`,
+				`Date: ${(/* @__PURE__ */ new Date()).toUTCString()}`,
+				"MIME-Version: 1.0"
+			];
+			if (message.cc) headers.push(`Cc: ${this.normalizeRecipients(message.cc).join(", ")}`);
+			if (message.bcc) headers.push(`Bcc: ${this.normalizeRecipients(message.bcc).join(", ")}`);
+			if (message.replyTo) headers.push(`Reply-To: ${message.replyTo}`);
+			if (message.headers) for (const [key, value] of Object.entries(message.headers)) headers.push(`${key}: ${value}`);
+			let body = "";
+			if (message.html && message.text) {
+				const boundary = `boundary_${Date.now()}_${Math.random().toString(36)}`;
+				headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+				body = [
+					"",
+					`--${boundary}`,
+					"Content-Type: text/plain; charset=utf-8",
+					"Content-Transfer-Encoding: quoted-printable",
+					"",
+					this.encodeQuotedPrintable(message.text),
+					"",
+					`--${boundary}`,
+					"Content-Type: text/html; charset=utf-8",
+					"Content-Transfer-Encoding: quoted-printable",
+					"",
+					this.encodeQuotedPrintable(message.html),
+					"",
+					`--${boundary}--`
+				].join("\r\n");
+			} else if (message.html) {
+				headers.push("Content-Type: text/html; charset=utf-8");
+				headers.push("Content-Transfer-Encoding: quoted-printable");
+				body = "\r\n" + this.encodeQuotedPrintable(message.html);
+			} else if (message.text) {
+				headers.push("Content-Type: text/plain; charset=utf-8");
+				headers.push("Content-Transfer-Encoding: quoted-printable");
+				body = "\r\n" + this.encodeQuotedPrintable(message.text);
+			}
+			const response = await this.sendSmtp(from, to, headers.join("\r\n") + body);
+			if (!response.success) return {
+				messageId: "",
+				status: "failed",
+				provider: this.name,
+				error: response.error || "SMTP send failed"
+			};
+			return {
+				messageId: messageId.slice(1, -1),
+				status: "sent",
+				provider: this.name
+			};
+		} catch (error) {
+			return {
+				messageId: "",
+				status: "failed",
+				provider: this.name,
+				error: error instanceof Error ? error.message : "Unknown error"
+			};
+		}
+	}
+	async validateConfig() {
+		const errors = [];
+		if (!this.config.host) errors.push("SMTP host is required");
+		if (!this.config.port || this.config.port < 1 || this.config.port > 65535) errors.push("Valid SMTP port is required (1-65535)");
+		if (!this.config.auth?.user) errors.push("SMTP username is required");
+		if (!this.config.auth?.pass) errors.push("SMTP password is required");
+		if (!this.defaultFrom) errors.push("Default from address is required");
+		else if (!this.validateEmail(this.defaultFrom)) errors.push("Default from address is invalid");
+		return {
+			valid: errors.length === 0,
+			errors: errors.length > 0 ? errors : void 0
+		};
+	}
+	async sendSmtp(from, to, message) {
+		try {
+			const url = `${this.config.secure ? "smtps" : "smtp"}://${this.config.host}:${this.config.port}`;
+			const response = await fetch(url, {
+				method: "POST",
+				headers: {
+					"Content-Type": "message/rfc822",
+					Authorization: `Basic ${btoa(`${this.config.auth.user}:${this.config.auth.pass}`)}`
+				},
+				body: `MAIL FROM:<${from}>\r\nRCPT TO:<${to.join(">,<")}>\r\nDATA\r\n${message}\r\n.\r\n`
+			});
+			if (!response.ok) return {
+				success: false,
+				error: `SMTP error: ${response.status} ${response.statusText}`
+			};
+			return { success: true };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Unknown SMTP error"
+			};
+		}
+	}
+	encodeQuotedPrintable(text) {
+		return text.replace(/[^\x20-\x7E]/g, (char) => {
+			const hex = char.charCodeAt(0).toString(16).toUpperCase();
+			return "=" + (hex.length === 1 ? "0" + hex : hex);
+		}).replace(/=/g, "=3D").replace(/\r\n/g, "\n").split("\n").map((line) => {
+			if (line.length <= 76) return line;
+			const result = [];
+			for (let i = 0; i < line.length; i += 75) result.push(line.slice(i, i + 75) + "=");
+			return result.join("\r\n");
+		}).join("\r\n");
+	}
+};
+function createEmailProvider(config) {
+	const from = config.from || "noreply@example.com";
+	switch (config.provider) {
+		case "cloudflare":
+			if (!config.cloudflare?.binding) throw new Error("Cloudflare Email binding is required");
+			return new CloudflareEmailProvider(config.cloudflare.binding, from, config.cloudflare.dkim ?? true);
+		case "resend":
+			if (!config.resend?.apiKey) throw new Error("Resend API key is required");
+			return new ResendProvider(config.resend.apiKey, from);
+		case "smtp":
+			if (!config.smtp) throw new Error("SMTP configuration is required");
+			return new SmtpProvider(config.smtp, from);
+		default: throw new Error(`Unknown email provider: ${config.provider}`);
+	}
+}
+var BaseTemplateEngine = class {
+	async compile(template$1) {
+		return template$1;
+	}
+	registerHelper(name, fn) {}
+	registerPartial(name, template$1) {}
+};
+var SimpleTemplateEngine = class extends BaseTemplateEngine {
+	constructor(..._args) {
+		super(..._args);
+		this.name = "simple";
+		this.partials = /* @__PURE__ */ new Map();
+	}
+	setComponentLoader(loader) {
+		this.componentLoader = loader;
+	}
+	registerPartial(name, content) {
+		this.partials.set(name, content);
+	}
+	async render(template$1, context) {
+		let result = template$1;
+		const data = context.data !== void 0 ? context.data : context;
+		const helpers = context.helpers;
+		result = await this.processConditionalsRecursive(result, data, context);
+		result = await this.processLoopsRecursive(result, data, context);
+		result = await this.processPartials(result, {
+			...context,
+			data
+		});
+		result = result.replace(/\{\{(\s*[\w.]+\s*)\}\}/g, (match, key) => {
+			const trimmedKey = key.trim();
+			const value = this.resolveValue(data, trimmedKey);
+			if (value === void 0) return "";
+			if (value === null) return "null";
+			return String(value);
+		});
+		if (helpers) result = this.processHelpers(result, helpers);
+		return result;
+	}
+	async validate(template$1) {
+		const errors = [];
+		const openBraces = (template$1.match(/\{\{/g) || []).length;
+		const closeBraces = (template$1.match(/\}\}/g) || []).length;
+		if (openBraces !== closeBraces) errors.push(`Unbalanced braces: ${openBraces} opening {{ but ${closeBraces} closing }}`);
+		const ifBlocks = (template$1.match(/\{\{#if\s+\w+\}\}/g) || []).length;
+		const endifBlocks = (template$1.match(/\{\{\/if\}\}/g) || []).length;
+		if (ifBlocks !== endifBlocks) errors.push(`Unbalanced conditionals: ${ifBlocks} {{#if}} but ${endifBlocks} {{/if}}`);
+		const eachBlocks = (template$1.match(/\{\{#each\s+\w+\}\}/g) || []).length;
+		const endEachBlocks = (template$1.match(/\{\{\/each\}\}/g) || []).length;
+		if (eachBlocks !== endEachBlocks) errors.push(`Unbalanced loops: ${eachBlocks} {{#each}} but ${endEachBlocks} {{/each}}`);
+		return {
+			valid: errors.length === 0,
+			errors: errors.length > 0 ? errors : void 0
+		};
+	}
+	resolveValue(data, path$1) {
+		const keys = path$1.split(".");
+		let value = data;
+		for (const key of keys) if (value && typeof value === "object" && key in value) value = value[key];
+		else return;
+		return value;
+	}
+	async processConditionalsRecursive(template$1, data, context) {
+		const conditionalRegex = /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/;
+		let result = template$1;
+		let match;
+		while ((match = conditionalRegex.exec(result)) !== null) {
+			const [fullMatch, key, content] = match;
+			const value = this.resolveValue(data, key);
+			const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/);
+			let selectedContent;
+			if (elseMatch) {
+				const [, ifContent, elseContent] = elseMatch;
+				selectedContent = value ? ifContent : elseContent;
+			} else selectedContent = value ? content : "";
+			const rendered = await this.render(selectedContent, {
+				...context,
+				data
+			});
+			result = result.replace(fullMatch, rendered);
+		}
+		return result;
+	}
+	async processLoopsRecursive(template$1, data, context) {
+		const loopRegex = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/;
+		let result = template$1;
+		let match;
+		while ((match = loopRegex.exec(result)) !== null) {
+			const [fullMatch, key, content] = match;
+			const array = this.resolveValue(data, key);
+			if (!Array.isArray(array)) {
+				result = result.replace(fullMatch, "");
+				continue;
+			}
+			const renderedItems = await Promise.all(array.map(async (item, index) => {
+				const itemData = typeof item === "object" && item !== null ? {
+					...data,
+					...item,
+					"@index": index,
+					"@first": index === 0,
+					"@last": index === array.length - 1
+				} : {
+					...data,
+					this: item,
+					"@index": index,
+					"@first": index === 0,
+					"@last": index === array.length - 1
+				};
+				return await this.render(content, {
+					...context,
+					data: itemData
+				});
+			}));
+			result = result.replace(fullMatch, renderedItems.join(""));
+		}
+		return result;
+	}
+	processConditionals(template$1, data) {
+		return template$1.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, key, content) => {
+			const value = this.resolveValue(data, key);
+			const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/);
+			if (elseMatch) {
+				const [, ifContent, elseContent] = elseMatch;
+				return value ? ifContent : elseContent;
+			}
+			return value ? content : "";
+		});
+	}
+	processLoops(template$1, data) {
+		return template$1.replace(/\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (match, key, content) => {
+			const array = this.resolveValue(data, key);
+			if (!Array.isArray(array)) return "";
+			return array.map((item, index) => {
+				let itemContent = content;
+				itemContent = itemContent.replace(/\{\{this\}\}/g, String(item));
+				itemContent = itemContent.replace(/\{\{@index\}\}/g, String(index));
+				itemContent = itemContent.replace(/\{\{@first\}\}/g, String(index === 0));
+				itemContent = itemContent.replace(/\{\{@last\}\}/g, String(index === array.length - 1));
+				if (typeof item === "object" && item !== null) itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (m, k) => {
+					const val = item[k];
+					return val !== void 0 ? String(val) : m;
+				});
+				return itemContent;
+			}).join("");
+		});
+	}
+	async processPartials(template$1, context) {
+		const matches = Array.from(template$1.matchAll(/\{\{>\s*([^}\s]+)(?:\s+([^}]+))?\s*\}\}/g));
+		if (matches.length === 0) return template$1;
+		let result = template$1;
+		for (const match of matches) {
+			const [fullMatch, partialRef, argsStr] = match;
+			const partialData = argsStr ? this.parsePartialArgs(argsStr, context.data) : context.data;
+			try {
+				let partialContent;
+				if (partialRef.includes("://")) {
+					if (!this.componentLoader) throw new Error(`Component loader not configured. Cannot load component: ${partialRef}`);
+					partialContent = await this.componentLoader.load(partialRef);
+				} else {
+					partialContent = this.partials.get(partialRef) || "";
+					if (!partialContent) throw new Error(`Partial not found: ${partialRef}`);
+				}
+				const rendered = await this.render(partialContent, {
+					...context,
+					data: partialData
+				});
+				result = result.replace(fullMatch, rendered);
+			} catch (error) {
+				const errorMsg = error instanceof Error ? error.message : String(error);
+				result = result.replace(fullMatch, `<!-- Partial error: ${errorMsg} -->`);
+			}
+		}
+		return result;
+	}
+	parsePartialArgs(argsStr, contextData) {
+		const args = { ...contextData };
+		const argRegex = /(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g;
+		let match;
+		while ((match = argRegex.exec(argsStr)) !== null) {
+			const [, key, quotedVal1, quotedVal2, unquotedVal] = match;
+			const value = quotedVal1 || quotedVal2 || unquotedVal;
+			if (value && !value.startsWith("\"") && !value.startsWith("'")) {
+				const contextValue = this.resolveValue(contextData, value);
+				args[key] = contextValue !== void 0 ? contextValue : value;
+			} else args[key] = value;
+		}
+		return args;
+	}
+	processHelpers(template$1, helpers) {
+		return template$1.replace(/\{\{(\w+)\s+([^}]+)\}\}/g, (match, helperName, args) => {
+			const helper = helpers[helperName];
+			if (!helper) return match;
+			const parsedArgs = args.split(/\s+/);
+			try {
+				const result = helper(...parsedArgs);
+				return String(result);
+			} catch {
+				return match;
+			}
+		});
+	}
+};
+var import_lib = /* @__PURE__ */ __toESM(require_lib(), 1);
 var HandlebarsTemplateEngine = class extends BaseTemplateEngine {
 	constructor() {
 		super();
@@ -27038,7 +26942,7 @@ var Executor = class {
 		return await this.executeFlow(flowContext, resumeFromStep);
 	}
 };
-var MemberLoader = class {
+var AgentLoader = class {
 	constructor(config) {
 		this.config = {
 			membersDir: config.membersDir || "./agents",
@@ -27109,8 +27013,9 @@ var MemberLoader = class {
 	}
 };
 function createLoader(config) {
-	return new MemberLoader(config);
+	return new AgentLoader(config);
 }
+const MemberLoader = AgentLoader;
 var EnsembleLoader = class {
 	constructor(config) {
 		this.config = {

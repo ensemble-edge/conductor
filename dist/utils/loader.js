@@ -18,7 +18,7 @@ import { APIAgent } from '../agents/api-agent.js';
  * For now, users will need to manually import and register their agents.
  * Future: We can build a CLI tool that generates the registration code.
  */
-export class MemberLoader {
+export class AgentLoader {
     constructor(config) {
         this.config = {
             membersDir: config.membersDir || './agents',
@@ -184,5 +184,7 @@ export class MemberLoader {
  * Helper function to create a loader instance
  */
 export function createLoader(config) {
-    return new MemberLoader(config);
+    return new AgentLoader(config);
 }
+// Backward compatibility alias
+export const MemberLoader = AgentLoader;
