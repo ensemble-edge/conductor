@@ -16,6 +16,7 @@ import { BaseAgent } from './base-agent.js';
 import { getProviderRegistry } from './think-providers/index.js';
 import { AIProvider } from '../types/constants.js';
 import { resolveValue } from '../utils/component-resolver.js';
+import { PromptParser } from '../prompts/prompt-parser.js';
 /**
  * Think Agent - Executes AI reasoning via provider system
  */
@@ -66,6 +67,15 @@ export class ThinkAgent extends BaseAgent {
         const { input, env } = context;
         // Load versioned prompt if configured
         await this.resolvePrompt(env);
+        // Render template variables in systemPrompt (e.g., {{input.name}})
+        if (this.thinkConfig.systemPrompt) {
+            const parser = new PromptParser({ allowUndefined: true });
+            this.thinkConfig.systemPrompt = parser.parse(this.thinkConfig.systemPrompt, {
+                input,
+                env,
+                context,
+            });
+        }
         // Load versioned schema if configured
         await this.resolveSchema(env);
         // Get provider from registry

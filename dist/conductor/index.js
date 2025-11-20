@@ -9700,6 +9700,112 @@ async function resolveValue(value, context) {
 		originalRef: value
 	};
 }
+var PromptParser = class {
+	constructor(options = {}) {
+		this.options = options;
+		this.defaultOptions = {
+			strict: false,
+			escapeHtml: false,
+			allowUndefined: true
+		};
+		this.options = {
+			...this.defaultOptions,
+			...options
+		};
+	}
+	parse(template$1, variables, options) {
+		const opts = {
+			...this.defaultOptions,
+			...this.options,
+			...options
+		};
+		let result = template$1;
+		result = this.parseConditionals(result, variables, opts);
+		result = this.parseLoops(result, variables, opts);
+		result = this.parseVariables(result, variables, opts);
+		return result;
+	}
+	parseVariables(template$1, variables, options) {
+		return template$1.replace(/\{\{([^#/][^}]*)\}\}/g, (match, varPath) => {
+			const trimmedPath = varPath.trim();
+			const value = this.resolveVariable(trimmedPath, variables);
+			if (value === void 0 || value === null) {
+				if (options.strict && !options.allowUndefined) throw new Error(`Variable not found: ${trimmedPath}`);
+				return options.allowUndefined ? "" : match;
+			}
+			const stringValue = String(value);
+			return options.escapeHtml ? this.escapeHtml(stringValue) : stringValue;
+		});
+	}
+	parseConditionals(template$1, variables, options) {
+		return template$1.replace(/\{\{#if\s+([^}]+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
+			const conditionValue = this.resolveVariable(condition.trim(), variables);
+			return this.isTruthy(conditionValue) ? content : "";
+		});
+	}
+	parseLoops(template$1, variables, options) {
+		return template$1.replace(/\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (match, arrayPath, content) => {
+			const array = this.resolveVariable(arrayPath.trim(), variables);
+			if (!Array.isArray(array)) {
+				if (options.strict) throw new Error(`Variable "${arrayPath}" is not an array`);
+				return "";
+			}
+			return array.map((item, index) => {
+				const itemContext = {
+					...variables,
+					this: item,
+					index,
+					first: index === 0,
+					last: index === array.length - 1
+				};
+				return this.parseVariables(content, itemContext, options);
+			}).join("");
+		});
+	}
+	resolveVariable(path$1, variables) {
+		if (path$1 === "this") return variables.this;
+		const parts = path$1.split(/[.\[\]]+/).filter((p) => p.length > 0);
+		let value = variables;
+		for (const part of parts) {
+			if (value === void 0 || value === null) return;
+			if (typeof value !== "object") return;
+			const index = parseInt(part, 10);
+			if (!isNaN(index) && Array.isArray(value)) value = value[index];
+			else if (typeof value === "object" && value !== null) value = value[part];
+			else return;
+		}
+		return value;
+	}
+	isTruthy(value) {
+		if (value === void 0 || value === null) return false;
+		if (typeof value === "boolean") return value;
+		if (typeof value === "number") return value !== 0;
+		if (typeof value === "string") return value.length > 0;
+		if (Array.isArray(value)) return value.length > 0;
+		if (typeof value === "object") return Object.keys(value).length > 0;
+		return true;
+	}
+	escapeHtml(text) {
+		const map$2 = {
+			"&": "&amp;",
+			"<": "&lt;",
+			">": "&gt;",
+			"\"": "&quot;",
+			"'": "&#039;"
+		};
+		return text.replace(/[&<>"']/g, (char) => map$2[char]);
+	}
+	static extractVariables(template$1) {
+		const regex = /\{\{([^}]+)\}\}/g;
+		const variables = /* @__PURE__ */ new Set();
+		let match;
+		while ((match = regex.exec(template$1)) !== null) {
+			const varPath = match[1].trim();
+			if (!varPath.startsWith("#") && !varPath.startsWith("/")) variables.add(varPath);
+		}
+		return Array.from(variables);
+	}
+};
 init_base_agent();
 var ThinkAgent = class extends BaseAgent {
 	constructor(config, providerRegistry) {
@@ -9728,6 +9834,14 @@ var ThinkAgent = class extends BaseAgent {
 	async run(context) {
 		const { input, env } = context;
 		await this.resolvePrompt(env);
+		if (this.thinkConfig.systemPrompt) {
+			const parser = new PromptParser({ allowUndefined: true });
+			this.thinkConfig.systemPrompt = parser.parse(this.thinkConfig.systemPrompt, {
+				input,
+				env,
+				context
+			});
+		}
 		await this.resolveSchema(env);
 		const providerId = this.thinkConfig.provider || AIProvider.Anthropic;
 		const provider = this.providerRegistry.get(providerId);
