@@ -20,6 +20,7 @@ import type { AIMessage, AIProviderConfig, AIProviderResponse } from './think-pr
 import { AIProvider } from '../types/constants.js'
 import type { ConductorEnv } from '../types/env.js'
 import { resolveValue, type ComponentResolutionContext } from '../utils/component-resolver.js'
+import { PromptParser } from '../prompts/prompt-parser.js'
 
 export interface ThinkConfig {
   model?: string
@@ -102,6 +103,16 @@ export class ThinkAgent extends BaseAgent {
 
     // Load versioned prompt if configured
     await this.resolvePrompt(env)
+
+    // Render template variables in systemPrompt (e.g., {{input.name}})
+    if (this.thinkConfig.systemPrompt) {
+      const parser = new PromptParser({ allowUndefined: true })
+      this.thinkConfig.systemPrompt = parser.parse(this.thinkConfig.systemPrompt, {
+        input,
+        env,
+        context,
+      })
+    }
 
     // Load versioned schema if configured
     await this.resolveSchema(env)

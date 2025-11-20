@@ -451,4 +451,108 @@ describe('ThinkAgent', () => {
 			expect(result.data).toHaveProperty('message');
 		});
 	});
+
+	describe('Template Rendering', () => {
+		it('should render Handlebars templates in systemPrompt', async () => {
+			let capturedMessages: AIMessage[] = [];
+
+			const mockProvider: AIProviderInterface = {
+				async execute(params) {
+					capturedMessages = params.messages;
+					return { message: 'response', usage: { inputTokens: 5, outputTokens: 3 } };
+				},
+				getConfigError: () => null,
+			};
+
+			mockRegistry.register(AIProvider.Anthropic, mockProvider);
+
+			const config: AgentConfig = {
+				name: 'test-think',
+				operation: 'think',
+				config: {
+					systemPrompt: 'Hello {{input.name}}, your role is {{input.role}}!',
+				},
+			};
+
+			const agent = new ThinkAgent(config, mockRegistry);
+			await agent.execute({
+				input: { name: 'Alice', role: 'engineer' },
+				env: mockEnv as ConductorEnv,
+				ctx: {} as ExecutionContext,
+			});
+
+			// System prompt should have rendered template variables
+			expect(capturedMessages).toHaveLength(2);
+			expect(capturedMessages[0].role).toBe('system');
+			expect(capturedMessages[0].content).toBe('Hello Alice, your role is engineer!');
+		});
+
+		it('should handle nested properties in templates', async () => {
+			let capturedMessages: AIMessage[] = [];
+
+			const mockProvider: AIProviderInterface = {
+				async execute(params) {
+					capturedMessages = params.messages;
+					return { message: 'response', usage: { inputTokens: 5, outputTokens: 3 } };
+				},
+				getConfigError: () => null,
+			};
+
+			mockRegistry.register(AIProvider.Anthropic, mockProvider);
+
+			const config: AgentConfig = {
+				name: 'test-think',
+				operation: 'think',
+				config: {
+					systemPrompt: 'User: {{input.user.name}}, Email: {{input.user.email}}',
+				},
+			};
+
+			const agent = new ThinkAgent(config, mockRegistry);
+			await agent.execute({
+				input: {
+					user: {
+						name: 'Bob',
+						email: 'bob@example.com',
+					},
+				},
+				env: mockEnv as ConductorEnv,
+				ctx: {} as ExecutionContext,
+			});
+
+			expect(capturedMessages[0].content).toBe('User: Bob, Email: bob@example.com');
+		});
+
+		it('should handle undefined variables gracefully', async () => {
+			let capturedMessages: AIMessage[] = [];
+
+			const mockProvider: AIProviderInterface = {
+				async execute(params) {
+					capturedMessages = params.messages;
+					return { message: 'response', usage: { inputTokens: 5, outputTokens: 3 } };
+				},
+				getConfigError: () => null,
+			};
+
+			mockRegistry.register(AIProvider.Anthropic, mockProvider);
+
+			const config: AgentConfig = {
+				name: 'test-think',
+				operation: 'think',
+				config: {
+					systemPrompt: 'Hello {{input.name}}, optional: {{input.optional}}',
+				},
+			};
+
+			const agent = new ThinkAgent(config, mockRegistry);
+			await agent.execute({
+				input: { name: 'Charlie' }, // missing 'optional' field
+				env: mockEnv as ConductorEnv,
+				ctx: {} as ExecutionContext,
+			});
+
+			// Should replace undefined with empty string
+			expect(capturedMessages[0].content).toBe('Hello Charlie, optional: ');
+		});
+	});
 });
