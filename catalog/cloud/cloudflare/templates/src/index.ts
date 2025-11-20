@@ -2,11 +2,11 @@
  * Conductor Worker - Your AI Orchestration System
  *
  * This template shows how to use Conductor with:
- * - ✅ REST API for execution (optional - comment out if not needed)
- * - ✅ Custom endpoints (your own logic)
- * - ✅ Page routing (automatic web server for your pages)
- * - ✅ Durable Objects for stateful workflows
- * - ✅ Scheduled execution (cron triggers)
+ * - REST API for execution (optional - comment out if not needed)
+ * - Custom endpoints (your own logic)
+ * - Page routing (automatic web server for your pages)
+ * - Durable Objects for stateful workflows
+ * - Scheduled execution (cron triggers)
  *
  * Choose your approach:
  * 1. Use the built-in API (recommended for most projects)

@@ -64,6 +64,10 @@ export default defineConfig({
   rolldown: {
     output: {
       platform: 'neutral', // CRITICAL: Prevents Node.js-specific code
+      charset: 'utf8', // Support Unicode characters (emojis, etc.)
     },
+  },
+  esbuild: {
+    charset: 'utf8', // Support Unicode characters in source files
   },
 })
