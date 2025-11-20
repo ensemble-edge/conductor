@@ -5,7 +5,7 @@
  */
 export { createConductorAPI } from './app.js';
 export type { APIConfig } from './app.js';
-export { createAutoDiscoveryAPI, getMemberLoader, getEnsembleLoader, } from './auto-discovery.js';
+export { createAutoDiscoveryAPI, getMemberLoader, getEnsembleLoader } from './auto-discovery.js';
 export type { AutoDiscoveryAPIConfig } from './auto-discovery.js';
 export type { ExecuteRequest, ExecuteResponse, AsyncExecuteRequest, AsyncExecuteResponse, StreamEvent, MemberListResponse, MemberDetailResponse, HealthResponse, ErrorResponse, AuthConfig, AuthContext, RateLimitConfig, RateLimitResult, ConductorContext, } from './types.js';
 export { createAuthMiddleware, requireAuth, errorHandler, requestId, timing, } from './middleware/index.js';

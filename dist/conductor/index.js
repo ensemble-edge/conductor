@@ -9706,9 +9706,10 @@ var ThinkAgent = class extends BaseAgent {
 		super(config);
 		this.providerRegistry = providerRegistry || getProviderRegistry();
 		const cfg = config.config;
+		const model = cfg?.model || "claude-3-5-haiku-20241022";
 		this.thinkConfig = {
-			model: cfg?.model || "claude-3-5-haiku-20241022",
-			provider: cfg?.provider || AIProvider.Anthropic,
+			model,
+			provider: cfg?.provider || this.detectProvider(model),
 			temperature: cfg?.temperature || .7,
 			maxTokens: cfg?.maxTokens || 1e3,
 			apiKey: cfg?.apiKey,
@@ -9717,6 +9718,12 @@ var ThinkAgent = class extends BaseAgent {
 			prompt: cfg?.prompt,
 			schema: cfg?.schema
 		};
+	}
+	detectProvider(model) {
+		if (model.startsWith("@cf/")) return AIProvider.Cloudflare;
+		if (model.startsWith("gpt-") || model.startsWith("o1-") || model.startsWith("text-")) return AIProvider.OpenAI;
+		if (model.startsWith("claude-")) return AIProvider.Anthropic;
+		return AIProvider.Anthropic;
 	}
 	async run(context) {
 		const { input, env } = context;
