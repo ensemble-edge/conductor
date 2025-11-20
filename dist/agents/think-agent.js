@@ -4,8 +4,13 @@
  * Handles AI reasoning using composition-based provider system.
  * Reduced from 355 lines to ~160 lines through proper abstraction.
  *
+ * Auto-detection: Provider is automatically detected from model name:
+ * - Models starting with @cf/ → Cloudflare Workers AI
+ * - Models starting with gpt- or o1- → OpenAI
+ * - Models starting with claude- → Anthropic
+ *
  * Default model: claude-3-5-haiku-20241022 (Anthropic Haiku 3.5)
- * Default provider: anthropic
+ * Default provider: anthropic (when model doesn't match auto-detection patterns)
  */
 import { BaseAgent } from './base-agent.js';
 import { getProviderRegistry } from './think-providers/index.js';
@@ -20,9 +25,12 @@ export class ThinkAgent extends BaseAgent {
         // Use injected registry for testing, or global registry for production
         this.providerRegistry = providerRegistry || getProviderRegistry();
         const cfg = config.config;
+        const model = cfg?.model || 'claude-3-5-haiku-20241022';
+        // Auto-detect provider from model name if not explicitly set
+        const provider = cfg?.provider || this.detectProvider(model);
         this.thinkConfig = {
-            model: cfg?.model || 'claude-3-5-haiku-20241022',
-            provider: cfg?.provider || AIProvider.Anthropic,
+            model,
+            provider,
             temperature: cfg?.temperature || 0.7,
             maxTokens: cfg?.maxTokens || 1000,
             apiKey: cfg?.apiKey,
@@ -31,6 +39,25 @@ export class ThinkAgent extends BaseAgent {
             prompt: cfg?.prompt,
             schema: cfg?.schema,
         };
+    }
+    /**
+     * Auto-detect AI provider from model name
+     */
+    detectProvider(model) {
+        // Cloudflare Workers AI models start with @cf/
+        if (model.startsWith('@cf/')) {
+            return AIProvider.Cloudflare;
+        }
+        // OpenAI models (gpt-*, o1-*, etc.)
+        if (model.startsWith('gpt-') || model.startsWith('o1-') || model.startsWith('text-')) {
+            return AIProvider.OpenAI;
+        }
+        // Anthropic models (claude-*)
+        if (model.startsWith('claude-')) {
+            return AIProvider.Anthropic;
+        }
+        // Default to Anthropic for unknown models
+        return AIProvider.Anthropic;
     }
     /**
      * Execute AI reasoning via provider system

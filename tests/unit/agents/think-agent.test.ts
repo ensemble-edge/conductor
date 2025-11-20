@@ -79,6 +79,71 @@ describe('ThinkAgent', () => {
 			expect(thinkConfig.maxTokens).toBe(1000);
 		});
 
+		it('should auto-detect Cloudflare provider from @cf/ model prefix', () => {
+			const config: AgentConfig = {
+				name: 'test-think',
+				operation: 'think',
+				config: {
+					model: '@cf/meta/llama-3.1-8b-instruct',
+				},
+			};
+
+			const agent = new ThinkAgent(config, mockRegistry);
+			const thinkConfig = agent.getThinkConfig();
+
+			expect(thinkConfig.model).toBe('@cf/meta/llama-3.1-8b-instruct');
+			expect(thinkConfig.provider).toBe(AIProvider.Cloudflare);
+		});
+
+		it('should auto-detect OpenAI provider from gpt- model prefix', () => {
+			const config: AgentConfig = {
+				name: 'test-think',
+				operation: 'think',
+				config: {
+					model: 'gpt-4-turbo',
+				},
+			};
+
+			const agent = new ThinkAgent(config, mockRegistry);
+			const thinkConfig = agent.getThinkConfig();
+
+			expect(thinkConfig.model).toBe('gpt-4-turbo');
+			expect(thinkConfig.provider).toBe(AIProvider.OpenAI);
+		});
+
+		it('should auto-detect Anthropic provider from claude- model prefix', () => {
+			const config: AgentConfig = {
+				name: 'test-think',
+				operation: 'think',
+				config: {
+					model: 'claude-3-opus-20240229',
+				},
+			};
+
+			const agent = new ThinkAgent(config, mockRegistry);
+			const thinkConfig = agent.getThinkConfig();
+
+			expect(thinkConfig.model).toBe('claude-3-opus-20240229');
+			expect(thinkConfig.provider).toBe(AIProvider.Anthropic);
+		});
+
+		it('should respect explicitly set provider even with auto-detection', () => {
+			const config: AgentConfig = {
+				name: 'test-think',
+				operation: 'think',
+				config: {
+					model: '@cf/meta/llama-3.1-8b-instruct',
+					provider: AIProvider.Custom, // Explicitly override
+				},
+			};
+
+			const agent = new ThinkAgent(config, mockRegistry);
+			const thinkConfig = agent.getThinkConfig();
+
+			expect(thinkConfig.model).toBe('@cf/meta/llama-3.1-8b-instruct');
+			expect(thinkConfig.provider).toBe(AIProvider.Custom); // Should use explicit value
+		});
+
 		it('should accept custom config', () => {
 			const config: AgentConfig = {
 				name: 'test-think',
