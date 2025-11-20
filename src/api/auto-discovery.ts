@@ -9,7 +9,7 @@
 
 import type { Hono } from 'hono'
 import { createConductorAPI, type APIConfig } from './app.js'
-import { MemberLoader } from '../utils/loader.js'
+import { AgentLoader } from '../utils/loader.js'
 import { EnsembleLoader } from '../utils/ensemble-loader.js'
 import { Executor } from '../runtime/executor.js'
 import { createLogger } from '../observability/index.js'
@@ -44,7 +44,7 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
 }
 
 // Global loaders (initialized once per Worker instance)
-let memberLoader: MemberLoader | null = null
+let memberLoader: AgentLoader | null = null
 let ensembleLoader: EnsembleLoader | null = null
 let initialized = false
 
@@ -61,8 +61,8 @@ async function initializeLoaders(
   }
 
   try {
-    // Initialize MemberLoader
-    memberLoader = new MemberLoader({
+    // Initialize AgentLoader
+    memberLoader = new AgentLoader({
       membersDir: './agents',
       ensemblesDir: './ensembles',
       env,
@@ -212,7 +212,7 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
  * Get the initialized MemberLoader instance
  * Returns null if not yet initialized
  */
-export function getMemberLoader(): MemberLoader | null {
+export function getMemberLoader(): AgentLoader | null {
   return memberLoader
 }
 

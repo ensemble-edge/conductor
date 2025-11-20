@@ -7,7 +7,7 @@
  * This is the recommended way to use Conductor for most projects.
  */
 import { createConductorAPI } from './app.js';
-import { MemberLoader } from '../utils/loader.js';
+import { AgentLoader } from '../utils/loader.js';
 import { EnsembleLoader } from '../utils/ensemble-loader.js';
 import { Executor } from '../runtime/executor.js';
 import { createLogger } from '../observability/index.js';
@@ -24,8 +24,8 @@ async function initializeLoaders(env, ctx, config) {
         return; // Already initialized
     }
     try {
-        // Initialize MemberLoader
-        memberLoader = new MemberLoader({
+        // Initialize AgentLoader
+        memberLoader = new AgentLoader({
             membersDir: './agents',
             ensemblesDir: './ensembles',
             env,

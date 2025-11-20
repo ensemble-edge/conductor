@@ -7,7 +7,7 @@
  * This is the recommended way to use Conductor for most projects.
  */
 import { type APIConfig } from './app.js';
-import { MemberLoader } from '../utils/loader.js';
+import { AgentLoader } from '../utils/loader.js';
 import { EnsembleLoader } from '../utils/ensemble-loader.js';
 export interface AutoDiscoveryAPIConfig extends APIConfig {
     /**
@@ -66,7 +66,7 @@ export declare function createAutoDiscoveryAPI(config?: AutoDiscoveryAPIConfig):
  * Get the initialized MemberLoader instance
  * Returns null if not yet initialized
  */
-export declare function getMemberLoader(): MemberLoader | null;
+export declare function getMemberLoader(): AgentLoader | null;
 /**
  * Get the initialized EnsembleLoader instance
  * Returns null if not yet initialized
