@@ -1,0 +1,19 @@
+{
+  "name": "@conductor/playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Development playground for testing Conductor and plugins",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "echo 'Playground does not build'",
+    "test": "echo 'Playground has no tests'"
+  },
+  "dependencies": {
+    "@ensemble-edge/conductor": "workspace:*",
+    "@conductor/unkey": "workspace:*"
+  },
+  "devDependencies": {
+    "wrangler": "^3.107.0"
+  }
+}

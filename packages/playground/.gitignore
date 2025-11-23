@@ -1,0 +1,13 @@
+# Environment variables
+.dev.vars
+
+# Wrangler
+.wrangler/
+wrangler.toml
+
+# Build outputs
+dist/
+.output/
+
+# Logs
+*.log

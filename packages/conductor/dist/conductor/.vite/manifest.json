@@ -1,0 +1,28 @@
+{
+  "_worker-entry-B-nP8wBn.js": {
+    "file": "worker-entry-B-nP8wBn.js",
+    "name": "worker-entry",
+    "dynamicImports": [
+      "src/cache/cache.ts",
+      "src/cache/cache.ts"
+    ]
+  },
+  "src/cache/cache.ts": {
+    "file": "cache-D9vp1mnR.js",
+    "name": "cache",
+    "src": "src/cache/cache.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_worker-entry-B-nP8wBn.js"
+    ]
+  },
+  "virtual:cloudflare/worker-entry": {
+    "file": "index.js",
+    "name": "index",
+    "src": "virtual:cloudflare/worker-entry",
+    "isEntry": true,
+    "imports": [
+      "_worker-entry-B-nP8wBn.js"
+    ]
+  }
+}
