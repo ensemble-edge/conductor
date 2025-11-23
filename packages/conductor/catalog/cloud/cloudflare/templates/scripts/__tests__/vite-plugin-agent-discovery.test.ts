@@ -3,6 +3,17 @@ import { agentDiscoveryPlugin } from '../vite-plugin-agent-discovery'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
+import type { Plugin } from 'vite'
+
+// Helper to call plugin hooks that might be functions or objects with handler
+function callHook<T extends (...args: any[]) => any>(
+  hook: T | { handler: T } | undefined,
+  ...args: Parameters<T>
+): ReturnType<T> | undefined {
+  if (!hook) return undefined
+  if (typeof hook === 'function') return hook(...args)
+  return (hook as { handler: T }).handler(...args)
+}
 
 describe('agentDiscoveryPlugin', () => {
   let tempDir: string
@@ -26,13 +37,13 @@ describe('agentDiscoveryPlugin', () => {
 
   it('should resolve virtual module ID', () => {
     const plugin = agentDiscoveryPlugin()
-    const resolved = plugin.resolveId?.('virtual:conductor-agents')
+    const resolved = callHook(plugin.resolveId as any, 'virtual:conductor-agents')
     expect(resolved).toBe('\0virtual:conductor-agents')
   })
 
   it('should not resolve other module IDs', () => {
     const plugin = agentDiscoveryPlugin()
-    const resolved = plugin.resolveId?.('some-other-module')
+    const resolved = callHook(plugin.resolveId as any, 'some-other-module')
     expect(resolved).toBeUndefined()
   })
 
@@ -41,9 +52,9 @@ describe('agentDiscoveryPlugin', () => {
 
     // Mock config
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-agents')
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents')
     expect(code).toContain('export const agents = []')
     expect(code).toContain('export const agentsMap = new Map()')
   })
@@ -63,14 +74,15 @@ description: A hello agent`
     // Create plugin and configure
     const plugin = agentDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
     // Load virtual module
-    const code = plugin.load?.('\0virtual:conductor-agents') as string
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
     expect(code).toBeDefined()
-    expect(code).toContain(`name: "agent"`)
-    expect(code).toContain('name: hello')
-    expect(code).toContain('operation: code')
+    expect(code).toContain(`name: "hello"`)
+    expect(code).toContain('config: atob(')
+    // Verify the base64-encoded config can be decoded back
+    expect(code).toContain('export const agents = [')
   })
 
   it('should discover agents with handlers', () => {
@@ -90,12 +102,12 @@ operation: code`
     // Create plugin and configure
     const plugin = agentDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
     // Load virtual module
-    const code = plugin.load?.('\0virtual:conductor-agents') as string
-    expect(code).toContain(`import * as handler_agent from`)
-    expect(code).toContain(`handler: () => Promise.resolve(handler_agent.default || handler_agent)`)
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+    expect(code).toContain(`import * as handler_hello from`)
+    expect(code).toContain(`handler: () => Promise.resolve(handler_hello.default || handler_hello)`)
   })
 
   it('should exclude generate-docs directory by default', () => {
@@ -113,13 +125,13 @@ operation: code`
     // Create plugin and configure
     const plugin = agentDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
     // Load virtual module
-    const code = plugin.load?.('\0virtual:conductor-agents') as string
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
     expect(code).not.toContain('generate-docs')
-    expect(code).toContain('name: hello')
-    expect(code).toContain('operation: code')
+    expect(code).toContain('name: "hello"')
+    expect(code).toContain('config: atob(')
   })
 
   it('should support custom file extensions', () => {
@@ -132,10 +144,11 @@ operation: code`
     // Create plugin with custom extension
     const plugin = agentDiscoveryPlugin({ fileExtension: '.yml' })
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-agents') as string
-    expect(code).toContain('name: hello')
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+    expect(code).toContain('name: "hello"')
+    expect(code).toContain('config: atob(')
   })
 
   it('should handle multiple agents', () => {
@@ -152,9 +165,9 @@ operation: code`
 
     const plugin = agentDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-agents') as string
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
     expect(code).toContain('agent1')
     expect(code).toContain('agent2')
     expect(code).toContain('agent3')
@@ -170,9 +183,9 @@ operation: code`
 
     const plugin = agentDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-agents') as string
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
     // Ensure no backslashes in import paths
     expect(code).not.toMatch(/import.*\\/)
   })
