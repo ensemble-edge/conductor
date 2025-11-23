@@ -4,6 +4,7 @@
  * Chain of responsibility pattern for resolving template values.
  * Each resolver handles a specific type of interpolation.
  */
+import { applyFilters } from './filters.js';
 /**
  * Resolves string interpolations supporting two syntaxes:
  * - YAML syntax: ${input.x}, ${state.y} - used in YAML configuration files
@@ -12,6 +13,11 @@
  * Supports both full replacement and partial interpolation:
  * - Full: '${input.name}' or '{{input.name}}' → returns value as-is (any type)
  * - Partial: 'Hello ${input.name}!' or 'Hello {{input.name}}!' → returns interpolated string
+ *
+ * Supports filter chains:
+ * - ${input.text | uppercase}
+ * - ${input.text | split(" ") | length}
+ * - ${input.items | first | default("none")}
  */
 export class StringResolver {
     constructor() {
@@ -57,9 +63,36 @@ export class StringResolver {
         return result;
     }
     /**
-     * Traverse context using dot-separated path
+     * Traverse context using dot-separated path with optional filter chain
+     * Supports: input.text | split(' ') | length
+     * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
      */
     traversePath(path, context) {
+        // Check if path contains filter syntax (single pipe character, not ||)
+        // Use a regex to find single pipes that aren't part of ||
+        const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path);
+        if (hasSinglePipe) {
+            // Split by single pipes only (not ||)
+            const parts = path.split(/(?<!\|)\|(?!\|)/);
+            const propertyPath = parts[0].trim();
+            // Get the initial value
+            let value = this.resolvePropertyPath(propertyPath, context);
+            // Apply filter chain if present
+            if (parts.length > 1) {
+                const filterChain = parts.slice(1).map(f => f.trim()).filter(f => f.length > 0);
+                if (filterChain.length > 0) {
+                    value = applyFilters(value, filterChain);
+                }
+            }
+            return value;
+        }
+        // No filters, just resolve property path
+        return this.resolvePropertyPath(path, context);
+    }
+    /**
+     * Resolve a simple dot-separated property path
+     */
+    resolvePropertyPath(path, context) {
         const parts = path.split('.').map((p) => p.trim());
         let value = context;
         for (const part of parts) {

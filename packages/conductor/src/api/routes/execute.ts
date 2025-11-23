@@ -73,18 +73,26 @@ execute.post('/:ensembleName', async (c: ConductorContext) => {
     }
 
     // Execute ensemble
-    const result = await executor.executeEnsemble(ensemble, {
-      input: body.input || {},
-      metadata: {
-        requestId,
-        timestamp: startTime,
-      },
-    })
+    const result = await executor.executeEnsemble(ensemble, body.input || {})
+
+    // Handle Result type - unwrap or return error
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'ExecutionError',
+          message: result.error.message,
+          code: result.error.code,
+          timestamp: Date.now(),
+          requestId,
+        },
+        500
+      )
+    }
 
     // Return response
     return c.json({
       success: true,
-      output: result,
+      output: result.value.output,
       metadata: {
         executionId: requestId || 'unknown',
         duration: Date.now() - startTime,

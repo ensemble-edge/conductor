@@ -210,7 +210,12 @@ schema:
   output:
     result: string
 `,
-		ts: `export default async function(input: any): Promise<{ result: string }> {
+		ts: `export default async function(context: any): Promise<{ result: string }> {
+  console.error('[DEBUG] context.input:', JSON.stringify(context.input))
+  console.error('[DEBUG] context.input type:', typeof context.input)
+  console.error('[DEBUG] context.input keys:', context.input ? Object.keys(context.input) : 'null')
+
+  const input = context.input
   const { text, operation } = input
   let result: string
   switch (operation) {
@@ -236,7 +241,7 @@ schema:
   output:
     result: number
 `,
-		ts: `export default async function(input: any): Promise<{ result: number }> {
+		ts: `export default async function({ input }: { input: any }): Promise<{ result: number }> {
   const { a, b, operation } = input
   let result: number
   switch (operation) {
@@ -264,7 +269,7 @@ schema:
     isValid: boolean
     errors: array
 `,
-		ts: `export default async function(input: any): Promise<any> {
+		ts: `export default async function({ input }: { input: any }): Promise<any> {
   const { email, age, username } = input
   const errors = []
 
@@ -330,8 +335,8 @@ flow:
       username: \${input.username}
 
 output:
-  wordCount: \${input.text.split(' ').length}
-  textLength: \${input.text.length}
+  wordCount: \${input.text | split(" ") | length}
+  textLength: \${input.text | length}
   validation: \${validate.output}
 `
 	)

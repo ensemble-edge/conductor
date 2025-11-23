@@ -330,6 +330,7 @@ declare const EnsembleSchema: z.ZodObject<{
     }>]>, "many">>;
     flow: z.ZodArray<z.ZodObject<{
         agent: z.ZodString;
+        id: z.ZodOptional<z.ZodString>;
         input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
         state: z.ZodOptional<z.ZodObject<{
             use: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
@@ -417,6 +418,7 @@ declare const EnsembleSchema: z.ZodObject<{
             use?: string[] | undefined;
         } | undefined;
         input?: Record<string, unknown> | undefined;
+        id?: string | undefined;
         cache?: {
             ttl?: number | undefined;
             bypass?: boolean | undefined;
@@ -442,6 +444,7 @@ declare const EnsembleSchema: z.ZodObject<{
             use?: string[] | undefined;
         } | undefined;
         input?: Record<string, unknown> | undefined;
+        id?: string | undefined;
         cache?: {
             ttl?: number | undefined;
             bypass?: boolean | undefined;
@@ -471,6 +474,7 @@ declare const EnsembleSchema: z.ZodObject<{
             use?: string[] | undefined;
         } | undefined;
         input?: Record<string, unknown> | undefined;
+        id?: string | undefined;
         cache?: {
             ttl?: number | undefined;
             bypass?: boolean | undefined;
@@ -574,6 +578,7 @@ declare const EnsembleSchema: z.ZodObject<{
             use?: string[] | undefined;
         } | undefined;
         input?: Record<string, unknown> | undefined;
+        id?: string | undefined;
         cache?: {
             ttl?: number | undefined;
             bypass?: boolean | undefined;

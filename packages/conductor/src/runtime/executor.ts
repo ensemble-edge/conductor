@@ -491,7 +491,9 @@ export class Executor {
     }
 
     // Store agent output in context for future interpolations
-    executionContext[step.agent] = {
+    // Use step ID if provided, otherwise use agent name
+    const contextKey = step.id || step.agent
+    executionContext[contextKey] = {
       output: response.data,
     }
 
