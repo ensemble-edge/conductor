@@ -16,9 +16,14 @@ export class TestServer {
 	private process?: ChildProcess
 	private port: number
 
+	private inspectorPort: number
+
 	constructor(private projectDir: string, options: ServerOptions = {}) {
 		// Use a random port between 9000-9999 to avoid conflicts
 		this.port = options.port || (9000 + Math.floor(Math.random() * 1000))
+		// Use a random inspector port to avoid conflicts when running tests in parallel
+		// Avoid 9229 (default) and 9230 (common) - use 10000-10999 instead
+		this.inspectorPort = 10000 + Math.floor(Math.random() * 1000)
 	}
 
 	/**
@@ -28,15 +33,13 @@ export class TestServer {
 		return new Promise((resolve, reject) => {
 			console.log(`🚀 Starting dev server on port ${this.port}...`)
 
-			this.process = spawn(
-				'npx',
-				['wrangler', 'dev', '--port', String(this.port), '--local-protocol', 'http', '--ip', '0.0.0.0'],
-				{
-					cwd: this.projectDir,
-					env: { ...process.env, NODE_ENV: 'test' },
-					stdio: ['ignore', 'pipe', 'pipe']
-				}
-			)
+			// IMPORTANT: Must cd into directory first for wrangler to work properly in dev containers
+			const command = `cd "${this.projectDir}" && npx wrangler dev --port ${this.port} --inspector-port ${this.inspectorPort} --local-protocol http --ip 0.0.0.0`
+
+			this.process = spawn('sh', ['-c', command], {
+				env: { ...process.env, NODE_ENV: 'test' },
+				stdio: ['ignore', 'pipe', 'pipe']
+			})
 
 			const timeout = setTimeout(() => {
 				this.stop()
