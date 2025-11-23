@@ -1,22 +1,116 @@
 /**
  * Execute Routes
  *
- * Endpoints for executing agents synchronously and asynchronously.
+ * Endpoints for executing agents and ensembles synchronously.
  */
 
 import { Hono } from 'hono'
 import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types.js'
 import { getBuiltInRegistry } from '../../agents/built-in/registry.js'
-import { getMemberLoader } from '../auto-discovery.js'
+import { getMemberLoader, getEnsembleLoader } from '../auto-discovery.js'
 import { Operation } from '../../types/constants.js'
 import type { AgentExecutionContext } from '../../agents/base-agent.js'
+import { Executor } from '../../runtime/executor.js'
 import { createLogger } from '../../observability/index.js'
 
 const execute = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-execute' })
 
 /**
- * POST /execute - Execute a agent synchronously
+ * POST /:ensembleName - Execute an ensemble synchronously
+ */
+execute.post('/:ensembleName', async (c: ConductorContext) => {
+  const startTime = Date.now()
+  const requestId = c.get('requestId')
+  const ensembleName = c.req.param('ensembleName')
+
+  // Parse request body
+  const body = await c.req.json<{ input?: any }>()
+
+  try {
+    // Get ensemble loader
+    const ensembleLoader = getEnsembleLoader()
+
+    if (!ensembleLoader) {
+      return c.json(
+        {
+          error: 'NotInitialized',
+          message: 'Ensemble loader not initialized',
+          timestamp: Date.now(),
+          requestId,
+        },
+        503
+      )
+    }
+
+    // Check if ensemble exists
+    const ensemble = ensembleLoader.getEnsemble(ensembleName)
+    if (!ensemble) {
+      return c.json(
+        {
+          error: 'NotFound',
+          message: `Ensemble not found: ${ensembleName}`,
+          path: `/api/v1/execute/${ensembleName}`,
+          timestamp: Date.now(),
+          requestId,
+        },
+        404
+      )
+    }
+
+    // Create executor
+    const executor = new Executor({
+      env: c.env,
+      ctx: c.executionCtx,
+    })
+
+    // Register all agents from memberLoader
+    const memberLoader = getMemberLoader()
+    if (memberLoader) {
+      for (const agent of memberLoader.getAllMembers()) {
+        executor.registerAgent(agent)
+      }
+    }
+
+    // Execute ensemble
+    const result = await executor.executeEnsemble(ensemble, {
+      input: body.input || {},
+      metadata: {
+        requestId,
+        timestamp: startTime,
+      },
+    })
+
+    // Return response
+    return c.json({
+      success: true,
+      output: result,
+      metadata: {
+        executionId: requestId || 'unknown',
+        duration: Date.now() - startTime,
+        timestamp: Date.now(),
+      },
+    })
+  } catch (error) {
+    logger.error('Ensemble execution failed', error instanceof Error ? error : undefined, {
+      requestId,
+      ensembleName,
+    })
+
+    return c.json(
+      {
+        error: 'ExecutionError',
+        message: (error as Error).message || 'Execution failed',
+        timestamp: Date.now(),
+        requestId,
+      },
+      500
+    )
+  }
+})
+
+/**
+ * POST / - Execute a agent synchronously (legacy, body-based routing)
  */
 execute.post('/', async (c: ConductorContext) => {
   const startTime = Date.now()

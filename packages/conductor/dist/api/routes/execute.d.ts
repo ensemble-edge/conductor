@@ -1,7 +1,7 @@
 /**
  * Execute Routes
  *
- * Endpoints for executing agents synchronously and asynchronously.
+ * Endpoints for executing agents and ensembles synchronously.
  */
 import { Hono } from 'hono';
 declare const execute: Hono<{

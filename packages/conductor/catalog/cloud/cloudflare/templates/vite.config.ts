@@ -45,7 +45,7 @@ export default defineConfig({
       ],
       output: {
         preserveModules: false,
-        exports: 'named',
+        exports: 'auto',
       },
     },
     minify: false,
