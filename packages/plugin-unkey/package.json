@@ -1,0 +1,54 @@
+{
+  "name": "@conductor/unkey",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Unkey authentication plugin for Conductor",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "conductor",
+    "plugin",
+    "unkey",
+    "authentication",
+    "api-keys",
+    "auth"
+  ],
+  "author": "Ensemble Edge",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ensemble-edge/conductor",
+    "directory": "packages/plugin-unkey"
+  },
+  "peerDependencies": {
+    "@ensemble-edge/conductor": "^0.1.0"
+  },
+  "dependencies": {
+    "@unkey/api": "^0.25.0"
+  },
+  "devDependencies": {
+    "@ensemble-edge/conductor": "workspace:*",
+    "typescript": "^5.5.2",
+    "vitest": "~3.2.0"
+  }
+}

@@ -25,30 +25,45 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Dependencies
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
         run: |
-          npm ci
-          # Workaround for npm optional dependency bug with rollup (npm/cli#4828)
-          npm install --no-save @rollup/rollup-linux-x64-gnu
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Run type checking
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Run linting
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Run tests
-        run: npm test
+        run: pnpm test
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Create Release Pull Request or Publish to npm
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: npm run release
-          version: npm run version-packages
+          publish: pnpm run release
+          version: pnpm run version-packages
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}

@@ -1,0 +1,5 @@
+# Unkey Plugin
+UNKEY_ROOT_KEY=your_unkey_root_key_here
+UNKEY_API_ID=your_unkey_api_id_here
+
+# Add other plugin environment variables as needed
