@@ -164,6 +164,7 @@ const EnsembleSchema = z.object({
   flow: z.array(
     z.object({
       agent: z.string().min(1, 'Agent name is required'),
+      id: z.string().optional(),
       input: z.record(z.unknown()).optional(),
       state: z
         .object({

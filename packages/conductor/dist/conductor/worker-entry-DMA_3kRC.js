@@ -9832,6 +9832,77 @@ const enumType = ZodEnum.create;
 ZodPromise.create;
 ZodOptional.create;
 ZodNullable.create;
+const filters$1 = {
+  // String filters
+  uppercase: (str) => String(str).toUpperCase(),
+  lowercase: (str) => String(str).toLowerCase(),
+  capitalize: (str) => {
+    const s = String(str);
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  },
+  trim: (str) => String(str).trim(),
+  // Array/String filters
+  split: (str, delimiter = " ") => String(str).split(delimiter),
+  join: (arr, delimiter = ", ") => arr.join(delimiter),
+  length: (value) => {
+    if (typeof value === "string") return value.length;
+    if (Array.isArray(value)) return value.length;
+    return 0;
+  },
+  // Array filters
+  first: (arr) => Array.isArray(arr) && arr.length > 0 ? arr[0] : void 0,
+  last: (arr) => Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : void 0,
+  slice: (arr, start, end) => Array.isArray(arr) ? arr.slice(start, end) : [],
+  reverse: (arr) => Array.isArray(arr) ? [...arr].reverse() : [],
+  sort: (arr) => Array.isArray(arr) ? [...arr].sort() : [],
+  // Number filters
+  abs: (num) => Math.abs(Number(num)),
+  round: (num) => Math.round(Number(num)),
+  floor: (num) => Math.floor(Number(num)),
+  ceil: (num) => Math.ceil(Number(num)),
+  // Type conversion
+  string: (value) => String(value),
+  number: (value) => Number(value),
+  boolean: (value) => Boolean(value),
+  // Object filters
+  keys: (obj) => typeof obj === "object" && obj !== null ? Object.keys(obj) : [],
+  values: (obj) => typeof obj === "object" && obj !== null ? Object.values(obj) : [],
+  // Utility filters
+  default: (value, defaultValue) => value !== void 0 && value !== null ? value : defaultValue,
+  json: (value) => JSON.stringify(value)
+};
+function applyFilters(value, filterChain) {
+  let result = value;
+  for (const filterExpr of filterChain) {
+    const match = filterExpr.match(/^(\w+)(?:\((.*)\))?$/);
+    if (!match) {
+      throw new Error(`Invalid filter syntax: ${filterExpr}`);
+    }
+    const [, filterName, argsStr] = match;
+    const filter2 = filters$1[filterName];
+    if (!filter2) {
+      throw new Error(`Unknown filter: ${filterName}`);
+    }
+    const args = [];
+    if (argsStr) {
+      const argMatches = argsStr.match(/"[^"]*"|'[^']*'|[^,\s]+/g) || [];
+      for (const arg of argMatches) {
+        const trimmed = arg.trim();
+        if (trimmed.startsWith('"') && trimmed.endsWith('"') || trimmed.startsWith("'") && trimmed.endsWith("'")) {
+          args.push(trimmed.slice(1, -1));
+        } else if (!isNaN(Number(trimmed))) {
+          args.push(Number(trimmed));
+        } else if (trimmed === "true" || trimmed === "false") {
+          args.push(trimmed === "true");
+        } else {
+          args.push(trimmed);
+        }
+      }
+    }
+    result = filter2(result, ...args);
+  }
+  return result;
+}
 class StringResolver {
   constructor() {
     this.fullPatternDollar = /^\$\{([^}]*)\}$/;
@@ -9866,9 +9937,30 @@ class StringResolver {
     return result;
   }
   /**
-   * Traverse context using dot-separated path
+   * Traverse context using dot-separated path with optional filter chain
+   * Supports: input.text | split(' ') | length
+   * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
    */
   traversePath(path, context) {
+    const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path);
+    if (hasSinglePipe) {
+      const parts = path.split(/(?<!\|)\|(?!\|)/);
+      const propertyPath = parts[0].trim();
+      let value = this.resolvePropertyPath(propertyPath, context);
+      if (parts.length > 1) {
+        const filterChain = parts.slice(1).map((f) => f.trim()).filter((f) => f.length > 0);
+        if (filterChain.length > 0) {
+          value = applyFilters(value, filterChain);
+        }
+      }
+      return value;
+    }
+    return this.resolvePropertyPath(path, context);
+  }
+  /**
+   * Resolve a simple dot-separated property path
+   */
+  resolvePropertyPath(path, context) {
     const parts = path.split(".").map((p) => p.trim());
     let value = context;
     for (const part of parts) {
@@ -10103,6 +10195,7 @@ const EnsembleSchema = objectType({
   flow: arrayType(
     objectType({
       agent: stringType().min(1, "Agent name is required"),
+      id: stringType().optional(),
       input: recordType(unknownType()).optional(),
       state: objectType({
         use: arrayType(stringType()).optional(),
@@ -26878,7 +26971,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-DJxUDRo7.js");
+        const { MemoryCache } = await import("./cache-GUugdsHw.js");
         cache = new MemoryCache({
           defaultTTL: 3600
         });
@@ -26964,7 +27057,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-DJxUDRo7.js");
+          const { MemoryCache } = await import("./cache-GUugdsHw.js");
           cache = new MemoryCache({
             defaultTTL: 3600
           });
@@ -29307,7 +29400,8 @@ class Executor {
         new AgentExecutionError(step.agent, response.error || "Unknown error", void 0)
       );
     }
-    executionContext[step.agent] = {
+    const contextKey = step.id || step.agent;
+    executionContext[contextKey] = {
       output: response.data
     };
     if (flowContext.stateManager) {
@@ -31913,4 +32007,4 @@ export {
   CookieValidator as y,
   createCookieValidator as z
 };
-//# sourceMappingURL=worker-entry-C39a1_wI.js.map
+//# sourceMappingURL=worker-entry-DMA_3kRC.js.map

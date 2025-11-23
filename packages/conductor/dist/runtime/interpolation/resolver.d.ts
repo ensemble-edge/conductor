@@ -32,6 +32,11 @@ export interface InterpolationResolver {
  * Supports both full replacement and partial interpolation:
  * - Full: '${input.name}' or '{{input.name}}' → returns value as-is (any type)
  * - Partial: 'Hello ${input.name}!' or 'Hello {{input.name}}!' → returns interpolated string
+ *
+ * Supports filter chains:
+ * - ${input.text | uppercase}
+ * - ${input.text | split(" ") | length}
+ * - ${input.items | first | default("none")}
  */
 export declare class StringResolver implements InterpolationResolver {
     private readonly fullPatternDollar;
@@ -40,9 +45,15 @@ export declare class StringResolver implements InterpolationResolver {
     canResolve(template: unknown): boolean;
     resolve(template: string, context: ResolutionContext, interpolate: (t: unknown, c: ResolutionContext) => unknown): unknown;
     /**
-     * Traverse context using dot-separated path
+     * Traverse context using dot-separated path with optional filter chain
+     * Supports: input.text | split(' ') | length
+     * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
      */
     private traversePath;
+    /**
+     * Resolve a simple dot-separated property path
+     */
+    private resolvePropertyPath;
 }
 /**
  * Resolves arrays by recursively resolving each item

@@ -308,7 +308,9 @@ export class Executor {
             return Result.err(new AgentExecutionError(step.agent, response.error || 'Unknown error', undefined));
         }
         // Store agent output in context for future interpolations
-        executionContext[step.agent] = {
+        // Use step ID if provided, otherwise use agent name
+        const contextKey = step.id || step.agent;
+        executionContext[contextKey] = {
             output: response.data,
         };
         // Update state context with new state from immutable StateManager

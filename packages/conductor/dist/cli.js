@@ -7004,6 +7004,79 @@ var coerce = {
 };
 var NEVER = INVALID;
 
+// src/runtime/interpolation/filters.ts
+var filters = {
+  // String filters
+  uppercase: (str) => String(str).toUpperCase(),
+  lowercase: (str) => String(str).toLowerCase(),
+  capitalize: (str) => {
+    const s = String(str);
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  },
+  trim: (str) => String(str).trim(),
+  // Array/String filters
+  split: (str, delimiter = " ") => String(str).split(delimiter),
+  join: (arr, delimiter = ", ") => arr.join(delimiter),
+  length: (value) => {
+    if (typeof value === "string") return value.length;
+    if (Array.isArray(value)) return value.length;
+    return 0;
+  },
+  // Array filters
+  first: (arr) => Array.isArray(arr) && arr.length > 0 ? arr[0] : void 0,
+  last: (arr) => Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : void 0,
+  slice: (arr, start, end) => Array.isArray(arr) ? arr.slice(start, end) : [],
+  reverse: (arr) => Array.isArray(arr) ? [...arr].reverse() : [],
+  sort: (arr) => Array.isArray(arr) ? [...arr].sort() : [],
+  // Number filters
+  abs: (num) => Math.abs(Number(num)),
+  round: (num) => Math.round(Number(num)),
+  floor: (num) => Math.floor(Number(num)),
+  ceil: (num) => Math.ceil(Number(num)),
+  // Type conversion
+  string: (value) => String(value),
+  number: (value) => Number(value),
+  boolean: (value) => Boolean(value),
+  // Object filters
+  keys: (obj) => typeof obj === "object" && obj !== null ? Object.keys(obj) : [],
+  values: (obj) => typeof obj === "object" && obj !== null ? Object.values(obj) : [],
+  // Utility filters
+  default: (value, defaultValue) => value !== void 0 && value !== null ? value : defaultValue,
+  json: (value) => JSON.stringify(value)
+};
+function applyFilters(value, filterChain) {
+  let result = value;
+  for (const filterExpr of filterChain) {
+    const match = filterExpr.match(/^(\w+)(?:\((.*)\))?$/);
+    if (!match) {
+      throw new Error(`Invalid filter syntax: ${filterExpr}`);
+    }
+    const [, filterName, argsStr] = match;
+    const filter = filters[filterName];
+    if (!filter) {
+      throw new Error(`Unknown filter: ${filterName}`);
+    }
+    const args = [];
+    if (argsStr) {
+      const argMatches = argsStr.match(/"[^"]*"|'[^']*'|[^,\s]+/g) || [];
+      for (const arg of argMatches) {
+        const trimmed = arg.trim();
+        if (trimmed.startsWith('"') && trimmed.endsWith('"') || trimmed.startsWith("'") && trimmed.endsWith("'")) {
+          args.push(trimmed.slice(1, -1));
+        } else if (!isNaN(Number(trimmed))) {
+          args.push(Number(trimmed));
+        } else if (trimmed === "true" || trimmed === "false") {
+          args.push(trimmed === "true");
+        } else {
+          args.push(trimmed);
+        }
+      }
+    }
+    result = filter(result, ...args);
+  }
+  return result;
+}
+
 // src/runtime/interpolation/resolver.ts
 var StringResolver = class {
   constructor() {
@@ -7041,9 +7114,30 @@ var StringResolver = class {
     return result;
   }
   /**
-   * Traverse context using dot-separated path
+   * Traverse context using dot-separated path with optional filter chain
+   * Supports: input.text | split(' ') | length
+   * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
    */
   traversePath(path5, context) {
+    const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path5);
+    if (hasSinglePipe) {
+      const parts = path5.split(/(?<!\|)\|(?!\|)/);
+      const propertyPath = parts[0].trim();
+      let value = this.resolvePropertyPath(propertyPath, context);
+      if (parts.length > 1) {
+        const filterChain = parts.slice(1).map((f) => f.trim()).filter((f) => f.length > 0);
+        if (filterChain.length > 0) {
+          value = applyFilters(value, filterChain);
+        }
+      }
+      return value;
+    }
+    return this.resolvePropertyPath(path5, context);
+  }
+  /**
+   * Resolve a simple dot-separated property path
+   */
+  resolvePropertyPath(path5, context) {
     const parts = path5.split(".").map((p) => p.trim());
     let value = context;
     for (const part of parts) {
@@ -7252,6 +7346,7 @@ var EnsembleSchema = external_exports.object({
   flow: external_exports.array(
     external_exports.object({
       agent: external_exports.string().min(1, "Agent name is required"),
+      id: external_exports.string().optional(),
       input: external_exports.record(external_exports.unknown()).optional(),
       state: external_exports.object({
         use: external_exports.array(external_exports.string()).optional(),

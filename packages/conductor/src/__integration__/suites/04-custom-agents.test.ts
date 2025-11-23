@@ -101,9 +101,12 @@ export { ExecutionState, HITLState }
 
 		console.log('Available agents:', response)
 		expect(response.agents).toBeDefined()
-		expect(response.agents).toContain('text-processor')
-		expect(response.agents).toContain('calculator')
-		expect(response.agents).toContain('data-validator')
+
+		// Extract agent names for easier checking
+		const agentNames = response.agents.map((a: any) => a.name)
+		expect(agentNames).toContain('text-processor')
+		expect(agentNames).toContain('calculator')
+		expect(agentNames).toContain('data-validator')
 	})
 
 	it('should execute text-processor agent - uppercase', async () => {

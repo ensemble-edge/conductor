@@ -134,6 +134,9 @@ export class AgentLoader {
                 if (!implementation) {
                     throw new Error(`Code agent "${config.name}" requires an implementation function`);
                 }
+                // Code operation agents receive the full context object
+                // User functions are exported as: (context: { input: any }) => result
+                // FunctionAgent already passes the full context, so just use the implementation directly
                 return new FunctionAgent(config, implementation);
             case 'think':
                 return new ThinkAgent(config);

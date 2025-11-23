@@ -119,24 +119,24 @@ export declare const ResponsesConfigSchema: z.ZodOptional<z.ZodObject<{
         chunkSize?: number | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    html?: {
-        enabled: boolean;
-    } | undefined;
     json?: {
         enabled: boolean;
         transform?: ((...args: unknown[]) => unknown) | undefined;
+    } | undefined;
+    html?: {
+        enabled: boolean;
     } | undefined;
     stream?: {
         enabled: boolean;
         chunkSize?: number | undefined;
     } | undefined;
 }, {
-    html?: {
-        enabled: boolean;
-    } | undefined;
     json?: {
         enabled: boolean;
         transform?: ((...args: unknown[]) => unknown) | undefined;
+    } | undefined;
+    html?: {
+        enabled: boolean;
     } | undefined;
     stream?: {
         enabled: boolean;
@@ -298,24 +298,24 @@ export declare const PageRouteConfigSchema: z.ZodObject<{
             chunkSize?: number | undefined;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        html?: {
-            enabled: boolean;
-        } | undefined;
         json?: {
             enabled: boolean;
             transform?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        html?: {
+            enabled: boolean;
         } | undefined;
         stream?: {
             enabled: boolean;
             chunkSize?: number | undefined;
         } | undefined;
     }, {
-        html?: {
-            enabled: boolean;
-        } | undefined;
         json?: {
             enabled: boolean;
             transform?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        html?: {
+            enabled: boolean;
         } | undefined;
         stream?: {
             enabled: boolean;
@@ -388,12 +388,12 @@ export declare const PageRouteConfigSchema: z.ZodObject<{
         handler?: ((...args: unknown[]) => unknown) | undefined;
     }[] | undefined;
     responses?: {
-        html?: {
-            enabled: boolean;
-        } | undefined;
         json?: {
             enabled: boolean;
             transform?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        html?: {
+            enabled: boolean;
         } | undefined;
         stream?: {
             enabled: boolean;
@@ -445,12 +445,12 @@ export declare const PageRouteConfigSchema: z.ZodObject<{
         handler?: ((...args: unknown[]) => unknown) | undefined;
     }[] | undefined;
     responses?: {
-        html?: {
-            enabled: boolean;
-        } | undefined;
         json?: {
             enabled: boolean;
             transform?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        html?: {
+            enabled: boolean;
         } | undefined;
         stream?: {
             enabled: boolean;
