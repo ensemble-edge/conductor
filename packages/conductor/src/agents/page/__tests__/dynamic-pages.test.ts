@@ -4,7 +4,6 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { PageAgent } from '../page-agent.js'
-import { PageRouter } from '../../../pages/page-router.js'
 import type { AgentConfig } from '../../../runtime/parser.js'
 import type { HandlerContext } from '../types/index.js'
 
@@ -215,129 +214,114 @@ describe('Dynamic Pages', () => {
     })
   })
 
-  describe('PageRouter Integration', () => {
+  describe('Route Parameters', () => {
     it('should extract route params and pass to page', async () => {
       const config: AgentConfig = {
         name: 'blog-post',
         type: 'Page',
-        config: {
-          route: {
-            path: '/blog/:slug',
-            methods: ['GET'],
-          },
-        },
         component: '<h1>{{params.slug}}</h1>',
         templateEngine: 'liquid',
       }
 
       const page = new PageAgent(config)
-      const router = new PageRouter()
-      router.registerPage(config, page)
 
-      const request = new Request('http://localhost/blog/hello-world')
-      const response = await router.handle(request, mockEnv, mockCtx)
+      const result = await page.execute({
+        input: {
+          params: { slug: 'hello-world' },
+        },
+        env: mockEnv,
+        ctx: mockCtx,
+        state: {},
+        previousOutputs: {},
+      })
 
-      expect(response).not.toBeNull()
-      expect(response?.status).toBe(200)
-      const html = await response?.text()
-      expect(html).toContain('hello-world')
+      expect(result.success).toBe(true)
+      const output = (result.data || result.output) as any
+      expect(output?.html).toContain('hello-world')
     })
 
     it('should extract query params and pass to page', async () => {
       const config: AgentConfig = {
         name: 'search',
         type: 'Page',
-        config: {
-          route: {
-            path: '/search',
-            methods: ['GET'],
-          },
-        },
         component: '<p>{{query.q}}</p>',
         templateEngine: 'liquid',
       }
 
       const page = new PageAgent(config)
-      const router = new PageRouter()
-      router.registerPage(config, page)
 
-      const request = new Request('http://localhost/search?q=conductor&page=2')
-      const response = await router.handle(request, mockEnv, mockCtx)
+      const result = await page.execute({
+        input: {
+          query: { q: 'conductor', page: '2' },
+        },
+        env: mockEnv,
+        ctx: mockCtx,
+        state: {},
+        previousOutputs: {},
+      })
 
-      expect(response).not.toBeNull()
-      const html = await response?.text()
-      expect(html).toContain('conductor')
+      expect(result.success).toBe(true)
+      const output = (result.data || result.output) as any
+      expect(output?.html).toContain('conductor')
     })
 
     it('should extract headers and pass to page', async () => {
       const config: AgentConfig = {
         name: 'user-agent-page',
         type: 'Page',
-        config: {
-          route: {
-            path: '/agent',
-            methods: ['GET'],
-          },
-        },
         component: '<p>{{headers.user-agent}}</p>',
         templateEngine: 'liquid',
       }
 
       const page = new PageAgent(config)
-      const router = new PageRouter()
-      router.registerPage(config, page)
 
-      const request = new Request('http://localhost/agent', {
-        headers: {
-          'user-agent': 'TestBot/1.0',
+      const result = await page.execute({
+        input: {
+          headers: { 'user-agent': 'TestBot/1.0' },
         },
+        env: mockEnv,
+        ctx: mockCtx,
+        state: {},
+        previousOutputs: {},
       })
-      const response = await router.handle(request, mockEnv, mockCtx)
 
-      expect(response).not.toBeNull()
-      const html = await response?.text()
-      expect(html).toContain('TestBot/1.0')
+      expect(result.success).toBe(true)
+      const output = (result.data || result.output) as any
+      expect(output?.html).toContain('TestBot/1.0')
     })
 
     it('should handle multiple route parameters', async () => {
       const config: AgentConfig = {
         name: 'nested-page',
         type: 'Page',
-        config: {
-          route: {
-            path: '/category/:category/product/:id',
-            methods: ['GET'],
-          },
-        },
         component: '<p>{{params.category}}/{{params.id}}</p>',
         templateEngine: 'liquid',
       }
 
       const page = new PageAgent(config)
-      const router = new PageRouter()
-      router.registerPage(config, page)
 
-      const request = new Request('http://localhost/category/electronics/product/123')
-      const response = await router.handle(request, mockEnv, mockCtx)
+      const result = await page.execute({
+        input: {
+          params: { category: 'electronics', id: '123' },
+        },
+        env: mockEnv,
+        ctx: mockCtx,
+        state: {},
+        previousOutputs: {},
+      })
 
-      expect(response).not.toBeNull()
-      const html = await response?.text()
-      expect(html).toContain('electronics')
-      expect(html).toContain('123')
+      expect(result.success).toBe(true)
+      const output = (result.data || result.output) as any
+      expect(output?.html).toContain('electronics')
+      expect(output?.html).toContain('123')
     })
   })
 
-  describe('Handler with PageRouter', () => {
+  describe('Handler with Route Data', () => {
     it('should combine route params with handler data', async () => {
       const config: AgentConfig = {
         name: 'dynamic-blog',
         type: 'Page',
-        config: {
-          route: {
-            path: '/blog/:slug',
-            methods: ['GET'],
-          },
-        },
         component: '<h1>{{post.title}}</h1><p>Slug: {{params.slug}}</p>',
         templateEngine: 'liquid',
         handler: async (context: HandlerContext) => {
@@ -353,28 +337,27 @@ describe('Dynamic Pages', () => {
       }
 
       const page = new PageAgent(config)
-      const router = new PageRouter()
-      router.registerPage(config, page)
 
-      const request = new Request('http://localhost/blog/first-post')
-      const response = await router.handle(request, mockEnv, mockCtx)
+      const result = await page.execute({
+        input: {
+          params: { slug: 'first-post' },
+        },
+        env: mockEnv,
+        ctx: mockCtx,
+        state: {},
+        previousOutputs: {},
+      })
 
-      expect(response).not.toBeNull()
-      const html = await response?.text()
-      expect(html).toContain('First Post')
-      expect(html).toContain('first-post')
+      expect(result.success).toBe(true)
+      const output = (result.data || result.output) as any
+      expect(output?.html).toContain('First Post')
+      expect(output?.html).toContain('first-post')
     })
 
-    it('should handle 404 when handler returns null', async () => {
+    it('should handle null data from handler gracefully', async () => {
       const config: AgentConfig = {
         name: 'dynamic-blog',
         type: 'Page',
-        config: {
-          route: {
-            path: '/blog/:slug',
-            methods: ['GET'],
-          },
-        },
         component: '{% if post %}<h1>{{post.title}}</h1>{% else %}<p>Not found</p>{% endif %}',
         templateEngine: 'liquid',
         handler: async (context: HandlerContext) => {
@@ -384,15 +367,20 @@ describe('Dynamic Pages', () => {
       }
 
       const page = new PageAgent(config)
-      const router = new PageRouter()
-      router.registerPage(config, page)
 
-      const request = new Request('http://localhost/blog/nonexistent')
-      const response = await router.handle(request, mockEnv, mockCtx)
+      const result = await page.execute({
+        input: {
+          params: { slug: 'nonexistent' },
+        },
+        env: mockEnv,
+        ctx: mockCtx,
+        state: {},
+        previousOutputs: {},
+      })
 
-      expect(response).not.toBeNull()
-      const html = await response?.text()
-      expect(html).toContain('Not found')
+      expect(result.success).toBe(true)
+      const output = (result.data || result.output) as any
+      expect(output?.html).toContain('Not found')
     })
   })
 })

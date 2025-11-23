@@ -94,11 +94,14 @@ export const ensemblesMap = new Map();
     // Read YAML content
     const yamlContent = fs.readFileSync(ensembleFilePath, 'utf-8');
 
+    // Base64 encode YAML content to handle emojis and special characters
+    const yamlBase64 = Buffer.from(yamlContent, 'utf-8').toString('base64');
+
     // Generate ensemble entry
     const ensembleEntry = `
   {
     name: ${JSON.stringify(ensembleName)},
-    config: ${JSON.stringify(yamlContent)},
+    config: atob(${JSON.stringify(yamlBase64)}),
   }`;
 
     ensembleEntries.push(ensembleEntry);
@@ -107,7 +110,7 @@ export const ensemblesMap = new Map();
     const mapEntry = `
   [${JSON.stringify(ensembleName)}, {
     name: ${JSON.stringify(ensembleName)},
-    config: ${JSON.stringify(yamlContent)},
+    config: atob(${JSON.stringify(yamlBase64)}),
   }]`;
 
     mapEntries.push(mapEntry);

@@ -5,6 +5,7 @@
  */
 import { Hono } from 'hono';
 import { getBuiltInRegistry } from '../../agents/built-in/registry.js';
+import { getMemberLoader } from '../auto-discovery.js';
 import { createLogger } from '../../observability/index.js';
 const execute = new Hono();
 const logger = createLogger({ serviceName: 'api-execute' });
@@ -35,8 +36,12 @@ execute.post('/', async (c) => {
     try {
         // Get built-in registry
         const builtInRegistry = getBuiltInRegistry();
-        // Check if agent exists
-        if (!builtInRegistry.isBuiltIn(body.agent)) {
+        // Get member loader for custom agents
+        const memberLoader = getMemberLoader();
+        // Check if agent exists (built-in or custom)
+        const isBuiltIn = builtInRegistry.isBuiltIn(body.agent);
+        const isCustom = memberLoader?.hasMember(body.agent) || false;
+        if (!isBuiltIn && !isCustom) {
             return c.json({
                 error: 'MemberNotFound',
                 message: `Agent not found: ${body.agent}`,
@@ -44,23 +49,39 @@ execute.post('/', async (c) => {
                 requestId,
             }, 404);
         }
-        // Get agent metadata
-        const metadata = builtInRegistry.getMetadata(body.agent);
-        if (!metadata) {
-            return c.json({
-                error: 'MemberNotFound',
-                message: `Agent metadata not found: ${body.agent}`,
-                timestamp: Date.now(),
-                requestId,
-            }, 404);
+        // Get agent instance
+        let agent;
+        if (isBuiltIn) {
+            // Get agent metadata
+            const metadata = builtInRegistry.getMetadata(body.agent);
+            if (!metadata) {
+                return c.json({
+                    error: 'MemberNotFound',
+                    message: `Agent metadata not found: ${body.agent}`,
+                    timestamp: Date.now(),
+                    requestId,
+                }, 404);
+            }
+            // Create agent instance from built-in registry
+            const agentConfig = {
+                name: body.agent,
+                operation: metadata.operation,
+                config: body.config || {},
+            };
+            agent = builtInRegistry.create(body.agent, agentConfig, c.env);
         }
-        // Create agent instance
-        const agentConfig = {
-            name: body.agent,
-            operation: metadata.operation,
-            config: body.config || {},
-        };
-        const agent = builtInRegistry.create(body.agent, agentConfig, c.env);
+        else {
+            // Get custom agent from member loader
+            agent = memberLoader.getAgent(body.agent);
+            if (!agent) {
+                return c.json({
+                    error: 'MemberNotFound',
+                    message: `Agent instance not found: ${body.agent}`,
+                    timestamp: Date.now(),
+                    requestId,
+                }, 404);
+            }
+        }
         // Create execution context
         const memberContext = {
             input: body.input,

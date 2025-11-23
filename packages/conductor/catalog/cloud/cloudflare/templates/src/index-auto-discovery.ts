@@ -4,11 +4,12 @@
  * This is the RECOMMENDED approach for most projects.
  * Agents and ensembles are automatically discovered from your project directory.
  *
- * ✅ Zero-config for 99% of users
- * ✅ Auto-discovers agents/**/*.yaml
- * ✅ Auto-discovers ensembles/**/*.yaml
- * ✅ Provides unified /api/v1/execute endpoint
- * ✅ Built-in authentication and logging
+ * Features:
+ * - Zero-config for 99% of users
+ * - Auto-discovers agents/**/*.yaml
+ * - Auto-discovers ensembles/**/*.yaml
+ * - Provides unified /api/v1/execute endpoint
+ * - Built-in authentication and logging
  */
 
 import { createAutoDiscoveryAPI } from '@ensemble-edge/conductor/api'

@@ -30,8 +30,9 @@ export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js
 // export { Router } from './api/router.js';
 // export { createHandler } from './api/handlers.js';
 // export { authenticate } from './api/auth.js';
-// Pages Module
-export { PageRouter } from './pages/index.js';
+// Pages Module (Hono-based)
+export { PageLoader, HonoConductorBridge, register404Handler, register500Handler } from './pages/index.js';
+export { PageOperationSchema, RouteConfigSchema, ResponsesConfigSchema, CacheConfigSchema, PageRouteConfigSchema, } from './pages/index.js';
 // Authentication Module
 export * from './auth/index.js';
 // Routing Module

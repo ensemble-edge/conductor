@@ -5,6 +5,7 @@
  */
 import { Hono } from 'hono';
 import { getBuiltInRegistry } from '../../agents/built-in/registry.js';
+import { getMemberLoader } from '../auto-discovery.js';
 import { createLogger } from '../../observability/index.js';
 const agents = new Hono();
 const logger = createLogger({ serviceName: 'api-agents' });
@@ -15,7 +16,7 @@ agents.get('/', async (c) => {
     try {
         const builtInRegistry = getBuiltInRegistry();
         const builtInMembers = builtInRegistry.list();
-        // Map to response format
+        // Map built-in agents to response format
         const membersList = builtInMembers.map((metadata) => ({
             name: metadata.name,
             operation: metadata.operation,
@@ -23,7 +24,23 @@ agents.get('/', async (c) => {
             description: metadata.description,
             builtIn: true,
         }));
-        // TODO: Add user-defined agents from database
+        // Add custom agents from auto-discovery
+        const memberLoader = getMemberLoader();
+        if (memberLoader) {
+            const customAgentNames = memberLoader.getMemberNames();
+            for (const name of customAgentNames) {
+                const config = memberLoader.getAgentConfig(name);
+                if (config) {
+                    membersList.push({
+                        name: config.name,
+                        operation: config.operation,
+                        version: '1.0.0',
+                        description: config.description || '',
+                        builtIn: false,
+                    });
+                }
+            }
+        }
         const response = {
             agents: membersList,
             count: membersList.length,

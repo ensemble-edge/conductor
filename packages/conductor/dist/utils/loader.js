@@ -156,6 +156,12 @@ export class AgentLoader {
         return this.loadedMembers.get(name)?.instance;
     }
     /**
+     * Get agent config by name
+     */
+    getAgentConfig(name) {
+        return this.loadedMembers.get(name)?.config;
+    }
+    /**
      * Get all loaded agents
      */
     getAllMembers() {
