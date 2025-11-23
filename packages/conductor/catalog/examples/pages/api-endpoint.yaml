@@ -1,0 +1,46 @@
+name: api-endpoint
+operation: page
+
+route:
+  path: /api/users/:id
+  methods: [GET, PUT, DELETE]
+  auth: required
+  rateLimit:
+    requests: 10
+    window: 60
+    key: user
+
+beforeRender:
+  # For GET: fetch user
+  - name: fetch-user
+    operation: payload:findById
+    config:
+      collection: users
+      id: "${params.id}"
+
+  # For PUT: update user
+  - name: update-user
+    operation: payload:update
+    config:
+      collection: users
+      id: "${params.id}"
+      data: "${input.body}"
+
+  # For DELETE: delete user
+  - name: delete-user
+    operation: payload:delete
+    config:
+      collection: users
+      id: "${params.id}"
+
+responses:
+  json:
+    enabled: true
+    transform: |
+      {
+        user: fetch-user || update-user || delete-user,
+        success: true
+      }
+
+# No HTML component needed for API endpoints
+component: ""

@@ -9,6 +9,7 @@ export default defineConfig({
 			'**/node_modules/**',
 			'**/dist/**',
 			'catalog/**/tests/**',
+			'**/__integration__/**', // Integration tests run separately
 		],
 		coverage: {
 			provider: 'v8',
@@ -28,6 +29,7 @@ export default defineConfig({
 				'**/index.ts',
 				'**/*.d.ts',
 				'src/platforms/*/examples/**',
+				'src/__integration__/**',
 				'catalog/**',
 				'dist/**',
 			],

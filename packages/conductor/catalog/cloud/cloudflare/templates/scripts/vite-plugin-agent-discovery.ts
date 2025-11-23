@@ -98,7 +98,12 @@ export const agentsMap = new Map();
   for (const agentFile of agentFiles) {
     const agentFilePath = path.resolve(agentsDirPath, agentFile);
     const agentDir = path.dirname(agentFilePath);
-    const agentName = path.basename(agentFile, fileExtension);
+
+    // Get agent name from the parent directory, not the filename
+    // For "text-processor/agent.yaml" we want "text-processor"
+    // For "examples/hello/agent.yaml" we want "examples/hello"
+    const relativeDir = path.relative(agentsDirPath, agentDir);
+    const agentName = relativeDir || path.basename(agentFile, fileExtension);
 
     // Read YAML content
     const yamlContent = fs.readFileSync(agentFilePath, 'utf-8');
@@ -107,6 +112,7 @@ export const agentsMap = new Map();
     const handlerPath = path.join(agentDir, 'index.ts');
     const handlerExists = fs.existsSync(handlerPath);
 
+    // Use the full relative path for unique variable names
     const handlerVarName = `handler_${agentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     // Import handler if exists
@@ -119,11 +125,14 @@ export const agentsMap = new Map();
       imports.push(`import * as ${handlerVarName} from '${importPath}';`);
     }
 
+    // Base64 encode YAML content to handle emojis and special characters
+    const yamlBase64 = Buffer.from(yamlContent, 'utf-8').toString('base64');
+
     // Generate agent entry
     const agentEntry = `
   {
     name: ${JSON.stringify(agentName)},
-    config: ${JSON.stringify(yamlContent)},
+    config: atob(${JSON.stringify(yamlBase64)}),
     ${handlerExists ? `handler: () => Promise.resolve(${handlerVarName}.default || ${handlerVarName}),` : ''}
   }`;
 
@@ -133,7 +142,7 @@ export const agentsMap = new Map();
     const mapEntry = `
   [${JSON.stringify(agentName)}, {
     name: ${JSON.stringify(agentName)},
-    config: ${JSON.stringify(yamlContent)},
+    config: atob(${JSON.stringify(yamlBase64)}),
     ${handlerExists ? `handler: () => Promise.resolve(${handlerVarName}.default || ${handlerVarName}),` : ''}
   }]`;
 

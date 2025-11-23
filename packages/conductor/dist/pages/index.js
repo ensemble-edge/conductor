@@ -1,6 +1,11 @@
 /**
  * Pages Module
  *
- * Automatic routing and management for Page agents
+ * Hono-based routing and management for Page agents
  */
-export { PageRouter } from './page-router.js';
+// Core Components
+export { PageLoader } from './page-loader.js';
+export { HonoConductorBridge } from './hono-bridge.js';
+export { register404Handler, register500Handler } from './error-handling.js';
+// Schema
+export { PageOperationSchema, RouteConfigSchema, ResponsesConfigSchema, CacheConfigSchema, PageRouteConfigSchema, } from './schema.js';

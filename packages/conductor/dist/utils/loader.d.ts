@@ -102,6 +102,10 @@ export declare class AgentLoader {
      */
     getAgent(name: string): BaseAgent | undefined;
     /**
+     * Get agent config by name
+     */
+    getAgentConfig(name: string): AgentConfig | undefined;
+    /**
      * Get all loaded agents
      */
     getAllMembers(): BaseAgent[];

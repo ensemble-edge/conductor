@@ -9121,6 +9121,111 @@ ZodSet.create = (valueType, params) => {
     ...processCreateParams(params)
   });
 };
+class ZodFunction extends ZodType {
+  constructor() {
+    super(...arguments);
+    this.validate = this.implement;
+  }
+  _parse(input) {
+    const { ctx } = this._processInputParams(input);
+    if (ctx.parsedType !== ZodParsedType.function) {
+      addIssueToContext(ctx, {
+        code: ZodIssueCode.invalid_type,
+        expected: ZodParsedType.function,
+        received: ctx.parsedType
+      });
+      return INVALID;
+    }
+    function makeArgsIssue(args, error) {
+      return makeIssue({
+        data: args,
+        path: ctx.path,
+        errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), errorMap].filter((x) => !!x),
+        issueData: {
+          code: ZodIssueCode.invalid_arguments,
+          argumentsError: error
+        }
+      });
+    }
+    function makeReturnsIssue(returns, error) {
+      return makeIssue({
+        data: returns,
+        path: ctx.path,
+        errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), errorMap].filter((x) => !!x),
+        issueData: {
+          code: ZodIssueCode.invalid_return_type,
+          returnTypeError: error
+        }
+      });
+    }
+    const params = { errorMap: ctx.common.contextualErrorMap };
+    const fn = ctx.data;
+    if (this._def.returns instanceof ZodPromise) {
+      const me = this;
+      return OK(async function(...args) {
+        const error = new ZodError([]);
+        const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
+          error.addIssue(makeArgsIssue(args, e));
+          throw error;
+        });
+        const result = await Reflect.apply(fn, this, parsedArgs);
+        const parsedReturns = await me._def.returns._def.type.parseAsync(result, params).catch((e) => {
+          error.addIssue(makeReturnsIssue(result, e));
+          throw error;
+        });
+        return parsedReturns;
+      });
+    } else {
+      const me = this;
+      return OK(function(...args) {
+        const parsedArgs = me._def.args.safeParse(args, params);
+        if (!parsedArgs.success) {
+          throw new ZodError([makeArgsIssue(args, parsedArgs.error)]);
+        }
+        const result = Reflect.apply(fn, this, parsedArgs.data);
+        const parsedReturns = me._def.returns.safeParse(result, params);
+        if (!parsedReturns.success) {
+          throw new ZodError([makeReturnsIssue(result, parsedReturns.error)]);
+        }
+        return parsedReturns.data;
+      });
+    }
+  }
+  parameters() {
+    return this._def.args;
+  }
+  returnType() {
+    return this._def.returns;
+  }
+  args(...items) {
+    return new ZodFunction({
+      ...this._def,
+      args: ZodTuple.create(items).rest(ZodUnknown.create())
+    });
+  }
+  returns(returnType) {
+    return new ZodFunction({
+      ...this._def,
+      returns: returnType
+    });
+  }
+  implement(func) {
+    const validatedFunc = this.parse(func);
+    return validatedFunc;
+  }
+  strictImplement(func) {
+    const validatedFunc = this.parse(func);
+    return validatedFunc;
+  }
+  static create(args, returns, params) {
+    return new ZodFunction({
+      args: args ? args : ZodTuple.create([]).rest(ZodUnknown.create()),
+      returns: returns || ZodUnknown.create(),
+      typeName: ZodFirstPartyTypeKind.ZodFunction,
+      ...processCreateParams(params)
+    });
+  }
+}
 class ZodLazy extends ZodType {
   get schema() {
     return this._def.getter();
@@ -9711,6 +9816,7 @@ var ZodFirstPartyTypeKind;
 const stringType = ZodString.create;
 const numberType = ZodNumber.create;
 const booleanType = ZodBoolean.create;
+const anyType = ZodAny.create;
 const unknownType = ZodUnknown.create;
 ZodNever.create;
 const arrayType = ZodArray.create;
@@ -9720,6 +9826,7 @@ const discriminatedUnionType = ZodDiscriminatedUnion.create;
 ZodIntersection.create;
 ZodTuple.create;
 const recordType = ZodRecord.create;
+const functionType = ZodFunction.create;
 const literalType = ZodLiteral.create;
 const enumType = ZodEnum.create;
 ZodPromise.create;
@@ -26205,6 +26312,9 @@ class PageAgent extends BaseAgent {
       case "liquid":
         this.templateEngine = new LiquidTemplateEngine();
         break;
+      case "handlebars":
+        this.templateEngine = new HandlebarsTemplateEngine();
+        break;
       default:
         this.templateEngine = new LiquidTemplateEngine();
         break;
@@ -26768,7 +26878,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-D9vp1mnR.js");
+        const { MemoryCache } = await import("./cache-DJxUDRo7.js");
         cache = new MemoryCache({
           defaultTTL: 3600
         });
@@ -26854,7 +26964,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-D9vp1mnR.js");
+          const { MemoryCache } = await import("./cache-DJxUDRo7.js");
           cache = new MemoryCache({
             defaultTTL: 3600
           });
@@ -29764,6 +29874,12 @@ class AgentLoader {
     return this.loadedMembers.get(name)?.instance;
   }
   /**
+   * Get agent config by name
+   */
+  getAgentConfig(name) {
+    return this.loadedMembers.get(name)?.config;
+  }
+  /**
    * Get all loaded agents
    */
   getAllMembers() {
@@ -29882,215 +29998,389 @@ class EnsembleLoader {
 function createEnsembleLoader(config) {
   return new EnsembleLoader(config);
 }
-class PageRouter {
-  constructor(config = {}) {
-    this.routes = [];
+class HonoConductorBridge {
+  constructor(app, operationRegistry) {
     this.pages = /* @__PURE__ */ new Map();
-    this.config = {
-      pagesDir: config.pagesDir || "./pages",
-      autoRoute: config.autoRoute !== false,
-      basePath: config.basePath || "",
-      indexFiles: config.indexFiles || ["index", "home"],
-      notFoundPage: config.notFoundPage || "error-404",
-      beforeRender: config.beforeRender
+    this.layouts = /* @__PURE__ */ new Map();
+    this.rateLimiters = /* @__PURE__ */ new Map();
+    this.app = app;
+    this.operationRegistry = operationRegistry || OperationRegistry.getInstance();
+  }
+  /**
+   * Register a PageAgent as Hono route(s)
+   */
+  registerPage(config, agent) {
+    const { route } = config;
+    const path = this.normalizePath(route.path);
+    const methods = route.methods || ["GET"];
+    const middleware = this.buildMiddlewareChain(config);
+    const handler = this.createPageHandler(config, agent);
+    for (const method of methods.map((m) => m.toLowerCase())) {
+      this.app[method](path, ...middleware, handler);
+    }
+    this.pages.set(config.name, agent);
+  }
+  /**
+   * Register a layout template
+   */
+  registerLayout(name, agent) {
+    this.layouts.set(name, agent);
+  }
+  /**
+   * Build middleware chain from page configuration
+   */
+  buildMiddlewareChain(config) {
+    const middleware = [];
+    middleware.push(async (c, next) => {
+      c.set("conductorData", {});
+      await next();
+    });
+    if (config.route.auth === "required") {
+      middleware.push(this.createAuthMiddleware());
+    } else if (config.route.auth === "optional") {
+      middleware.push(this.createOptionalAuthMiddleware());
+    }
+    if (config.route.rateLimit) {
+      middleware.push(this.createRateLimitMiddleware(config.route.rateLimit));
+    }
+    if (config.route.cors) {
+      middleware.push(this.createCorsMiddleware(config.route.cors));
+    }
+    if (config.route.middleware) {
+      middleware.push(...config.route.middleware);
+    }
+    if (config.cache?.enabled) {
+      middleware.push(this.createCacheCheckMiddleware(config.cache));
+    }
+    if (config.beforeRender) {
+      for (const operation of config.beforeRender) {
+        middleware.push(this.operationToMiddleware(operation));
+      }
+    }
+    return middleware;
+  }
+  /**
+   * Create page handler (final handler in chain)
+   */
+  createPageHandler(config, agent) {
+    return async (c) => {
+      const params = c.req.param();
+      const query = c.req.query();
+      const headers = Object.fromEntries(c.req.raw.headers.entries());
+      const conductorData = c.get("conductorData") || {};
+      const input = {
+        params,
+        query,
+        headers,
+        request: c.req.raw,
+        data: conductorData,
+        env: c.env,
+        ctx: c.executionCtx
+      };
+      try {
+        const result = await agent.execute({
+          input,
+          env: c.env,
+          ctx: c.executionCtx,
+          state: {},
+          previousOutputs: {}
+        });
+        if (!result.success) {
+          throw new Error(result.error || "Page render failed");
+        }
+        const output = result.output || result.data;
+        const accept = c.req.header("Accept") || "text/html";
+        if (config.responses?.json?.enabled && accept.includes("application/json")) {
+          const jsonData = config.responses.json.transform ? config.responses.json.transform(output) : { ...conductorData, html: output.html };
+          return c.json(jsonData);
+        }
+        return c.html(output.html, 200, output.headers);
+      } catch (error) {
+        console.error("Page execution error:", error);
+        throw error;
+      }
     };
   }
   /**
-   * Register a page with explicit route configuration
+   * Convert Conductor operation to Hono middleware
    */
-  registerPage(pageConfig, pageMember) {
-    const routeConfig = pageConfig?.route || pageConfig.config?.route;
-    if (!routeConfig) {
-      return;
-    }
-    const path = this.normalizePath(routeConfig.path || `/${pageConfig.name}`);
-    const params = this.extractParams(path);
-    const route = {
-      path,
-      methods: routeConfig.methods || ["GET"],
-      page: pageMember,
-      params,
-      aliases: routeConfig.aliases?.map((a) => this.normalizePath(a)),
-      auth: routeConfig.auth,
-      rateLimit: routeConfig.rateLimit
+  operationToMiddleware(operation) {
+    return async (c, next) => {
+      const context = {
+        request: c.req.raw,
+        env: c.env,
+        ctx: c.executionCtx,
+        params: c.req.param(),
+        query: c.req.query(),
+        headers: Object.fromEntries(c.req.raw.headers.entries()),
+        data: c.get("conductorData") || {},
+        contextType: "page"
+      };
+      try {
+        const handler = this.operationRegistry.get(operation.operation);
+        if (handler) {
+          const operationResult = await handler.execute({
+            operation: operation.operation,
+            config: operation.config
+          }, {
+            ...context,
+            data: context.data,
+            contextType: "page"
+          });
+          const existingData = c.get("conductorData") || {};
+          c.set("conductorData", {
+            ...existingData,
+            [operation.name]: operationResult
+          });
+        } else if (operation.handler) {
+          const operationResult = await operation.handler(context);
+          const existingData = c.get("conductorData") || {};
+          c.set("conductorData", {
+            ...existingData,
+            [operation.name]: operationResult
+          });
+        } else {
+          console.warn(`No handler found for operation: ${operation.operation}`);
+        }
+        await next();
+      } catch (error) {
+        console.error(`Operation error [${operation.name}]:`, error);
+        throw error;
+      }
     };
-    this.routes.push(route);
-    if (route.aliases) {
-      for (const alias of route.aliases) {
-        this.routes.push({
-          ...route,
-          path: alias,
-          aliases: void 0
-          // Don't duplicate aliases
+  }
+  /**
+   * Create auth middleware
+   */
+  createAuthMiddleware() {
+    return async (c, next) => {
+      const authHeader = c.req.header("Authorization");
+      if (!authHeader) {
+        return c.json({ error: "Unauthorized", message: "Missing Authorization header" }, 401);
+      }
+      const user = { id: "user-123", authenticated: true };
+      c.set("conductorData", {
+        ...c.get("conductorData"),
+        auth: { authenticated: true, user }
+      });
+      await next();
+    };
+  }
+  /**
+   * Create optional auth middleware
+   */
+  createOptionalAuthMiddleware() {
+    return async (c, next) => {
+      const authHeader = c.req.header("Authorization");
+      if (authHeader) {
+        const user = { id: "user-123", authenticated: true };
+        c.set("conductorData", {
+          ...c.get("conductorData"),
+          auth: { authenticated: true, user }
+        });
+      } else {
+        c.set("conductorData", {
+          ...c.get("conductorData"),
+          auth: { authenticated: false }
         });
       }
-    }
+      await next();
+    };
   }
   /**
-   * Auto-discover pages from directory structure
-   *
-   * Examples:
-   * - pages/index.yaml → /
-   * - pages/about.yaml → /about
-   * - pages/blog/index.yaml → /blog
-   * - pages/blog/[slug].yaml → /blog/:slug
+   * Create rate limit middleware
+   */
+  createRateLimitMiddleware(config) {
+    return async (c, next) => {
+      let key;
+      if (typeof config.key === "function") {
+        const context = {
+          request: c.req.raw,
+          env: c.env,
+          ctx: c.executionCtx,
+          params: c.req.param(),
+          query: c.req.query(),
+          headers: Object.fromEntries(c.req.raw.headers.entries()),
+          data: c.get("conductorData") || {},
+          contextType: "page"
+        };
+        key = config.key(context);
+      } else if (config.key === "user") {
+        const conductorData = c.get("conductorData") || {};
+        key = conductorData.auth?.user?.id || c.req.header("CF-Connecting-IP") || "unknown";
+      } else {
+        key = c.req.header("CF-Connecting-IP") || "unknown";
+      }
+      const rateLimiter = this.getRateLimiter(`${key}:${c.req.path}`);
+      const allowed = await rateLimiter.check(config.requests, config.window, c.env);
+      if (!allowed) {
+        return c.json(
+          {
+            error: "TooManyRequests",
+            message: `Rate limit exceeded: ${config.requests} requests per ${config.window}s`
+          },
+          429
+        );
+      }
+      await next();
+    };
+  }
+  /**
+   * Create CORS middleware
+   */
+  createCorsMiddleware(config) {
+    return async (c, next) => {
+      const origin = c.req.header("Origin");
+      let allowedOrigin = "*";
+      if (Array.isArray(config.origin)) {
+        if (origin && config.origin.includes(origin)) {
+          allowedOrigin = origin;
+        }
+      } else if (config.origin) {
+        allowedOrigin = config.origin;
+      }
+      c.header("Access-Control-Allow-Origin", allowedOrigin);
+      if (config.methods) {
+        c.header("Access-Control-Allow-Methods", config.methods.join(", "));
+      }
+      if (config.allowHeaders) {
+        c.header("Access-Control-Allow-Headers", config.allowHeaders.join(", "));
+      }
+      if (config.exposeHeaders) {
+        c.header("Access-Control-Expose-Headers", config.exposeHeaders.join(", "));
+      }
+      if (config.credentials) {
+        c.header("Access-Control-Allow-Credentials", "true");
+      }
+      if (c.req.method === "OPTIONS") {
+        return new Response("", { status: 204 });
+      }
+      await next();
+    };
+  }
+  /**
+   * Create cache check middleware
+   */
+  createCacheCheckMiddleware(config) {
+    return async (c, next) => {
+      const env = c.env;
+      if (!env.PAGE_CACHE) {
+        await next();
+        return;
+      }
+      const context = {
+        request: c.req.raw,
+        env,
+        ctx: c.executionCtx,
+        params: c.req.param(),
+        query: c.req.query(),
+        headers: Object.fromEntries(c.req.raw.headers.entries()),
+        data: {},
+        contextType: "page"
+      };
+      const cacheKey = config.keyGenerator ? config.keyGenerator(context) : this.generateCacheKey(c.req.path, context.query || {});
+      const cached = await env.PAGE_CACHE.get(cacheKey, "json");
+      if (cached) {
+        const cachedOutput = cached;
+        return c.html(cachedOutput.html, 200, cachedOutput.headers);
+      }
+      await next();
+    };
+  }
+  /**
+   * Get or create rate limiter
+   */
+  getRateLimiter(key) {
+    if (!this.rateLimiters.has(key)) {
+      this.rateLimiters.set(key, new RateLimiter(key));
+    }
+    return this.rateLimiters.get(key);
+  }
+  /**
+   * Generate cache key
+   */
+  generateCacheKey(path, query) {
+    const queryString = Object.entries(query).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("&");
+    return `page:${path}${queryString ? `:${queryString}` : ""}`;
+  }
+  /**
+   * Normalize path
+   */
+  normalizePath(path) {
+    path = path.startsWith("/") ? path : `/${path}`;
+    path = path.endsWith("/") && path !== "/" ? path.slice(0, -1) : path;
+    return path;
+  }
+}
+class RateLimiter {
+  constructor(key) {
+    this.key = key;
+  }
+  async check(requests, windowSeconds, env) {
+    if (!env.RATE_LIMIT_KV) {
+      return true;
+    }
+    const now = Math.floor(Date.now() / 1e3);
+    const windowKey = `${this.key}:${Math.floor(now / windowSeconds)}`;
+    const current = await env.RATE_LIMIT_KV.get(windowKey);
+    const count = current ? parseInt(current) : 0;
+    if (count >= requests) {
+      return false;
+    }
+    await env.RATE_LIMIT_KV.put(windowKey, String(count + 1), {
+      expirationTtl: windowSeconds * 2
+    });
+    return true;
+  }
+}
+class PageLoader {
+  constructor(app, config = {}) {
+    this.operationRegistry = OperationRegistry.getInstance();
+    this.bridge = new HonoConductorBridge(app, this.operationRegistry);
+    this.config = {
+      pagesDir: config.pagesDir || "./pages",
+      indexFiles: config.indexFiles || ["index", "home"],
+      notFoundPage: config.notFoundPage || "error-404",
+      errorPage: config.errorPage || "error-500"
+    };
+  }
+  /**
+   * Auto-discover pages and register with Hono
    */
   async discoverPages(pagesMap) {
-    if (!this.config.autoRoute) return;
+    const registeredRoutes = [];
     for (const [pageName, { config, agent }] of pagesMap) {
-      this.pages.set(pageName, agent);
-      const routeConfig = config?.route || config.config?.route;
-      if (routeConfig) {
-        this.registerPage(config, agent);
-        continue;
+      try {
+        let pageConfig = config;
+        if (!pageConfig.route) {
+          const path = this.pageNameToPath(pageName);
+          pageConfig = {
+            ...config,
+            route: {
+              path,
+              methods: ["GET"]
+            }
+          };
+        }
+        this.bridge.registerPage(pageConfig, agent);
+        registeredRoutes.push(
+          `${pageConfig.route.methods?.join("|") || "GET"} ${pageConfig.route.path}`
+        );
+        console.log(`[PageLoader] Registered page: ${pageName} → ${pageConfig.route.path}`);
+      } catch (error) {
+        console.error(`[PageLoader] Failed to register page: ${pageName}`, error);
       }
-      let path = this.pageNameToPath(pageName);
-      path = this.normalizePath(path);
-      const params = this.extractParams(path);
-      this.routes.push({
-        path,
-        methods: ["GET"],
-        page: agent,
-        params
-      });
     }
-    this.routes.sort((a, b) => {
-      const aStatic = !a.params || a.params.length === 0;
-      const bStatic = !b.params || b.params.length === 0;
-      if (aStatic && !bStatic) return -1;
-      if (!aStatic && bStatic) return 1;
-      return b.path.length - a.path.length;
-    });
+    console.log(`[PageLoader] Registered ${registeredRoutes.length} routes`);
   }
   /**
-   * Handle incoming request
+   * Register layout
    */
-  async handle(request, env, ctx) {
-    const url = new URL(request.url);
-    const pathname = this.normalizePath(url.pathname);
-    const method = request.method;
-    const match = this.findRoute(pathname, method);
-    if (!match) {
-      if (this.config.notFoundPage) {
-        return this.render404(request, env, ctx);
-      }
-      return null;
-    }
-    const { route, params } = match;
-    if (route.auth === "required") {
-      const authResult = await this.checkAuth(request, env);
-      if (!authResult.authorized) {
-        return new Response("Unauthorized", { status: 401 });
-      }
-    }
-    if (route.rateLimit) {
-      const rateLimitOk = await this.checkRateLimit(request, route.rateLimit, env);
-      if (!rateLimitOk) {
-        return new Response("Too Many Requests", { status: 429 });
-      }
-    }
-    const query = {};
-    for (const [key, value] of url.searchParams) {
-      query[key] = value;
-    }
-    const headers = {};
-    request.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
-    let input = {
-      params,
-      query,
-      headers,
-      request,
-      env,
-      ctx
-    };
-    if (this.config.beforeRender) {
-      const customData = await this.config.beforeRender(route.page, request, env);
-      input = { ...input, ...customData };
-    }
-    try {
-      const result = await route.page.execute({
-        input,
-        env,
-        ctx,
-        state: {},
-        previousOutputs: {}
-      });
-      if (!result.success) {
-        console.error("Page render error:", result.error);
-        return new Response("Internal Server Error", { status: 500 });
-      }
-      const pageOutput = result.output || result.data;
-      return new Response(pageOutput.html, {
-        status: 200,
-        headers: pageOutput.headers
-      });
-    } catch (error) {
-      console.error("Page execution error:", error);
-      return new Response("Internal Server Error", { status: 500 });
-    }
-  }
-  /**
-   * Find matching route for path and method
-   */
-  findRoute(pathname, method) {
-    for (const route of this.routes) {
-      if (!route.methods.includes(method)) continue;
-      const match = this.matchPath(pathname, route.path);
-      if (match) {
-        return { route, params: match };
-      }
-    }
-    return null;
-  }
-  /**
-   * Match pathname against route pattern
-   * Returns params if match, null if no match
-   */
-  matchPath(pathname, pattern) {
-    const pathParts = pathname.split("/").filter(Boolean);
-    const patternParts = pattern.split("/").filter(Boolean);
-    if (pathParts.length !== patternParts.length) {
-      return null;
-    }
-    const params = {};
-    for (let i = 0; i < patternParts.length; i++) {
-      const patternPart = patternParts[i];
-      const pathPart = pathParts[i];
-      if (patternPart.startsWith(":")) {
-        const paramName = patternPart.slice(1);
-        params[paramName] = decodeURIComponent(pathPart);
-      } else if (patternPart !== pathPart) {
-        return null;
-      }
-    }
-    return params;
-  }
-  /**
-   * Extract parameter names from path pattern
-   * Example: /blog/:slug/comments/:id → ['slug', 'id']
-   */
-  extractParams(path) {
-    const params = [];
-    const parts = path.split("/").filter(Boolean);
-    for (const part of parts) {
-      if (part.startsWith(":")) {
-        params.push(part.slice(1));
-      }
-    }
-    return params;
+  registerLayout(name, agent) {
+    this.bridge.registerLayout(name, agent);
   }
   /**
    * Convert page name to route path using conventions
-   *
-   * Examples:
-   * - index → /
-   * - about → /about
-   * - blog-post → /blog-post
-   * - blog/index → /blog
-   * - blog/[slug] → /blog/:slug
-   * - users/[id]/posts → /users/:id/posts
    */
   pageNameToPath(name) {
     if (this.config.indexFiles?.includes(name)) {
@@ -30103,77 +30393,127 @@ class PageRouter {
         break;
       }
     }
-    return path || "/";
+    return `/${path}` || "/";
   }
-  /**
-   * Normalize path (ensure leading slash, remove trailing slash)
-   */
-  normalizePath(path) {
-    const basePath = this.config.basePath || "";
-    path = path.startsWith("/") ? path : `/${path}`;
-    path = path.endsWith("/") && path !== "/" ? path.slice(0, -1) : path;
-    return basePath ? `${basePath}${path}` : path;
-  }
-  /**
-   * Check authentication
-   */
-  async checkAuth(request, env) {
-    const authHeader = request.headers.get("Authorization");
-    return { authorized: !!authHeader };
-  }
-  /**
-   * Check rate limit
-   */
-  async checkRateLimit(request, limit2, env) {
-    return true;
-  }
-  /**
-   * Render 404 page
-   */
-  async render404(request, env, ctx) {
-    const notFoundPageName = this.config.notFoundPage;
-    if (!notFoundPageName) {
-      return new Response("Not Found", { status: 404 });
-    }
-    const notFoundPage = this.pages.get(notFoundPageName);
+}
+function register404Handler(app, notFoundPage) {
+  app.notFound(async (c) => {
     if (!notFoundPage) {
-      console.warn(`404 page "${notFoundPageName}" not found in pages map`);
-      return new Response("Not Found", { status: 404 });
+      return c.html("<h1>404 Not Found</h1>", 404);
     }
     try {
       const result = await notFoundPage.execute({
         input: {
-          message: null,
-          // Can be customized
-          searchEnabled: false,
-          helpfulLinks: []
+          path: c.req.path,
+          method: c.req.method,
+          message: "Page not found",
+          searchEnabled: true,
+          helpfulLinks: [
+            { text: "Home", url: "/" },
+            { text: "Blog", url: "/blog" }
+          ]
         },
-        env,
-        ctx,
+        env: c.env,
+        ctx: c.executionCtx,
         state: {},
         previousOutputs: {}
       });
       if (!result.success) {
         console.error("404 page render error:", result.error);
-        return new Response("Not Found", { status: 404 });
+        return c.html("<h1>404 Not Found</h1>", 404);
       }
-      const pageOutput = result.output || result.data;
-      return new Response(pageOutput.html, {
-        status: 404,
-        headers: pageOutput.headers
-      });
+      const output = result.output;
+      return c.html(output.html, 404, output.headers);
     } catch (error) {
       console.error("404 page execution error:", error);
-      return new Response("Not Found", { status: 404 });
+      return c.html("<h1>404 Not Found</h1>", 404);
     }
-  }
-  /**
-   * Get all registered routes (for debugging/inspection)
-   */
-  getRoutes() {
-    return [...this.routes];
-  }
+  });
 }
+function register500Handler(app, errorPage) {
+  app.onError(async (err, c) => {
+    console.error("Unhandled page error:", err);
+    if (!errorPage) {
+      return c.html("<h1>500 Internal Server Error</h1>", 500);
+    }
+    try {
+      const result = await errorPage.execute({
+        input: {
+          error: err.message,
+          stack: err.stack,
+          path: c.req.path
+        },
+        env: c.env,
+        ctx: c.executionCtx,
+        state: {},
+        previousOutputs: {}
+      });
+      if (!result.success) {
+        return c.html("<h1>500 Internal Server Error</h1>", 500);
+      }
+      const output = result.output;
+      return c.html(output.html, 500, output.headers);
+    } catch (error) {
+      console.error("500 page execution error:", error);
+      return c.html("<h1>500 Internal Server Error</h1>", 500);
+    }
+  });
+}
+const PageOperationSchema = objectType({
+  name: stringType(),
+  operation: stringType(),
+  config: recordType(anyType()),
+  handler: functionType().optional()
+});
+const RouteConfigSchema = objectType({
+  path: stringType(),
+  methods: arrayType(enumType(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])).optional(),
+  auth: enumType(["none", "required", "optional"]).optional(),
+  rateLimit: objectType({
+    requests: numberType(),
+    window: numberType(),
+    key: unionType([enumType(["ip", "user"]), functionType()]).optional()
+  }).optional(),
+  cors: objectType({
+    origin: unionType([stringType(), arrayType(stringType())]).optional(),
+    methods: arrayType(stringType()).optional(),
+    allowHeaders: arrayType(stringType()).optional(),
+    exposeHeaders: arrayType(stringType()).optional(),
+    credentials: booleanType().optional()
+  }).optional(),
+  middleware: arrayType(anyType()).optional()
+});
+const ResponsesConfigSchema = objectType({
+  html: objectType({ enabled: booleanType() }).optional(),
+  json: objectType({
+    enabled: booleanType(),
+    transform: functionType().optional()
+  }).optional(),
+  stream: objectType({
+    enabled: booleanType(),
+    chunkSize: numberType().optional()
+  }).optional()
+}).optional();
+const CacheConfigSchema = objectType({
+  enabled: booleanType(),
+  ttl: numberType(),
+  vary: arrayType(stringType()).optional(),
+  tags: arrayType(stringType()).optional(),
+  keyGenerator: functionType().optional()
+}).optional();
+const PageRouteConfigSchema = objectType({
+  name: stringType(),
+  operation: literalType("page"),
+  route: RouteConfigSchema,
+  beforeRender: arrayType(PageOperationSchema).optional(),
+  afterRender: arrayType(PageOperationSchema).optional(),
+  responses: ResponsesConfigSchema,
+  layout: stringType().optional(),
+  layoutProps: recordType(anyType()).optional(),
+  cache: CacheConfigSchema,
+  component: stringType().optional(),
+  componentPath: stringType().optional()
+});
 class BearerValidator {
   constructor(config = {}) {
     this.config = config;
@@ -31527,14 +31867,21 @@ const workerEntry = {};
 export {
   APIAgent as A,
   BaseAgent as B,
-  CookieValidator as C,
+  CacheConfigSchema as C,
   DataAgent as D,
   Executor as E,
   FunctionAgent as F,
-  GitHubSignatureValidator as G,
+  UnkeyValidator as G,
+  HonoConductorBridge as H,
+  createUnkeyValidator as I,
+  StripeSignatureValidator as J,
+  GitHubSignatureValidator as K,
+  TwilioSignatureValidator as L,
   MemberLoader as M,
+  CustomValidatorRegistry as N,
   OperationRegistry as O,
   Parser$1 as P,
+  createCustomValidatorRegistry as Q,
   Result as R,
   StateManager as S,
   ThinkAgent as T,
@@ -31546,23 +31893,24 @@ export {
   EnsembleLoader as e,
   createEnsembleLoader as f,
   getOperationRegistry as g,
-  PageRouter as h,
-  isLifecyclePlugin as i,
-  isFunctionalPlugin as j,
-  buildPlugin as k,
-  DocsManager as l,
-  getGlobalDocsManager as m,
-  BearerValidator as n,
-  createBearerValidator as o,
-  ApiKeyValidator as p,
-  createApiKeyValidator as q,
-  createCookieValidator as r,
-  UnkeyValidator as s,
-  createUnkeyValidator as t,
-  StripeSignatureValidator as u,
-  TwilioSignatureValidator as v,
+  PageLoader as h,
+  register500Handler as i,
+  PageOperationSchema as j,
+  RouteConfigSchema as k,
+  ResponsesConfigSchema as l,
+  PageRouteConfigSchema as m,
+  isLifecyclePlugin as n,
+  isFunctionalPlugin as o,
+  buildPlugin as p,
+  DocsManager as q,
+  register404Handler as r,
+  getGlobalDocsManager as s,
+  BearerValidator as t,
+  createBearerValidator as u,
+  ApiKeyValidator as v,
   workerEntry as w,
-  CustomValidatorRegistry as x,
-  createCustomValidatorRegistry as y
+  createApiKeyValidator as x,
+  CookieValidator as y,
+  createCookieValidator as z
 };
-//# sourceMappingURL=worker-entry-B-nP8wBn.js.map
+//# sourceMappingURL=worker-entry-C39a1_wI.js.map

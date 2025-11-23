@@ -1,0 +1,92 @@
+name: blog-post
+operation: page
+
+# Hono routing configuration
+route:
+  path: /blog/:slug
+  methods: [GET]
+  auth: none
+  cors:
+    origin: "*"
+    methods: [GET, OPTIONS]
+  rateLimit:
+    requests: 100
+    window: 60  # 60 seconds
+
+# Conductor operations (converted to Hono middleware)
+beforeRender:
+  # Fetch blog post from Payload CMS
+  - name: fetch-post
+    operation: payload:findById
+    config:
+      collection: posts
+      id: "${params.slug}"
+      depth: 2
+
+  # Fetch related posts
+  - name: fetch-related
+    operation: payload:find
+    config:
+      collection: posts
+      where:
+        category: "${fetch-post.category.slug}"
+        id:
+          not_equals: "${params.slug}"
+        status: published
+      limit: 3
+
+# Response configuration
+responses:
+  html:
+    enabled: true
+  json:
+    enabled: true
+
+# PageAgent configuration
+component: |
+  <article class="blog-post">
+    <header>
+      <h1>{{ fetch-post.title }}</h1>
+      <div class="meta">
+        <span class="author">{{ fetch-post.author.name }}</span>
+        <time datetime="{{ fetch-post.publishedAt }}">
+          {{ fetch-post.publishedAt | date: "%B %d, %Y" }}
+        </time>
+      </div>
+    </header>
+
+    <div class="content">
+      {{ fetch-post.content }}
+    </div>
+
+    <aside class="related-posts">
+      <h3>Related Posts</h3>
+      <ul>
+        {% for post in fetch-related.docs %}
+          <li>
+            <a href="/blog/{{ post.slug }}">{{ post.title }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </aside>
+  </article>
+
+layout: blog-layout
+
+head:
+  title: "{{ fetch-post.title }} | My Blog"
+  meta:
+    - name: description
+      content: "{{ fetch-post.excerpt }}"
+    - property: og:title
+      content: "{{ fetch-post.title }}"
+    - property: og:description
+      content: "{{ fetch-post.excerpt }}"
+    - property: og:type
+      content: article
+
+cache:
+  enabled: true
+  ttl: 3600
+  vary: [Accept-Language, Cookie]
+  tags: [blog, post-{{ params.slug }}]

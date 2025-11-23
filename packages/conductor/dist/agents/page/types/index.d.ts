@@ -276,7 +276,7 @@ export interface PageAgentConfig extends AgentConfig {
     /** Default input props for the page component */
     input?: Record<string, unknown>;
     /** Template engine to use for rendering (default: 'liquid', Workers-compatible) */
-    templateEngine?: 'simple' | 'liquid';
+    templateEngine?: 'simple' | 'liquid' | 'handlebars';
     /** Handler function for fetching data based on route params */
     handler?: HandlerFunction;
 }

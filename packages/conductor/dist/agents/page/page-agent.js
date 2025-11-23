@@ -13,6 +13,7 @@ import { renderPageHead } from './utils/head-renderer.js';
 import { renderHydrationScript } from './utils/hydration.js';
 import { SimpleTemplateEngine } from '../../utils/templates/engines/simple.js';
 import { LiquidTemplateEngine } from '../../utils/templates/engines/liquid.js';
+import { HandlebarsTemplateEngine } from '../../utils/templates/engines/handlebars.js';
 export class PageAgent extends BaseAgent {
     constructor(config) {
         super(config);
@@ -25,6 +26,9 @@ export class PageAgent extends BaseAgent {
                 break;
             case 'liquid':
                 this.templateEngine = new LiquidTemplateEngine();
+                break;
+            case 'handlebars':
+                this.templateEngine = new HandlebarsTemplateEngine();
                 break;
             default:
                 this.templateEngine = new LiquidTemplateEngine();

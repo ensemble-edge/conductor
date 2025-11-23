@@ -227,6 +227,13 @@ export class AgentLoader {
   }
 
   /**
+   * Get agent config by name
+   */
+  getAgentConfig(name: string): AgentConfig | undefined {
+    return this.loadedMembers.get(name)?.config
+  }
+
+  /**
    * Get all loaded agents
    */
   getAllMembers(): BaseAgent[] {
