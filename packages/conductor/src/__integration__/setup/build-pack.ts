@@ -38,6 +38,9 @@ async function getPackageVersion(): Promise<string> {
 	return pkg.version
 }
 
+// Simple lock to prevent parallel builds
+let buildLock: Promise<string> | null = null
+
 /**
  * Build and pack Conductor into a tarball
  *
@@ -56,42 +59,57 @@ export async function buildAndPackConductor(): Promise<string> {
 		return cachedTarball
 	}
 
-	console.log('🔨 Building Conductor...')
-	const buildStart = Date.now()
-
-	try {
-		// Build the package
-		await execAsync('pnpm build', {
-			cwd: CONDUCTOR_DIR,
-			env: { ...process.env, NODE_ENV: 'production' }
-		})
-
-		const buildTime = Date.now() - buildStart
-		console.log(`✅ Build completed in ${buildTime}ms`)
-
-		// Pack into tarball
-		console.log('📦 Packing tarball...')
-		const { stdout } = await execAsync('pnpm pack', {
-			cwd: CONDUCTOR_DIR
-		})
-
-		// Extract tarball filename from output
-		const lines = stdout.trim().split('\n')
-		const tarballLine = lines[lines.length - 1]
-		const generatedTarball = join(CONDUCTOR_DIR, tarballLine.trim())
-
-		// Create cache directory
-		await mkdir(CACHE_DIR, { recursive: true })
-
-		// Move to cache
-		await rename(generatedTarball, cachedTarball)
-
-		console.log(`✅ Tarball cached: ${tarballName}`)
-		return cachedTarball
-	} catch (error) {
-		console.error('❌ Build/pack failed:', error)
-		throw error
+	// If another test is already building, wait for it
+	if (buildLock) {
+		console.log('⏳ Waiting for ongoing build...')
+		return await buildLock
 	}
+
+	// Start the build and store the promise
+	buildLock = (async () => {
+		console.log('🔨 Building Conductor...')
+		const buildStart = Date.now()
+
+		try {
+			// Build the package
+			await execAsync('pnpm build', {
+				cwd: CONDUCTOR_DIR,
+				env: { ...process.env, NODE_ENV: 'production' }
+			})
+
+			const buildTime = Date.now() - buildStart
+			console.log(`✅ Build completed in ${buildTime}ms`)
+
+			// Pack into tarball
+			console.log('📦 Packing tarball...')
+			const { stdout } = await execAsync('pnpm pack', {
+				cwd: CONDUCTOR_DIR
+			})
+
+			// Extract tarball filename from output
+			const lines = stdout.trim().split('\n')
+			const tarballLine = lines[lines.length - 1]
+			const generatedTarball = join(CONDUCTOR_DIR, tarballLine.trim())
+
+			// Create cache directory
+			await mkdir(CACHE_DIR, { recursive: true })
+
+			// Move to cache (check if it already exists first in case of race condition)
+			if (!(await exists(cachedTarball))) {
+				await rename(generatedTarball, cachedTarball)
+			}
+
+			console.log(`✅ Tarball cached: ${tarballName}`)
+			return cachedTarball
+		} catch (error) {
+			console.error('❌ Build/pack failed:', error)
+			throw error
+		} finally {
+			buildLock = null
+		}
+	})()
+
+	return await buildLock
 }
 
 /**

@@ -12,6 +12,7 @@ export declare class TestServer {
     private projectDir;
     private process?;
     private port;
+    private inspectorPort;
     constructor(projectDir: string, options?: ServerOptions);
     /**
      * Start the dev server
