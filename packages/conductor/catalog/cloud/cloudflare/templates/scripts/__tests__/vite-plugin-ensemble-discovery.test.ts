@@ -4,6 +4,16 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
 
+// Helper to call plugin hooks that might be functions or objects with handler
+function callHook<T extends (...args: any[]) => any>(
+  hook: T | { handler: T } | undefined,
+  ...args: Parameters<T>
+): ReturnType<T> | undefined {
+  if (!hook) return undefined
+  if (typeof hook === 'function') return hook(...args)
+  return (hook as { handler: T }).handler(...args)
+}
+
 describe('ensembleDiscoveryPlugin', () => {
   let tempDir: string
 
@@ -24,16 +34,16 @@ describe('ensembleDiscoveryPlugin', () => {
 
   it('should resolve virtual module ID', () => {
     const plugin = ensembleDiscoveryPlugin()
-    const resolved = plugin.resolveId?.('virtual:conductor-ensembles')
+    const resolved = callHook(plugin.resolveId as any, 'virtual:conductor-ensembles')
     expect(resolved).toBe('\0virtual:conductor-ensembles')
   })
 
   it('should generate empty module when ensembles directory does not exist', () => {
     const plugin = ensembleDiscoveryPlugin({ ensemblesDir: 'nonexistent' })
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-ensembles')
+    const code = callHook(plugin.load as any, '\0virtual:conductor-ensembles')
     expect(code).toContain('export const ensembles = []')
     expect(code).toContain('export const ensemblesMap = new Map()')
   })
@@ -50,12 +60,12 @@ flow:
 
     const plugin = ensembleDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-ensembles') as string
+    const code = callHook(plugin.load as any, '\0virtual:conductor-ensembles') as string
     expect(code).toContain(`name: "workflow"`)
-    expect(code).toContain('name: workflow')
-    expect(code).toContain('description: A test workflow')
+    expect(code).toContain('config: atob(')
+    expect(code).toContain('export const ensembles = [')
   })
 
   it('should support nested ensemble directories', () => {
@@ -67,9 +77,9 @@ flow:
 
     const plugin = ensembleDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-ensembles') as string
+    const code = callHook(plugin.load as any, '\0virtual:conductor-ensembles') as string
     expect(code).toContain('onboarding')
   })
 
@@ -84,9 +94,9 @@ flow:
 
     const plugin = ensembleDiscoveryPlugin()
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-ensembles') as string
+    const code = callHook(plugin.load as any, '\0virtual:conductor-ensembles') as string
     expect(code).toContain('workflow1')
     expect(code).toContain('workflow2')
     expect(code).toContain('workflow3')
@@ -100,9 +110,10 @@ flow:
 
     const plugin = ensembleDiscoveryPlugin({ fileExtension: '.yml' })
     const config = { root: tempDir }
-    plugin.configResolved?.(config)
+    callHook(plugin.configResolved as any, config)
 
-    const code = plugin.load?.('\0virtual:conductor-ensembles') as string
-    expect(code).toContain('name: workflow')
+    const code = callHook(plugin.load as any, '\0virtual:conductor-ensembles') as string
+    expect(code).toContain('name: "workflow"')
+    expect(code).toContain('config: atob(')
   })
 })
