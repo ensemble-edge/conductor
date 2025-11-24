@@ -219,6 +219,58 @@ export class OperationRegistry {
                 output: 'any (code execution result)',
             },
         });
+        // Agent invocation operation (invoke registered agents)
+        this.register('agent', {
+            async execute(operation, context) {
+                const { agent: agentName, input } = operation.config;
+                if (!agentName) {
+                    throw new Error('[agent] Missing required config: agent (name of agent to invoke)');
+                }
+                if (!context.agentRegistry) {
+                    throw new Error('[agent] Agent registry not available in operation context. ' +
+                        'Make sure agents are registered before using the agent operation.');
+                }
+                console.log(`[agent] Invoking agent: ${agentName}`);
+                // Get agent from registry
+                const agentInstance = context.agentRegistry.get(agentName);
+                if (!agentInstance) {
+                    const availableAgents = Array.from(context.agentRegistry.keys()).join(', ');
+                    throw new Error(`[agent] Agent "${agentName}" not found. Available agents: ${availableAgents || 'none'}`);
+                }
+                // Execute agent
+                try {
+                    const result = await agentInstance.execute({
+                        input: input || {},
+                        env: context.env,
+                        ctx: context.ctx,
+                    });
+                    // Check if execution was successful
+                    if (result.success === false) {
+                        throw new Error(result.error || 'Agent execution failed');
+                    }
+                    console.log(`[agent] Agent "${agentName}" completed successfully`);
+                    // Return the actual output data (unwrap the AgentResponse)
+                    // Agents return { success, data, output, ... } - we want the data/output
+                    return result.data || result.output || result;
+                }
+                catch (error) {
+                    console.error(`[agent] Agent "${agentName}" execution failed:`, error);
+                    throw new Error(`[agent] Failed to execute agent "${agentName}": ${error instanceof Error ? error.message : String(error)}`);
+                }
+            },
+        }, {
+            name: 'agent',
+            description: 'Invoke a registered Conductor agent (think, code, storage, etc.)',
+            contexts: ['all'],
+            tags: ['agent', 'invoke', 'conductor'],
+            inputs: {
+                agent: 'string (name of agent to invoke)',
+                input: 'object (input data to pass to agent)',
+            },
+            outputs: {
+                output: 'any (agent execution result)',
+            },
+        });
         console.log('[OperationRegistry] Built-in operations registered');
     }
     /**

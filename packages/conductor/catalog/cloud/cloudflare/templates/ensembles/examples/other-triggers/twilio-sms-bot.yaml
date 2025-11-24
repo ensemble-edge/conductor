@@ -1,0 +1,87 @@
+# Example: SMS Bot using Twilio Plugin
+# This demonstrates how plugins can register custom trigger types
+
+name: sms-support-bot
+description: AI-powered SMS support bot that responds to customer inquiries
+
+# Custom trigger type registered by the Twilio plugin!
+trigger:
+  - type: twilio:sms
+    path: /twilio/sms/support
+    auth:
+      accountSid: ${env.TWILIO_ACCOUNT_SID}
+      authToken: ${env.TWILIO_AUTH_TOKEN}
+    filter:
+      to: ["+1234567890"]  # Only respond to messages sent to this number
+    autoReply:
+      enabled: true
+      # Reply message will come from ensemble output
+
+agents:
+  # Classify the intent of the SMS
+  - name: classify-intent
+    operation: think
+    config:
+      model: gpt-4-mini
+      systemPrompt: |
+        You are a support intent classifier. Analyze the customer's SMS message and classify the intent.
+        Return JSON: {"intent": "support|billing|general|feedback"}
+      temperature: 0.3
+    input:
+      userPrompt: |
+        Customer message: {{message}}
+        From: {{from}}
+
+        What is the intent of this message?
+      message: $input.message
+      from: $input.from
+
+  # Route to appropriate handler based on intent
+  - name: handle-support-query
+    operation: think
+    config:
+      model: gpt-4-mini
+      systemPrompt: |
+        You are a helpful customer support assistant. Provide a concise, friendly response
+        to the customer's query via SMS (keep it under 160 characters if possible).
+      temperature: 0.7
+    input:
+      userPrompt: |
+        Customer query: {{message}}
+        Intent: {{intent}}
+
+        Provide a helpful response.
+      intent: $classify-intent.intent
+      message: $input.message
+      customer: $input.from
+    when: $classify-intent.intent == 'support'
+
+  # Generate friendly SMS reply
+  - name: format-sms-reply
+    operation: code
+    config:
+      code: |
+        export default async function formatSmsReply(input, context) {
+          const { response, customerName } = input;
+
+          // Format the reply for SMS (max 160 chars)
+          let reply = response || 'Thank you for contacting us!';
+
+          if (reply.length > 160) {
+            reply = reply.substring(0, 157) + '...';
+          }
+
+          return {
+            reply,
+            timestamp: new Date().toISOString(),
+          };
+        }
+    input:
+      response: $handle-support-query.response
+      customerName: $handle-support-query.customerName
+
+input:
+  message: null
+  from: null
+
+output: $format-sms-reply

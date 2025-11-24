@@ -32,6 +32,23 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
         name: string;
         config: string;
     }>;
+    /**
+     * Configure custom error pages using ensembles
+     * Maps HTTP error codes to ensemble names
+     *
+     * @example
+     * ```typescript
+     * errorPages: {
+     *   404: 'error-404',      // Default 404 page
+     *   401: 'error-401',      // Authentication error
+     *   403: 'error-403',      // Authorization error
+     *   500: 'smart-500',      // AI-powered 500 page with logging
+     * }
+     * ```
+     */
+    errorPages?: {
+        [statusCode: number]: string;
+    };
 }
 /**
  * Create Conductor API with auto-discovery support

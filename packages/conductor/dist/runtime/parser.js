@@ -94,6 +94,68 @@ const EnsembleSchema = z.object({
             input: z.record(z.unknown()).optional(),
             metadata: z.record(z.unknown()).optional(),
         }),
+        // HTTP trigger (full web routing with Hono features)
+        z.object({
+            type: z.literal('http'),
+            // Core HTTP config (like webhook)
+            path: z.string().min(1).optional(), // Defaults to /{ensemble-name}
+            methods: z.array(z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])).optional(),
+            auth: z
+                .object({
+                type: z.enum(['bearer', 'signature', 'basic']),
+                secret: z.string(),
+            })
+                .optional(),
+            public: z.boolean().optional(),
+            mode: z.enum(['trigger', 'resume']).optional(),
+            async: z.boolean().optional(),
+            timeout: z.number().positive().optional(),
+            // Hono-specific features
+            rateLimit: z
+                .object({
+                requests: z.number().positive(),
+                window: z.number().positive(), // seconds
+                key: z.union([z.enum(['ip', 'user']), z.function()]).optional(),
+            })
+                .optional(),
+            cors: z
+                .object({
+                origin: z.union([z.string(), z.array(z.string())]).optional(),
+                methods: z.array(z.string()).optional(),
+                allowHeaders: z.array(z.string()).optional(),
+                exposeHeaders: z.array(z.string()).optional(),
+                credentials: z.boolean().optional(),
+            })
+                .optional(),
+            cache: z
+                .object({
+                enabled: z.boolean(),
+                ttl: z.number().positive(),
+                vary: z.array(z.string()).optional(),
+                tags: z.array(z.string()).optional(),
+                keyGenerator: z.function().optional(),
+            })
+                .optional(),
+            middleware: z.array(z.any()).optional(), // Hono middleware functions
+            responses: z
+                .object({
+                html: z.object({ enabled: z.boolean() }).optional(),
+                json: z
+                    .object({
+                    enabled: z.boolean(),
+                    transform: z.function().optional(),
+                })
+                    .optional(),
+                stream: z
+                    .object({
+                    enabled: z.boolean(),
+                    chunkSize: z.number().optional(),
+                })
+                    .optional(),
+            })
+                .optional(),
+            templateEngine: z.enum(['handlebars', 'liquid', 'simple']).optional(),
+        }),
     ]))
         .optional()
         .refine((trigger) => {
@@ -107,7 +169,7 @@ const EnsembleSchema = z.object({
             return t.auth || t.public === true;
         });
     }, {
-        message: 'All webhook, MCP, and email triggers must have auth configuration or explicit public: true',
+        message: 'All webhook, MCP, email, and HTTP triggers must have auth configuration or explicit public: true',
     }),
     notifications: z
         .array(z.discriminatedUnion('type', [
@@ -198,7 +260,6 @@ const AgentSchema = z.object({
         Operation.email,
         Operation.sms,
         Operation.form,
-        Operation.page,
         Operation.html,
         Operation.pdf,
         Operation.queue,

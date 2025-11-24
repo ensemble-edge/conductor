@@ -15,7 +15,6 @@ import { APIAgent } from '../agents/api-agent.js';
 import { EmailAgent } from '../agents/email/email-agent.js';
 import { SmsMember } from '../agents/sms/sms-agent.js';
 import { FormAgent } from '../agents/form/form-agent.js';
-import { PageAgent } from '../agents/page/page-agent.js';
 import { HtmlMember } from '../agents/html/html-agent.js';
 import { PdfMember } from '../agents/pdf/pdf-agent.js';
 import { DocsMember } from '../agents/docs/docs-agent.js';
@@ -68,7 +67,7 @@ export class Executor {
                         operation: builtInRegistry.getMetadata(name)?.operation || Operation.code,
                         config: {},
                     };
-                    const agent = builtInRegistry.create(name, config, this.env);
+                    const agent = await builtInRegistry.create(name, config, this.env);
                     return Result.ok(agent);
                 }
                 catch (error) {
@@ -119,8 +118,6 @@ export class Executor {
                 return Result.ok(new SmsMember(config));
             case Operation.form:
                 return Result.ok(new FormAgent(config));
-            case Operation.page:
-                return Result.ok(new PageAgent(config));
             case Operation.html:
                 return Result.ok(new HtmlMember(config));
             case Operation.pdf:

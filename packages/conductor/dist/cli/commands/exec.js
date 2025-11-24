@@ -134,7 +134,7 @@ async function executeLocal(agentName, input, config) {
     };
     // Create mock env (no real bindings in CLI)
     const mockEnv = {};
-    const agent = registry.create(agentName, agentConfig, mockEnv);
+    const agent = await registry.create(agentName, agentConfig, mockEnv);
     // Create execution context
     const context = {
         input,

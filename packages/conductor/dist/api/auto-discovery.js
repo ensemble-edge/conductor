@@ -11,11 +11,124 @@ import { AgentLoader } from '../utils/loader.js';
 import { EnsembleLoader } from '../utils/ensemble-loader.js';
 import { Executor } from '../runtime/executor.js';
 import { createLogger } from '../observability/index.js';
+import { getTriggerRegistry } from '../runtime/trigger-registry.js';
+import { registerBuiltInTriggers } from '../runtime/built-in-triggers.js';
 const logger = createLogger({ serviceName: 'auto-discovery-api' });
 // Global loaders (initialized once per Worker instance)
 let memberLoader = null;
 let ensembleLoader = null;
 let initialized = false;
+/**
+ * Register error page handlers
+ */
+async function registerErrorPages(app, config, env, ctx) {
+    if (!config.errorPages || !ensembleLoader || !memberLoader) {
+        return;
+    }
+    const errorCodes = Object.keys(config.errorPages).map(Number);
+    logger.info(`[Auto-Discovery] Registering ${errorCodes.length} error page handlers`);
+    // Register Hono error handlers for each status code
+    for (const [statusCode, ensembleName] of Object.entries(config.errorPages)) {
+        const code = Number(statusCode);
+        const ensemble = ensembleLoader.getEnsemble(ensembleName);
+        if (!ensemble) {
+            logger.warn(`[Auto-Discovery] Error page ensemble not found: ${ensembleName}`);
+            continue;
+        }
+        // Register an error handler that executes the ensemble
+        app.onError(async (error, c) => {
+            // Only handle errors matching this status code
+            const errorStatus = error.status || 500;
+            if (errorStatus !== code) {
+                return c.text(`Error ${errorStatus}: ${error.message}`, errorStatus);
+            }
+            try {
+                const executor = new Executor({ env, ctx });
+                const agents = memberLoader.getAllMembers();
+                for (const agent of agents) {
+                    executor.registerAgent(agent);
+                }
+                // Execute the error page ensemble with error context
+                const result = await executor.executeEnsemble(ensemble, {
+                    input: {
+                        error: error.message,
+                        stack: error.stack,
+                        path: c.req.path,
+                        method: c.req.method,
+                        requestId: c.req.header('cf-ray') || `req_${Date.now()}`,
+                        timestamp: new Date().toISOString(),
+                        headers: {
+                            'user-agent': c.req.header('user-agent'),
+                            referer: c.req.header('referer'),
+                        },
+                        dev: env.ENVIRONMENT === 'development',
+                    },
+                    metadata: { trigger: 'error', statusCode: code },
+                });
+                if (!result.success) {
+                    logger.error(`[Auto-Discovery] Error page execution failed: ${result.error.message}`);
+                    return c.text(`Error ${code}: ${error.message}`, code);
+                }
+                // Return HTML if available, otherwise JSON
+                const executionOutput = result.value;
+                const agentOutput = executionOutput.output;
+                if (agentOutput && agentOutput.html) {
+                    return c.html(agentOutput.html, code);
+                }
+                return c.json(executionOutput.output, code);
+            }
+            catch (executionError) {
+                logger.error(`[Auto-Discovery] Failed to execute error page ensemble: ${ensembleName}`, executionError instanceof Error ? executionError : undefined);
+                return c.text(`Error ${code}: ${error.message}`, code);
+            }
+        });
+        logger.info(`[Auto-Discovery] Registered error page for ${code} -> ${ensembleName}`);
+    }
+    // Register catch-all 404 handler if specified
+    if (config.errorPages[404]) {
+        app.notFound(async (c) => {
+            const ensemble = ensembleLoader.getEnsemble(config.errorPages[404]);
+            if (!ensemble) {
+                return c.text('404 Not Found', 404);
+            }
+            try {
+                const executor = new Executor({ env, ctx });
+                const agents = memberLoader.getAllMembers();
+                for (const agent of agents) {
+                    executor.registerAgent(agent);
+                }
+                const result = await executor.executeEnsemble(ensemble, {
+                    input: {
+                        path: c.req.path,
+                        method: c.req.method,
+                        params: c.req.param(),
+                        query: c.req.query(),
+                        headers: {
+                            'user-agent': c.req.header('user-agent'),
+                            referer: c.req.header('referer'),
+                        },
+                    },
+                    metadata: { trigger: 'error', statusCode: 404 },
+                });
+                if (!result.success) {
+                    logger.error('[Auto-Discovery] 404 page execution failed');
+                    return c.text('404 Not Found', 404);
+                }
+                const executionOutput = result.value;
+                const agentOutput = executionOutput.output;
+                if (agentOutput && agentOutput.html) {
+                    return c.html(agentOutput.html, 404);
+                }
+                return c.json(executionOutput.output, 404);
+            }
+            catch (error) {
+                logger.error('[Auto-Discovery] Failed to execute 404 page ensemble', error instanceof Error ? error : undefined);
+                return c.text('404 Not Found', 404);
+            }
+        });
+        logger.info(`[Auto-Discovery] Registered 404 handler`);
+    }
+}
 /**
  * Initialize loaders with auto-discovered agents and ensembles
  */
@@ -24,6 +137,9 @@ async function initializeLoaders(env, ctx, config) {
         return; // Already initialized
     }
     try {
+        // Register built-in triggers (http, webhook, etc.)
+        registerBuiltInTriggers();
+        logger.info('[Auto-Discovery] Registered built-in triggers');
         // Initialize AgentLoader
         memberLoader = new AgentLoader({
             membersDir: './agents',
@@ -89,6 +205,18 @@ export function createAutoDiscoveryAPI(config = {}) {
             // Lazy initialization on first request
             if (!initialized) {
                 await initializeLoaders(env, ctx, config);
+                // Register triggers from discovered ensembles
+                if (ensembleLoader && memberLoader) {
+                    const triggerRegistry = getTriggerRegistry();
+                    const ensembles = ensembleLoader.getAllEnsembles();
+                    const agents = memberLoader.getAllMembers();
+                    for (const ensemble of ensembles) {
+                        await triggerRegistry.registerEnsembleTriggers(app, ensemble, agents, env, ctx);
+                    }
+                    logger.info(`[Auto-Discovery] Registered triggers for ${ensembles.length} ensembles`);
+                    // Register error pages if configured
+                    await registerErrorPages(app, config, env, ctx);
+                }
             }
             // Execute the request through the Hono app
             return app.fetch(request, env, ctx);

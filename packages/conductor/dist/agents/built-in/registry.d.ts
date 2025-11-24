@@ -26,7 +26,7 @@ export declare class BuiltInMemberRegistry {
     /**
      * Get a built-in agent instance (lazy loading)
      */
-    create(name: string, config: AgentConfig, env: ConductorEnv): BaseAgent;
+    create(name: string, config: AgentConfig, env: ConductorEnv): Promise<BaseAgent>;
     /**
      * Get metadata for a built-in agent
      */

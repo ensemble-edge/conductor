@@ -11,7 +11,7 @@ import type { AuthRequirement, AuthMethod } from '../auth/types.js'
  */
 export interface AuthFailureAction {
   /** Action to take on auth failure */
-  action: 'error' | 'redirect' | 'page'
+  action: 'error' | 'redirect'
 
   /** Redirect URL (for redirect action) */
   redirectTo?: string
@@ -19,10 +19,7 @@ export interface AuthFailureAction {
   /** Preserve return URL in query (for redirect action) */
   preserveReturn?: boolean
 
-  /** Page agent name (for page action) */
-  page?: string
-
-  /** Context to pass to error/page */
+  /** Context to pass to error */
   context?: Record<string, any>
 }
 
@@ -125,9 +122,6 @@ export interface RouteConfig {
  * Type-specific auth defaults
  */
 export interface AuthDefaults {
-  /** Page defaults */
-  pages?: Partial<RouteAuthConfig> & { rateLimit?: RateLimitConfig }
-
   /** API defaults */
   api?: Partial<RouteAuthConfig> & { rateLimit?: RateLimitConfig }
 
@@ -157,9 +151,6 @@ export interface RoutingConfig {
     global?: Partial<RouteAuthConfig> & { rateLimit?: RateLimitConfig }
   }
 
-  /** Auto-discover pages */
-  autoDiscover?: boolean
-
   /** Base path for all routes */
   basePath?: string
 }
@@ -184,7 +175,7 @@ export interface ConductorConfig {
 /**
  * Agent type for route resolution
  */
-export type Operation = 'page' | 'api' | 'webhook' | 'form' | 'docs' | 'static' | 'health' | 'auth'
+export type Operation = 'api' | 'webhook' | 'form' | 'docs' | 'static' | 'health' | 'auth'
 
 /**
  * Resolved route auth config (after applying defaults and rules)

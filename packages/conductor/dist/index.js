@@ -8,7 +8,12 @@
 export { Executor } from './runtime/executor.js';
 export { Parser } from './runtime/parser.js';
 export { StateManager } from './runtime/state-manager.js';
-export { OperationRegistry, getOperationRegistry, } from './runtime/operation-registry.js';
+export { PluginRegistry, getPluginRegistry, 
+// Backwards compatibility
+OperationRegistry, getOperationRegistry, } from './runtime/plugin-registry.js';
+export { TriggerRegistry, getTriggerRegistry, } from './runtime/trigger-registry.js';
+// Observability
+export { createLogger } from './observability/index.js';
 // Durable Objects
 // These are available via '@ensemble-edge/conductor/cloudflare' to avoid
 // importing cloudflare: protocol modules in non-Cloudflare environments.
@@ -19,7 +24,6 @@ export { FunctionAgent } from './agents/function-agent.js';
 export { ThinkAgent } from './agents/think-agent.js';
 export { DataAgent } from './agents/data-agent.js';
 export { APIAgent } from './agents/api-agent.js';
-export { PageAgent } from './agents/page/page-agent.js';
 export { DocsMember } from './agents/docs/docs-agent.js';
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js';
@@ -30,9 +34,6 @@ export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js
 // export { Router } from './api/router.js';
 // export { createHandler } from './api/handlers.js';
 // export { authenticate } from './api/auth.js';
-// Pages Module (Hono-based)
-export { PageLoader, HonoConductorBridge, register404Handler, register500Handler, } from './pages/index.js';
-export { PageOperationSchema, RouteConfigSchema, ResponsesConfigSchema, CacheConfigSchema, PageRouteConfigSchema, } from './pages/index.js';
 // Authentication Module
 export * from './auth/index.js';
 // Routing Module

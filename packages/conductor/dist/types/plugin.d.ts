@@ -6,7 +6,7 @@
  * 1. Functional plugins - Simple config transformers
  * 2. Lifecycle plugins - Complex plugins with async initialization
  */
-import type { OperationRegistry, OperationHandler, OperationMetadata } from '../runtime/operation-registry.js';
+import type { PluginRegistry, OperationHandler, OperationMetadata } from '../runtime/plugin-registry.js';
 import type { ConductorEnv } from './env.js';
 /**
  * Configuration for Conductor
@@ -25,8 +25,8 @@ export interface ConductorConfig {
  * Plugin context provided during initialization
  */
 export interface PluginContext {
-    /** Global operation registry */
-    operationRegistry: OperationRegistry;
+    /** Global plugin registry */
+    operationRegistry: PluginRegistry;
     /** Cloudflare Workers environment bindings */
     env: ConductorEnv;
     /** Cloudflare Workers execution context */

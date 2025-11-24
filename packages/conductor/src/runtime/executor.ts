@@ -18,7 +18,6 @@ import { APIAgent } from '../agents/api-agent.js'
 import { EmailAgent } from '../agents/email/email-agent.js'
 import { SmsMember } from '../agents/sms/sms-agent.js'
 import { FormAgent } from '../agents/form/form-agent.js'
-import { PageAgent } from '../agents/page/page-agent.js'
 import { HtmlMember } from '../agents/html/html-agent.js'
 import { PdfMember } from '../agents/pdf/pdf-agent.js'
 import { DocsMember } from '../agents/docs/docs-agent.js'
@@ -241,9 +240,6 @@ export class Executor {
 
       case Operation.form:
         return Result.ok(new FormAgent(config))
-
-      case Operation.page:
-        return Result.ok(new PageAgent(config))
 
       case Operation.html:
         return Result.ok(new HtmlMember(config))

@@ -33,14 +33,14 @@ export class BuiltInMemberRegistry {
     /**
      * Get a built-in agent instance (lazy loading)
      */
-    create(name, config, env) {
+    async create(name, config, env) {
         const entry = this.agents.get(name);
         if (!entry) {
             throw new Error(`Built-in agent "${name}" not found. ` + `Available: ${this.getAvailableNames().join(', ')}`);
         }
         // Create instance using factory (lazy loading)
         entry.loaded = true;
-        return entry.factory(config, env);
+        return await entry.factory(config, env);
     }
     /**
      * Get metadata for a built-in agent
@@ -116,8 +116,8 @@ function registerAllBuiltInMembers(registry) {
             },
         ],
         documentation: 'https://docs.conductor.dev/built-in-agents/scrape',
-    }, (config, env) => {
-        const { ScrapeMember } = require('./scrape');
+    }, async (config, env) => {
+        const { ScrapeMember } = await import('./scrape/index.js');
         return new ScrapeMember(config, env);
     });
     // Validate agent
@@ -154,8 +154,8 @@ function registerAllBuiltInMembers(registry) {
             },
         ],
         documentation: 'https://docs.conductor.dev/built-in-agents/validate',
-    }, (config, env) => {
-        const { ValidateMember } = require('./validate');
+    }, async (config, env) => {
+        const { ValidateMember } = await import('./validate/index.js');
         return new ValidateMember(config, env);
     });
     // RAG agent
@@ -194,8 +194,8 @@ function registerAllBuiltInMembers(registry) {
             },
         ],
         documentation: 'https://docs.conductor.dev/built-in-agents/rag',
-    }, (config, env) => {
-        const { RAGMember } = require('./rag');
+    }, async (config, env) => {
+        const { RAGMember } = await import('./rag/index.js');
         return new RAGMember(config, env);
     });
     // HITL agent
@@ -228,8 +228,8 @@ function registerAllBuiltInMembers(registry) {
             },
         ],
         documentation: 'https://docs.conductor.dev/built-in-agents/hitl',
-    }, (config, env) => {
-        const { HITLMember } = require('./hitl');
+    }, async (config, env) => {
+        const { HITLMember } = await import('./hitl/index.js');
         return new HITLMember(config, env);
     });
     // Fetch agent
@@ -263,8 +263,8 @@ function registerAllBuiltInMembers(registry) {
             },
         ],
         documentation: 'https://docs.conductor.dev/built-in-agents/fetch',
-    }, (config, env) => {
-        const { FetchMember } = require('./fetch');
+    }, async (config, env) => {
+        const { FetchMember } = await import('./fetch/index.js');
         return new FetchMember(config, env);
     });
     // Tools agent (MCP client)
@@ -309,8 +309,8 @@ function registerAllBuiltInMembers(registry) {
             },
         ],
         documentation: 'https://docs.conductor.dev/built-in-agents/tools',
-    }, (config, env) => {
-        const { ToolsMember } = require('./tools');
+    }, async (config, env) => {
+        const { ToolsMember } = await import('./tools/index.js');
         return new ToolsMember(config, env);
     });
     // Queries agent
@@ -394,8 +394,8 @@ function registerAllBuiltInMembers(registry) {
             },
         },
         documentation: 'https://docs.conductor.dev/built-in-agents/queries',
-    }, (config, env) => {
-        const { QueriesMember } = require('./queries');
+    }, async (config, env) => {
+        const { QueriesMember } = await import('./queries/index.js');
         return new QueriesMember(config, env);
     });
 }

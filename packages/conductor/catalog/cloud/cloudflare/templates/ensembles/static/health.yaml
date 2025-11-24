@@ -1,0 +1,56 @@
+name: health
+description: Health check endpoint for monitoring and load balancers
+
+trigger:
+  - type: http
+    path: /health
+    methods: [GET]
+    public: true
+    responses:
+      html:
+        enabled: false
+      json:
+        enabled: true
+
+agents:
+  - name: check-health
+    operation: code
+    config:
+      code: |
+        export default async function checkHealth(input, context) {
+          const { env } = context;
+
+          // Basic health check
+          const health = {
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            uptime: Date.now(), // In production, track actual uptime
+            version: env.APP_VERSION || '1.0.0',
+          };
+
+          // Optional: Check database connectivity
+          if (env.DB) {
+            try {
+              await env.DB.prepare('SELECT 1').first();
+              health.database = 'connected';
+            } catch (error) {
+              health.database = 'disconnected';
+              health.status = 'degraded';
+            }
+          }
+
+          // Optional: Check KV store
+          if (env.KV) {
+            try {
+              await env.KV.get('health-check');
+              health.kv = 'connected';
+            } catch (error) {
+              health.kv = 'disconnected';
+              health.status = 'degraded';
+            }
+          }
+
+          return health;
+        }
+
+output: $check-health

@@ -207,6 +207,222 @@ declare const EnsembleSchema: z.ZodObject<{
         timezone?: string | undefined;
         input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
+    }>, z.ZodObject<{
+        type: z.ZodLiteral<"http">;
+        path: z.ZodOptional<z.ZodString>;
+        methods: z.ZodOptional<z.ZodArray<z.ZodEnum<["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]>, "many">>;
+        auth: z.ZodOptional<z.ZodObject<{
+            type: z.ZodEnum<["bearer", "signature", "basic"]>;
+            secret: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        }, {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        }>>;
+        public: z.ZodOptional<z.ZodBoolean>;
+        mode: z.ZodOptional<z.ZodEnum<["trigger", "resume"]>>;
+        async: z.ZodOptional<z.ZodBoolean>;
+        timeout: z.ZodOptional<z.ZodNumber>;
+        rateLimit: z.ZodOptional<z.ZodObject<{
+            requests: z.ZodNumber;
+            window: z.ZodNumber;
+            key: z.ZodOptional<z.ZodUnion<[z.ZodEnum<["ip", "user"]>, z.ZodFunction<z.ZodTuple<[], z.ZodUnknown>, z.ZodUnknown>]>>;
+        }, "strip", z.ZodTypeAny, {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        }, {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        }>>;
+        cors: z.ZodOptional<z.ZodObject<{
+            origin: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodArray<z.ZodString, "many">]>>;
+            methods: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            allowHeaders: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            exposeHeaders: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            credentials: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        }, {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        }>>;
+        cache: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodBoolean;
+            ttl: z.ZodNumber;
+            vary: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            tags: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            keyGenerator: z.ZodOptional<z.ZodFunction<z.ZodTuple<[], z.ZodUnknown>, z.ZodUnknown>>;
+        }, "strip", z.ZodTypeAny, {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        }, {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        }>>;
+        middleware: z.ZodOptional<z.ZodArray<z.ZodAny, "many">>;
+        responses: z.ZodOptional<z.ZodObject<{
+            html: z.ZodOptional<z.ZodObject<{
+                enabled: z.ZodBoolean;
+            }, "strip", z.ZodTypeAny, {
+                enabled: boolean;
+            }, {
+                enabled: boolean;
+            }>>;
+            json: z.ZodOptional<z.ZodObject<{
+                enabled: z.ZodBoolean;
+                transform: z.ZodOptional<z.ZodFunction<z.ZodTuple<[], z.ZodUnknown>, z.ZodUnknown>>;
+            }, "strip", z.ZodTypeAny, {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            }, {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            }>>;
+            stream: z.ZodOptional<z.ZodObject<{
+                enabled: z.ZodBoolean;
+                chunkSize: z.ZodOptional<z.ZodNumber>;
+            }, "strip", z.ZodTypeAny, {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            }, {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            }>>;
+        }, "strip", z.ZodTypeAny, {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        }, {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        }>>;
+        templateEngine: z.ZodOptional<z.ZodEnum<["handlebars", "liquid", "simple"]>>;
+    }, "strip", z.ZodTypeAny, {
+        type: "http";
+        cache?: {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+        rateLimit?: {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        cors?: {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        } | undefined;
+        middleware?: any[] | undefined;
+        responses?: {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        } | undefined;
+        templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
+    }, {
+        type: "http";
+        cache?: {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+        rateLimit?: {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        cors?: {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        } | undefined;
+        middleware?: any[] | undefined;
+        responses?: {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        } | undefined;
+        templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     }>]>, "many">>, ({
         type: "webhook";
         path?: string | undefined;
@@ -247,6 +463,52 @@ declare const EnsembleSchema: z.ZodObject<{
         timezone?: string | undefined;
         input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
+    } | {
+        type: "http";
+        cache?: {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+        rateLimit?: {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        cors?: {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        } | undefined;
+        middleware?: any[] | undefined;
+        responses?: {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        } | undefined;
+        templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     })[] | undefined, ({
         type: "webhook";
         path?: string | undefined;
@@ -287,6 +549,52 @@ declare const EnsembleSchema: z.ZodObject<{
         timezone?: string | undefined;
         input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
+    } | {
+        type: "http";
+        cache?: {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+        rateLimit?: {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        cors?: {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        } | undefined;
+        middleware?: any[] | undefined;
+        responses?: {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        } | undefined;
+        templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     })[] | undefined>;
     notifications: z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
         type: z.ZodLiteral<"webhook">;
@@ -540,6 +848,52 @@ declare const EnsembleSchema: z.ZodObject<{
         timezone?: string | undefined;
         input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
+    } | {
+        type: "http";
+        cache?: {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+        rateLimit?: {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        cors?: {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        } | undefined;
+        middleware?: any[] | undefined;
+        responses?: {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        } | undefined;
+        templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     })[] | undefined;
     notifications?: ({
         type: "webhook";
@@ -644,6 +998,52 @@ declare const EnsembleSchema: z.ZodObject<{
         timezone?: string | undefined;
         input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
+    } | {
+        type: "http";
+        cache?: {
+            enabled: boolean;
+            ttl: number;
+            vary?: string[] | undefined;
+            tags?: string[] | undefined;
+            keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        path?: string | undefined;
+        methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
+        auth?: {
+            type: "bearer" | "signature" | "basic";
+            secret: string;
+        } | undefined;
+        public?: boolean | undefined;
+        mode?: "trigger" | "resume" | undefined;
+        async?: boolean | undefined;
+        timeout?: number | undefined;
+        rateLimit?: {
+            requests: number;
+            window: number;
+            key?: "ip" | "user" | ((...args: unknown[]) => unknown) | undefined;
+        } | undefined;
+        cors?: {
+            methods?: string[] | undefined;
+            origin?: string | string[] | undefined;
+            allowHeaders?: string[] | undefined;
+            exposeHeaders?: string[] | undefined;
+            credentials?: boolean | undefined;
+        } | undefined;
+        middleware?: any[] | undefined;
+        responses?: {
+            json?: {
+                enabled: boolean;
+                transform?: ((...args: unknown[]) => unknown) | undefined;
+            } | undefined;
+            html?: {
+                enabled: boolean;
+            } | undefined;
+            stream?: {
+                enabled: boolean;
+                chunkSize?: number | undefined;
+            } | undefined;
+        } | undefined;
+        templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     })[] | undefined;
     notifications?: ({
         type: "webhook";
@@ -663,7 +1063,7 @@ declare const EnsembleSchema: z.ZodObject<{
 }>;
 declare const AgentSchema: z.ZodObject<{
     name: z.ZodString;
-    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.data, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.page, Operation.html, Operation.pdf, Operation.queue, Operation.docs]>;
+    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.data, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.html, Operation.pdf, Operation.queue, Operation.docs]>;
     description: z.ZodOptional<z.ZodString>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     schema: z.ZodOptional<z.ZodObject<{
@@ -702,6 +1102,24 @@ export type TriggerConfig = NonNullable<EnsembleConfig['trigger']>[number];
 export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number];
 export type ExposeConfig = TriggerConfig;
 export type ScheduleConfig = Extract<TriggerConfig, {
+    type: 'cron';
+}>;
+export type HTTPTriggerConfig = Extract<TriggerConfig, {
+    type: 'http';
+}>;
+export type WebhookTriggerConfig = Extract<TriggerConfig, {
+    type: 'webhook';
+}>;
+export type MCPTriggerConfig = Extract<TriggerConfig, {
+    type: 'mcp';
+}>;
+export type EmailTriggerConfig = Extract<TriggerConfig, {
+    type: 'email';
+}>;
+export type QueueTriggerConfig = Extract<TriggerConfig, {
+    type: 'queue';
+}>;
+export type CronTriggerConfig = Extract<TriggerConfig, {
     type: 'cron';
 }>;
 export declare class Parser {
