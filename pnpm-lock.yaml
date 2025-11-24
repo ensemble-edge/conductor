@@ -130,6 +130,9 @@ importers:
 
   packages/plugin-payload:
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20251121.0
+        version: 4.20251121.0
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../conductor
@@ -146,6 +149,9 @@ importers:
         specifier: ^0.25.0
         version: 0.25.0
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20251121.0
+        version: 4.20251121.0
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../conductor
