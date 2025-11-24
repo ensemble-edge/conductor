@@ -41,7 +41,7 @@
     "directory": "packages/plugin-payload"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.2.1"
+    "@ensemble-edge/conductor": "^0.2.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251121.0",
