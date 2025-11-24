@@ -110,7 +110,7 @@ flow:
     maxConcurrency: 5
     breakWhen: ${check-target.output.found === true}
     step:
-    agent: check-target
+      agent: check-target
       input:
         target: ${item}
         query: ${input.searchQuery}
@@ -120,11 +120,11 @@ flow:
     items: ${input.documents}
     maxConcurrency: 10
     map:
-    agent: analyze-document
+      agent: analyze-document
       input:
         document: ${item}
     reduce:
-    agent: aggregate-analysis
+      agent: aggregate-analysis
       input:
         results: ${results}
 

@@ -33,7 +33,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     lib: {
-      entry: 'src/index.ts',
+      entry: 'src/index-auto-discovery.ts',
       formats: ['es'],
       fileName: 'index',
     },
@@ -64,13 +64,6 @@ export default defineConfig({
   optimizeDeps: {
     include: [],
     exclude: ['cloudflare:workers'],
-  },
-  // Use Rolldown for 3x+ faster builds
-  rolldown: {
-    output: {
-      platform: 'neutral', // CRITICAL: Prevents Node.js-specific code
-      charset: 'utf8', // Support Unicode characters (emojis, etc.)
-    },
   },
   esbuild: {
     charset: 'utf8', // Support Unicode characters in source files

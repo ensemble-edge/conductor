@@ -36,27 +36,34 @@ agents:
           </url>
           {% endfor %}
         </urlset>
+
+flow:
+  - agent: generate-sitemap
     input:
-      urls: $input.urls
+      urls: ${input.urls}
 
 # Default URLs - typically generated dynamically from your pages/content
 # In a real application, you would use a Data agent to query your content
 # and map results to sitemap URL format
-input:
+inputs:
   urls:
-    - loc: https://example.com/
-      lastmod: "2024-01-01"
-      changefreq: daily
-      priority: 1.0
-    - loc: https://example.com/docs
-      lastmod: "2024-01-01"
-      changefreq: weekly
-      priority: 0.8
-    - loc: https://example.com/about
-      changefreq: monthly
-      priority: 0.5
+    type: array
+    required: false
+    default:
+      - loc: https://example.com/
+        lastmod: "2024-01-01"
+        changefreq: daily
+        priority: 1.0
+      - loc: https://example.com/docs
+        lastmod: "2024-01-01"
+        changefreq: weekly
+        priority: 0.8
+      - loc: https://example.com/about
+        changefreq: monthly
+        priority: 0.5
 
-output: $generate-sitemap
+output:
+  sitemap: ${generate-sitemap.output}
 
 # Example with dynamic content generation:
 # agents:
