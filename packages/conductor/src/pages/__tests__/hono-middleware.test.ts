@@ -18,10 +18,13 @@ describe('Hono Middleware Integration', () => {
 
   it('should work with CORS middleware', async () => {
     // Add CORS middleware
-    app.use('*', cors({
-      origin: 'https://example.com',
-      allowMethods: ['GET', 'POST'],
-    }))
+    app.use(
+      '*',
+      cors({
+        origin: 'https://example.com',
+        allowMethods: ['GET', 'POST'],
+      })
+    )
 
     const config: PageRouteConfig = {
       name: 'home',
@@ -40,7 +43,7 @@ describe('Hono Middleware Integration', () => {
     const req = new Request('http://localhost/', {
       method: 'GET',
       headers: {
-        'Origin': 'https://example.com',
+        Origin: 'https://example.com',
       },
     })
 
@@ -54,9 +57,12 @@ describe('Hono Middleware Integration', () => {
     const logs: string[] = []
 
     // Add custom logger middleware that captures logs
-    app.use('*', logger((message) => {
-      logs.push(message)
-    }))
+    app.use(
+      '*',
+      logger((message) => {
+        logs.push(message)
+      })
+    )
 
     const config: PageRouteConfig = {
       name: 'about',
@@ -119,7 +125,10 @@ describe('Hono Middleware Integration', () => {
     const logs: string[] = []
 
     // Chain multiple middleware
-    app.use('*', logger((message) => logs.push(message)))
+    app.use(
+      '*',
+      logger((message) => logs.push(message))
+    )
     app.use('*', cors({ origin: '*' }))
     app.use('*', compress())
 
@@ -139,7 +148,7 @@ describe('Hono Middleware Integration', () => {
     const req = new Request('http://localhost/multi', {
       method: 'GET',
       headers: {
-        'Origin': 'https://example.com',
+        Origin: 'https://example.com',
       },
     })
 
@@ -203,7 +212,7 @@ describe('Hono Middleware Integration', () => {
     const protectedReq = new Request('http://localhost/protected/admin', {
       method: 'GET',
       headers: {
-        'Authorization': 'Bearer secret',
+        Authorization: 'Bearer secret',
       },
     })
     const protectedRes = await app.fetch(protectedReq, {} as any, {} as any)

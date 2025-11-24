@@ -44,7 +44,12 @@ export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js
 // export { authenticate } from './api/auth.js';
 
 // Pages Module (Hono-based)
-export { PageLoader, HonoConductorBridge, register404Handler, register500Handler } from './pages/index.js'
+export {
+  PageLoader,
+  HonoConductorBridge,
+  register404Handler,
+  register500Handler,
+} from './pages/index.js'
 export type {
   PageRouteConfig,
   PageOperation,

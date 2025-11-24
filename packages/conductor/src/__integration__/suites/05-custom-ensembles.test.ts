@@ -15,28 +15,28 @@ import { testJsonEndpoint } from '../helpers/http.js'
  * 5. Test all ensembles via /api/v1/execute/{name}
  */
 describe('Phase 5: Custom Ensembles', () => {
-	let project: TestProject
-	let server: TestServer
+  let project: TestProject
+  let server: TestServer
 
-	beforeAll(async () => {
-		console.log('🏗️  Setting up Phase 5: Custom Ensembles testing...')
+  beforeAll(async () => {
+    console.log('🏗️  Setting up Phase 5: Custom Ensembles testing...')
 
-		// Build and pack Conductor
-		const tarballPath = await buildAndPackConductor()
+    // Build and pack Conductor
+    const tarballPath = await buildAndPackConductor()
 
-		// Create test project
-		project = await TestProject.create({ name: 'conductor-custom-ensembles-test' })
+    // Create test project
+    project = await TestProject.create({ name: 'conductor-custom-ensembles-test' })
 
-		// Install and initialize
-		await project.installConductor(tarballPath)
-		await project.init()
+    // Install and initialize
+    await project.installConductor(tarballPath)
+    await project.init()
 
-		// IMPORTANT: Use auto-discovery index file instead of pages-only version
-		// The default src/index.ts only loads pages, not agents or ensembles
-		// We write our own simplified version to avoid emoji parsing issues in comments
-		await project.writeFile(
-			'src/index.ts',
-			`import { createAutoDiscoveryAPI } from '@ensemble-edge/conductor/api'
+    // IMPORTANT: Use auto-discovery index file instead of pages-only version
+    // The default src/index.ts only loads pages, not agents or ensembles
+    // We write our own simplified version to avoid emoji parsing issues in comments
+    await project.writeFile(
+      'src/index.ts',
+      `import { createAutoDiscoveryAPI } from '@ensemble-edge/conductor/api'
 import { ExecutionState, HITLState } from '@ensemble-edge/conductor/cloudflare'
 import { agents } from 'virtual:conductor-agents'
 import { ensembles } from 'virtual:conductor-ensembles'
@@ -59,149 +59,134 @@ export default createAutoDiscoveryAPI({
 
 export { ExecutionState, HITLState }
 `
-		)
+    )
 
-		await project.install()
+    await project.install()
 
-		// Create agents first
-		await createTestAgents(project)
+    // Create agents first
+    await createTestAgents(project)
 
-		// Then create ensembles that use those agents
-		await createTestEnsembles(project)
+    // Then create ensembles that use those agents
+    await createTestEnsembles(project)
 
-		// Build
-		await project.build()
+    // Build
+    await project.build()
 
-		// Start dev server
-		server = new TestServer(project.dir)
-		await server.start()
+    // Start dev server
+    server = new TestServer(project.dir)
+    await server.start()
 
-		console.log('✅ Phase 5 setup complete')
-	}, 600000) // 10 minutes
+    console.log('✅ Phase 5 setup complete')
+  }, 600000) // 10 minutes
 
-	afterAll(async () => {
-		if (server) {
-			await server.stop()
-		}
-		if (project) {
-			await project.cleanup()
-		}
-	})
+  afterAll(async () => {
+    if (server) {
+      await server.stop()
+    }
+    if (project) {
+      await project.cleanup()
+    }
+  })
 
-	it('should have created ensemble files', async () => {
-		expect(await project.exists('ensembles/text-pipeline.yaml')).toBe(true)
-		expect(await project.exists('ensembles/text-analysis.yaml')).toBe(true)
-		expect(await project.exists('ensembles/math-pipeline.yaml')).toBe(true)
-	})
+  it('should have created ensemble files', async () => {
+    expect(await project.exists('ensembles/text-pipeline.yaml')).toBe(true)
+    expect(await project.exists('ensembles/text-analysis.yaml')).toBe(true)
+    expect(await project.exists('ensembles/math-pipeline.yaml')).toBe(true)
+  })
 
-	it('should execute text-pipeline ensemble (sequential workflow)', async () => {
-		const response = await testJsonEndpoint(
-			server.getUrl('/api/v1/execute/text-pipeline'),
-			{
-				method: 'POST',
-				body: {
-					input: { text: 'hello world' },
-				},
-				expectedStatus: 200,
-			}
-		)
+  it('should execute text-pipeline ensemble (sequential workflow)', async () => {
+    const response = await testJsonEndpoint(server.getUrl('/api/v1/execute/text-pipeline'), {
+      method: 'POST',
+      body: {
+        input: { text: 'hello world' },
+      },
+      expectedStatus: 200,
+    })
 
-		// Pipeline: text → uppercase → reverse = "DLROW OLLEH"
-		expect(response.output.result).toBe('DLROW OLLEH')
-		expect(response.output.steps).toBeDefined()
-		expect(response.output.steps.uppercase).toBe('HELLO WORLD')
-	})
+    // Pipeline: text → uppercase → reverse = "DLROW OLLEH"
+    expect(response.output.result).toBe('DLROW OLLEH')
+    expect(response.output.steps).toBeDefined()
+    expect(response.output.steps.uppercase).toBe('HELLO WORLD')
+  })
 
-	it('should execute text-analysis ensemble (parallel workflow)', async () => {
-		const response = await testJsonEndpoint(
-			server.getUrl('/api/v1/execute/text-analysis'),
-			{
-				method: 'POST',
-				body: {
-					input: {
-						text: 'integration test',
-						email: 'test@example.com',
-						age: 25,
-						username: 'testuser'
-					},
-				},
-				expectedStatus: 200,
-			}
-		)
+  it('should execute text-analysis ensemble (parallel workflow)', async () => {
+    const response = await testJsonEndpoint(server.getUrl('/api/v1/execute/text-analysis'), {
+      method: 'POST',
+      body: {
+        input: {
+          text: 'integration test',
+          email: 'test@example.com',
+          age: 25,
+          username: 'testuser',
+        },
+      },
+      expectedStatus: 200,
+    })
 
-		// Parallel execution: word count + data validation
-		expect(response.output.wordCount).toBe(2)
-		expect(response.output.textLength).toBe(16)
-		expect(response.output.validation.isValid).toBe(true)
-	})
+    // Parallel execution: word count + data validation
+    expect(response.output.wordCount).toBe(2)
+    expect(response.output.textLength).toBe(16)
+    expect(response.output.validation.isValid).toBe(true)
+  })
 
-	it('should execute math-pipeline ensemble with chained calculations', async () => {
-		const response = await testJsonEndpoint(
-			server.getUrl('/api/v1/execute/math-pipeline'),
-			{
-				method: 'POST',
-				body: {
-					input: { number: 10 },
-				},
-				expectedStatus: 200,
-			}
-		)
+  it('should execute math-pipeline ensemble with chained calculations', async () => {
+    const response = await testJsonEndpoint(server.getUrl('/api/v1/execute/math-pipeline'), {
+      method: 'POST',
+      body: {
+        input: { number: 10 },
+      },
+      expectedStatus: 200,
+    })
 
-		// Pipeline: 10 * 2 = 20, then 20 + 22 = 42
-		expect(response.output.result).toBe(42)
-		expect(response.output.steps.doubled).toBe(20)
-		expect(response.output.steps.final).toBe(42)
-	})
+    // Pipeline: 10 * 2 = 20, then 20 + 22 = 42
+    expect(response.output.result).toBe(42)
+    expect(response.output.steps.doubled).toBe(20)
+    expect(response.output.steps.final).toBe(42)
+  })
 
-	it('should handle ensemble with invalid input', async () => {
-		const response = await fetch(
-			server.getUrl('/api/v1/execute/text-analysis'),
-			{
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					input: {
-						text: 'test',
-						email: 'invalid-email',
-						age: -5,
-						username: 'ab'
-					},
-				}),
-			}
-		)
+  it('should handle ensemble with invalid input', async () => {
+    const response = await fetch(server.getUrl('/api/v1/execute/text-analysis'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: {
+          text: 'test',
+          email: 'invalid-email',
+          age: -5,
+          username: 'ab',
+        },
+      }),
+    })
 
-		const data = await response.json()
+    const data = await response.json()
 
-		// Should still execute but validation should fail
-		expect(data.output.validation.isValid).toBe(false)
-		expect(data.output.validation.errors.length).toBeGreaterThan(0)
-	})
+    // Should still execute but validation should fail
+    expect(data.output.validation.isValid).toBe(false)
+    expect(data.output.validation.errors.length).toBeGreaterThan(0)
+  })
 
-	it('should track execution steps in ensemble response', async () => {
-		const response = await testJsonEndpoint(
-			server.getUrl('/api/v1/execute/text-pipeline'),
-			{
-				method: 'POST',
-				body: {
-					input: { text: 'test' },
-				},
-				expectedStatus: 200,
-			}
-		)
+  it('should track execution steps in ensemble response', async () => {
+    const response = await testJsonEndpoint(server.getUrl('/api/v1/execute/text-pipeline'), {
+      method: 'POST',
+      body: {
+        input: { text: 'test' },
+      },
+      expectedStatus: 200,
+    })
 
-		expect(response.output.steps).toBeDefined()
-		expect(response.output.steps.uppercase).toBeDefined()
-		expect(response.output.steps.reversed).toBeDefined()
-	})
+    expect(response.output.steps).toBeDefined()
+    expect(response.output.steps.uppercase).toBeDefined()
+    expect(response.output.steps.reversed).toBeDefined()
+  })
 })
 
 /**
  * Create test agents for ensemble testing
  */
 async function createTestAgents(project: TestProject): Promise<void> {
-	// Text processor agent
-	await project.createAgent('text-processor', {
-		yaml: `name: text-processor
+  // Text processor agent
+  await project.createAgent('text-processor', {
+    yaml: `name: text-processor
 operation: code
 schema:
   input:
@@ -210,7 +195,7 @@ schema:
   output:
     result: string
 `,
-		ts: `export default async function(context: any): Promise<{ result: string }> {
+    ts: `export default async function(context: any): Promise<{ result: string }> {
   console.error('[DEBUG] context.input:', JSON.stringify(context.input))
   console.error('[DEBUG] context.input type:', typeof context.input)
   console.error('[DEBUG] context.input keys:', context.input ? Object.keys(context.input) : 'null')
@@ -227,11 +212,11 @@ schema:
   return { result }
 }
 `,
-	})
+  })
 
-	// Calculator agent
-	await project.createAgent('calculator', {
-		yaml: `name: calculator
+  // Calculator agent
+  await project.createAgent('calculator', {
+    yaml: `name: calculator
 operation: code
 schema:
   input:
@@ -241,7 +226,7 @@ schema:
   output:
     result: number
 `,
-		ts: `export default async function({ input }: { input: any }): Promise<{ result: number }> {
+    ts: `export default async function({ input }: { input: any }): Promise<{ result: number }> {
   const { a, b, operation } = input
   let result: number
   switch (operation) {
@@ -254,11 +239,11 @@ schema:
   return { result }
 }
 `,
-	})
+  })
 
-	// Data validator agent
-	await project.createAgent('data-validator', {
-		yaml: `name: data-validator
+  // Data validator agent
+  await project.createAgent('data-validator', {
+    yaml: `name: data-validator
 operation: code
 schema:
   input:
@@ -269,7 +254,7 @@ schema:
     isValid: boolean
     errors: array
 `,
-		ts: `export default async function({ input }: { input: any }): Promise<any> {
+    ts: `export default async function({ input }: { input: any }): Promise<any> {
   const { email, age, username } = input
   const errors = []
 
@@ -286,17 +271,17 @@ schema:
   return { isValid: errors.length === 0, errors }
 }
 `,
-	})
+  })
 }
 
 /**
  * Create test ensembles for integration testing
  */
 async function createTestEnsembles(project: TestProject): Promise<void> {
-	// 1. Sequential text pipeline
-	await project.createEnsemble(
-		'text-pipeline',
-		`name: text-pipeline
+  // 1. Sequential text pipeline
+  await project.createEnsemble(
+    'text-pipeline',
+    `name: text-pipeline
 description: Sequential text processing (uppercase then reverse)
 
 flow:
@@ -318,12 +303,12 @@ output:
     uppercase: \${uppercase-step.output.result}
     reversed: \${reverse-step.output.result}
 `
-	)
+  )
 
-	// 2. Parallel text analysis
-	await project.createEnsemble(
-		'text-analysis',
-		`name: text-analysis
+  // 2. Parallel text analysis
+  await project.createEnsemble(
+    'text-analysis',
+    `name: text-analysis
 description: Parallel text analysis and data validation
 
 flow:
@@ -339,12 +324,12 @@ output:
   textLength: \${input.text | length}
   validation: \${validate.output}
 `
-	)
+  )
 
-	// 3. Math pipeline
-	await project.createEnsemble(
-		'math-pipeline',
-		`name: math-pipeline
+  // 3. Math pipeline
+  await project.createEnsemble(
+    'math-pipeline',
+    `name: math-pipeline
 description: Sequential math operations
 
 flow:
@@ -368,5 +353,5 @@ output:
     doubled: \${double.output.result}
     final: \${add-22.output.result}
 `
-	)
+  )
 }

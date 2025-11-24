@@ -9,10 +9,7 @@ import type { ConductorEnv } from '../types/env.js'
 /**
  * Register 404 handler with custom page
  */
-export function register404Handler(
-  app: Hono,
-  notFoundPage?: PageAgent
-): void {
+export function register404Handler(app: Hono, notFoundPage?: PageAgent): void {
   app.notFound(async (c) => {
     if (!notFoundPage) {
       return c.html('<h1>404 Not Found</h1>', 404)
@@ -53,10 +50,7 @@ export function register404Handler(
 /**
  * Register 500 handler with custom page
  */
-export function register500Handler(
-  app: Hono,
-  errorPage?: PageAgent
-): void {
+export function register500Handler(app: Hono, errorPage?: PageAgent): void {
   app.onError(async (err, c) => {
     console.error('Unhandled page error:', err)
 

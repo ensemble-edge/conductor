@@ -86,21 +86,24 @@ export class StringResolver implements InterpolationResolver {
 
     // Case 2: Partial interpolation - string contains ${...} or {{...}}
     // Returns a string with all interpolations replaced
-    const result = template.replace(/(\$\{([^}]*)\}|\{\{([^}]*)\}\})/g, (match, _full, dollarPath, handlebarPath) => {
-      const path = dollarPath !== undefined ? dollarPath : handlebarPath
-      const trimmedPath = path.trim()
+    const result = template.replace(
+      /(\$\{([^}]*)\}|\{\{([^}]*)\}\})/g,
+      (match, _full, dollarPath, handlebarPath) => {
+        const path = dollarPath !== undefined ? dollarPath : handlebarPath
+        const trimmedPath = path.trim()
 
-      // Empty path becomes empty string
-      if (!trimmedPath) {
-        return ''
+        // Empty path becomes empty string
+        if (!trimmedPath) {
+          return ''
+        }
+
+        const value = this.traversePath(trimmedPath, context)
+
+        // If value is undefined, keep original ${...} or {{...}} in string
+        // Otherwise convert value to string
+        return value !== undefined ? String(value) : match
       }
-
-      const value = this.traversePath(trimmedPath, context)
-
-      // If value is undefined, keep original ${...} or {{...}} in string
-      // Otherwise convert value to string
-      return value !== undefined ? String(value) : match
-    })
+    )
 
     return result
   }
@@ -125,7 +128,10 @@ export class StringResolver implements InterpolationResolver {
 
       // Apply filter chain if present
       if (parts.length > 1) {
-        const filterChain = parts.slice(1).map(f => f.trim()).filter(f => f.length > 0)
+        const filterChain = parts
+          .slice(1)
+          .map((f) => f.trim())
+          .filter((f) => f.length > 0)
         if (filterChain.length > 0) {
           value = applyFilters(value, filterChain)
         }

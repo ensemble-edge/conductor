@@ -32,11 +32,12 @@ export const filters: Record<string, FilterFunction> = {
   },
 
   // Array filters
-  first: (arr: any[]) => Array.isArray(arr) && arr.length > 0 ? arr[0] : undefined,
-  last: (arr: any[]) => Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : undefined,
-  slice: (arr: any[], start: number, end?: number) => Array.isArray(arr) ? arr.slice(start, end) : [],
-  reverse: (arr: any[]) => Array.isArray(arr) ? [...arr].reverse() : [],
-  sort: (arr: any[]) => Array.isArray(arr) ? [...arr].sort() : [],
+  first: (arr: any[]) => (Array.isArray(arr) && arr.length > 0 ? arr[0] : undefined),
+  last: (arr: any[]) => (Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : undefined),
+  slice: (arr: any[], start: number, end?: number) =>
+    Array.isArray(arr) ? arr.slice(start, end) : [],
+  reverse: (arr: any[]) => (Array.isArray(arr) ? [...arr].reverse() : []),
+  sort: (arr: any[]) => (Array.isArray(arr) ? [...arr].sort() : []),
 
   // Number filters
   abs: (num: number) => Math.abs(Number(num)),
@@ -50,11 +51,12 @@ export const filters: Record<string, FilterFunction> = {
   boolean: (value: any) => Boolean(value),
 
   // Object filters
-  keys: (obj: any) => typeof obj === 'object' && obj !== null ? Object.keys(obj) : [],
-  values: (obj: any) => typeof obj === 'object' && obj !== null ? Object.values(obj) : [],
+  keys: (obj: any) => (typeof obj === 'object' && obj !== null ? Object.keys(obj) : []),
+  values: (obj: any) => (typeof obj === 'object' && obj !== null ? Object.values(obj) : []),
 
   // Utility filters
-  default: (value: any, defaultValue: any) => value !== undefined && value !== null ? value : defaultValue,
+  default: (value: any, defaultValue: any) =>
+    value !== undefined && value !== null ? value : defaultValue,
   json: (value: any) => JSON.stringify(value),
 }
 
@@ -94,8 +96,10 @@ export function applyFilters(value: any, filterChain: string[]): any {
         const trimmed = arg.trim()
 
         // String literal
-        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-            (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        if (
+          (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+          (trimmed.startsWith("'") && trimmed.endsWith("'"))
+        ) {
           args.push(trimmed.slice(1, -1))
         }
         // Number

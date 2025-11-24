@@ -173,10 +173,7 @@ export class HonoConductorBridge {
   /**
    * Create page handler (final handler in chain)
    */
-  private createPageHandler(
-    config: PageRouteConfig,
-    agent: PageAgent
-  ): MiddlewareHandler {
+  private createPageHandler(config: PageRouteConfig, agent: PageAgent): MiddlewareHandler {
     return async (c: Context) => {
       // Extract route params, query, headers
       const params = c.req.param()
@@ -256,14 +253,17 @@ export class HonoConductorBridge {
 
         if (handler) {
           // Execute registered operation handler
-          const operationResult = await handler.execute({
-            operation: operation.operation,
-            config: operation.config,
-          }, {
-            ...context,
-            data: context.data,
-            contextType: 'page',
-          })
+          const operationResult = await handler.execute(
+            {
+              operation: operation.operation,
+              config: operation.config,
+            },
+            {
+              ...context,
+              data: context.data,
+              contextType: 'page',
+            }
+          )
 
           // Store result in conductor data
           const existingData = c.get('conductorData') || {}

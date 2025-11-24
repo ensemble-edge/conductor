@@ -7,7 +7,11 @@
  * 2. Lifecycle plugins - Complex plugins with async initialization
  */
 
-import type { OperationRegistry, OperationHandler, OperationMetadata } from '../runtime/operation-registry.js'
+import type {
+  OperationRegistry,
+  OperationHandler,
+  OperationMetadata,
+} from '../runtime/operation-registry.js'
 import type { ConductorEnv } from './env.js'
 
 /**

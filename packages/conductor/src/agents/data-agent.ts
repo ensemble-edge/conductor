@@ -84,7 +84,9 @@ export class DataAgent extends BaseAgent {
 
     // Validate config
     if (!this.dataConfig.database) {
-      throw new Error(`Data agent "${config.name}" requires database type (d1, hyperdrive, vectorize, etc.)`)
+      throw new Error(
+        `Data agent "${config.name}" requires database type (d1, hyperdrive, vectorize, etc.)`
+      )
     }
 
     if (!this.dataConfig.operation) {
@@ -248,7 +250,7 @@ export class DataAgent extends BaseAgent {
           {
             tableName: this.dataConfig.tableName || 'data',
             idColumn: 'key',
-            valueColumn: 'value'
+            valueColumn: 'value',
           },
           new JSONSerializer()
         )
