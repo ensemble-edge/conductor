@@ -6,8 +6,8 @@
  *
  * Features:
  * - Zero-config for 99% of users
- * - Auto-discovers agents/**/*.yaml
- * - Auto-discovers ensembles/**/*.yaml
+ * - Auto-discovers agents from the agents/ directory
+ * - Auto-discovers ensembles from the ensembles/ directory
  * - Provides unified /api/v1/execute endpoint
  * - Built-in authentication and logging
  */
@@ -23,9 +23,9 @@ import { ensembles } from 'virtual:conductor-ensembles'
  * Create Conductor API with auto-discovery
  *
  * This automatically discovers and registers:
- * - All agents from agents/**/*.yaml
- * - All ensembles from ensembles/**/*.yaml
- * - All handlers from agents/**/index.ts
+ * - All agents from the agents/ directory (YAML files)
+ * - All ensembles from the ensembles/ directory (YAML files)
+ * - All handlers from agent directories (index.ts files)
  */
 export default createAutoDiscoveryAPI({
   // Enable auto-discovery (default: true)

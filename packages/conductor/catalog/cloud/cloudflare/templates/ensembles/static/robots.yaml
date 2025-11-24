@@ -38,20 +38,36 @@ agents:
         {% if sitemap %}
         Sitemap: {{sitemap}}
         {% endif %}
+
+flow:
+  - agent: generate-robots
     input:
-      disallowAll: $input.disallowAll
-      disallowPaths: $input.disallowPaths
-      crawlDelay: $input.crawlDelay
-      sitemap: $input.sitemap
+      disallowAll: ${input.disallowAll}
+      disallowPaths: ${input.disallowPaths}
+      crawlDelay: ${input.crawlDelay}
+      sitemap: ${input.sitemap}
 
 # Default configuration
-input:
-  disallowAll: false
+inputs:
+  disallowAll:
+    type: boolean
+    required: false
+    default: false
   disallowPaths:
-    - /api/*
-    - /admin/*
-    - /_*
-  crawlDelay: null
-  sitemap: https://example.com/sitemap.xml
+    type: array
+    required: false
+    default:
+      - /api/*
+      - /admin/*
+      - /_*
+  crawlDelay:
+    type: number
+    required: false
+    default: null
+  sitemap:
+    type: string
+    required: false
+    default: https://example.com/sitemap.xml
 
-output: $generate-robots
+output:
+  robots: ${generate-robots.output}

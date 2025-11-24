@@ -63,7 +63,7 @@ flow:
     items: ${process.output.items}
     maxConcurrency: 3
     step:
-    agent: post-process
+      agent: post-process
       input:
         item: ${item}
 

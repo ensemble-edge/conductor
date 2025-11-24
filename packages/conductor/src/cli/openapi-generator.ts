@@ -333,6 +333,10 @@ export class OpenAPIGenerator {
     }
 
     // Generate from flow
+    if (!ensemble.flow || ensemble.flow.length === 0) {
+      return 'No flow steps defined'
+    }
+
     const stepCount = ensemble.flow.length
     const memberNames = ensemble.flow.map((step) => step.agent).join(', ')
 
@@ -346,13 +350,15 @@ export class OpenAPIGenerator {
     // Analyze flow steps to determine required inputs
     const inputRefs = new Set<string>()
 
-    for (const step of ensemble.flow) {
-      if (step.input) {
-        // Extract input variable references (${input.xxx})
-        const inputStr = JSON.stringify(step.input)
-        const matches = inputStr.matchAll(/\$\{input\.(\w+)\}/g)
-        for (const match of matches) {
-          inputRefs.add(match[1])
+    if (ensemble.flow) {
+      for (const step of ensemble.flow) {
+        if (step.input) {
+          // Extract input variable references (${input.xxx})
+          const inputStr = JSON.stringify(step.input)
+          const matches = inputStr.matchAll(/\$\{input\.(\w+)\}/g)
+          for (const match of matches) {
+            inputRefs.add(match[1])
+          }
         }
       }
     }

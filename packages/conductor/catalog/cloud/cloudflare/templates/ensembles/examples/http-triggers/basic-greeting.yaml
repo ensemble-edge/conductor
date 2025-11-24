@@ -15,9 +15,19 @@ agents:
     operation: code
     config:
       code: |
-        const name = context.data.name || 'World';
-        return {
-          greeting: `Hello, ${name}!`,
-          timestamp: new Date().toISOString(),
-          message: `Welcome to Conductor!`
-        };
+        export default function greetUser(input, context) {
+          const name = context.request.params.name || 'World';
+          return {
+            greeting: `Hello, ${name}!`,
+            timestamp: new Date().toISOString(),
+            message: `Welcome to Conductor!`
+          };
+        }
+
+flow:
+  - agent: greet-user
+
+output:
+  greeting: ${greet-user.output.greeting}
+  timestamp: ${greet-user.output.timestamp}
+  message: ${greet-user.output.message}

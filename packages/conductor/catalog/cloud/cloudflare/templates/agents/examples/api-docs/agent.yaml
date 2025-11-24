@@ -1,5 +1,5 @@
 name: api-docs
-operation: Docs
+operation: docs
 description: Auto-generated API documentation
 
 config:

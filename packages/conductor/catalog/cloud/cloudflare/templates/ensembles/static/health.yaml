@@ -53,4 +53,11 @@ agents:
           return health;
         }
 
-output: $check-health
+flow:
+  - agent: check-health
+
+output:
+  status: ${check-health.output.status}
+  timestamp: ${check-health.output.timestamp}
+  version: ${check-health.output.version}
+  uptime: ${check-health.output.uptime}

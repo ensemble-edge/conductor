@@ -1,5 +1,5 @@
 name: vectorize-search
-operation: vectorize-rag
+operation: data
 description: |
   Manual RAG with Cloudflare Vectorize for full control.
 

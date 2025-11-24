@@ -308,7 +308,7 @@ export class Executor {
     if (step.input) {
       // User specified explicit input mapping
       resolvedInput = Parser.resolveInterpolation(step.input, executionContext)
-    } else if (stepIndex > 0) {
+    } else if (stepIndex > 0 && ensemble.flow) {
       // Default to previous agent's output for chaining
       const previousAgentName = ensemble.flow[stepIndex - 1].agent
       const previousResult = executionContext[previousAgentName] as AgentExecutionResult | undefined
@@ -529,6 +529,16 @@ export class Executor {
     } = flowContext
 
     // Execute flow steps sequentially from startStep
+    if (!ensemble.flow || ensemble.flow.length === 0) {
+      return Result.err(
+        new EnsembleExecutionError(
+          ensemble.name,
+          'validation',
+          new Error('Ensemble has no flow steps defined')
+        )
+      )
+    }
+
     for (let i = startStep; i < ensemble.flow.length; i++) {
       const step = ensemble.flow[i]
       const stepResult = await this.executeStep(step, flowContext, i)

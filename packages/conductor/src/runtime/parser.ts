@@ -225,43 +225,47 @@ const EnsembleSchema = z.object({
       ])
     )
     .optional(),
-  flow: z.array(
-    z.object({
-      agent: z.string().min(1, 'Agent name is required'),
-      id: z.string().optional(),
-      input: z.record(z.unknown()).optional(),
-      state: z
-        .object({
-          use: z.array(z.string()).optional(),
-          set: z.array(z.string()).optional(),
-        })
-        .optional(),
-      cache: z
-        .object({
-          ttl: z.number().positive().optional(),
-          bypass: z.boolean().optional(),
-        })
-        .optional(),
-      scoring: z
-        .object({
-          evaluator: z.string().min(1),
-          thresholds: z
-            .object({
-              minimum: z.number().min(0).max(1).optional(),
-              target: z.number().min(0).max(1).optional(),
-              excellent: z.number().min(0).max(1).optional(),
-            })
-            .optional(),
-          criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
-          onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
-          retryLimit: z.number().positive().optional(),
-          requireImprovement: z.boolean().optional(),
-          minImprovement: z.number().min(0).max(1).optional(),
-        })
-        .optional(),
-      condition: z.unknown().optional(),
-    })
-  ),
+  agents: z.array(z.record(z.unknown())).optional(), // Inline agent definitions (legacy/optional)
+  flow: z
+    .array(
+      z.object({
+        agent: z.string().min(1, 'Agent name is required'),
+        id: z.string().optional(),
+        input: z.record(z.unknown()).optional(),
+        state: z
+          .object({
+            use: z.array(z.string()).optional(),
+            set: z.array(z.string()).optional(),
+          })
+          .optional(),
+        cache: z
+          .object({
+            ttl: z.number().positive().optional(),
+            bypass: z.boolean().optional(),
+          })
+          .optional(),
+        scoring: z
+          .object({
+            evaluator: z.string().min(1),
+            thresholds: z
+              .object({
+                minimum: z.number().min(0).max(1).optional(),
+                target: z.number().min(0).max(1).optional(),
+                excellent: z.number().min(0).max(1).optional(),
+              })
+              .optional(),
+            criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
+            onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
+            retryLimit: z.number().positive().optional(),
+            requireImprovement: z.boolean().optional(),
+            minImprovement: z.number().min(0).max(1).optional(),
+          })
+          .optional(),
+        condition: z.unknown().optional(),
+      })
+    )
+    .optional(),
+  inputs: z.record(z.unknown()).optional(), // Input schema definition
   output: z.record(z.unknown()).optional(),
 })
 
@@ -295,7 +299,7 @@ const AgentSchema = z.object({
 
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>
 export type AgentConfig = z.infer<typeof AgentSchema>
-export type FlowStep = EnsembleConfig['flow'][number]
+export type FlowStep = NonNullable<EnsembleConfig['flow']>[number]
 export type TriggerConfig = NonNullable<EnsembleConfig['trigger']>[number]
 export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number]
 
@@ -326,6 +330,31 @@ export class Parser {
       }
 
       const validated = EnsembleSchema.parse(parsed)
+
+      // Auto-generate flow if missing but agents are present
+      if (!validated.flow && validated.agents && validated.agents.length > 0) {
+        validated.flow = validated.agents
+          .map((agent) => {
+            // Extract agent name from the agent definition
+            const name =
+              typeof agent === 'object' && agent !== null && 'name' in agent
+                ? String(agent.name)
+                : undefined
+
+            if (!name) {
+              console.warn(`[Parser] Skipping agent without name in ensemble "${validated.name}"`)
+              return null
+            }
+
+            return { agent: name }
+          })
+          .filter((step): step is { agent: string } => step !== null)
+
+        console.log(
+          `[Parser] Auto-generated sequential flow for ensemble "${validated.name}" with ${validated.flow.length} agent(s)`
+        )
+      }
+
       return validated
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -406,6 +435,11 @@ export class Parser {
    * Validate that all required agents exist
    */
   static validateAgentReferences(ensemble: EnsembleConfig, availableAgents: Set<string>): void {
+    // Skip validation if no flow is defined
+    if (!ensemble.flow || ensemble.flow.length === 0) {
+      return
+    }
+
     const missingAgents: string[] = []
 
     for (const step of ensemble.flow) {
