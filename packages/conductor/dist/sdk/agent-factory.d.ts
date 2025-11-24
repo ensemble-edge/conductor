@@ -50,14 +50,29 @@ export declare const createThinkMember: typeof createThinkAgent;
 export declare function createFunctionAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
 export declare const createFunctionMember: typeof createFunctionAgent;
 /**
- * Create a Data agent (storage operations)
+ * Create a Storage agent (KV, R2, Cache operations)
+ *
+ * @example
+ * ```typescript
+ * export default createStorageAgent({
+ *   async handler({ input, env }) {
+ *     const value = await env.CACHE.get(input.key);
+ *     return { value, found: !!value };
+ *   }
+ * });
+ * ```
+ */
+export declare function createStorageAgent(options: Omit<CreateAgentOptions, 'operation'>): MemberHandler;
+export declare const createStorageMember: typeof createStorageAgent;
+/**
+ * Create a Data agent (database operations - D1, Hyperdrive, etc.)
  *
  * @example
  * ```typescript
  * export default createDataAgent({
  *   async handler({ input, env }) {
- *     const value = await env.CACHE.get(input.key);
- *     return { value, found: !!value };
+ *     const rows = await env.DB.prepare('SELECT * FROM users').all();
+ *     return { rows };
  *   }
  * });
  * ```

@@ -10,7 +10,8 @@
  * Each operation type represents a distinct capability:
  * - think: AI-powered reasoning and language generation (LLMs, embeddings, classifiers)
  * - code: JavaScript/TypeScript execution for custom business logic
- * - storage: Database/KV/R2/D1 access for data operations
+ * - storage: Key-value and object storage (KV, R2, Cache API)
+ * - data: SQL databases and structured data stores (D1, Hyperdrive, Supabase, Neon)
  * - http: External API integration and HTTP calls
  * - tools: Model Context Protocol (MCP) and skill integration
  * - scoring: Evaluation and scoring operations
@@ -28,6 +29,7 @@ export var Operation;
     Operation["think"] = "think";
     Operation["code"] = "code";
     Operation["storage"] = "storage";
+    Operation["data"] = "data";
     Operation["http"] = "http";
     Operation["tools"] = "tools";
     Operation["scoring"] = "scoring";
@@ -60,6 +62,7 @@ export const getOperationDisplayName = (operation) => {
         [Operation.think]: 'Think Agent',
         [Operation.code]: 'Code Agent',
         [Operation.storage]: 'Storage Agent',
+        [Operation.data]: 'Data Agent',
         [Operation.http]: 'HTTP Agent',
         [Operation.tools]: 'Tools Agent',
         [Operation.scoring]: 'Scoring Agent',
@@ -81,7 +84,8 @@ export const getOperationDescription = (operation) => {
     const descriptions = {
         [Operation.think]: 'AI-powered reasoning and language generation',
         [Operation.code]: 'Custom code execution and business logic',
-        [Operation.storage]: 'Data storage, retrieval, and management',
+        [Operation.storage]: 'Key-value and object storage (KV, R2, Cache)',
+        [Operation.data]: 'SQL databases and structured data (D1, Hyperdrive)',
         [Operation.http]: 'External API integration and calls',
         [Operation.tools]: 'Model Context Protocol integration',
         [Operation.scoring]: 'Evaluation, scoring, and quality assessment',
@@ -125,7 +129,7 @@ export const isContentGenerationOperation = (operation) => {
  * Check if an operation involves data storage
  */
 export const isDataOperation = (operation) => {
-    return operation === Operation.storage;
+    return [Operation.storage, Operation.data].includes(operation);
 };
 /**
  * Get complete metadata for an operation

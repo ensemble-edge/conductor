@@ -191,6 +191,7 @@ const AgentSchema = z.object({
         Operation.think,
         Operation.code,
         Operation.storage,
+        Operation.data,
         Operation.http,
         Operation.tools,
         Operation.scoring,

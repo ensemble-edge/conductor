@@ -16,7 +16,7 @@ import type { DataConfig, DataInput } from '../../data-agent.js'
 import type { AgentConfig } from '../../../runtime/parser.js'
 import type { AgentExecutionContext } from '../../base-agent.js'
 import type { Repository, Result, ListOptions, PutOptions } from '../../../storage/repository.js'
-import { StorageType } from '../../../types/constants.js'
+import { DatabaseType } from '../../../types/constants.js'
 
 // Mock Repository implementation
 class MockRepository implements Repository<unknown, string> {
@@ -119,7 +119,7 @@ describe('DataAgent', () => {
         },
       }
 
-      expect(() => new DataAgent(config)).toThrow('requires storage type')
+      expect(() => new DataAgent(config)).toThrow('requires database type')
     })
 
     it('should throw error if operation is missing', () => {
@@ -127,7 +127,7 @@ describe('DataAgent', () => {
         name: 'test-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
         },
       }
 
@@ -139,7 +139,7 @@ describe('DataAgent', () => {
         name: 'test-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
           binding: 'CACHE',
         },
@@ -157,7 +157,7 @@ describe('DataAgent', () => {
         name: 'get-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
         },
       }
@@ -184,7 +184,7 @@ describe('DataAgent', () => {
         name: 'get-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
         },
       }
@@ -207,7 +207,7 @@ describe('DataAgent', () => {
         name: 'get-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
         },
       }
@@ -227,7 +227,7 @@ describe('DataAgent', () => {
         name: 'put-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'put',
         },
       }
@@ -258,7 +258,7 @@ describe('DataAgent', () => {
         name: 'put-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'put',
           ttl: 3600,
         },
@@ -283,7 +283,7 @@ describe('DataAgent', () => {
         name: 'put-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'put',
           ttl: 3600,
         },
@@ -305,7 +305,7 @@ describe('DataAgent', () => {
         name: 'put-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'put',
         },
       }
@@ -330,7 +330,7 @@ describe('DataAgent', () => {
         name: 'delete-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'delete',
         },
       }
@@ -360,7 +360,7 @@ describe('DataAgent', () => {
         name: 'delete-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'delete',
         },
       }
@@ -382,7 +382,7 @@ describe('DataAgent', () => {
         name: 'delete-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'delete',
         },
       }
@@ -411,7 +411,7 @@ describe('DataAgent', () => {
         name: 'list-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'list',
         },
       }
@@ -434,7 +434,7 @@ describe('DataAgent', () => {
         name: 'list-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'list',
         },
       }
@@ -457,7 +457,7 @@ describe('DataAgent', () => {
         name: 'list-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'list',
         },
       }
@@ -479,7 +479,7 @@ describe('DataAgent', () => {
         name: 'list-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'list',
         },
       }
@@ -512,7 +512,7 @@ describe('DataAgent', () => {
         name: 'query-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'query',
         },
       }
@@ -538,7 +538,7 @@ describe('DataAgent', () => {
         name: 'query-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'query',
         },
       }
@@ -564,7 +564,7 @@ describe('DataAgent', () => {
         name: 'query-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'query',
         },
       }
@@ -590,7 +590,7 @@ describe('DataAgent', () => {
         name: 'query-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'query',
         },
       }
@@ -616,7 +616,7 @@ describe('DataAgent', () => {
         name: 'query-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'query',
         },
       }
@@ -653,7 +653,7 @@ describe('DataAgent', () => {
         name: 'export-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'export',
           exportFormat: 'json',
         },
@@ -683,7 +683,7 @@ describe('DataAgent', () => {
         name: 'export-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'export',
         },
       }
@@ -711,7 +711,7 @@ describe('DataAgent', () => {
         name: 'export-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'export',
         },
       }
@@ -743,7 +743,7 @@ describe('DataAgent', () => {
         name: 'export-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'export',
         },
       }
@@ -771,7 +771,7 @@ describe('DataAgent', () => {
         name: 'export-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'export',
         },
       }
@@ -802,7 +802,7 @@ describe('DataAgent', () => {
         name: 'export-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'export',
         },
       }
@@ -834,14 +834,14 @@ describe('DataAgent', () => {
         name: 'kv-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
         },
       }
 
       const agent = new DataAgent(config, mockRepository)
       const dataConfig = agent.getDataConfig()
-      expect(dataConfig.storage).toBe(StorageType.KV)
+      expect(dataConfig.database).toBe(DatabaseType.D1)
     })
 
     it('should use custom binding name', () => {
@@ -849,7 +849,7 @@ describe('DataAgent', () => {
         name: 'custom-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
           binding: 'MY_CACHE',
         },
@@ -873,7 +873,7 @@ describe('DataAgent', () => {
         name: 'error-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
         },
       }
@@ -895,7 +895,7 @@ describe('DataAgent', () => {
         name: 'bad-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'invalid' as any,
         },
       }
@@ -915,7 +915,7 @@ describe('DataAgent', () => {
         name: 'injected-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'get',
         },
       }
@@ -938,7 +938,7 @@ describe('DataAgent', () => {
         name: 'multi-data',
         type: 'Data',
         config: {
-          storage: StorageType.KV,
+          database: DatabaseType.D1,
           operation: 'put',
         },
       }

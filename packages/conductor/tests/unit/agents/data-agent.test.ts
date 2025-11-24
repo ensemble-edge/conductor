@@ -9,7 +9,7 @@ import { DataAgent } from '../../../src/agents/data-agent';
 import type { AgentConfig } from '../../../src/runtime/parser';
 import type { Repository } from '../../../src/storage';
 import { Result } from '../../../src/types/result';
-import { StorageType } from '../../../src/types/constants';
+import { DatabaseType } from '../../../src/types/constants';
 import type { ConductorEnv } from '../../../src/types/env';
 
 // Mock error class to match expected structure
@@ -89,7 +89,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'get',
 				},
 			};
@@ -107,7 +107,7 @@ describe('DataAgent', () => {
 				},
 			};
 
-			expect(() => new DataAgent(config, mockRepo)).toThrow('requires storage type');
+			expect(() => new DataAgent(config, mockRepo)).toThrow('requires database type');
 		});
 
 		it('should throw error for missing operation', () => {
@@ -115,7 +115,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 				},
 			};
 
@@ -127,7 +127,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'get',
 				},
 			};
@@ -146,7 +146,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'get',
 				},
 			};
@@ -170,7 +170,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'get',
 				},
 			};
@@ -196,7 +196,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'get',
 				},
 			};
@@ -221,7 +221,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'put',
 				},
 			};
@@ -252,7 +252,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'put',
 					ttl: 3600,
 				},
@@ -280,7 +280,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'put',
 				},
 			};
@@ -311,7 +311,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'delete',
 				},
 			};
@@ -338,7 +338,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'delete',
 				},
 			};
@@ -368,7 +368,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'list',
 				},
 			};
@@ -396,7 +396,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'list',
 				},
 			};
@@ -427,7 +427,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'list',
 				},
 			};
@@ -452,7 +452,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.KV,
+					database: DatabaseType.D1,
 					operation: 'get',
 				},
 			};
@@ -466,7 +466,7 @@ describe('DataAgent', () => {
 				name: 'test-data',
 				operation: 'storage',
 				config: {
-					storage: StorageType.D1,
+					database: DatabaseType.D1,
 					operation: 'get',
 				},
 			};
@@ -475,18 +475,5 @@ describe('DataAgent', () => {
 			expect(agent).toBeDefined();
 		});
 
-		it('should work with R2 storage type', () => {
-			const config: AgentConfig = {
-				name: 'test-data',
-				operation: 'storage',
-				config: {
-					storage: StorageType.R2,
-					operation: 'get',
-				},
-			};
-
-			const agent = new DataAgent(config, mockRepo);
-			expect(agent).toBeDefined();
 		});
-	});
 });

@@ -7380,6 +7380,7 @@ var AgentSchema = external_exports.object({
     "think" /* think */,
     "code" /* code */,
     "storage" /* storage */,
+    "data" /* data */,
     "http" /* http */,
     "tools" /* tools */,
     "scoring" /* scoring */,

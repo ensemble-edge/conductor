@@ -10035,6 +10035,7 @@ var Operation = /* @__PURE__ */ ((Operation2) => {
   Operation2["think"] = "think";
   Operation2["code"] = "code";
   Operation2["storage"] = "storage";
+  Operation2["data"] = "data";
   Operation2["http"] = "http";
   Operation2["tools"] = "tools";
   Operation2["scoring"] = "scoring";
@@ -10057,10 +10058,19 @@ var AIProvider = /* @__PURE__ */ ((AIProvider2) => {
 })(AIProvider || {});
 var StorageType = /* @__PURE__ */ ((StorageType2) => {
   StorageType2["KV"] = "kv";
-  StorageType2["D1"] = "d1";
   StorageType2["R2"] = "r2";
+  StorageType2["Cache"] = "cache";
   return StorageType2;
 })(StorageType || {});
+var DatabaseType = /* @__PURE__ */ ((DatabaseType2) => {
+  DatabaseType2["D1"] = "d1";
+  DatabaseType2["Hyperdrive"] = "hyperdrive";
+  DatabaseType2["Vectorize"] = "vectorize";
+  DatabaseType2["Supabase"] = "supabase";
+  DatabaseType2["Neon"] = "neon";
+  DatabaseType2["PlanetScale"] = "planetscale";
+  return DatabaseType2;
+})(DatabaseType || {});
 const EnsembleSchema = objectType({
   name: stringType().min(1, "Ensemble name is required"),
   description: stringType().optional(),
@@ -10229,6 +10239,7 @@ const AgentSchema = objectType({
     Operation.think,
     Operation.code,
     Operation.storage,
+    Operation.data,
     Operation.http,
     Operation.tools,
     Operation.scoring,
@@ -17763,6 +17774,180 @@ class R2Repository {
     }
   }
 }
+class StorageAgent extends BaseAgent {
+  constructor(config, repository) {
+    super(config);
+    this.repository = repository;
+    const cfg = config.config;
+    this.storageConfig = {
+      backend: cfg?.backend,
+      operation: cfg?.operation,
+      binding: cfg?.binding,
+      ttl: cfg?.ttl
+    };
+    if (!this.storageConfig.backend) {
+      throw new Error(`Storage agent "${config.name}" requires backend type (kv, r2, or cache)`);
+    }
+    if (!this.storageConfig.operation) {
+      throw new Error(`Storage agent "${config.name}" requires operation type`);
+    }
+  }
+  /**
+   * Execute storage operation via repository
+   */
+  async run(context) {
+    const { input, env } = context;
+    const repo = this.repository || this.createRepository(env);
+    switch (this.storageConfig.operation) {
+      case "get":
+        return await this.executeGet(repo, input);
+      case "put":
+        return await this.executePut(repo, input);
+      case "delete":
+        return await this.executeDelete(repo, input);
+      case "list":
+        return await this.executeList(repo, input);
+      default:
+        throw new Error(`Unknown operation: ${this.storageConfig.operation}`);
+    }
+  }
+  /**
+   * Execute GET operation
+   */
+  async executeGet(repo, input) {
+    if (!input.key) {
+      throw new Error('GET operation requires "key" in input');
+    }
+    const result = await repo.get(input.key);
+    if (result.success) {
+      return {
+        key: input.key,
+        value: result.value,
+        found: true
+      };
+    } else {
+      return {
+        key: input.key,
+        value: null,
+        found: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute PUT operation
+   */
+  async executePut(repo, input) {
+    if (!input.key || input.value === void 0) {
+      throw new Error('PUT operation requires "key" and "value" in input');
+    }
+    const result = await repo.put(input.key, input.value, {
+      ttl: input.ttl || this.storageConfig.ttl
+    });
+    if (result.success) {
+      return {
+        key: input.key,
+        success: true
+      };
+    } else {
+      return {
+        key: input.key,
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute DELETE operation
+   */
+  async executeDelete(repo, input) {
+    if (!input.key) {
+      throw new Error('DELETE operation requires "key" in input');
+    }
+    const result = await repo.delete(input.key);
+    if (result.success) {
+      return {
+        key: input.key,
+        success: true
+      };
+    } else {
+      return {
+        key: input.key,
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute LIST operation
+   */
+  async executeList(repo, input) {
+    const result = await repo.list({
+      prefix: input.prefix,
+      limit: input.limit,
+      cursor: input.cursor
+    });
+    if (result.success) {
+      return {
+        items: result.value,
+        success: true
+      };
+    } else {
+      return {
+        items: [],
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Create repository from environment bindings
+   * Falls back to original behavior if no repository injected
+   */
+  createRepository(env) {
+    const bindingName = this.getBindingName();
+    const binding = env[bindingName];
+    if (!binding) {
+      throw new Error(
+        `Binding "${bindingName}" not found. Add it to wrangler.toml or inject a repository in constructor.`
+      );
+    }
+    switch (this.storageConfig.backend) {
+      case StorageType.KV:
+        return new KVRepository(binding, new JSONSerializer());
+      case StorageType.R2:
+        return new R2Repository(binding, new JSONSerializer());
+      case StorageType.Cache:
+        throw new Error("Cache API repository not yet implemented");
+      default:
+        throw new Error(`Unknown storage backend: ${this.storageConfig.backend}`);
+    }
+  }
+  /**
+   * Get binding name with sensible defaults
+   */
+  getBindingName() {
+    if (this.storageConfig.binding) {
+      return this.storageConfig.binding;
+    }
+    switch (this.storageConfig.backend) {
+      case StorageType.KV:
+        return "CACHE";
+      case StorageType.R2:
+        return "STORAGE";
+      case StorageType.Cache:
+        return "CACHE_API";
+      default:
+        return "STORAGE";
+    }
+  }
+  /**
+   * Get Storage configuration
+   */
+  getStorageConfig() {
+    return { ...this.storageConfig };
+  }
+}
 async function exportData(data, options) {
   switch (options.format) {
     case "csv":
@@ -17955,13 +18140,15 @@ class DataAgent extends BaseAgent {
     this.repository = repository;
     const cfg = config.config;
     this.dataConfig = {
-      storage: cfg?.storage,
+      database: cfg?.database,
       operation: cfg?.operation,
       binding: cfg?.binding,
-      ttl: cfg?.ttl
+      tableName: cfg?.tableName,
+      exportFormat: cfg?.exportFormat,
+      exportOptions: cfg?.exportOptions
     };
-    if (!this.dataConfig.storage) {
-      throw new Error(`Data agent "${config.name}" requires storage type (kv, d1, or r2)`);
+    if (!this.dataConfig.database) {
+      throw new Error(`Data agent "${config.name}" requires database type (d1, hyperdrive, vectorize, etc.)`);
     }
     if (!this.dataConfig.operation) {
       throw new Error(`Data agent "${config.name}" requires operation type`);
@@ -18020,9 +18207,7 @@ class DataAgent extends BaseAgent {
     if (!input.key || input.value === void 0) {
       throw new Error('PUT operation requires "key" and "value" in input');
     }
-    const result = await repo.put(input.key, input.value, {
-      ttl: input.ttl || this.dataConfig.ttl
-    });
+    const result = await repo.put(input.key, input.value);
     if (result.success) {
       return {
         key: input.key,
@@ -18091,19 +18276,27 @@ class DataAgent extends BaseAgent {
         `Binding "${bindingName}" not found. Add it to wrangler.toml or inject a repository in constructor.`
       );
     }
-    switch (this.dataConfig.storage) {
-      case StorageType.KV:
-        return new KVRepository(binding, new JSONSerializer());
-      case StorageType.D1:
+    switch (this.dataConfig.database) {
+      case DatabaseType.D1:
         return new D1Repository(
           binding,
-          { tableName: "data", idColumn: "key", valueColumn: "value" },
+          {
+            tableName: this.dataConfig.tableName || "data",
+            idColumn: "key",
+            valueColumn: "value"
+          },
           new JSONSerializer()
         );
-      case StorageType.R2:
-        return new R2Repository(binding, new JSONSerializer());
+      case DatabaseType.Hyperdrive:
+        throw new Error("Hyperdrive repository not yet implemented");
+      case DatabaseType.Vectorize:
+        throw new Error("Vectorize repository not yet implemented");
+      case DatabaseType.Supabase:
+      case DatabaseType.Neon:
+      case DatabaseType.PlanetScale:
+        throw new Error(`${this.dataConfig.database} repository not yet implemented`);
       default:
-        throw new Error(`Unknown storage type: ${this.dataConfig.storage}`);
+        throw new Error(`Unknown database type: ${this.dataConfig.database}`);
     }
   }
   /**
@@ -18113,15 +18306,21 @@ class DataAgent extends BaseAgent {
     if (this.dataConfig.binding) {
       return this.dataConfig.binding;
     }
-    switch (this.dataConfig.storage) {
-      case StorageType.KV:
-        return "CACHE";
-      case StorageType.D1:
+    switch (this.dataConfig.database) {
+      case DatabaseType.D1:
         return "DB";
-      case StorageType.R2:
-        return "STORAGE";
+      case DatabaseType.Hyperdrive:
+        return "HYPERDRIVE";
+      case DatabaseType.Vectorize:
+        return "VECTORIZE";
+      case DatabaseType.Supabase:
+        return "SUPABASE_URL";
+      case DatabaseType.Neon:
+        return "NEON_URL";
+      case DatabaseType.PlanetScale:
+        return "PLANETSCALE_URL";
       default:
-        return "DATA";
+        return "DATABASE";
     }
   }
   /**
@@ -26971,7 +27170,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-GUugdsHw.js");
+        const { MemoryCache } = await import("./cache-dg6s4Dzk.js");
         cache = new MemoryCache({
           defaultTTL: 3600
         });
@@ -27057,7 +27256,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-GUugdsHw.js");
+          const { MemoryCache } = await import("./cache-dg6s4Dzk.js");
           cache = new MemoryCache({
             defaultTTL: 3600
           });
@@ -29217,6 +29416,8 @@ class Executor {
       case Operation.think:
         return Result.ok(new ThinkAgent(config));
       case Operation.storage:
+        return Result.ok(new StorageAgent(config));
+      case Operation.data:
         return Result.ok(new DataAgent(config));
       case Operation.http:
         return Result.ok(new APIAgent(config));
@@ -32007,4 +32208,4 @@ export {
   CookieValidator as y,
   createCookieValidator as z
 };
-//# sourceMappingURL=worker-entry-DMA_3kRC.js.map
+//# sourceMappingURL=worker-entry-BTj2AT53.js.map

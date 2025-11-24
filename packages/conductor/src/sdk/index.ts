@@ -45,6 +45,7 @@ export {
   createAgent,
   createThinkAgent,
   createFunctionAgent,
+  createStorageAgent,
   createDataAgent,
   createAPIAgent,
   generateAgentConfig,
