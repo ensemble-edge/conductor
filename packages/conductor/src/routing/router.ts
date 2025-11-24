@@ -204,7 +204,6 @@ export class UnifiedRouter {
       api: 50,
       webhook: 60,
       docs: 70,
-      page: 80,
       form: 90,
     }
     return priorities[operation] || 100
@@ -311,12 +310,11 @@ export class UnifiedRouter {
     if (typeDefaults) {
       // Map agent types to config keys (handle singular/plural variations)
       const typeKeyMap: Record<Operation, keyof typeof typeDefaults> = {
-        page: 'pages',
         api: 'api',
         webhook: 'webhooks',
         form: 'forms',
         docs: 'docs',
-        static: 'pages', // Use pages default for static
+        static: 'api', // Use api default for static
         health: 'api', // Use api default for health
         auth: 'api', // Use api default for auth
       }
@@ -505,21 +503,6 @@ export class UnifiedRouter {
       if (auth.onFailure.action === 'redirect') {
         const location = auth.onFailure.redirectTo || '/login'
         return Response.redirect(location, 302)
-      }
-
-      if (auth.onFailure.action === 'page') {
-        // Return error page (caller must render)
-        return new Response(
-          JSON.stringify({
-            error: 'auth_failed',
-            page: auth.onFailure.page,
-            context: auth.onFailure.context,
-          }),
-          {
-            status: 401,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        )
       }
     }
 

@@ -16,10 +16,6 @@ describe('UnifiedRouter', () => {
       routing: {
         auth: {
           defaults: {
-            pages: {
-              requirement: 'required',
-              methods: ['cookie'],
-            },
             api: {
               requirement: 'required',
               methods: ['bearer', 'apiKey'],
@@ -55,9 +51,9 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: 'default',
         methods: ['GET'],
-        operation: 'page',
+        operation: 'api',
         agentName: 'login',
-        memberPath: '/pages/login/page.yaml',
+        memberPath: '/ensembles/login/ensemble.yaml',
       })
 
       const match = router.match('/login', 'GET')
@@ -69,9 +65,9 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: 'default',
         methods: ['GET'],
-        operation: 'page',
+        operation: 'api',
         agentName: 'index',
-        memberPath: '/pages/index/page.yaml',
+        memberPath: '/ensembles/index/ensemble.yaml',
       })
 
       const match = router.match('/', 'GET')
@@ -83,9 +79,9 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: 'default',
         methods: ['GET'],
-        operation: 'page',
+        operation: 'api',
         agentName: 'dashboard',
-        memberPath: '/pages/admin/dashboard/page.yaml',
+        memberPath: '/ensembles/admin/dashboard/ensemble.yaml',
       })
 
       const match = router.match('/admin/dashboard', 'GET')
@@ -153,7 +149,7 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/',
         methods: ['GET'],
-        operation: 'page',
+        operation: 'api',
         agentName: 'home',
       })
 
@@ -196,7 +192,7 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/admin/*',
         methods: ['GET'],
-        operation: 'page',
+        operation: 'api',
         agentName: 'admin',
         priority: 10,
       })
@@ -204,7 +200,7 @@ describe('UnifiedRouter', () => {
       router.register({
         pattern: '/admin/users',
         methods: ['GET'],
-        operation: 'page',
+        operation: 'api',
         agentName: 'admin-users',
         priority: 10,
       })
@@ -228,7 +224,7 @@ describe('UnifiedRouter', () => {
       const match = router.match('/admin/users', 'GET')
       expect(match).not.toBeNull()
       expect(match?.pattern).toBe('/admin/users')
-      expect(match?.operation).toBe('page')
+      expect(match?.operation).toBe('api')
     })
   })
 })

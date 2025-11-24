@@ -30,6 +30,8 @@ export interface OperationContext {
     data?: Record<string, any>;
     /** Context type where operation is being used */
     contextType: 'ensemble' | 'page' | 'form' | 'api' | 'webhook';
+    /** Agent registry (for agent operations) */
+    agentRegistry?: Map<string, any>;
 }
 /**
  * Configuration for an operation

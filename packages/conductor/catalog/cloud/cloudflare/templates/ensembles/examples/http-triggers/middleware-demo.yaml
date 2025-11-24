@@ -1,0 +1,45 @@
+name: middleware-demo
+description: Demonstrates HTTP middleware usage with the HTTP trigger
+
+trigger:
+  - type: http
+    path: /api/demo
+    methods: [GET, POST]
+    public: true
+
+    # Built-in middleware (registered by name)
+    middleware:
+      - logger        # Logs requests to console
+      - compress      # Gzip/brotli compression
+      - timing        # Server-Timing header
+      - secure-headers # Security headers
+      - etag          # ETag generation
+
+    responses:
+      html:
+        enabled: true
+      json:
+        enabled: true
+
+agents:
+  - name: process-request
+    operation: code
+    config:
+      code: |
+        export default async function(input, context) {
+          return {
+            message: 'Middleware demo successful!',
+            method: context.metadata.method,
+            path: context.metadata.path,
+            timestamp: new Date().toISOString(),
+            middlewareApplied: [
+              'logger - request logged',
+              'compress - response will be compressed',
+              'timing - Server-Timing header added',
+              'secure-headers - security headers added',
+              'etag - ETag header added'
+            ]
+          }
+        }
+
+output: $process-request

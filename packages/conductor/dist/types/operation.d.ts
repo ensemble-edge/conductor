@@ -18,7 +18,6 @@
  * - email: Email sending and management
  * - sms: SMS messaging
  * - form: Form rendering and handling
- * - page: Full-stack web page generation
  * - html: HTML content generation
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
@@ -35,7 +34,6 @@ export declare enum Operation {
     email = "email",
     sms = "sms",
     form = "form",
-    page = "page",
     html = "html",
     pdf = "pdf",
     queue = "queue",
@@ -44,7 +42,7 @@ export declare enum Operation {
 /**
  * String union type for operations
  */
-export type OperationType = 'think' | 'code' | 'storage' | 'data' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'page' | 'html' | 'pdf' | 'queue' | 'docs';
+export type OperationType = 'think' | 'code' | 'storage' | 'data' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'html' | 'pdf' | 'queue' | 'docs';
 /**
  * Type guard to check if a value is a valid Operation
  */

@@ -8,10 +8,10 @@
  */
 
 import type {
-  OperationRegistry,
+  PluginRegistry,
   OperationHandler,
   OperationMetadata,
-} from '../runtime/operation-registry.js'
+} from '../runtime/plugin-registry.js'
 import type { ConductorEnv } from './env.js'
 
 /**
@@ -32,8 +32,8 @@ export interface ConductorConfig {
  * Plugin context provided during initialization
  */
 export interface PluginContext {
-  /** Global operation registry */
-  operationRegistry: OperationRegistry
+  /** Global plugin registry */
+  operationRegistry: PluginRegistry
   /** Cloudflare Workers environment bindings */
   env: ConductorEnv
   /** Cloudflare Workers execution context */

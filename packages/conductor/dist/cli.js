@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -11,15 +9,6 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/agents/base-agent.ts
 var BaseAgent;
@@ -2222,7 +2211,7 @@ var BuiltInMemberRegistry = class {
   /**
    * Get a built-in agent instance (lazy loading)
    */
-  create(name, config, env) {
+  async create(name, config, env) {
     const entry = this.agents.get(name);
     if (!entry) {
       throw new Error(
@@ -2230,7 +2219,7 @@ var BuiltInMemberRegistry = class {
       );
     }
     entry.loaded = true;
-    return entry.factory(config, env);
+    return await entry.factory(config, env);
   }
   /**
    * Get metadata for a built-in agent
@@ -2297,8 +2286,8 @@ function registerAllBuiltInMembers(registry2) {
       ],
       documentation: "https://docs.conductor.dev/built-in-agents/scrape"
     },
-    (config, env) => {
-      const { ScrapeMember: ScrapeMember2 } = (init_scrape(), __toCommonJS(scrape_exports));
+    async (config, env) => {
+      const { ScrapeMember: ScrapeMember2 } = await Promise.resolve().then(() => (init_scrape(), scrape_exports));
       return new ScrapeMember2(config, env);
     }
   );
@@ -2337,8 +2326,8 @@ function registerAllBuiltInMembers(registry2) {
       ],
       documentation: "https://docs.conductor.dev/built-in-agents/validate"
     },
-    (config, env) => {
-      const { ValidateMember: ValidateMember2 } = (init_validate(), __toCommonJS(validate_exports));
+    async (config, env) => {
+      const { ValidateMember: ValidateMember2 } = await Promise.resolve().then(() => (init_validate(), validate_exports));
       return new ValidateMember2(config, env);
     }
   );
@@ -2379,8 +2368,8 @@ function registerAllBuiltInMembers(registry2) {
       ],
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
-    (config, env) => {
-      const { RAGMember: RAGMember2 } = (init_rag(), __toCommonJS(rag_exports));
+    async (config, env) => {
+      const { RAGMember: RAGMember2 } = await Promise.resolve().then(() => (init_rag(), rag_exports));
       return new RAGMember2(config, env);
     }
   );
@@ -2415,8 +2404,8 @@ function registerAllBuiltInMembers(registry2) {
       ],
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
-    (config, env) => {
-      const { HITLMember: HITLMember2 } = (init_hitl(), __toCommonJS(hitl_exports));
+    async (config, env) => {
+      const { HITLMember: HITLMember2 } = await Promise.resolve().then(() => (init_hitl(), hitl_exports));
       return new HITLMember2(config, env);
     }
   );
@@ -2452,8 +2441,8 @@ function registerAllBuiltInMembers(registry2) {
       ],
       documentation: "https://docs.conductor.dev/built-in-agents/fetch"
     },
-    (config, env) => {
-      const { FetchMember: FetchMember2 } = (init_fetch(), __toCommonJS(fetch_exports));
+    async (config, env) => {
+      const { FetchMember: FetchMember2 } = await Promise.resolve().then(() => (init_fetch(), fetch_exports));
       return new FetchMember2(config, env);
     }
   );
@@ -2500,8 +2489,8 @@ function registerAllBuiltInMembers(registry2) {
       ],
       documentation: "https://docs.conductor.dev/built-in-agents/tools"
     },
-    (config, env) => {
-      const { ToolsMember: ToolsMember2 } = (init_tools(), __toCommonJS(tools_exports));
+    async (config, env) => {
+      const { ToolsMember: ToolsMember2 } = await Promise.resolve().then(() => (init_tools(), tools_exports));
       return new ToolsMember2(config, env);
     }
   );
@@ -2587,8 +2576,8 @@ function registerAllBuiltInMembers(registry2) {
       },
       documentation: "https://docs.conductor.dev/built-in-agents/queries"
     },
-    (config, env) => {
-      const { QueriesMember: QueriesMember2 } = (init_queries(), __toCommonJS(queries_exports));
+    async (config, env) => {
+      const { QueriesMember: QueriesMember2 } = await Promise.resolve().then(() => (init_queries(), queries_exports));
       return new QueriesMember2(config, env);
     }
   );
@@ -2772,7 +2761,7 @@ async function executeLocal(agentName, input, config) {
     config
   };
   const mockEnv = {};
-  const agent = registry2.create(agentName, agentConfig, mockEnv);
+  const agent = await registry2.create(agentName, agentConfig, mockEnv);
   const context = {
     input,
     env: mockEnv,
@@ -7293,6 +7282,57 @@ var EnsembleSchema = external_exports.object({
         enabled: external_exports.boolean().optional(),
         input: external_exports.record(external_exports.unknown()).optional(),
         metadata: external_exports.record(external_exports.unknown()).optional()
+      }),
+      // HTTP trigger (full web routing with Hono features)
+      external_exports.object({
+        type: external_exports.literal("http"),
+        // Core HTTP config (like webhook)
+        path: external_exports.string().min(1).optional(),
+        // Defaults to /{ensemble-name}
+        methods: external_exports.array(external_exports.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])).optional(),
+        auth: external_exports.object({
+          type: external_exports.enum(["bearer", "signature", "basic"]),
+          secret: external_exports.string()
+        }).optional(),
+        public: external_exports.boolean().optional(),
+        mode: external_exports.enum(["trigger", "resume"]).optional(),
+        async: external_exports.boolean().optional(),
+        timeout: external_exports.number().positive().optional(),
+        // Hono-specific features
+        rateLimit: external_exports.object({
+          requests: external_exports.number().positive(),
+          window: external_exports.number().positive(),
+          // seconds
+          key: external_exports.union([external_exports.enum(["ip", "user"]), external_exports.function()]).optional()
+        }).optional(),
+        cors: external_exports.object({
+          origin: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional(),
+          methods: external_exports.array(external_exports.string()).optional(),
+          allowHeaders: external_exports.array(external_exports.string()).optional(),
+          exposeHeaders: external_exports.array(external_exports.string()).optional(),
+          credentials: external_exports.boolean().optional()
+        }).optional(),
+        cache: external_exports.object({
+          enabled: external_exports.boolean(),
+          ttl: external_exports.number().positive(),
+          vary: external_exports.array(external_exports.string()).optional(),
+          tags: external_exports.array(external_exports.string()).optional(),
+          keyGenerator: external_exports.function().optional()
+        }).optional(),
+        middleware: external_exports.array(external_exports.any()).optional(),
+        // Hono middleware functions
+        responses: external_exports.object({
+          html: external_exports.object({ enabled: external_exports.boolean() }).optional(),
+          json: external_exports.object({
+            enabled: external_exports.boolean(),
+            transform: external_exports.function().optional()
+          }).optional(),
+          stream: external_exports.object({
+            enabled: external_exports.boolean(),
+            chunkSize: external_exports.number().optional()
+          }).optional()
+        }).optional(),
+        templateEngine: external_exports.enum(["handlebars", "liquid", "simple"]).optional()
       })
     ])
   ).optional().refine(
@@ -7304,7 +7344,7 @@ var EnsembleSchema = external_exports.object({
       });
     },
     {
-      message: "All webhook, MCP, and email triggers must have auth configuration or explicit public: true"
+      message: "All webhook, MCP, email, and HTTP triggers must have auth configuration or explicit public: true"
     }
   ),
   notifications: external_exports.array(
@@ -7390,7 +7430,6 @@ var AgentSchema = external_exports.object({
     "email" /* email */,
     "sms" /* sms */,
     "form" /* form */,
-    "page" /* page */,
     "html" /* html */,
     "pdf" /* pdf */,
     "queue" /* queue */,
@@ -8855,7 +8894,7 @@ function createHistoryCommand() {
 }
 
 // src/cli/index.ts
-var version = "0.1.0";
+var version = "0.2.1";
 var program = new Command10();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

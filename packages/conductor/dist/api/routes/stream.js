@@ -66,7 +66,7 @@ stream.post('/', (c) => {
                 operation: metadata.operation,
                 config: body.config || {},
             };
-            const agent = builtInRegistry.create(body.agent, agentConfig, c.env);
+            const agent = await builtInRegistry.create(body.agent, agentConfig, c.env);
             // Create execution context
             const memberContext = {
                 input: body.input,

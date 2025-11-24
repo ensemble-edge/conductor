@@ -1,0 +1,57 @@
+name: robots
+description: Robots.txt for search engine crawlers
+
+trigger:
+  - type: http
+    path: /robots.txt
+    methods: [GET]
+    public: true
+    responses:
+      html:
+        enabled: false
+      json:
+        enabled: false
+
+agents:
+  - name: generate-robots
+    operation: html
+    config:
+      templateEngine: liquid
+      contentType: text/plain
+      template: |
+        User-agent: *
+        {% if disallowAll %}
+        Disallow: /
+        {% else %}
+        Allow: /
+        {% if disallowPaths %}
+        {% for path in disallowPaths %}
+        Disallow: {{path}}
+        {% endfor %}
+        {% endif %}
+        {% endif %}
+
+        {% if crawlDelay %}
+        Crawl-delay: {{crawlDelay}}
+        {% endif %}
+
+        {% if sitemap %}
+        Sitemap: {{sitemap}}
+        {% endif %}
+    input:
+      disallowAll: $input.disallowAll
+      disallowPaths: $input.disallowPaths
+      crawlDelay: $input.crawlDelay
+      sitemap: $input.sitemap
+
+# Default configuration
+input:
+  disallowAll: false
+  disallowPaths:
+    - /api/*
+    - /admin/*
+    - /_*
+  crawlDelay: null
+  sitemap: https://example.com/sitemap.xml
+
+output: $generate-robots

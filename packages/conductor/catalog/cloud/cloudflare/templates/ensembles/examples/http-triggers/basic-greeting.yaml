@@ -1,0 +1,23 @@
+name: http-greeting
+description: Simple HTTP endpoint that returns a JSON greeting
+
+trigger:
+  - type: http
+    path: /hello/:name
+    methods: [GET]
+    public: true
+    responses:
+      json:
+        enabled: true
+
+agents:
+  - name: greet-user
+    operation: code
+    config:
+      code: |
+        const name = context.data.name || 'World';
+        return {
+          greeting: `Hello, ${name}!`,
+          timestamp: new Date().toISOString(),
+          message: `Welcome to Conductor!`
+        };
