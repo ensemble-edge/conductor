@@ -33,8 +33,12 @@ export interface BuiltInMemberMetadata {
 
 /**
  * Factory function to create a built-in agent instance
+ * Can be async to support dynamic imports for lazy loading
  */
-export type BuiltInMemberFactory = (config: AgentConfig, env: ConductorEnv) => BaseAgent
+export type BuiltInMemberFactory = (
+  config: AgentConfig,
+  env: ConductorEnv
+) => BaseAgent | Promise<BaseAgent>
 
 /**
  * Built-in agent registration entry

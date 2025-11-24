@@ -40,7 +40,7 @@ export class BuiltInMemberRegistry {
   /**
    * Get a built-in agent instance (lazy loading)
    */
-  create(name: string, config: AgentConfig, env: ConductorEnv): BaseAgent {
+  async create(name: string, config: AgentConfig, env: ConductorEnv): Promise<BaseAgent> {
     const entry = this.agents.get(name)
 
     if (!entry) {
@@ -51,7 +51,7 @@ export class BuiltInMemberRegistry {
 
     // Create instance using factory (lazy loading)
     entry.loaded = true
-    return entry.factory(config, env)
+    return await entry.factory(config, env)
   }
 
   /**
@@ -138,9 +138,9 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
       ],
       documentation: 'https://docs.conductor.dev/built-in-agents/scrape',
     },
-    (config, env) => {
-      const { ScrapeMember } = require('./scrape')
-      return new ScrapeMember(config, env)
+    async (config, env) => {
+      const { ScrapeMember } = await import('./scrape/index.js')
+      return new ScrapeMember(config, env as any)
     }
   )
 
@@ -181,9 +181,9 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
       ],
       documentation: 'https://docs.conductor.dev/built-in-agents/validate',
     },
-    (config, env) => {
-      const { ValidateMember } = require('./validate')
-      return new ValidateMember(config, env)
+    async (config, env) => {
+      const { ValidateMember } = await import('./validate/index.js')
+      return new ValidateMember(config, env as any)
     }
   )
 
@@ -225,9 +225,9 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
       ],
       documentation: 'https://docs.conductor.dev/built-in-agents/rag',
     },
-    (config, env) => {
-      const { RAGMember } = require('./rag')
-      return new RAGMember(config, env)
+    async (config, env) => {
+      const { RAGMember } = await import('./rag/index.js')
+      return new RAGMember(config, env as any)
     }
   )
 
@@ -263,9 +263,9 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
       ],
       documentation: 'https://docs.conductor.dev/built-in-agents/hitl',
     },
-    (config, env) => {
-      const { HITLMember } = require('./hitl')
-      return new HITLMember(config, env)
+    async (config, env) => {
+      const { HITLMember } = await import('./hitl/index.js')
+      return new HITLMember(config, env as any)
     }
   )
 
@@ -302,9 +302,9 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
       ],
       documentation: 'https://docs.conductor.dev/built-in-agents/fetch',
     },
-    (config, env) => {
-      const { FetchMember } = require('./fetch')
-      return new FetchMember(config, env)
+    async (config, env) => {
+      const { FetchMember } = await import('./fetch/index.js')
+      return new FetchMember(config, env as any)
     }
   )
 
@@ -352,9 +352,9 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
       ],
       documentation: 'https://docs.conductor.dev/built-in-agents/tools',
     },
-    (config, env) => {
-      const { ToolsMember } = require('./tools')
-      return new ToolsMember(config, env)
+    async (config, env) => {
+      const { ToolsMember } = await import('./tools/index.js')
+      return new ToolsMember(config, env as any)
     }
   )
 
@@ -442,9 +442,9 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
       },
       documentation: 'https://docs.conductor.dev/built-in-agents/queries',
     },
-    (config, env) => {
-      const { QueriesMember } = require('./queries')
-      return new QueriesMember(config, env)
+    async (config, env) => {
+      const { QueriesMember } = await import('./queries/index.js')
+      return new QueriesMember(config, env as any)
     }
   )
 }

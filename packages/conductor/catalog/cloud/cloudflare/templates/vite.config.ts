@@ -47,6 +47,11 @@ export default defineConfig({
         preserveModules: false,
         exports: 'auto',
       },
+      // Silence browser compatibility warnings (expected for Cloudflare Workers)
+      onwarn(warning, warn) {
+        if (warning.message?.includes('externalized for browser')) return;
+        warn(warning);
+      },
     },
     minify: false,
     sourcemap: true,

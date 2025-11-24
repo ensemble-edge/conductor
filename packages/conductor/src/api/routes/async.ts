@@ -177,7 +177,7 @@ async function executeAsync(
       config: request.config || {},
     }
 
-    const agent = builtInRegistry.create(request.agent, agentConfig, env)
+    const agent = await builtInRegistry.create(request.agent, agentConfig, env)
 
     // Create execution context (simplified - no real ctx available)
     const memberContext: AgentExecutionContext = {

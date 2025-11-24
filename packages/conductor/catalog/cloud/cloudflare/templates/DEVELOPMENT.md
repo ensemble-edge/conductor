@@ -154,6 +154,30 @@ Located at `scripts/vite-plugin-page-discovery.ts`, this plugin:
 
 ## Troubleshooting
 
+### Browser Compatibility Warnings During Build
+
+**Symptom:** You see many warnings like `"Module X externalized for browser compatibility"` during `pnpm run build`.
+
+**This is expected behavior!** These warnings appear because:
+- Cloudflare Workers runtime handles Node.js modules differently than browsers
+- Vite externalizes these modules to prevent bundling issues
+- The warnings don't indicate any problems with your code
+
+**Why they're suppressed:**
+The template's `vite.config.ts` includes an `onwarn` handler that silences these warnings to keep build output clean:
+
+```typescript
+rollupOptions: {
+  onwarn(warning, warn) {
+    // Silence browser compatibility warnings (expected for Workers)
+    if (warning.message?.includes('externalized for browser')) return;
+    warn(warning);
+  }
+}
+```
+
+If you see other types of warnings, those will still be shown and should be investigated.
+
 ### New Page Not Appearing
 
 **Symptom:** You created a new page but it's not showing up when you visit the route.

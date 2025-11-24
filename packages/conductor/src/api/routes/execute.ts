@@ -198,7 +198,7 @@ execute.post('/', async (c: ConductorContext) => {
         config: body.config || {},
       }
 
-      agent = builtInRegistry.create(body.agent, agentConfig, c.env)
+      agent = await builtInRegistry.create(body.agent, agentConfig, c.env)
     } else {
       // Get custom agent from member loader
       agent = memberLoader!.getAgent(body.agent)
