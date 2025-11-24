@@ -20,22 +20,22 @@ const CACHE_DIR = join(CONDUCTOR_DIR, '.integration-cache')
  * Check if a file exists
  */
 async function exists(path: string): Promise<boolean> {
-	try {
-		await access(path)
-		return true
-	} catch {
-		return false
-	}
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
  * Get package version from package.json
  */
 async function getPackageVersion(): Promise<string> {
-	const pkgPath = join(CONDUCTOR_DIR, 'package.json')
-	const content = await readFile(pkgPath, 'utf-8')
-	const pkg = JSON.parse(content)
-	return pkg.version
+  const pkgPath = join(CONDUCTOR_DIR, 'package.json')
+  const content = await readFile(pkgPath, 'utf-8')
+  const pkg = JSON.parse(content)
+  return pkg.version
 }
 
 // Simple lock to prevent parallel builds
@@ -47,78 +47,78 @@ let buildLock: Promise<string> | null = null
  * @returns Path to the tarball
  */
 export async function buildAndPackConductor(): Promise<string> {
-	console.log('📦 Building and packing Conductor...')
+  console.log('📦 Building and packing Conductor...')
 
-	const version = await getPackageVersion()
-	const tarballName = `ensemble-edge-conductor-${version}.tgz`
-	const cachedTarball = join(CACHE_DIR, tarballName)
+  const version = await getPackageVersion()
+  const tarballName = `ensemble-edge-conductor-${version}.tgz`
+  const cachedTarball = join(CACHE_DIR, tarballName)
 
-	// Check if already cached
-	if (await exists(cachedTarball)) {
-		console.log(`✅ Using cached tarball: ${tarballName}`)
-		return cachedTarball
-	}
+  // Check if already cached
+  if (await exists(cachedTarball)) {
+    console.log(`✅ Using cached tarball: ${tarballName}`)
+    return cachedTarball
+  }
 
-	// If another test is already building, wait for it
-	if (buildLock) {
-		console.log('⏳ Waiting for ongoing build...')
-		return await buildLock
-	}
+  // If another test is already building, wait for it
+  if (buildLock) {
+    console.log('⏳ Waiting for ongoing build...')
+    return await buildLock
+  }
 
-	// Start the build and store the promise
-	buildLock = (async () => {
-		console.log('🔨 Building Conductor...')
-		const buildStart = Date.now()
+  // Start the build and store the promise
+  buildLock = (async () => {
+    console.log('🔨 Building Conductor...')
+    const buildStart = Date.now()
 
-		try {
-			// Build the package
-			await execAsync('pnpm build', {
-				cwd: CONDUCTOR_DIR,
-				env: { ...process.env, NODE_ENV: 'production' }
-			})
+    try {
+      // Build the package
+      await execAsync('pnpm build', {
+        cwd: CONDUCTOR_DIR,
+        env: { ...process.env, NODE_ENV: 'production' },
+      })
 
-			const buildTime = Date.now() - buildStart
-			console.log(`✅ Build completed in ${buildTime}ms`)
+      const buildTime = Date.now() - buildStart
+      console.log(`✅ Build completed in ${buildTime}ms`)
 
-			// Pack into tarball
-			console.log('📦 Packing tarball...')
-			const { stdout } = await execAsync('pnpm pack', {
-				cwd: CONDUCTOR_DIR
-			})
+      // Pack into tarball
+      console.log('📦 Packing tarball...')
+      const { stdout } = await execAsync('pnpm pack', {
+        cwd: CONDUCTOR_DIR,
+      })
 
-			// Extract tarball filename from output
-			const lines = stdout.trim().split('\n')
-			const tarballLine = lines[lines.length - 1]
-			const generatedTarball = join(CONDUCTOR_DIR, tarballLine.trim())
+      // Extract tarball filename from output
+      const lines = stdout.trim().split('\n')
+      const tarballLine = lines[lines.length - 1]
+      const generatedTarball = join(CONDUCTOR_DIR, tarballLine.trim())
 
-			// Create cache directory
-			await mkdir(CACHE_DIR, { recursive: true })
+      // Create cache directory
+      await mkdir(CACHE_DIR, { recursive: true })
 
-			// Move to cache (check if it already exists first in case of race condition)
-			if (!(await exists(cachedTarball))) {
-				await rename(generatedTarball, cachedTarball)
-			}
+      // Move to cache (check if it already exists first in case of race condition)
+      if (!(await exists(cachedTarball))) {
+        await rename(generatedTarball, cachedTarball)
+      }
 
-			console.log(`✅ Tarball cached: ${tarballName}`)
-			return cachedTarball
-		} catch (error) {
-			console.error('❌ Build/pack failed:', error)
-			throw error
-		} finally {
-			buildLock = null
-		}
-	})()
+      console.log(`✅ Tarball cached: ${tarballName}`)
+      return cachedTarball
+    } catch (error) {
+      console.error('❌ Build/pack failed:', error)
+      throw error
+    } finally {
+      buildLock = null
+    }
+  })()
 
-	return await buildLock
+  return await buildLock
 }
 
 /**
  * Clear the cache (useful for forcing rebuild)
  */
 export async function clearCache(): Promise<void> {
-	const { rm } = await import('node:fs/promises')
-	if (await exists(CACHE_DIR)) {
-		await rm(CACHE_DIR, { recursive: true, force: true })
-		console.log('🗑️  Cache cleared')
-	}
+  const { rm } = await import('node:fs/promises')
+  if (await exists(CACHE_DIR)) {
+    await rm(CACHE_DIR, { recursive: true, force: true })
+    console.log('🗑️  Cache cleared')
+  }
 }

@@ -99,7 +99,10 @@ export class StorageAgent extends BaseAgent {
   /**
    * Execute GET operation
    */
-  private async executeGet(repo: Repository<unknown, string>, input: StorageInput): Promise<unknown> {
+  private async executeGet(
+    repo: Repository<unknown, string>,
+    input: StorageInput
+  ): Promise<unknown> {
     if (!input.key) {
       throw new Error('GET operation requires "key" in input')
     }
@@ -125,7 +128,10 @@ export class StorageAgent extends BaseAgent {
   /**
    * Execute PUT operation
    */
-  private async executePut(repo: Repository<unknown, string>, input: StorageInput): Promise<unknown> {
+  private async executePut(
+    repo: Repository<unknown, string>,
+    input: StorageInput
+  ): Promise<unknown> {
     if (!input.key || input.value === undefined) {
       throw new Error('PUT operation requires "key" and "value" in input')
     }
@@ -178,7 +184,10 @@ export class StorageAgent extends BaseAgent {
   /**
    * Execute LIST operation
    */
-  private async executeList(repo: Repository<unknown, string>, input: StorageInput): Promise<unknown> {
+  private async executeList(
+    repo: Repository<unknown, string>,
+    input: StorageInput
+  ): Promise<unknown> {
     const result = await repo.list({
       prefix: input.prefix,
       limit: input.limit,

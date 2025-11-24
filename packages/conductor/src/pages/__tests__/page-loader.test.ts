@@ -99,7 +99,9 @@ describe('PageLoader', () => {
       route: null,
     }
 
-    const pagesMap = new Map([['invalid', { config: invalidConfig, agent: new PageAgent(invalidConfig) }]])
+    const pagesMap = new Map([
+      ['invalid', { config: invalidConfig, agent: new PageAgent(invalidConfig) }],
+    ])
 
     // Should not throw - errors are caught and logged
     await expect(loader.discoverPages(pagesMap)).resolves.not.toThrow()

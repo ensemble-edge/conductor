@@ -59,4 +59,10 @@ export const isDatabaseType = (value: string): value is DatabaseType => {
  */
 export type AIProviderType = 'openai' | 'anthropic' | 'cloudflare' | 'custom'
 export type StorageTypeString = 'kv' | 'r2' | 'cache'
-export type DatabaseTypeString = 'd1' | 'hyperdrive' | 'vectorize' | 'supabase' | 'neon' | 'planetscale'
+export type DatabaseTypeString =
+  | 'd1'
+  | 'hyperdrive'
+  | 'vectorize'
+  | 'supabase'
+  | 'neon'
+  | 'planetscale'

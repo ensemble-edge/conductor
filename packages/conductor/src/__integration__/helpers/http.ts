@@ -3,81 +3,81 @@
  */
 
 export interface HttpTestOptions {
-	expectedStatus?: number
-	headers?: Record<string, string>
-	retries?: number
-	retryDelay?: number
+  expectedStatus?: number
+  headers?: Record<string, string>
+  retries?: number
+  retryDelay?: number
 }
 
 /**
  * Make an HTTP request with retries and assertions
  */
 export async function testEndpoint(
-	url: string,
-	options: HttpTestOptions = {}
+  url: string,
+  options: HttpTestOptions = {}
 ): Promise<{ response: Response; body: string; json?: any }> {
-	const { expectedStatus = 200, headers = {}, retries = 3, retryDelay = 1000 } = options
+  const { expectedStatus = 200, headers = {}, retries = 3, retryDelay = 1000 } = options
 
-	let lastError: Error | null = null
+  let lastError: Error | null = null
 
-	for (let i = 0; i < retries; i++) {
-		try {
-			const response = await fetch(url, { headers })
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, { headers })
 
-			if (response.status !== expectedStatus) {
-				throw new Error(`Expected status ${expectedStatus}, got ${response.status}`)
-			}
+      if (response.status !== expectedStatus) {
+        throw new Error(`Expected status ${expectedStatus}, got ${response.status}`)
+      }
 
-			const body = await response.text()
-			let json: any = undefined
+      const body = await response.text()
+      let json: any = undefined
 
-			try {
-				json = JSON.parse(body)
-			} catch {
-				// Not JSON, that's fine
-			}
+      try {
+        json = JSON.parse(body)
+      } catch {
+        // Not JSON, that's fine
+      }
 
-			return { response, body, json }
-		} catch (error) {
-			lastError = error as Error
-			if (i < retries - 1) {
-				await new Promise((resolve) => setTimeout(resolve, retryDelay))
-			}
-		}
-	}
+      return { response, body, json }
+    } catch (error) {
+      lastError = error as Error
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay))
+      }
+    }
+  }
 
-	throw lastError || new Error('Request failed')
+  throw lastError || new Error('Request failed')
 }
 
 /**
  * Test a JSON API endpoint
  */
 export async function testJsonEndpoint(
-	url: string,
-	options: HttpTestOptions & { method?: string; body?: any } = {}
+  url: string,
+  options: HttpTestOptions & { method?: string; body?: any } = {}
 ): Promise<any> {
-	const { method = 'GET', body, ...restOptions } = options
+  const { method = 'GET', body, ...restOptions } = options
 
-	const fetchOptions: RequestInit = {
-		method,
-		headers: {
-			'Content-Type': 'application/json',
-			...restOptions.headers
-		}
-	}
+  const fetchOptions: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...restOptions.headers,
+    },
+  }
 
-	if (body) {
-		fetchOptions.body = JSON.stringify(body)
-	}
+  if (body) {
+    fetchOptions.body = JSON.stringify(body)
+  }
 
-	const response = await fetch(url, fetchOptions)
+  const response = await fetch(url, fetchOptions)
 
-	if (restOptions.expectedStatus && response.status !== restOptions.expectedStatus) {
-		const text = await response.text()
-		throw new Error(
-			`Expected status ${restOptions.expectedStatus}, got ${response.status}. Body: ${text}`
-		)
-	}
+  if (restOptions.expectedStatus && response.status !== restOptions.expectedStatus) {
+    const text = await response.text()
+    throw new Error(
+      `Expected status ${restOptions.expectedStatus}, got ${response.status}. Body: ${text}`
+    )
+  }
 
-	return response.json()
+  return response.json()
 }
