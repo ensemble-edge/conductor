@@ -144,27 +144,30 @@ agents:
 
   # Phase 5: Generate Report
   - name: generate-report
-    operation: data
+    operation: code
     config:
-      operations:
-        - type: transform
-          template: |
-            # Research Report: {{input.topic}}
+      function: |
+        function generateReport(context) {
+          const { input, initial_analysis, deep_analysis } = context;
+          const analysis = deep_analysis || initial_analysis;
 
-            **Generated:** {{timestamp}}
-            **Researcher:** AI Research Assistant
+          return `# Research Report: ${input.topic}
 
-            ## Executive Summary
-            {{analysis.executive_summary}}
+**Generated:** ${new Date().toISOString()}
+**Researcher:** AI Research Assistant
 
-            ## Key Findings
-            {{analysis.findings}}
+## Executive Summary
+${analysis.executive_summary || analysis.output}
 
-            ## Recommendations
-            {{analysis.recommendations}}
+## Key Findings
+${analysis.findings || 'See full analysis above'}
 
-            ## Sources
-            {{analysis.sources}}
+## Recommendations
+${analysis.recommendations || 'Pending deeper analysis'}
+
+## Sources
+${analysis.sources || 'Multiple web and code sources consulted'}`;
+        }
 
 inputs:
   topic:

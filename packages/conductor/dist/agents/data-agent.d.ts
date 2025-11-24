@@ -1,21 +1,25 @@
 /**
- * Data Agent - Refactored with Repository Pattern
+ * Data Agent - SQL Databases and Structured Data
  *
- * Handles data operations through a unified Repository interface.
- * Storage backend is injected, making it testable and platform-agnostic.
+ * Handles database operations through a unified Repository interface.
+ * Database backend is injected, making it testable and platform-agnostic.
  *
- * Reduced from 326 lines to ~120 lines through abstraction.
+ * Database types:
+ * - D1: SQLite database (Cloudflare D1)
+ * - Hyperdrive: PostgreSQL/MySQL connection pooling (Cloudflare Hyperdrive)
+ * - Vectorize: Vector database for embeddings (Cloudflare Vectorize)
+ * - External: Supabase, Neon, PlanetScale, etc.
  */
 import { BaseAgent, type AgentExecutionContext } from './base-agent.js';
 import type { AgentConfig } from '../runtime/parser.js';
 import type { Repository } from '../storage/index.js';
-import { StorageType } from '../types/constants.js';
+import { DatabaseType } from '../types/constants.js';
 import { type ExportOptions, type ExportFormat } from './data/export-formats.js';
 export interface DataConfig {
-    storage: StorageType;
+    database: DatabaseType;
     operation: 'get' | 'put' | 'delete' | 'list' | 'query' | 'export';
     binding?: string;
-    ttl?: number;
+    tableName?: string;
     exportFormat?: ExportFormat;
     exportOptions?: ExportOptions;
 }
@@ -25,8 +29,8 @@ export interface DataInput {
     prefix?: string;
     limit?: number;
     cursor?: string;
-    ttl?: number;
     query?: string;
+    params?: unknown[];
     filter?: Record<string, unknown>;
     sort?: string;
     format?: ExportFormat;
@@ -34,10 +38,10 @@ export interface DataInput {
     streaming?: boolean;
 }
 /**
- * Data Agent performs storage operations via Repository pattern
+ * Data Agent performs database operations via Repository pattern
  *
  * Benefits of Repository pattern:
- * - Platform-agnostic (works with any storage backend)
+ * - Platform-agnostic (works with any database backend)
  * - Testable (easy to inject mock repositories)
  * - Composable (repositories can be chained, cached, etc.)
  * - Type-safe (Result types for error handling)

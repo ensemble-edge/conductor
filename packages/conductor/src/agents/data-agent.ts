@@ -1,17 +1,21 @@
 /**
- * Data Agent - Refactored with Repository Pattern
+ * Data Agent - SQL Databases and Structured Data
  *
- * Handles data operations through a unified Repository interface.
- * Storage backend is injected, making it testable and platform-agnostic.
+ * Handles database operations through a unified Repository interface.
+ * Database backend is injected, making it testable and platform-agnostic.
  *
- * Reduced from 326 lines to ~120 lines through abstraction.
+ * Database types:
+ * - D1: SQLite database (Cloudflare D1)
+ * - Hyperdrive: PostgreSQL/MySQL connection pooling (Cloudflare Hyperdrive)
+ * - Vectorize: Vector database for embeddings (Cloudflare Vectorize)
+ * - External: Supabase, Neon, PlanetScale, etc.
  */
 
 import { BaseAgent, type AgentExecutionContext } from './base-agent.js'
 import type { AgentConfig } from '../runtime/parser.js'
 import type { Repository } from '../storage/index.js'
-import { KVRepository, D1Repository, R2Repository, JSONSerializer } from '../storage/index.js'
-import { StorageType } from '../types/constants.js'
+import { D1Repository, JSONSerializer } from '../storage/index.js'
+import { DatabaseType } from '../types/constants.js'
 import type { ConductorEnv } from '../types/env.js'
 import {
   exportData,
@@ -21,25 +25,27 @@ import {
 } from './data/export-formats.js'
 
 export interface DataConfig {
-  storage: StorageType
+  database: DatabaseType
   operation: 'get' | 'put' | 'delete' | 'list' | 'query' | 'export'
   binding?: string // Name of the binding in wrangler.toml
-  // Options
-  ttl?: number
+  // Database options
+  tableName?: string
   // Export options
   exportFormat?: ExportFormat
   exportOptions?: ExportOptions
 }
 
 export interface DataInput {
+  // Record operations
   key?: string
   value?: unknown
+  // List/Query options
   prefix?: string
   limit?: number
   cursor?: string
-  ttl?: number
-  // Query options
+  // SQL query options
   query?: string
+  params?: unknown[]
   filter?: Record<string, unknown>
   sort?: string
   // Export options
@@ -49,10 +55,10 @@ export interface DataInput {
 }
 
 /**
- * Data Agent performs storage operations via Repository pattern
+ * Data Agent performs database operations via Repository pattern
  *
  * Benefits of Repository pattern:
- * - Platform-agnostic (works with any storage backend)
+ * - Platform-agnostic (works with any database backend)
  * - Testable (easy to inject mock repositories)
  * - Composable (repositories can be chained, cached, etc.)
  * - Type-safe (Result types for error handling)
@@ -68,15 +74,17 @@ export class DataAgent extends BaseAgent {
 
     const cfg = config.config as DataConfig | undefined
     this.dataConfig = {
-      storage: cfg?.storage as StorageType,
-      operation: cfg?.operation as 'get' | 'put' | 'delete' | 'list',
+      database: cfg?.database as DatabaseType,
+      operation: cfg?.operation as 'get' | 'put' | 'delete' | 'list' | 'query' | 'export',
       binding: cfg?.binding,
-      ttl: cfg?.ttl,
+      tableName: cfg?.tableName,
+      exportFormat: cfg?.exportFormat,
+      exportOptions: cfg?.exportOptions,
     }
 
     // Validate config
-    if (!this.dataConfig.storage) {
-      throw new Error(`Data agent "${config.name}" requires storage type (kv, d1, or r2)`)
+    if (!this.dataConfig.database) {
+      throw new Error(`Data agent "${config.name}" requires database type (d1, hyperdrive, vectorize, etc.)`)
     }
 
     if (!this.dataConfig.operation) {
@@ -151,9 +159,7 @@ export class DataAgent extends BaseAgent {
       throw new Error('PUT operation requires "key" and "value" in input')
     }
 
-    const result = await repo.put(input.key, input.value, {
-      ttl: input.ttl || this.dataConfig.ttl,
-    })
+    const result = await repo.put(input.key, input.value)
 
     if (result.success) {
       return {
@@ -235,22 +241,34 @@ export class DataAgent extends BaseAgent {
       )
     }
 
-    switch (this.dataConfig.storage) {
-      case StorageType.KV:
-        return new KVRepository(binding, new JSONSerializer())
-
-      case StorageType.D1:
+    switch (this.dataConfig.database) {
+      case DatabaseType.D1:
         return new D1Repository(
           binding,
-          { tableName: 'data', idColumn: 'key', valueColumn: 'value' },
+          {
+            tableName: this.dataConfig.tableName || 'data',
+            idColumn: 'key',
+            valueColumn: 'value'
+          },
           new JSONSerializer()
         )
 
-      case StorageType.R2:
-        return new R2Repository(binding, new JSONSerializer())
+      case DatabaseType.Hyperdrive:
+        // TODO: Implement HyperdriveRepository for PostgreSQL/MySQL
+        throw new Error('Hyperdrive repository not yet implemented')
+
+      case DatabaseType.Vectorize:
+        // TODO: Implement VectorizeRepository for vector operations
+        throw new Error('Vectorize repository not yet implemented')
+
+      case DatabaseType.Supabase:
+      case DatabaseType.Neon:
+      case DatabaseType.PlanetScale:
+        // TODO: Implement external database repositories
+        throw new Error(`${this.dataConfig.database} repository not yet implemented`)
 
       default:
-        throw new Error(`Unknown storage type: ${this.dataConfig.storage}`)
+        throw new Error(`Unknown database type: ${this.dataConfig.database}`)
     }
   }
 
@@ -262,16 +280,22 @@ export class DataAgent extends BaseAgent {
       return this.dataConfig.binding
     }
 
-    // Default binding names
-    switch (this.dataConfig.storage) {
-      case StorageType.KV:
-        return 'CACHE'
-      case StorageType.D1:
+    // Default binding names for databases
+    switch (this.dataConfig.database) {
+      case DatabaseType.D1:
         return 'DB'
-      case StorageType.R2:
-        return 'STORAGE'
+      case DatabaseType.Hyperdrive:
+        return 'HYPERDRIVE'
+      case DatabaseType.Vectorize:
+        return 'VECTORIZE'
+      case DatabaseType.Supabase:
+        return 'SUPABASE_URL'
+      case DatabaseType.Neon:
+        return 'NEON_URL'
+      case DatabaseType.PlanetScale:
+        return 'PLANETSCALE_URL'
       default:
-        return 'DATA'
+        return 'DATABASE'
     }
   }
 

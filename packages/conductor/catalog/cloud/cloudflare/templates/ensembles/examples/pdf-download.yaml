@@ -12,15 +12,14 @@ flow:
   - agent: fetch-report-data
     operation: data
     config:
-      storage: d1
-      operation: query
+      backend: d1
       binding: DB
-    input:
-      query: |
+      operation: query
+      sql: |
         SELECT * FROM reports
-        WHERE id = :reportId
+        WHERE id = ?
       params:
-        reportId: $input.reportId
+        - $input.reportId
     output: reportData
 
   # Step 2: Generate PDF from the data

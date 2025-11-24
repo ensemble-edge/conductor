@@ -25,6 +25,7 @@ export interface CreateAgentOptions {
     | Operation.code
     | Operation.think
     | Operation.storage
+    | Operation.data
     | Operation.http
     | Operation.email
     | Operation.sms

@@ -10,7 +10,8 @@
  * Each operation type represents a distinct capability:
  * - think: AI-powered reasoning and language generation (LLMs, embeddings, classifiers)
  * - code: JavaScript/TypeScript execution for custom business logic
- * - storage: Database/KV/R2/D1 access for data operations
+ * - storage: Key-value and object storage (KV, R2, Cache API)
+ * - data: SQL databases and structured data stores (D1, Hyperdrive, Supabase, Neon)
  * - http: External API integration and HTTP calls
  * - tools: Model Context Protocol (MCP) and skill integration
  * - scoring: Evaluation and scoring operations
@@ -27,6 +28,7 @@ export declare enum Operation {
     think = "think",
     code = "code",
     storage = "storage",
+    data = "data",
     http = "http",
     tools = "tools",
     scoring = "scoring",
@@ -42,7 +44,7 @@ export declare enum Operation {
 /**
  * String union type for operations
  */
-export type OperationType = 'think' | 'code' | 'storage' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'page' | 'html' | 'pdf' | 'queue' | 'docs';
+export type OperationType = 'think' | 'code' | 'storage' | 'data' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'page' | 'html' | 'pdf' | 'queue' | 'docs';
 /**
  * Type guard to check if a value is a valid Operation
  */

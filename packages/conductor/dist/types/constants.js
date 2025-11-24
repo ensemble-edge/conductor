@@ -17,14 +17,26 @@ export var AIProvider;
     AIProvider["Custom"] = "custom";
 })(AIProvider || (AIProvider = {}));
 /**
- * Storage backend types for Data agents
+ * Storage backend types for Storage agents (key-value and object storage)
  */
 export var StorageType;
 (function (StorageType) {
     StorageType["KV"] = "kv";
-    StorageType["D1"] = "d1";
     StorageType["R2"] = "r2";
+    StorageType["Cache"] = "cache";
 })(StorageType || (StorageType = {}));
+/**
+ * Database backend types for Data agents (SQL and structured databases)
+ */
+export var DatabaseType;
+(function (DatabaseType) {
+    DatabaseType["D1"] = "d1";
+    DatabaseType["Hyperdrive"] = "hyperdrive";
+    DatabaseType["Vectorize"] = "vectorize";
+    DatabaseType["Supabase"] = "supabase";
+    DatabaseType["Neon"] = "neon";
+    DatabaseType["PlanetScale"] = "planetscale";
+})(DatabaseType || (DatabaseType = {}));
 /**
  * Type guards for runtime validation
  */
@@ -33,4 +45,7 @@ export const isAIProvider = (value) => {
 };
 export const isStorageType = (value) => {
     return Object.values(StorageType).includes(value);
+};
+export const isDatabaseType = (value) => {
+    return Object.values(DatabaseType).includes(value);
 };

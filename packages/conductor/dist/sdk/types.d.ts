@@ -15,7 +15,7 @@ export type MemberHandler<TInput = unknown, TOutput = unknown> = (context: Agent
  */
 export interface CreateAgentOptions {
     name: string;
-    operation: Operation.code | Operation.think | Operation.storage | Operation.http | Operation.email | Operation.sms;
+    operation: Operation.code | Operation.think | Operation.storage | Operation.data | Operation.http | Operation.email | Operation.sms;
     description?: string;
     config?: Record<string, unknown>;
     schema?: {

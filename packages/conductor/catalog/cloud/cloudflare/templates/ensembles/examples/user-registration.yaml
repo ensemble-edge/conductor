@@ -185,13 +185,20 @@ agents:
           form: registration-form
           button: btn btn-primary btn-lg
 
-  # Validate username availability (simulated with Data agent)
+  # Validate username availability (simulated)
   - name: check-username
-    operation: storage
+    operation: code
     config:
-      data:
-        username: $registration-form.data.username
-        available: true # In real app, check against database
+      function: |
+        async function checkUsername(input) {
+          // In real app, would check against D1 database using data operation
+          return {
+            username: input.username,
+            available: true
+          };
+        }
+    input:
+      username: $registration-form.data.username
     condition: $registration-form.valid
 
   # Create user account (simulated)

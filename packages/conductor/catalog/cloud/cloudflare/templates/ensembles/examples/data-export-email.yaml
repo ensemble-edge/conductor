@@ -10,11 +10,20 @@ description: |
 flow:
   # Step 1: Export data from storage
   - agent: export-data
-    operation: data
+    operation: code
     config:
-      storage: kv
-      operation: export
-      binding: DATA_KV
+      function: |
+        async function exportData(input, env) {
+          // In real app: export from KV storage
+          // For now, return mock data
+          const { prefix, format } = input;
+          return {
+            data: [],  // exported data
+            count: 0,
+            extension: format,
+            contentType: format === 'csv' ? 'text/csv' : 'application/json'
+          };
+        }
     input:
       prefix: $input.dataPrefix
       format: $input.format  # csv, json, xlsx, or ndjson

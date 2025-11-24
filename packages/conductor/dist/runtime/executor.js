@@ -9,6 +9,7 @@ import { StateManager } from './state-manager.js';
 import { FunctionAgent } from '../agents/function-agent.js';
 import { CodeAgent } from '../agents/code-agent.js';
 import { ThinkAgent } from '../agents/think-agent.js';
+import { StorageAgent } from '../agents/storage-agent.js';
 import { DataAgent } from '../agents/data-agent.js';
 import { APIAgent } from '../agents/api-agent.js';
 import { EmailAgent } from '../agents/email/email-agent.js';
@@ -107,6 +108,8 @@ export class Executor {
             case Operation.think:
                 return Result.ok(new ThinkAgent(config));
             case Operation.storage:
+                return Result.ok(new StorageAgent(config));
+            case Operation.data:
                 return Result.ok(new DataAgent(config));
             case Operation.http:
                 return Result.ok(new APIAgent(config));

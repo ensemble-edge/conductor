@@ -6,68 +6,63 @@ agents:
   - name: query-data
     operation: storage
     config:
-      storage: kv
-      operation: query
+      backend: kv
+      action: list
       binding: CACHE
-    input:
-      prefix: user:activity:
-      filter:
-        status: active
-      sort: timestamp:desc
+      prefix: 'user:activity:'
       limit: 5000
 
   # Export to CSV format
   - name: export-csv
-    operation: storage
+    operation: code
     config:
-      storage: kv
-      operation: export
-      binding: CACHE
-      exportFormat: csv
-      exportOptions:
-        headers: true
-        delimiter: ","
+      function: |
+        async function exportToCsv(input) {
+          const { data } = input;
+          // Convert data to CSV format
+          const headers = Object.keys(data[0] || {}).join(',');
+          const rows = data.map(row => Object.values(row).join(',')).join('\n');
+          return {
+            csv: `${headers}\n${rows}`,
+            count: data.length,
+            size: `${headers}\n${rows}`.length
+          };
+        }
     input:
-      prefix: user:activity:
-      filter:
-        status: active
-      format: csv
-      streaming: $input.streaming  # Enable streaming for large datasets
+      data: $query-data.keys
 
   # Export to JSON format
   - name: export-json
-    operation: storage
+    operation: code
     config:
-      storage: kv
-      operation: export
-      binding: CACHE
-      exportFormat: json
-      exportOptions:
-        pretty: true
+      function: |
+        async function exportToJson(input) {
+          const json = JSON.stringify(input.data, null, input.pretty ? 2 : 0);
+          return {
+            data: json,
+            count: input.data.length,
+            size: json.length
+          };
+        }
     input:
-      prefix: user:activity:
-      filter:
-        status: active
-      format: json
-      exportOptions:
-        pretty: $input.prettyJson
+      data: $query-data.keys
+      pretty: $input.prettyJson
 
-  # Export to Excel format
+  # Export to Excel format (simulated)
   - name: export-excel
-    operation: storage
+    operation: code
     config:
-      storage: kv
-      operation: export
-      binding: CACHE
-      exportFormat: xlsx
-      exportOptions:
-        headers: true
-        sheetName: User Activity
+      function: |
+        async function exportToExcel(input) {
+          // In real app, would use a library like xlsx to generate .xlsx file
+          return {
+            data: input.data,
+            count: input.data.length,
+            format: 'xlsx'
+          };
+        }
     input:
-      prefix: user:activity:
-      filter:
-        status: active
-      format: xlsx
+      data: $query-data.keys
 
   # Generate HTML report with export links
   - name: generate-report

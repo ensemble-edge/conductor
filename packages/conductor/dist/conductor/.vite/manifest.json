@@ -1,6 +1,6 @@
 {
-  "_worker-entry-DMA_3kRC.js": {
-    "file": "worker-entry-DMA_3kRC.js",
+  "_worker-entry-BTj2AT53.js": {
+    "file": "worker-entry-BTj2AT53.js",
     "name": "worker-entry",
     "dynamicImports": [
       "src/cache/cache.ts",
@@ -8,12 +8,12 @@
     ]
   },
   "src/cache/cache.ts": {
-    "file": "cache-GUugdsHw.js",
+    "file": "cache-dg6s4Dzk.js",
     "name": "cache",
     "src": "src/cache/cache.ts",
     "isDynamicEntry": true,
     "imports": [
-      "_worker-entry-DMA_3kRC.js"
+      "_worker-entry-BTj2AT53.js"
     ]
   },
   "virtual:cloudflare/worker-entry": {
@@ -22,7 +22,7 @@
     "src": "virtual:cloudflare/worker-entry",
     "isEntry": true,
     "imports": [
-      "_worker-entry-DMA_3kRC.js"
+      "_worker-entry-BTj2AT53.js"
     ]
   }
 }

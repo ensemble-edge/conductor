@@ -59,11 +59,11 @@ export function createFunctionAgent(options) {
 // Backward compatibility alias
 export const createFunctionMember = createFunctionAgent;
 /**
- * Create a Data agent (storage operations)
+ * Create a Storage agent (KV, R2, Cache operations)
  *
  * @example
  * ```typescript
- * export default createDataAgent({
+ * export default createStorageAgent({
  *   async handler({ input, env }) {
  *     const value = await env.CACHE.get(input.key);
  *     return { value, found: !!value };
@@ -71,8 +71,26 @@ export const createFunctionMember = createFunctionAgent;
  * });
  * ```
  */
-export function createDataAgent(options) {
+export function createStorageAgent(options) {
     return createAgent({ ...options, operation: Operation.storage });
+}
+// Backward compatibility alias
+export const createStorageMember = createStorageAgent;
+/**
+ * Create a Data agent (database operations - D1, Hyperdrive, etc.)
+ *
+ * @example
+ * ```typescript
+ * export default createDataAgent({
+ *   async handler({ input, env }) {
+ *     const rows = await env.DB.prepare('SELECT * FROM users').all();
+ *     return { rows };
+ *   }
+ * });
+ * ```
+ */
+export function createDataAgent(options) {
+    return createAgent({ ...options, operation: Operation.data });
 }
 // Backward compatibility alias
 export const createDataMember = createDataAgent;
