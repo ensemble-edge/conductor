@@ -87,6 +87,10 @@ jspm_packages/
 .cache
 .parcel-cache
 
+# Monorepo caches
+.turbo/
+.pnpm-store/
+
 # Cloudflare Workers
 .dev.vars*
 !.dev.vars.example
