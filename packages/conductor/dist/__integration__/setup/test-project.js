@@ -33,7 +33,7 @@ export class TestProject {
             const result = await execAsync(command, {
                 cwd: this.dir,
                 timeout: options?.timeout || 120000, // 2 minutes default
-                env: { ...process.env, CI: 'true' }
+                env: { ...process.env, CI: 'true' },
             });
             return result;
         }

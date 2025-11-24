@@ -41,8 +41,8 @@ export async function testJsonEndpoint(url, options = {}) {
         method,
         headers: {
             'Content-Type': 'application/json',
-            ...restOptions.headers
-        }
+            ...restOptions.headers,
+        },
     };
     if (body) {
         fetchOptions.body = JSON.stringify(body);

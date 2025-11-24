@@ -7102,15 +7102,18 @@ var StringResolver = class {
       }
       return this.traversePath(path5, context);
     }
-    const result = template.replace(/(\$\{([^}]*)\}|\{\{([^}]*)\}\})/g, (match, _full, dollarPath, handlebarPath) => {
-      const path5 = dollarPath !== void 0 ? dollarPath : handlebarPath;
-      const trimmedPath = path5.trim();
-      if (!trimmedPath) {
-        return "";
+    const result = template.replace(
+      /(\$\{([^}]*)\}|\{\{([^}]*)\}\})/g,
+      (match, _full, dollarPath, handlebarPath) => {
+        const path5 = dollarPath !== void 0 ? dollarPath : handlebarPath;
+        const trimmedPath = path5.trim();
+        if (!trimmedPath) {
+          return "";
+        }
+        const value = this.traversePath(trimmedPath, context);
+        return value !== void 0 ? String(value) : match;
       }
-      const value = this.traversePath(trimmedPath, context);
-      return value !== void 0 ? String(value) : match;
-    });
+    );
     return result;
   }
   /**

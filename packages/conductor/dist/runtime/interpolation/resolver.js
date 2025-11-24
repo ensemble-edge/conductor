@@ -79,7 +79,10 @@ export class StringResolver {
             let value = this.resolvePropertyPath(propertyPath, context);
             // Apply filter chain if present
             if (parts.length > 1) {
-                const filterChain = parts.slice(1).map(f => f.trim()).filter(f => f.length > 0);
+                const filterChain = parts
+                    .slice(1)
+                    .map((f) => f.trim())
+                    .filter((f) => f.length > 0);
                 if (filterChain.length > 0) {
                     value = applyFilters(value, filterChain);
                 }
