@@ -1,6 +1,6 @@
 {
   "name": "@conductor/payload",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "description": "Payload CMS plugin for Conductor",
   "main": "./dist/index.js",

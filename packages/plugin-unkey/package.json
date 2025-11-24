@@ -1,6 +1,6 @@
 {
   "name": "@conductor/unkey",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "description": "Unkey authentication plugin for Conductor",
   "main": "./dist/index.js",
