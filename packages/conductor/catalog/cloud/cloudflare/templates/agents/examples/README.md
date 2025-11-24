@@ -100,10 +100,10 @@ vim agent.yaml  # Change name, description
 vim index.ts    # Implement your logic
 
 # 3. Test
-npm test
+pnpm test
 
 # 4. Use in ensemble or API
-npm run build
+pnpm run build
 ```
 
 ### Reference While Building
@@ -154,7 +154,7 @@ cat agents/examples/hello/index.ts
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Check tests/basic.test.ts for examples
 ```
@@ -180,7 +180,7 @@ vim agents/greeter/index.ts
 vim agents/greeter/agent.yaml
 
 # Test your changes
-npm test
+pnpm test
 ```
 
 **Key Takeaways**:
@@ -235,8 +235,8 @@ export default function calculator({ input }: AgentExecutionContext) {
 EOF
 
 # Build and test
-npm run build
-npm test
+pnpm run build
+pnpm test
 ```
 
 **Key Takeaways**:
@@ -264,8 +264,8 @@ output:
 EOF
 
 # Build and run
-npm run build
-npm test
+pnpm run build
+pnpm test
 ```
 
 **Key Takeaways**:
@@ -405,7 +405,7 @@ const ctx = {
 **Fix**: Rebuild to trigger auto-discovery:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 ---

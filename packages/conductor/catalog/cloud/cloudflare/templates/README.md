@@ -27,7 +27,7 @@ my-conductor-project/
 
 1. **Install dependencies:**
    ```bash
-   npm install
+   pnpm install
    ```
 
 2. **Set up local secrets (optional):**
@@ -40,7 +40,7 @@ my-conductor-project/
 
 3. **Run tests:**
    ```bash
-   npm test
+   pnpm test
    ```
    Verify all tests pass to ensure your environment is correctly configured.
 
@@ -57,11 +57,11 @@ my-conductor-project/
 
 4. **Run locally:**
    ```bash
-   npm run dev
+   pnpm run dev
    ```
    Starts local development server at `http://localhost:8787`
 
-   **Note:** Always use `npm run dev` instead of `wrangler dev` directly. The `npm run dev` command includes automatic page detection that watches the `pages/` directory and triggers rebuilds when you add new pages. This is necessary due to a Wrangler limitation where `watch_dirs` doesn't detect new files being added.
+   **Note:** Always use `pnpm run dev` instead of `wrangler dev` directly. The `pnpm run dev` command includes automatic page detection that watches the `pages/` directory and triggers rebuilds when you add new pages. This is necessary due to a Wrangler limitation where `watch_dirs` doesn't detect new files being added.
 
 5. **Test the hello-world ensemble:**
    ```bash
@@ -77,7 +77,7 @@ my-conductor-project/
 
 6. **Deploy to Cloudflare:**
    ```bash
-   npm run deploy
+   pnpm run deploy
    ```
 
 ## Advanced Configuration (Optional)

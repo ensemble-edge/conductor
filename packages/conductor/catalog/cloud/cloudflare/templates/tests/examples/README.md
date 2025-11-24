@@ -29,13 +29,13 @@ The following tests demonstrate features that are not yet fully implemented in C
 
 ```bash
 # Run all working tests
-npm test
+pnpm test
 
 # Run only example tests
-npm test -- tests/examples
+pnpm test -- tests/examples
 
 # Include skipped tests (will fail)
-npm test -- tests/examples --reporter=verbose
+pnpm test -- tests/examples --reporter=verbose
 ```
 
 ## Enabling Skipped Tests
@@ -44,7 +44,7 @@ To enable a skipped test once the feature is implemented:
 
 1. Rename the file from `.test.skip.ts` to `.test.ts`
 2. Update any imports or dependencies
-3. Run `npm test` to verify it passes
+3. Run `pnpm test` to verify it passes
 
 ## Test Coverage
 

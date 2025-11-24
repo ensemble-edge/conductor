@@ -17,13 +17,13 @@ When you run `conductor init --no-examples`, the examples/ directory is not copi
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Run tests in watch mode
-npm run test:watch
+pnpm run test:watch
 
 # Generate coverage report
-npm run test:coverage
+pnpm run test:coverage
 ```
 
 ## Writing Tests

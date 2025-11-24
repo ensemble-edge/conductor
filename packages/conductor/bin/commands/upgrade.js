@@ -122,7 +122,7 @@ async function upgrade(options) {
 	console.log('\n✅ Upgrade complete!\n');
 	console.log('Next steps:');
 	console.log('  1. Review changes in your project');
-	console.log('  2. Test with: npm run dev');
+	console.log('  2. Test with: pnpm run dev');
 	console.log('  3. Commit changes\n');
 }
 

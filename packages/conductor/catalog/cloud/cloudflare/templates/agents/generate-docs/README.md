@@ -17,7 +17,7 @@ These agents **auto-generate API documentation** from your agents and ensembles.
 ```bash
 npx conductor init my-project
 cd my-project
-npm run dev
+ppnpm run dev
 
 # Documentation is ALREADY live at:
 curl http://localhost:8787/docs
@@ -132,7 +132,7 @@ cache:
 **Problem**: `/docs` returns 404
 
 **Solutions**:
-1. Check server is running: `npm run dev`
+1. Check server is running: `pnpm run dev`
 2. Verify DocsRouter is initialized in `src/index.ts`
 3. Look for errors in console
 
@@ -142,7 +142,7 @@ cache:
 
 **Solutions**:
 1. Wait for cache to expire (1 hour default)
-2. Restart dev server: `npm run dev`
+2. Restart dev server: `pnpm run dev`
 3. Reduce cache TTL for development
 
 ---

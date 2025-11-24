@@ -25,7 +25,7 @@ async function addMember(memberName, options) {
 	const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
 	if (!packageJson.dependencies?.['@ensemble-edge/conductor']) {
 		console.error('❌ Conductor not found in dependencies');
-		console.log('   Install it first: npm install @ensemble-edge/conductor\n');
+		console.log('   Install it first: pnpm install @ensemble-edge/conductor\n');
 		process.exit(1);
 	}
 

@@ -15,7 +15,7 @@ API documentation is **fully working** on first install at `/docs`:
 ```bash
 npx conductor init my-project
 cd my-project
-npm run dev
+pnpm run dev
 
 # Auto-generated API documentation is live:
 curl http://localhost:8787/docs

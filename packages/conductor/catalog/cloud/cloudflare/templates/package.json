@@ -6,7 +6,7 @@
 		"build": "vite build",
 		"dev": "node scripts/watch-pages.js & vite dev",
 		"dev:wrangler": "wrangler dev",
-		"deploy": "npm run build && wrangler deploy",
+		"deploy": "pnpm run build && wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"test": "vitest",
 		"test:watch": "vitest --watch",

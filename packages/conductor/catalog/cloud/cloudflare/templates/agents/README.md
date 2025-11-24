@@ -99,7 +99,7 @@ export default function myAgent({ input }: AgentExecutionContext) {
 EOF
 
 # Rebuild to auto-discover
-npm run build
+pnpm run build
 ```
 
 ### Use Documentation Tools
@@ -224,7 +224,7 @@ describe('My Agent', () => {
 });
 ```
 
-Run tests: `npm test`
+Run tests: `pnpm test`
 
 ---
 
@@ -234,7 +234,7 @@ Agents are automatically discovered from the `agents/` directory at build time:
 
 1. **Create agent** in `agents/my-agent/`
 2. **Add files** (`agent.yaml` and optionally `index.ts`)
-3. **Rebuild** with `npm run build`
+3. **Rebuild** with `pnpm run build`
 4. **Agent available** in ensembles and runtime
 
 **No manual registration needed!**
