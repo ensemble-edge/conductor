@@ -19,6 +19,7 @@ export default defineConfig({
         // External dependencies that shouldn't be bundled
         /^node:.*/,
         'cloudflare:workers',
+        'mjml', // Optional dependency - dynamically imported
       ],
       output: {
         preserveModules: false,
