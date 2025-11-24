@@ -63,14 +63,14 @@ export async function buildAndPackConductor() {
             // Build the package
             await execAsync('pnpm build', {
                 cwd: CONDUCTOR_DIR,
-                env: { ...process.env, NODE_ENV: 'production' }
+                env: { ...process.env, NODE_ENV: 'production' },
             });
             const buildTime = Date.now() - buildStart;
             console.log(`✅ Build completed in ${buildTime}ms`);
             // Pack into tarball
             console.log('📦 Packing tarball...');
             const { stdout } = await execAsync('pnpm pack', {
-                cwd: CONDUCTOR_DIR
+                cwd: CONDUCTOR_DIR,
             });
             // Extract tarball filename from output
             const lines = stdout.trim().split('\n');

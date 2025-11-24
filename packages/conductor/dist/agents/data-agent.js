@@ -175,7 +175,7 @@ export class DataAgent extends BaseAgent {
                 return new D1Repository(binding, {
                     tableName: this.dataConfig.tableName || 'data',
                     idColumn: 'key',
-                    valueColumn: 'value'
+                    valueColumn: 'value',
                 }, new JSONSerializer());
             case DatabaseType.Hyperdrive:
                 // TODO: Implement HyperdriveRepository for PostgreSQL/MySQL

@@ -29,11 +29,11 @@ export const filters = {
         return 0;
     },
     // Array filters
-    first: (arr) => Array.isArray(arr) && arr.length > 0 ? arr[0] : undefined,
-    last: (arr) => Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : undefined,
+    first: (arr) => (Array.isArray(arr) && arr.length > 0 ? arr[0] : undefined),
+    last: (arr) => (Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : undefined),
     slice: (arr, start, end) => Array.isArray(arr) ? arr.slice(start, end) : [],
-    reverse: (arr) => Array.isArray(arr) ? [...arr].reverse() : [],
-    sort: (arr) => Array.isArray(arr) ? [...arr].sort() : [],
+    reverse: (arr) => (Array.isArray(arr) ? [...arr].reverse() : []),
+    sort: (arr) => (Array.isArray(arr) ? [...arr].sort() : []),
     // Number filters
     abs: (num) => Math.abs(Number(num)),
     round: (num) => Math.round(Number(num)),
@@ -44,8 +44,8 @@ export const filters = {
     number: (value) => Number(value),
     boolean: (value) => Boolean(value),
     // Object filters
-    keys: (obj) => typeof obj === 'object' && obj !== null ? Object.keys(obj) : [],
-    values: (obj) => typeof obj === 'object' && obj !== null ? Object.values(obj) : [],
+    keys: (obj) => (typeof obj === 'object' && obj !== null ? Object.keys(obj) : []),
+    values: (obj) => (typeof obj === 'object' && obj !== null ? Object.values(obj) : []),
     // Utility filters
     default: (value, defaultValue) => value !== undefined && value !== null ? value : defaultValue,
     json: (value) => JSON.stringify(value),

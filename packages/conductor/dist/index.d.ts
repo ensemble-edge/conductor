@@ -17,7 +17,7 @@ export { PageAgent } from './agents/page/page-agent.js';
 export { DocsMember } from './agents/docs/docs-agent.js';
 export { MemberLoader, createLoader } from './utils/loader.js';
 export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js';
-export { PageLoader, HonoConductorBridge, register404Handler, register500Handler } from './pages/index.js';
+export { PageLoader, HonoConductorBridge, register404Handler, register500Handler, } from './pages/index.js';
 export type { PageRouteConfig, PageOperation, OperationContext as PageOperationContext, RateLimitConfig as PageRateLimitConfig, CorsConfig, RouteConfig as PageRouteConfigType, ResponsesConfig, CacheConfig as PageCacheConfig, } from './pages/index.js';
 export { PageOperationSchema, RouteConfigSchema, ResponsesConfigSchema, CacheConfigSchema, PageRouteConfigSchema, } from './pages/index.js';
 export * from './auth/index.js';
