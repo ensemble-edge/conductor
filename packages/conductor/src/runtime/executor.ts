@@ -170,7 +170,7 @@ export class Executor {
             operation: builtInRegistry.getMetadata(name)?.operation || Operation.code,
             config: {},
           }
-          const agent = builtInRegistry.create(name, config, this.env)
+          const agent = await builtInRegistry.create(name, config, this.env)
           return Result.ok(agent)
         } catch (error) {
           return Result.err(

@@ -14,7 +14,19 @@ This project uses the official `changesets/action` for automated releases.
 
 **When user asks to create a release, ALWAYS follow this exact sequence:**
 
-### Step 1: Sync with Remote (CRITICAL - DO THIS FIRST!)
+### Step 0: Run Prettier (CRITICAL - DO THIS FIRST!)
+```bash
+cd /workspace/ensemble/conductor/packages/conductor
+pnpm run format
+```
+
+**Why**:
+- CI/CD tests will fail if code is not properly formatted
+- Prettier auto-fixes formatting issues before committing
+- **NEVER skip this step** - always format before creating changeset
+- Prevents workflow failures and saves debugging time
+
+### Step 1: Sync with Remote (CRITICAL - DO THIS AFTER FORMATTING!)
 ```bash
 cd /workspace/ensemble/conductor
 git pull origin master

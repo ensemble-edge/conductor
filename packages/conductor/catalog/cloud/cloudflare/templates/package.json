@@ -26,6 +26,8 @@
 	},
 	"dependencies": {
 		"@ensemble-edge/conductor": "^__CONDUCTOR_VERSION__",
+		"hono": "^4.10.6",
+		"mjml": "^4.17.1",
 		"yaml": "^2.4.0"
 	}
 }
