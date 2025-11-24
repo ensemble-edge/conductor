@@ -1,6 +1,7 @@
 {
   "name": "@conductor/attio",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "description": "Attio CRM plugin for Conductor",
   "main": "./dist/index.js",

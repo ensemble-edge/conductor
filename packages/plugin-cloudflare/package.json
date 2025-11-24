@@ -1,6 +1,7 @@
 {
   "name": "@conductor/cloudflare",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "description": "Cloudflare API plugin for Conductor",
   "main": "./dist/index.js",
