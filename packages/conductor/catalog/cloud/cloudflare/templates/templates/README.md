@@ -282,7 +282,7 @@ Use your favorite editor. Variables use Liquid syntax.
 ### 3. Test Locally
 ```bash
 # Run local dev server
-npm run dev
+pnpm run dev
 
 # Test your ensemble that uses the template
 curl -X POST http://localhost:8787/ensemble/send-onboarding \

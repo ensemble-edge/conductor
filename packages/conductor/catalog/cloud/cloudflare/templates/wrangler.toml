@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # Build configuration for Vite
 [build]
-command = "npm run build"
+command = "pnpm run build"
 # watch_dirs = ["src", "pages", "members", "ensembles"]
 # Note: Commented out - not yet officially supported by Wrangler
 # Wrangler automatically watches relevant directories for changes

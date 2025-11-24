@@ -95,7 +95,7 @@ async function init(projectName, options) {
 		console.log('\n✨ Project created successfully!\n');
 		console.log('Next steps:');
 		console.log(`  cd ${projectName}`);
-		console.log('  npm run dev\n');
+		console.log('  pnpm run dev\n');
 		console.log('Then visit http://localhost:8787\n');
 		console.log('📚 Docs: https://github.com/ensemble-edge/conductor\n');
 

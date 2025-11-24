@@ -84,20 +84,20 @@ Workflows that compose agents together:
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Run specific test
-npm test hello-world.test.ts
+pnpm test hello-world.test.ts
 
 # Watch mode
-npm run test:watch
+pnpm run test:watch
 ```
 
 ### Deployment
 
 ```bash
 # Deploy to Cloudflare
-npm run deploy
+pnpm run deploy
 
 # Set production secrets
 wrangler secret put ANTHROPIC_API_KEY
@@ -172,7 +172,7 @@ flow:
 2. **Hot Reload**: Changes auto-reload in dev mode
 3. **Logging**: Use `console.log()` - visible in wrangler output
 4. **Debugging**: Check `.wrangler/tmp/` for build artifacts
-5. **Type Safety**: Run `npm run cf-typegen` to generate Cloudflare types
+5. **Type Safety**: Run `pnpm run cf-typegen` to generate Cloudflare types
 
 ## Architecture Notes
 

@@ -56,7 +56,7 @@ Assets will be deployed to R2 during Conductor deployment (implementation pendin
 **Future deployment workflow:**
 ```bash
 # Deploy will handle assets automatically
-npm run deploy
+pnpm run deploy
 # Assets synced to R2 bucket: ASSETS
 ```
 
