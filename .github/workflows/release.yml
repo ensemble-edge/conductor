@@ -64,7 +64,7 @@ jobs:
         with:
           publish: pnpm run release
           version: pnpm run version-packages
-          createGithubReleases: true
+          createGithubReleases: aggregate
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
