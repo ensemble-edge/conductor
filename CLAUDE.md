@@ -101,6 +101,20 @@ Tell user:
 - ✅ Changeset pushed
 - ✅ GitHub Actions will create "Version Packages" PR
 - ✅ Merge that PR when ready to publish to npm
+- ✅ After merge completes and npm publish succeeds, run Step 8
+
+### Step 8: Sync After Release (CRITICAL - DO THIS AFTER MERGE!)
+```bash
+cd /workspace/ensemble/conductor
+git pull origin master
+```
+
+**Why**:
+- The "Version Packages" PR updates package.json, CHANGELOG.md, and deletes changesets
+- Your local branch is now behind remote after the PR merge
+- Pulling ensures you're working with the latest released version
+- Prevents "diverged branches" errors on next release
+- **ALWAYS do this after confirming npm publish succeeded**
 
 ## 🚨 Common Problems and Solutions
 
