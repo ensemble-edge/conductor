@@ -23,6 +23,7 @@
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
  * - docs: API documentation generation and serving
+ * - autorag: Cloudflare AutoRAG for automatic retrieval-augmented generation
  */
 export enum Operation {
   think = 'think',
@@ -39,6 +40,7 @@ export enum Operation {
   pdf = 'pdf',
   queue = 'queue',
   docs = 'docs',
+  autorag = 'autorag',
 }
 
 /**
@@ -59,6 +61,7 @@ export type OperationType =
   | 'pdf'
   | 'queue'
   | 'docs'
+  | 'autorag'
 
 /**
  * Type guard to check if a value is a valid Operation
@@ -93,6 +96,7 @@ export const getOperationDisplayName = (operation: Operation): string => {
     [Operation.pdf]: 'PDF Agent',
     [Operation.queue]: 'Queue Agent',
     [Operation.docs]: 'Docs Agent',
+    [Operation.autorag]: 'AutoRAG Agent',
   }
   return names[operation]
 }
@@ -116,6 +120,7 @@ export const getOperationDescription = (operation: Operation): string => {
     [Operation.pdf]: 'PDF document generation and processing',
     [Operation.queue]: 'Message queue processing and batch operations',
     [Operation.docs]: 'API documentation generation and serving',
+    [Operation.autorag]: 'Automatic retrieval-augmented generation with Cloudflare AutoRAG',
   }
   return descriptions[operation]
 }

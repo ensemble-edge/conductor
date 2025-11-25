@@ -278,4 +278,5 @@ agents:
       relatedPosts: $fetch-related.rows
       slug: $input.params.slug
 
-output: $render-post
+output:
+  html: ${render-post.output}

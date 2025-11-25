@@ -162,7 +162,7 @@ export class ProjectValidator {
     // Parse and validate agent.yaml
     try {
       const yamlContent = fs.readFileSync(memberYamlPath, 'utf-8')
-      const agentConfig: AgentConfig = YAML.parse(yamlContent)
+      const agentConfig: AgentConfig = YAML.parse(yamlContent, { mapAsMap: false, logLevel: 'silent' })
 
       // Validate required fields
       if (!agentConfig.name) {
@@ -246,7 +246,7 @@ export class ProjectValidator {
 
     try {
       const yamlContent = fs.readFileSync(ensemblePath, 'utf-8')
-      const ensembleConfig: EnsembleConfig = YAML.parse(yamlContent)
+      const ensembleConfig: EnsembleConfig = YAML.parse(yamlContent, { mapAsMap: false, logLevel: 'silent' })
 
       // Validate required fields
       if (!ensembleConfig.name) {

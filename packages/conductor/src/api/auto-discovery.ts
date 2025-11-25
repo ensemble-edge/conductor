@@ -111,21 +111,19 @@ async function registerErrorPages(
         }
 
         // Execute the error page ensemble with error context
+        // Note: executeEnsemble expects input directly, not wrapped
         const result = await executor.executeEnsemble(ensemble, {
-          input: {
-            error: error.message,
-            stack: error.stack,
-            path: c.req.path,
-            method: c.req.method,
-            requestId: c.req.header('cf-ray') || `req_${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            headers: {
-              'user-agent': c.req.header('user-agent'),
-              referer: c.req.header('referer'),
-            },
-            dev: env.ENVIRONMENT === 'development',
+          error: error.message,
+          stack: error.stack,
+          path: c.req.path,
+          method: c.req.method,
+          requestId: c.req.header('cf-ray') || `req_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          headers: {
+            'user-agent': c.req.header('user-agent'),
+            referer: c.req.header('referer'),
           },
-          metadata: { trigger: 'error', statusCode: code },
+          dev: env.ENVIRONMENT === 'development',
         })
 
         if (!result.success) {
@@ -167,18 +165,16 @@ async function registerErrorPages(
           executor.registerAgent(agent)
         }
 
+        // Note: executeEnsemble expects input directly, not wrapped
         const result = await executor.executeEnsemble(ensemble, {
-          input: {
-            path: c.req.path,
-            method: c.req.method,
-            params: c.req.param(),
-            query: c.req.query(),
-            headers: {
-              'user-agent': c.req.header('user-agent'),
-              referer: c.req.header('referer'),
-            },
+          path: c.req.path,
+          method: c.req.method,
+          params: c.req.param(),
+          query: c.req.query(),
+          headers: {
+            'user-agent': c.req.header('user-agent'),
+            referer: c.req.header('referer'),
           },
-          metadata: { trigger: 'error', statusCode: 404 },
         })
 
         if (!result.success) {
@@ -241,11 +237,12 @@ async function initializeLoaders(
       logger.info(`[Auto-Discovery] Agents loaded: ${memberLoader.getMemberNames().join(', ')}`)
     }
 
-    // Initialize EnsembleLoader
+    // Initialize EnsembleLoader with agent loader reference for inline agents
     ensembleLoader = new EnsembleLoader({
       ensemblesDir: './ensembles',
       env,
       ctx,
+      agentLoader: memberLoader, // Pass agent loader to register inline agents
     })
 
     // Auto-discover ensembles if enabled and available

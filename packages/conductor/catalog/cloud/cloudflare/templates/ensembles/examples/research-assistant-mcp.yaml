@@ -1,16 +1,6 @@
 name: research-assistant
 description: AI-powered research assistant using MCP tools
 
-flow:
-  - agent: search-brave
-  - agent: search-github
-  - agent: scrape-result-1
-  - agent: scrape-result-2
-  - agent: scrape-result-3
-  - agent: initial-analysis
-  - agent: deep-analysis
-  - agent: generate-report
-
 # Trigger via webhook for easy triggering
 trigger:
   - type: webhook
@@ -146,53 +136,62 @@ agents:
   - name: generate-report
     operation: code
     config:
-      function: |
-        function generateReport(context) {
-          const { input, initial_analysis, deep_analysis } = context;
-          const analysis = deep_analysis || initial_analysis;
+      code: |
+        export default async function generateReport(input, context) {
+          const analysis = context.deep_analysis || context.initial_analysis;
 
-          return `# Research Report: ${input.topic}
-
-**Generated:** ${new Date().toISOString()}
-**Researcher:** AI Research Assistant
-
-## Executive Summary
-${analysis.executive_summary || analysis.output}
-
-## Key Findings
-${analysis.findings || 'See full analysis above'}
-
-## Recommendations
-${analysis.recommendations || 'Pending deeper analysis'}
-
-## Sources
-${analysis.sources || 'Multiple web and code sources consulted'}`;
+          return {
+            title: `Research Report: ${input.topic}`,
+            generated: new Date().toISOString(),
+            researcher: 'AI Research Assistant',
+            executive_summary: analysis.executive_summary || analysis.output,
+            findings: analysis.findings || 'See full analysis above',
+            recommendations: analysis.recommendations || 'Pending deeper analysis',
+            sources: analysis.sources || 'Multiple web and code sources consulted'
+          };
         }
 
-inputs:
-  topic:
-    type: string
-    required: true
-    description: Research topic or question
-  include_code:
-    type: boolean
-    required: false
-    default: false
-    description: Include code/repository search
-  deep_analysis:
-    type: boolean
-    required: false
-    default: false
-    description: Use Claude Opus for deeper analysis
-  max_sources:
-    type: number
-    required: false
-    default: 10
-    description: Maximum number of sources to search
+flow:
+  - agent: search-brave
+    input:
+      query: ${input.topic}
+      max_results: ${input.max_sources}
 
-outputs:
+  - agent: search-github
+    input:
+      query: ${input.topic}
+    condition: ${input.include_code}
+
+  - agent: scrape-result-1
+    input:
+      url: ${search-brave.output.results[0].url}
+    condition: ${search-brave.output.results.length > 0}
+
+  - agent: scrape-result-2
+    input:
+      url: ${search-brave.output.results[1].url}
+    condition: ${search-brave.output.results.length > 1}
+
+  - agent: scrape-result-3
+    input:
+      url: ${search-brave.output.results[2].url}
+    condition: ${search-brave.output.results.length > 2}
+
+  - agent: initial-analysis
+
+  - agent: deep-analysis
+    condition: ${input.deep_analysis}
+
+  - agent: generate-report
+
+input:
+  topic: ""
+  include_code: false
+  deep_analysis: false
+  max_sources: 10
+
+output:
   summary: ${initial-analysis.output}
   detailed_analysis: ${deep-analysis.output}
   report: ${generate-report.output}
   sources_count: ${search-brave.output.results.length}
-  code_results: ${search-github.output.items.length}

@@ -170,9 +170,9 @@ agents:
       deliveryMode: ${input.deliveryMode}
       filename: invoice-{{invoiceNumber}}.pdf
       metadata:
-        title: Invoice {{invoiceNumber}}
-        author: {{companyName}}
-        subject: Invoice for {{customerName}}
+        title: "Invoice {{invoiceNumber}}"
+        author: "{{companyName}}"
+        subject: "Invoice for {{customerName}}"
 
 flow:
   - agent: generate-invoice

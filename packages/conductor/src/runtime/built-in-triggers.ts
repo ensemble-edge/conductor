@@ -117,17 +117,9 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
         executor.registerAgent(agent)
       }
 
-      const result = await executor.executeEnsemble(ensemble, {
-        input,
-        metadata: {
-          trigger: 'http',
-          method: c.req.method,
-          path: c.req.path,
-          params: c.req.param(),
-          query: c.req.query(),
-          headers: Object.fromEntries(c.req.raw.headers.entries()),
-        },
-      })
+      // Note: executeEnsemble expects input directly, not wrapped
+      // The input already contains body + params + query from extractInput()
+      const result = await executor.executeEnsemble(ensemble, input)
 
       if (!result.success) {
         logger.error(`[HTTP] Ensemble execution failed: ${ensemble.name}`, result.error)
@@ -159,6 +151,196 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
       app[m](path, handler)
     }
   }
+}
+
+/**
+ * MCP Trigger Handler
+ * Exposes ensembles as MCP tools for Claude Desktop and other MCP clients
+ *
+ * MCP (Model Context Protocol) allows AI assistants to discover and invoke tools.
+ * This handler registers routes for:
+ * - GET /mcp/tools - List available tools (ensembles exposed via MCP)
+ * - POST /mcp/tools/:toolName - Invoke a specific tool
+ */
+async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
+  const { app, ensemble, trigger, agents, env, ctx } = context
+
+  // MCP tool name defaults to ensemble name (kebab-case recommended)
+  const toolName = trigger.toolName || ensemble.name
+
+  logger.info(`[MCP] Registering tool: ${toolName} → ${ensemble.name}`)
+
+  // Build middleware chain for auth
+  const middlewareChain: any[] = []
+
+  if (trigger.auth) {
+    middlewareChain.push(async (c: any, next: any) => {
+      const authHeader = c.req.header('authorization')
+      if (!authHeader) {
+        return c.json({ error: 'Authorization required' }, 401)
+      }
+
+      if (trigger.auth!.type === 'bearer') {
+        const token = authHeader.replace(/^Bearer\s+/i, '')
+        if (token !== trigger.auth!.secret) {
+          return c.json({ error: 'Invalid token' }, 401)
+        }
+      }
+
+      await next()
+    })
+  } else if (trigger.public !== true) {
+    logger.warn(`[MCP] Skipping ${toolName}: no auth and not public`)
+    return
+  }
+
+  // Register tool listing endpoint (GET /mcp/tools)
+  // This aggregates all MCP-enabled ensembles
+  const listHandler = async (c: any) => {
+    // Get all MCP tools from app context (accumulated across ensembles)
+    const mcpTools = (c.get('mcpTools') as Map<string, any>) || new Map()
+
+    // Add this ensemble as a tool
+    mcpTools.set(toolName, {
+      name: toolName,
+      description: ensemble.description || `Execute ${ensemble.name} ensemble`,
+      inputSchema: buildInputSchema(ensemble),
+    })
+
+    // Store back for other handlers
+    c.set('mcpTools', mcpTools)
+
+    // Return MCP-compatible tool list
+    return c.json({
+      tools: Array.from(mcpTools.values()),
+    })
+  }
+
+  // Register tool invocation endpoint (POST /mcp/tools/:toolName)
+  const invokeHandler = async (c: any) => {
+    const requestedTool = c.req.param('toolName')
+
+    // Only handle requests for this specific tool
+    if (requestedTool !== toolName) {
+      return c.json({ error: `Tool not found: ${requestedTool}` }, 404)
+    }
+
+    try {
+      const body = await c.req.json().catch(() => ({}))
+      const input = body.arguments || body.input || body
+
+      const executor = new Executor({ env, ctx })
+
+      for (const agent of agents) {
+        executor.registerAgent(agent)
+      }
+
+      const result = await executor.executeEnsemble(ensemble, input)
+
+      if (!result.success) {
+        logger.error(`[MCP] Tool execution failed: ${toolName}`, result.error)
+        return c.json(
+          {
+            content: [
+              {
+                type: 'text',
+                text: `Error: ${result.error.message}`,
+              },
+            ],
+            isError: true,
+          },
+          200 // MCP returns 200 even for tool errors
+        )
+      }
+
+      // Return MCP-compatible response
+      return c.json({
+        content: [
+          {
+            type: 'text',
+            text:
+              typeof result.value.output === 'string'
+                ? result.value.output
+                : JSON.stringify(result.value.output, null, 2),
+          },
+        ],
+      })
+    } catch (error) {
+      logger.error(`[MCP] Tool invocation failed: ${toolName}`, error instanceof Error ? error : undefined)
+      return c.json(
+        {
+          content: [
+            {
+              type: 'text',
+              text: `Internal error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            },
+          ],
+          isError: true,
+        },
+        200
+      )
+    }
+  }
+
+  // Register routes
+  if (middlewareChain.length > 0) {
+    app.get('/mcp/tools', ...middlewareChain, listHandler)
+    app.post('/mcp/tools/:toolName', ...middlewareChain, invokeHandler)
+  } else {
+    app.get('/mcp/tools', listHandler)
+    app.post('/mcp/tools/:toolName', invokeHandler)
+  }
+}
+
+/**
+ * Build JSON Schema for ensemble input
+ * Used for MCP tool discovery
+ */
+function buildInputSchema(ensemble: any): any {
+  const schema: any = {
+    type: 'object',
+    properties: {},
+    required: [],
+  }
+
+  // If ensemble has explicit input definition
+  if (ensemble.input) {
+    for (const [key, value] of Object.entries(ensemble.input)) {
+      if (typeof value === 'object' && value !== null) {
+        const inputDef = value as any
+        schema.properties[key] = {
+          type: inputDef.type || 'string',
+          description: inputDef.description || key,
+        }
+        if (inputDef.required) {
+          schema.required.push(key)
+        }
+      } else {
+        // Simple value - infer type
+        schema.properties[key] = {
+          type: typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : 'string',
+        }
+      }
+    }
+  }
+
+  // If ensemble has inputs (alternative format)
+  if (ensemble.inputs) {
+    for (const [key, value] of Object.entries(ensemble.inputs)) {
+      if (typeof value === 'object' && value !== null) {
+        const inputDef = value as any
+        schema.properties[key] = {
+          type: inputDef.type || 'string',
+          description: inputDef.description || key,
+        }
+        if (inputDef.required) {
+          schema.required.push(key)
+        }
+      }
+    }
+  }
+
+  return schema
 }
 
 /**
@@ -207,10 +389,8 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
         executor.registerAgent(agent)
       }
 
-      const result = await executor.executeEnsemble(ensemble, {
-        input,
-        metadata: { trigger: 'webhook', path: c.req.path },
-      })
+      // Note: executeEnsemble expects input directly
+      const result = await executor.executeEnsemble(ensemble, input)
 
       if (!result.success) {
         logger.error(`[Webhook] Ensemble execution failed: ${ensemble.name}`, result.error)
@@ -365,5 +545,22 @@ export function registerBuiltInTriggers(): void {
     tags: ['webhook', 'api'],
   })
 
-  logger.info('[Built-in Triggers] Registered HTTP and Webhook triggers')
+  // MCP Trigger
+  registry.register(handleMCPTrigger, {
+    type: 'mcp',
+    name: 'MCP Trigger',
+    description: 'Expose ensembles as MCP tools for Claude Desktop and other MCP clients',
+    schema: z.object({
+      type: z.literal('mcp'),
+      toolName: z.string().optional(),
+      auth: z
+        .object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() })
+        .optional(),
+      public: z.boolean().optional(),
+    }) as any,
+    requiresAuth: false,
+    tags: ['mcp', 'ai', 'tools'],
+  })
+
+  logger.info('[Built-in Triggers] Registered HTTP, Webhook, and MCP triggers')
 }

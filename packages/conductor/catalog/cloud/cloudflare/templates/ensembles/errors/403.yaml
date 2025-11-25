@@ -158,4 +158,5 @@ input:
   message: null
   contactEmail: null
 
-output: $render-403
+output:
+  html: ${render-403.output}

@@ -65,7 +65,7 @@ agents:
           "recommendations": ["rec1", "rec2"]
         }
 
-inputs:
+input:
   question:
     type: string
     required: true
@@ -83,7 +83,7 @@ inputs:
     required: false
     description: Limit GitHub search to specific repo (owner/repo)
 
-outputs:
+output:
   answer: ${synthesize.output.answer}
   insights: ${synthesize.output.key_insights}
   web_sources: ${synthesize.output.web_sources}

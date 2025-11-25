@@ -187,8 +187,8 @@ agents:
       deliveryMode: attachment
       filename: analytics-report-{{reportDate}}.pdf
       metadata:
-        title: {{title}}
-        author: {{companyName}}
+        title: "{{title}}"
+        author: "{{companyName}}"
         subject: Analytics Report
 
 flow:

@@ -23,6 +23,12 @@ export interface EnsembleLoaderConfig {
    * Execution context (passed from Worker)
    */
   ctx: ExecutionContext
+
+  /**
+   * Agent loader instance for registering inline agents
+   * Optional - if provided, inline agents will be automatically registered
+   */
+  agentLoader?: any
 }
 
 export interface LoadedEnsemble {
@@ -104,6 +110,27 @@ export class EnsembleLoader {
     // Parse config if it's a string (YAML)
     const config =
       typeof ensembleConfig === 'string' ? Parser.parseEnsemble(ensembleConfig) : ensembleConfig
+
+    // Register inline agents if present and agent loader is available
+    if (config.agents && config.agents.length > 0 && this.config.agentLoader) {
+      for (const agentDef of config.agents) {
+        try {
+          // Register inline agent with the agent loader
+          this.config.agentLoader.registerMember({
+            name: String(agentDef.name),
+            config: agentDef,
+          })
+          console.log(
+            `[EnsembleLoader] Registered inline agent "${agentDef.name}" from ensemble "${config.name}"`
+          )
+        } catch (error) {
+          console.error(
+            `[EnsembleLoader] Failed to register inline agent "${agentDef.name}":`,
+            error
+          )
+        }
+      }
+    }
 
     // Store in registry
     this.loadedEnsembles.set(config.name, {

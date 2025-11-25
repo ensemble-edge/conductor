@@ -8,35 +8,15 @@
  * - Dynamic flow control
  */
 
-import type { FlowStep } from './parser.js'
+import type { AgentFlowStep } from './parser.js'
 
 /**
  * Enhanced flow step with graph capabilities
+ * Extends AgentFlowStep - all graph features are now in the base type
  */
-export interface GraphFlowStep extends FlowStep {
-  /** Steps that must complete before this one */
-  depends_on?: string[]
-
-  /** Timeout in milliseconds */
-  timeout?: number
-
-  /** Fallback value if timeout occurs */
-  onTimeout?: {
-    fallback?: unknown
-    error?: boolean
-  }
-
-  /** Retry configuration */
-  retry?: {
-    attempts: number
-    backoff: 'linear' | 'exponential' | 'fixed'
-    initialDelay?: number
-    maxDelay?: number
-    retryOn?: string[] // Error codes to retry on
-  }
-
-  /** Conditional execution - skip if false */
-  when?: string // Expression that resolves to boolean
+export interface GraphFlowStep extends AgentFlowStep {
+  // All graph features (depends_on, timeout, onTimeout, retry, when)
+  // are now defined in AgentFlowStep in parser.ts
 }
 
 /**

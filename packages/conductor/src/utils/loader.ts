@@ -11,6 +11,16 @@ import { FunctionAgent, type FunctionImplementation } from '../agents/function-a
 import { ThinkAgent } from '../agents/think-agent.js'
 import { DataAgent } from '../agents/data-agent.js'
 import { APIAgent } from '../agents/api-agent.js'
+import { EmailAgent } from '../agents/email/email-agent.js'
+import { SmsMember } from '../agents/sms/sms-agent.js'
+import { FormAgent } from '../agents/form/form-agent.js'
+import { HtmlMember } from '../agents/html/html-agent.js'
+import { PdfMember } from '../agents/pdf/pdf-agent.js'
+import { QueueMember } from '../agents/queue/queue-agent.js'
+import { DocsMember } from '../agents/docs/docs-agent.js'
+import { ToolsMember } from '../agents/built-in/tools/tools-agent.js'
+import { ValidateMember } from '../agents/built-in/validate/validate-agent.js'
+import { AutoRAGMember } from '../agents/built-in/autorag/autorag-agent.js'
 
 export interface LoaderConfig {
   /**
@@ -208,14 +218,41 @@ export class AgentLoader {
       case 'storage':
         return new DataAgent(config)
 
+      case 'data':
+        return new DataAgent(config)
+
       case 'http':
         return new APIAgent(config)
 
       case 'tools':
-        throw new Error('Tools agent type not yet implemented')
+        return new ToolsMember(config, this.config.env)
 
       case 'scoring':
-        throw new Error('Scoring agent type not yet implemented')
+        return new ValidateMember(config, this.config.env)
+
+      case 'email':
+        return new EmailAgent(config)
+
+      case 'sms':
+        return new SmsMember(config)
+
+      case 'form':
+        return new FormAgent(config)
+
+      case 'html':
+        return new HtmlMember(config)
+
+      case 'pdf':
+        return new PdfMember(config)
+
+      case 'queue':
+        return new QueueMember(config)
+
+      case 'docs':
+        return new DocsMember(config)
+
+      case 'autorag':
+        return new AutoRAGMember(config)
 
       default:
         throw new Error(`Unknown agent type: ${config.operation}`)

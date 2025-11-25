@@ -13,8 +13,14 @@ description: |
   For automatic RAG, use AutoRAG agent instead.
 
 config:
+  # Database type (required for data agents)
+  database: vectorize
+
+  # Operation type
+  operation: query
+
   # Vectorize index binding name from wrangler.toml
-  index: "VECTORIZE"
+  binding: "VECTORIZE"
 
   # Number of results to return
   topK: 5

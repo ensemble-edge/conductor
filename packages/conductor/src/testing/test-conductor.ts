@@ -3,7 +3,19 @@
  */
 
 import type { ConductorEnv } from '../types/env.js'
-import type { EnsembleConfig, AgentConfig } from '../runtime/parser.js'
+import type {
+  EnsembleConfig,
+  AgentConfig,
+  AgentFlowStep,
+  FlowStepType,
+} from '../runtime/parser.js'
+
+/**
+ * Type guard to check if a flow step is an agent step
+ */
+function isAgentStep(step: FlowStepType): step is AgentFlowStep {
+  return 'agent' in step && typeof (step as AgentFlowStep).agent === 'string'
+}
 import { Operation } from '../types/constants.js'
 import { Executor } from '../runtime/executor.js'
 import { Parser } from '../runtime/parser.js'
@@ -181,13 +193,16 @@ export class TestConductor {
       // TODO: Enhanced tracking requires instrumenting Executor for per-step input/output
       if (result.success && ensemble.flow) {
         for (const step of ensemble.flow) {
-          stepsExecuted.push({
-            agent: step.agent,
-            input: {}, // Not tracked yet
-            output: {}, // Not tracked yet
-            duration: 0,
-            success: true,
-          })
+          // Only track agent steps (not control flow steps)
+          if (isAgentStep(step)) {
+            stepsExecuted.push({
+              agent: step.agent,
+              input: {}, // Not tracked yet
+              output: {}, // Not tracked yet
+              duration: 0,
+              success: true,
+            })
+          }
         }
       }
 
@@ -418,7 +433,7 @@ export class TestConductor {
       for (const file of ensembleFiles) {
         if (file.endsWith('.yaml') || file.endsWith('.yml')) {
           const content = await fs.readFile(path.join(ensemblesPath, file), 'utf-8')
-          const config = YAML.parse(content) as EnsembleConfig
+          const config = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as EnsembleConfig
           const name = file.replace(/\.(yaml|yml)$/, '')
           this.catalog.ensembles.set(name, config)
         }
@@ -459,7 +474,7 @@ export class TestConductor {
         if (entry.isFile() && (entry.name.endsWith('.yaml') || entry.name.endsWith('.yml'))) {
           try {
             const content = await fs.readFile(fullPath, 'utf-8')
-            const config = YAML.parse(content) as AgentConfig
+            const config = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as AgentConfig
             const name = entry.name.replace(/\.(yaml|yml)$/, '')
             this.catalog.agents.set(name, config)
           } catch (error) {
@@ -477,14 +492,14 @@ export class TestConductor {
           // Try agent.yaml
           try {
             const content = await fs.readFile(agentYamlPath, 'utf-8')
-            const config = YAML.parse(content) as AgentConfig
+            const config = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as AgentConfig
             this.catalog.agents.set(config.name, config)
             configLoaded = true
           } catch {
             // Try agent.yml as fallback
             try {
               const content = await fs.readFile(agentYmlPath, 'utf-8')
-              const config = YAML.parse(content) as AgentConfig
+              const config = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as AgentConfig
               this.catalog.agents.set(config.name, config)
               configLoaded = true
             } catch {

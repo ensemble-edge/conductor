@@ -211,4 +211,5 @@ input:
     - title: Contact Support
       url: /support
 
-output: $render-404
+output:
+  html: ${render-404.output}
