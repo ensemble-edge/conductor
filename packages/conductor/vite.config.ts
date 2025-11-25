@@ -32,6 +32,13 @@ export default defineConfig({
   },
   resolve: {
     conditions: ['workerd', 'worker', 'browser'],
+    alias: {
+      // Force browser builds of libraries that have Node.js-specific code
+      // This eliminates the build warnings about Node.js imports
+      'liquidjs': 'liquidjs/dist/liquid.browser.mjs',
+      // Handlebars runtime-only build (no fs/path dependencies)
+      'handlebars': 'handlebars/dist/handlebars.runtime.js',
+    },
   },
   optimizeDeps: {
     include: [],
