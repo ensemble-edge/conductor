@@ -14,71 +14,71 @@ export type ReferenceSource = 'input' | 'state' | 'env' | 'steps' | 'context' | 
  * Reference options
  */
 export interface ReferenceOptions {
-	/** Default value if reference is undefined */
-	default?: unknown
-	/** Transform function to apply to the value */
-	transform?: (value: unknown) => unknown
-	/** Whether the reference is required */
-	required?: boolean
-	/** Type validation */
-	type?: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  /** Default value if reference is undefined */
+  default?: unknown
+  /** Transform function to apply to the value */
+  transform?: (value: unknown) => unknown
+  /** Whether the reference is required */
+  required?: boolean
+  /** Type validation */
+  type?: 'string' | 'number' | 'boolean' | 'object' | 'array'
 }
 
 /**
  * Reference class - represents a dynamic value reference
  */
 export class Reference {
-	public readonly source: ReferenceSource
-	public readonly path: string
-	public readonly defaultValue?: unknown
-	public readonly transform?: (value: unknown) => unknown
-	public readonly required: boolean
-	public readonly type?: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  public readonly source: ReferenceSource
+  public readonly path: string
+  public readonly defaultValue?: unknown
+  public readonly transform?: (value: unknown) => unknown
+  public readonly required: boolean
+  public readonly type?: 'string' | 'number' | 'boolean' | 'object' | 'array'
 
-	/** Internal marker for serialization */
-	public readonly __isReference = true
+  /** Internal marker for serialization */
+  public readonly __isReference = true
 
-	constructor(source: ReferenceSource, path: string, options?: ReferenceOptions) {
-		this.source = source
-		this.path = path
-		this.defaultValue = options?.default
-		this.transform = options?.transform
-		this.required = options?.required ?? false
-		this.type = options?.type
-	}
+  constructor(source: ReferenceSource, path: string, options?: ReferenceOptions) {
+    this.source = source
+    this.path = path
+    this.defaultValue = options?.default
+    this.transform = options?.transform
+    this.required = options?.required ?? false
+    this.type = options?.type
+  }
 
-	/**
-	 * Get the full reference path (source.path)
-	 */
-	getFullPath(): string {
-		return `${this.source}.${this.path}`
-	}
+  /**
+   * Get the full reference path (source.path)
+   */
+  getFullPath(): string {
+    return `${this.source}.${this.path}`
+  }
 
-	/**
-	 * Convert to string expression for YAML/serialization
-	 */
-	toExpression(): string {
-		return `\${${this.getFullPath()}}`
-	}
+  /**
+   * Convert to string expression for YAML/serialization
+   */
+  toExpression(): string {
+    return `\${${this.getFullPath()}}`
+  }
 
-	/**
-	 * Convert to plain config object
-	 */
-	toConfig(): { ref: string; default?: unknown; required?: boolean; type?: string } {
-		const config: { ref: string; default?: unknown; required?: boolean; type?: string } = {
-			ref: this.getFullPath(),
-		}
-		if (this.defaultValue !== undefined) {
-			config.default = this.defaultValue
-		}
-		if (this.required) {
-			config.required = true
-		}
-		if (this.type) {
-			config.type = this.type
-		}
-		return config
-	}
+  /**
+   * Convert to plain config object
+   */
+  toConfig(): { ref: string; default?: unknown; required?: boolean; type?: string } {
+    const config: { ref: string; default?: unknown; required?: boolean; type?: string } = {
+      ref: this.getFullPath(),
+    }
+    if (this.defaultValue !== undefined) {
+      config.default = this.defaultValue
+    }
+    if (this.required) {
+      config.required = true
+    }
+    if (this.type) {
+      config.type = this.type
+    }
+    return config
+  }
 }
 
 /**
@@ -100,20 +100,20 @@ export class Reference {
  * ```
  */
 export function ref(path: string, options?: ReferenceOptions): Reference {
-	// Parse the path to extract source
-	const parts = path.split('.')
-	const source = parts[0] as ReferenceSource
-	const restPath = parts.slice(1).join('.')
+  // Parse the path to extract source
+  const parts = path.split('.')
+  const source = parts[0] as ReferenceSource
+  const restPath = parts.slice(1).join('.')
 
-	// Validate source
-	const validSources: ReferenceSource[] = ['input', 'state', 'env', 'steps', 'context', 'output']
-	if (!validSources.includes(source)) {
-		throw new Error(
-			`Invalid reference source: ${source}. Must be one of: ${validSources.join(', ')}`
-		)
-	}
+  // Validate source
+  const validSources: ReferenceSource[] = ['input', 'state', 'env', 'steps', 'context', 'output']
+  if (!validSources.includes(source)) {
+    throw new Error(
+      `Invalid reference source: ${source}. Must be one of: ${validSources.join(', ')}`
+    )
+  }
 
-	return new Reference(source, restPath, options)
+  return new Reference(source, restPath, options)
 }
 
 /**
@@ -126,7 +126,7 @@ export function ref(path: string, options?: ReferenceOptions): Reference {
  * ```
  */
 export function inputRef(path: string, options?: ReferenceOptions): Reference {
-	return new Reference('input', path, options)
+  return new Reference('input', path, options)
 }
 
 /**
@@ -139,7 +139,7 @@ export function inputRef(path: string, options?: ReferenceOptions): Reference {
  * ```
  */
 export function stateRef(path: string, options?: ReferenceOptions): Reference {
-	return new Reference('state', path, options)
+  return new Reference('state', path, options)
 }
 
 /**
@@ -152,7 +152,7 @@ export function stateRef(path: string, options?: ReferenceOptions): Reference {
  * ```
  */
 export function envRef(path: string, options?: ReferenceOptions): Reference {
-	return new Reference('env', path, options)
+  return new Reference('env', path, options)
 }
 
 /**
@@ -165,8 +165,8 @@ export function envRef(path: string, options?: ReferenceOptions): Reference {
  * ```
  */
 export function stepRef(stepName: string, path?: string, options?: ReferenceOptions): Reference {
-	const fullPath = path ? `${stepName}.${path}` : stepName
-	return new Reference('steps', fullPath, options)
+  const fullPath = path ? `${stepName}.${path}` : stepName
+  return new Reference('steps', fullPath, options)
 }
 
 /**
@@ -179,7 +179,7 @@ export function stepRef(stepName: string, path?: string, options?: ReferenceOpti
  * ```
  */
 export function contextRef(path: string, options?: ReferenceOptions): Reference {
-	return new Reference('context', path, options)
+  return new Reference('context', path, options)
 }
 
 /**
@@ -191,14 +191,17 @@ export function contextRef(path: string, options?: ReferenceOptions): Reference 
  * ```
  */
 export function outputRef(path: string, options?: ReferenceOptions): Reference {
-	return new Reference('output', path, options)
+  return new Reference('output', path, options)
 }
 
 /**
  * Check if a value is a Reference instance
  */
 export function isReference(value: unknown): value is Reference {
-	return value instanceof Reference || (typeof value === 'object' && value !== null && '__isReference' in value)
+  return (
+    value instanceof Reference ||
+    (typeof value === 'object' && value !== null && '__isReference' in value)
+  )
 }
 
 /**
@@ -213,23 +216,23 @@ export function isReference(value: unknown): value is Reference {
  * ```
  */
 export function computed(
-	refs: Reference[],
-	compute: (values: unknown[]) => unknown
+  refs: Reference[],
+  compute: (values: unknown[]) => unknown
 ): { refs: Reference[]; compute: (values: unknown[]) => unknown; __isComputed: true } {
-	return {
-		refs,
-		compute,
-		__isComputed: true as const,
-	}
+  return {
+    refs,
+    compute,
+    __isComputed: true as const,
+  }
 }
 
 /**
  * Check if a value is a computed reference
  */
 export function isComputed(
-	value: unknown
+  value: unknown
 ): value is { refs: Reference[]; compute: (values: unknown[]) => unknown; __isComputed: true } {
-	return typeof value === 'object' && value !== null && '__isComputed' in value
+  return typeof value === 'object' && value !== null && '__isComputed' in value
 }
 
 /**
@@ -241,36 +244,36 @@ export function isComputed(
  * ```
  */
 export function template(
-	strings: TemplateStringsArray,
-	...values: (Reference | string | number)[]
+  strings: TemplateStringsArray,
+  ...values: (Reference | string | number)[]
 ): { template: string; refs: Reference[]; __isTemplate: true } {
-	const refs: Reference[] = []
-	let result = strings[0]
+  const refs: Reference[] = []
+  let result = strings[0]
 
-	values.forEach((value, i) => {
-		if (isReference(value)) {
-			refs.push(value)
-			result += value.toExpression()
-		} else {
-			result += String(value)
-		}
-		result += strings[i + 1]
-	})
+  values.forEach((value, i) => {
+    if (isReference(value)) {
+      refs.push(value)
+      result += value.toExpression()
+    } else {
+      result += String(value)
+    }
+    result += strings[i + 1]
+  })
 
-	return {
-		template: result,
-		refs,
-		__isTemplate: true as const,
-	}
+  return {
+    template: result,
+    refs,
+    __isTemplate: true as const,
+  }
 }
 
 /**
  * Check if a value is a template expression
  */
 export function isTemplate(
-	value: unknown
+  value: unknown
 ): value is { template: string; refs: Reference[]; __isTemplate: true } {
-	return typeof value === 'object' && value !== null && '__isTemplate' in value
+  return typeof value === 'object' && value !== null && '__isTemplate' in value
 }
 
 /**
@@ -283,22 +286,22 @@ export function isTemplate(
  * ```
  */
 export function parseRef(expression: string): Reference | null {
-	const match = expression.match(/^\$\{(.+)\}$/)
-	if (!match) {
-		return null
-	}
-	try {
-		return ref(match[1])
-	} catch {
-		return null
-	}
+  const match = expression.match(/^\$\{(.+)\}$/)
+  if (!match) {
+    return null
+  }
+  try {
+    return ref(match[1])
+  } catch {
+    return null
+  }
 }
 
 /**
  * Check if a string looks like a reference expression
  */
 export function isRefExpression(value: unknown): boolean {
-	return typeof value === 'string' && /^\$\{.+\}$/.test(value)
+  return typeof value === 'string' && /^\$\{.+\}$/.test(value)
 }
 
 /**
@@ -314,12 +317,12 @@ export function isRefExpression(value: unknown): boolean {
  * ```
  */
 export function refMap(
-	paths: Record<string, string>,
-	defaultOptions?: ReferenceOptions
+  paths: Record<string, string>,
+  defaultOptions?: ReferenceOptions
 ): Record<string, Reference> {
-	const result: Record<string, Reference> = {}
-	for (const [key, path] of Object.entries(paths)) {
-		result[key] = ref(path, defaultOptions)
-	}
-	return result
+  const result: Record<string, Reference> = {}
+  for (const [key, path] of Object.entries(paths)) {
+    result[key] = ref(path, defaultOptions)
+  }
+  return result
 }

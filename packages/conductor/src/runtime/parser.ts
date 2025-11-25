@@ -21,15 +21,15 @@ import { Operation } from '../types/constants.js'
 
 // Import primitive types - the parser produces objects compatible with these
 import type {
-	FlowStepType as PrimitiveFlowStepType,
-	AgentFlowStep as PrimitiveAgentFlowStep,
-	ParallelFlowStep as PrimitiveParallelFlowStep,
-	BranchFlowStep as PrimitiveBranchFlowStep,
-	ForeachFlowStep as PrimitiveForeachFlowStep,
-	TryFlowStep as PrimitiveTryFlowStep,
-	SwitchFlowStep as PrimitiveSwitchFlowStep,
-	WhileFlowStep as PrimitiveWhileFlowStep,
-	MapReduceFlowStep as PrimitiveMapReduceFlowStep,
+  FlowStepType as PrimitiveFlowStepType,
+  AgentFlowStep as PrimitiveAgentFlowStep,
+  ParallelFlowStep as PrimitiveParallelFlowStep,
+  BranchFlowStep as PrimitiveBranchFlowStep,
+  ForeachFlowStep as PrimitiveForeachFlowStep,
+  TryFlowStep as PrimitiveTryFlowStep,
+  SwitchFlowStep as PrimitiveSwitchFlowStep,
+  WhileFlowStep as PrimitiveWhileFlowStep,
+  MapReduceFlowStep as PrimitiveMapReduceFlowStep,
 } from '../primitives/types.js'
 
 // Import ensemble factory for creating Ensemble instances from parsed config

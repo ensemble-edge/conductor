@@ -11,162 +11,162 @@ import type { FlowStepType } from './types.js'
  * Suspension reason types
  */
 export type SuspensionReason =
-	| 'approval' // Waiting for human approval
-	| 'input' // Waiting for additional input
-	| 'external' // Waiting for external event
-	| 'scheduled' // Waiting for scheduled time
-	| 'manual' // Manual suspension
+  | 'approval' // Waiting for human approval
+  | 'input' // Waiting for additional input
+  | 'external' // Waiting for external event
+  | 'scheduled' // Waiting for scheduled time
+  | 'manual' // Manual suspension
 
 /**
  * Suspension state
  */
 export interface SuspensionState {
-	/** Unique suspension ID */
-	id: string
-	/** Reason for suspension */
-	reason: SuspensionReason
-	/** When the suspension was created */
-	createdAt: Date
-	/** When the suspension expires (optional) */
-	expiresAt?: Date
-	/** Data to preserve during suspension */
-	data?: Record<string, unknown>
-	/** Message describing what's needed to resume */
-	message?: string
-	/** URL or webhook for resume callback */
-	resumeUrl?: string
-	/** Allowed resume actions */
-	allowedActions?: string[]
+  /** Unique suspension ID */
+  id: string
+  /** Reason for suspension */
+  reason: SuspensionReason
+  /** When the suspension was created */
+  createdAt: Date
+  /** When the suspension expires (optional) */
+  expiresAt?: Date
+  /** Data to preserve during suspension */
+  data?: Record<string, unknown>
+  /** Message describing what's needed to resume */
+  message?: string
+  /** URL or webhook for resume callback */
+  resumeUrl?: string
+  /** Allowed resume actions */
+  allowedActions?: string[]
 }
 
 /**
  * Sleep/delay configuration
  */
 export interface SleepConfig {
-	/** Duration in milliseconds */
-	duration: number
-	/** Whether to use durable timer (survives restarts) */
-	durable?: boolean
-	/** Reason for the delay */
-	reason?: string
+  /** Duration in milliseconds */
+  duration: number
+  /** Whether to use durable timer (survives restarts) */
+  durable?: boolean
+  /** Reason for the delay */
+  reason?: string
 }
 
 /**
  * Schedule configuration
  */
 export interface ScheduleConfig {
-	/** ISO timestamp to resume at */
-	at?: string | Date
-	/** Cron expression for recurring */
-	cron?: string
-	/** Timezone for scheduling */
-	timezone?: string
-	/** Whether to use durable scheduling */
-	durable?: boolean
+  /** ISO timestamp to resume at */
+  at?: string | Date
+  /** Cron expression for recurring */
+  cron?: string
+  /** Timezone for scheduling */
+  timezone?: string
+  /** Whether to use durable scheduling */
+  durable?: boolean
 }
 
 /**
  * Approval request configuration
  */
 export interface ApprovalConfig {
-	/** Message to show to approver */
-	message: string
-	/** Who can approve (email, role, etc.) */
-	approvers?: string[]
-	/** Timeout for approval (in seconds) */
-	timeout?: number
-	/** Action on timeout */
-	timeoutAction?: 'approve' | 'reject' | 'fail'
-	/** Data to include in approval request */
-	data?: Record<string, unknown>
-	/** Allowed responses */
-	options?: Array<{
-		label: string
-		value: string
-		description?: string
-	}>
+  /** Message to show to approver */
+  message: string
+  /** Who can approve (email, role, etc.) */
+  approvers?: string[]
+  /** Timeout for approval (in seconds) */
+  timeout?: number
+  /** Action on timeout */
+  timeoutAction?: 'approve' | 'reject' | 'fail'
+  /** Data to include in approval request */
+  data?: Record<string, unknown>
+  /** Allowed responses */
+  options?: Array<{
+    label: string
+    value: string
+    description?: string
+  }>
 }
 
 /**
  * Webhook wait configuration
  */
 export interface WebhookWaitConfig {
-	/** Webhook path to listen on */
-	path?: string
-	/** Expected webhook event type */
-	event?: string
-	/** Timeout in seconds */
-	timeout?: number
-	/** Validation schema for webhook payload */
-	schema?: Record<string, unknown>
-	/** Secret for webhook verification */
-	secret?: string
+  /** Webhook path to listen on */
+  path?: string
+  /** Expected webhook event type */
+  event?: string
+  /** Timeout in seconds */
+  timeout?: number
+  /** Validation schema for webhook payload */
+  schema?: Record<string, unknown>
+  /** Secret for webhook verification */
+  secret?: string
 }
 
 /**
  * Suspend step configuration
  */
 export interface SuspendStepConfig {
-	/** Step type marker */
-	type: 'suspend'
-	/** Suspension reason */
-	reason: SuspensionReason
-	/** Message for the suspension */
-	message?: string
-	/** Data to preserve */
-	data?: Record<string, unknown>
-	/** Timeout in seconds */
-	timeout?: number
-	/** Steps to execute on resume */
-	onResume?: FlowStepType[]
-	/** Steps to execute on timeout */
-	onTimeout?: FlowStepType[]
+  /** Step type marker */
+  type: 'suspend'
+  /** Suspension reason */
+  reason: SuspensionReason
+  /** Message for the suspension */
+  message?: string
+  /** Data to preserve */
+  data?: Record<string, unknown>
+  /** Timeout in seconds */
+  timeout?: number
+  /** Steps to execute on resume */
+  onResume?: FlowStepType[]
+  /** Steps to execute on timeout */
+  onTimeout?: FlowStepType[]
 }
 
 /**
  * Sleep step configuration
  */
 export interface SleepStepConfig {
-	/** Step type marker */
-	type: 'sleep'
-	/** Duration in milliseconds */
-	duration: number
-	/** Whether to use durable timer */
-	durable?: boolean
-	/** Reason for the delay */
-	reason?: string
+  /** Step type marker */
+  type: 'sleep'
+  /** Duration in milliseconds */
+  duration: number
+  /** Whether to use durable timer */
+  durable?: boolean
+  /** Reason for the delay */
+  reason?: string
 }
 
 /**
  * Schedule step configuration
  */
 export interface ScheduleStepConfig {
-	/** Step type marker */
-	type: 'schedule'
-	/** When to execute */
-	at?: string | Date
-	/** Cron expression */
-	cron?: string
-	/** Timezone */
-	timezone?: string
-	/** Steps to execute at scheduled time */
-	steps: FlowStepType[]
+  /** Step type marker */
+  type: 'schedule'
+  /** When to execute */
+  at?: string | Date
+  /** Cron expression */
+  cron?: string
+  /** Timezone */
+  timezone?: string
+  /** Steps to execute at scheduled time */
+  steps: FlowStepType[]
 }
 
 /**
  * Approval step configuration
  */
 export interface ApprovalStepConfig {
-	/** Step type marker */
-	type: 'approval'
-	/** Approval configuration */
-	config: ApprovalConfig
-	/** Steps to execute on approval */
-	onApprove?: FlowStepType[]
-	/** Steps to execute on rejection */
-	onReject?: FlowStepType[]
-	/** Steps to execute on timeout */
-	onTimeout?: FlowStepType[]
+  /** Step type marker */
+  type: 'approval'
+  /** Approval configuration */
+  config: ApprovalConfig
+  /** Steps to execute on approval */
+  onApprove?: FlowStepType[]
+  /** Steps to execute on rejection */
+  onReject?: FlowStepType[]
+  /** Steps to execute on timeout */
+  onTimeout?: FlowStepType[]
 }
 
 /**
@@ -184,22 +184,22 @@ export interface ApprovalStepConfig {
  * ```
  */
 export function suspend(config: {
-	reason: SuspensionReason
-	message?: string
-	data?: Record<string, unknown>
-	timeout?: number
-	onResume?: FlowStepType[]
-	onTimeout?: FlowStepType[]
+  reason: SuspensionReason
+  message?: string
+  data?: Record<string, unknown>
+  timeout?: number
+  onResume?: FlowStepType[]
+  onTimeout?: FlowStepType[]
 }): SuspendStepConfig {
-	return {
-		type: 'suspend',
-		reason: config.reason,
-		message: config.message,
-		data: config.data,
-		timeout: config.timeout,
-		onResume: config.onResume,
-		onTimeout: config.onTimeout,
-	}
+  return {
+    type: 'suspend',
+    reason: config.reason,
+    message: config.message,
+    data: config.data,
+    timeout: config.timeout,
+    onResume: config.onResume,
+    onTimeout: config.onTimeout,
+  }
 }
 
 /**
@@ -215,15 +215,15 @@ export function suspend(config: {
  * ```
  */
 export function sleep(
-	duration: number,
-	options?: { durable?: boolean; reason?: string }
+  duration: number,
+  options?: { durable?: boolean; reason?: string }
 ): SleepStepConfig {
-	return {
-		type: 'sleep',
-		duration,
-		durable: options?.durable,
-		reason: options?.reason,
-	}
+  return {
+    type: 'sleep',
+    duration,
+    durable: options?.durable,
+    reason: options?.reason,
+  }
 }
 
 /**
@@ -235,10 +235,10 @@ export function sleep(
  * ```
  */
 export function sleepSeconds(
-	seconds: number,
-	options?: { durable?: boolean; reason?: string }
+  seconds: number,
+  options?: { durable?: boolean; reason?: string }
 ): SleepStepConfig {
-	return sleep(seconds * 1000, options)
+  return sleep(seconds * 1000, options)
 }
 
 /**
@@ -250,10 +250,10 @@ export function sleepSeconds(
  * ```
  */
 export function sleepMinutes(
-	minutes: number,
-	options?: { durable?: boolean; reason?: string }
+  minutes: number,
+  options?: { durable?: boolean; reason?: string }
 ): SleepStepConfig {
-	return sleep(minutes * 60 * 1000, options)
+  return sleep(minutes * 60 * 1000, options)
 }
 
 /**
@@ -269,19 +269,19 @@ export function sleepMinutes(
  * ```
  */
 export function sleepUntil(
-	time: Date | string,
-	options?: { durable?: boolean; reason?: string }
+  time: Date | string,
+  options?: { durable?: boolean; reason?: string }
 ): SleepStepConfig {
-	const targetTime = typeof time === 'string' ? new Date(time) : time
-	const now = new Date()
-	const duration = Math.max(0, targetTime.getTime() - now.getTime())
+  const targetTime = typeof time === 'string' ? new Date(time) : time
+  const now = new Date()
+  const duration = Math.max(0, targetTime.getTime() - now.getTime())
 
-	return {
-		type: 'sleep',
-		duration,
-		durable: options?.durable ?? true, // Default to durable for absolute times
-		reason: options?.reason ?? `Waiting until ${targetTime.toISOString()}`,
-	}
+  return {
+    type: 'sleep',
+    duration,
+    durable: options?.durable ?? true, // Default to durable for absolute times
+    reason: options?.reason ?? `Waiting until ${targetTime.toISOString()}`,
+  }
 }
 
 /**
@@ -304,18 +304,18 @@ export function sleepUntil(
  * ```
  */
 export function schedule(config: {
-	at?: string | Date
-	cron?: string
-	timezone?: string
-	steps: FlowStepType[]
+  at?: string | Date
+  cron?: string
+  timezone?: string
+  steps: FlowStepType[]
 }): ScheduleStepConfig {
-	return {
-		type: 'schedule',
-		at: config.at,
-		cron: config.cron,
-		timezone: config.timezone,
-		steps: config.steps,
-	}
+  return {
+    type: 'schedule',
+    at: config.at,
+    cron: config.cron,
+    timezone: config.timezone,
+    steps: config.steps,
+  }
 }
 
 /**
@@ -338,30 +338,30 @@ export function schedule(config: {
  * ```
  */
 export function approval(config: {
-	message: string
-	approvers?: string[]
-	timeout?: number
-	timeoutAction?: 'approve' | 'reject' | 'fail'
-	data?: Record<string, unknown>
-	options?: Array<{ label: string; value: string; description?: string }>
-	onApprove?: FlowStepType[]
-	onReject?: FlowStepType[]
-	onTimeout?: FlowStepType[]
+  message: string
+  approvers?: string[]
+  timeout?: number
+  timeoutAction?: 'approve' | 'reject' | 'fail'
+  data?: Record<string, unknown>
+  options?: Array<{ label: string; value: string; description?: string }>
+  onApprove?: FlowStepType[]
+  onReject?: FlowStepType[]
+  onTimeout?: FlowStepType[]
 }): ApprovalStepConfig {
-	return {
-		type: 'approval',
-		config: {
-			message: config.message,
-			approvers: config.approvers,
-			timeout: config.timeout,
-			timeoutAction: config.timeoutAction,
-			data: config.data,
-			options: config.options,
-		},
-		onApprove: config.onApprove,
-		onReject: config.onReject,
-		onTimeout: config.onTimeout,
-	}
+  return {
+    type: 'approval',
+    config: {
+      message: config.message,
+      approvers: config.approvers,
+      timeout: config.timeout,
+      timeoutAction: config.timeoutAction,
+      data: config.data,
+      options: config.options,
+    },
+    onApprove: config.onApprove,
+    onReject: config.onReject,
+    onTimeout: config.onTimeout,
+  }
 }
 
 /**
@@ -384,30 +384,30 @@ export function approval(config: {
  * ```
  */
 export function waitForWebhook(config: {
-	path?: string
-	event?: string
-	timeout?: number
-	schema?: Record<string, unknown>
-	secret?: string
-	onReceive?: FlowStepType[]
-	onTimeout?: FlowStepType[]
+  path?: string
+  event?: string
+  timeout?: number
+  schema?: Record<string, unknown>
+  secret?: string
+  onReceive?: FlowStepType[]
+  onTimeout?: FlowStepType[]
 }): SuspendStepConfig {
-	return {
-		type: 'suspend',
-		reason: 'external',
-		message: `Waiting for webhook event: ${config.event ?? 'any'}`,
-		data: {
-			webhookConfig: {
-				path: config.path,
-				event: config.event,
-				schema: config.schema,
-				secret: config.secret,
-			},
-		},
-		timeout: config.timeout,
-		onResume: config.onReceive,
-		onTimeout: config.onTimeout,
-	}
+  return {
+    type: 'suspend',
+    reason: 'external',
+    message: `Waiting for webhook event: ${config.event ?? 'any'}`,
+    data: {
+      webhookConfig: {
+        path: config.path,
+        event: config.event,
+        schema: config.schema,
+        secret: config.secret,
+      },
+    },
+    timeout: config.timeout,
+    onResume: config.onReceive,
+    onTimeout: config.onTimeout,
+  }
 }
 
 /**
@@ -426,30 +426,30 @@ export function waitForWebhook(config: {
  * ```
  */
 export function waitForInput(config: {
-	message: string
-	fields?: Array<{
-		name: string
-		type: 'string' | 'number' | 'boolean' | 'object'
-		required?: boolean
-		default?: unknown
-	}>
-	timeout?: number
-	onInput?: FlowStepType[]
-	onTimeout?: FlowStepType[]
+  message: string
+  fields?: Array<{
+    name: string
+    type: 'string' | 'number' | 'boolean' | 'object'
+    required?: boolean
+    default?: unknown
+  }>
+  timeout?: number
+  onInput?: FlowStepType[]
+  onTimeout?: FlowStepType[]
 }): SuspendStepConfig {
-	return {
-		type: 'suspend',
-		reason: 'input',
-		message: config.message,
-		data: {
-			inputConfig: {
-				fields: config.fields,
-			},
-		},
-		timeout: config.timeout,
-		onResume: config.onInput,
-		onTimeout: config.onTimeout,
-	}
+  return {
+    type: 'suspend',
+    reason: 'input',
+    message: config.message,
+    data: {
+      inputConfig: {
+        fields: config.fields,
+      },
+    },
+    timeout: config.timeout,
+    onResume: config.onInput,
+    onTimeout: config.onTimeout,
+  }
 }
 
 /**
@@ -464,41 +464,45 @@ export function waitForInput(config: {
  * ```
  */
 export function checkpoint(config: {
-	name: string
-	data?: Record<string, unknown>
+  name: string
+  data?: Record<string, unknown>
 }): SuspendStepConfig {
-	return {
-		type: 'suspend',
-		reason: 'manual',
-		message: `Checkpoint: ${config.name}`,
-		data: {
-			checkpoint: config.name,
-			...config.data,
-		},
-	}
+  return {
+    type: 'suspend',
+    reason: 'manual',
+    message: `Checkpoint: ${config.name}`,
+    data: {
+      checkpoint: config.name,
+      ...config.data,
+    },
+  }
 }
 
 /**
  * Type guards
  */
 export function isSuspendStep(step: unknown): step is SuspendStepConfig {
-	return typeof step === 'object' && step !== null && (step as SuspendStepConfig).type === 'suspend'
+  return typeof step === 'object' && step !== null && (step as SuspendStepConfig).type === 'suspend'
 }
 
 export function isSleepStep(step: unknown): step is SleepStepConfig {
-	return typeof step === 'object' && step !== null && (step as SleepStepConfig).type === 'sleep'
+  return typeof step === 'object' && step !== null && (step as SleepStepConfig).type === 'sleep'
 }
 
 export function isScheduleStep(step: unknown): step is ScheduleStepConfig {
-	return typeof step === 'object' && step !== null && (step as ScheduleStepConfig).type === 'schedule'
+  return (
+    typeof step === 'object' && step !== null && (step as ScheduleStepConfig).type === 'schedule'
+  )
 }
 
 export function isApprovalStep(step: unknown): step is ApprovalStepConfig {
-	return typeof step === 'object' && step !== null && (step as ApprovalStepConfig).type === 'approval'
+  return (
+    typeof step === 'object' && step !== null && (step as ApprovalStepConfig).type === 'approval'
+  )
 }
 
 export function isAsyncStep(
-	step: unknown
+  step: unknown
 ): step is SuspendStepConfig | SleepStepConfig | ScheduleStepConfig | ApprovalStepConfig {
-	return isSuspendStep(step) || isSleepStep(step) || isScheduleStep(step) || isApprovalStep(step)
+  return isSuspendStep(step) || isSleepStep(step) || isScheduleStep(step) || isApprovalStep(step)
 }

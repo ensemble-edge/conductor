@@ -195,13 +195,15 @@ export class ProjectValidator {
           if (typeof config.code === 'string') {
             errors.push({
               file: `agents/${agentName}/agent.yaml`,
-              message: 'Inline code is not supported in Cloudflare Workers. Use config.script or an index.ts handler instead.',
+              message:
+                'Inline code is not supported in Cloudflare Workers. Use config.script or an index.ts handler instead.',
             })
           }
           if (typeof config.function === 'string') {
             errors.push({
               file: `agents/${agentName}/agent.yaml`,
-              message: 'config.function is deprecated. Use config.script or an index.ts handler instead.',
+              message:
+                'config.function is deprecated. Use config.script or an index.ts handler instead.',
             })
           }
         }

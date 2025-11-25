@@ -506,7 +506,8 @@ async function validateTypeScriptEnsemble(
           message: 'Default export is a config object, not an Ensemble instance',
           severity: 'error',
           fixable: false,
-          suggestion: 'Wrap your config with createEnsemble(): export default createEnsemble({ ... })',
+          suggestion:
+            'Wrap your config with createEnsemble(): export default createEnsemble({ ... })',
         })
       } else {
         errors.push({
@@ -514,7 +515,8 @@ async function validateTypeScriptEnsemble(
           message: `Default export is not a valid Ensemble (got ${typeof exported})`,
           severity: 'error',
           fixable: false,
-          suggestion: 'Use createEnsemble() to create your ensemble: export default createEnsemble({ ... })',
+          suggestion:
+            'Use createEnsemble() to create your ensemble: export default createEnsemble({ ... })',
         })
       }
       return {
@@ -761,7 +763,9 @@ export function createValidateCommand(): Command {
         if (!options.quiet) {
           console.log('')
           const yamlCount = filesToValidate.filter((f) => getFileFormat(f.path) === 'yaml').length
-          const tsCount = filesToValidate.filter((f) => getFileFormat(f.path) === 'typescript').length
+          const tsCount = filesToValidate.filter(
+            (f) => getFileFormat(f.path) === 'typescript'
+          ).length
           console.log(
             chalk.bold(`Validating ${filesToValidate.length} file(s)`) +
               chalk.dim(` (${yamlCount} YAML, ${tsCount} TypeScript)...`)

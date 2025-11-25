@@ -12,13 +12,13 @@ import type { ComponentType, VersionReference } from './types.js'
  * Version constraint types for flexible version matching
  */
 export type VersionConstraint =
-	| string // Exact version like '1.0.0'
-	| `^${string}` // Compatible version like '^1.0.0'
-	| `~${string}` // Patch-compatible version like '~1.0.0'
-	| `>=${string}` // Minimum version
-	| `<=${string}` // Maximum version
-	| 'latest' // Latest available version
-	| 'stable' // Latest stable version
+  | string // Exact version like '1.0.0'
+  | `^${string}` // Compatible version like '^1.0.0'
+  | `~${string}` // Patch-compatible version like '~1.0.0'
+  | `>=${string}` // Minimum version
+  | `<=${string}` // Maximum version
+  | 'latest' // Latest available version
+  | 'stable' // Latest stable version
 
 /**
  * Deployment environment references
@@ -29,259 +29,279 @@ export type DeploymentEnvironment = 'production' | 'staging' | 'development' | '
  * Options for component references
  */
 export interface ComponentRefOptions {
-	/** Fallback version if specified version is unavailable */
-	fallback?: VersionConstraint
-	/** Whether this reference is required (fail if not found) */
-	required?: boolean
-	/** Custom resolution strategy */
-	resolution?: 'exact' | 'compatible' | 'latest-matching'
+  /** Fallback version if specified version is unavailable */
+  fallback?: VersionConstraint
+  /** Whether this reference is required (fail if not found) */
+  required?: boolean
+  /** Custom resolution strategy */
+  resolution?: 'exact' | 'compatible' | 'latest-matching'
 }
 
 /**
  * Options for versioned agent references
  */
 export interface VersionedAgentOptions extends ComponentRefOptions {
-	/** Override agent configuration */
-	config?: Record<string, unknown>
-	/** Input mapping for the agent */
-	input?: Record<string, unknown>
+  /** Override agent configuration */
+  config?: Record<string, unknown>
+  /** Input mapping for the agent */
+  input?: Record<string, unknown>
 }
 
 /**
  * Options for versioned ensemble references
  */
 export interface VersionedEnsembleOptions extends ComponentRefOptions {
-	/** Input mapping for the ensemble */
-	input?: Record<string, unknown>
-	/** Whether to inherit parent state */
-	inheritState?: boolean
+  /** Input mapping for the ensemble */
+  input?: Record<string, unknown>
+  /** Whether to inherit parent state */
+  inheritState?: boolean
 }
 
 /**
  * Options for deployment references
  */
 export interface DeploymentRefOptions {
-	/** Fallback environment if specified is unavailable */
-	fallback?: DeploymentEnvironment
-	/** Whether this reference is required */
-	required?: boolean
+  /** Fallback environment if specified is unavailable */
+  fallback?: DeploymentEnvironment
+  /** Whether this reference is required */
+  required?: boolean
 }
 
 /**
  * Component reference class - represents a versioned component reference
  */
 export class ComponentRef {
-	public readonly type: ComponentType
-	public readonly path: string
-	public readonly version: VersionConstraint
-	public readonly fallback?: VersionConstraint
-	public readonly required: boolean
-	public readonly resolution: 'exact' | 'compatible' | 'latest-matching'
+  public readonly type: ComponentType
+  public readonly path: string
+  public readonly version: VersionConstraint
+  public readonly fallback?: VersionConstraint
+  public readonly required: boolean
+  public readonly resolution: 'exact' | 'compatible' | 'latest-matching'
 
-	/** Internal marker for serialization */
-	public readonly __isComponentRef = true
+  /** Internal marker for serialization */
+  public readonly __isComponentRef = true
 
-	constructor(
-		type: ComponentType,
-		path: string,
-		version: VersionConstraint,
-		options?: ComponentRefOptions
-	) {
-		this.type = type
-		this.path = path
-		this.version = version
-		this.fallback = options?.fallback
-		this.required = options?.required ?? true
-		this.resolution = options?.resolution ?? 'exact'
-	}
+  constructor(
+    type: ComponentType,
+    path: string,
+    version: VersionConstraint,
+    options?: ComponentRefOptions
+  ) {
+    this.type = type
+    this.path = path
+    this.version = version
+    this.fallback = options?.fallback
+    this.required = options?.required ?? true
+    this.resolution = options?.resolution ?? 'exact'
+  }
 
-	/**
-	 * Get the full reference path (type/path@version)
-	 */
-	getFullPath(): string {
-		return `${this.type}/${this.path}@${this.version}`
-	}
+  /**
+   * Get the full reference path (type/path@version)
+   */
+  getFullPath(): string {
+    return `${this.type}/${this.path}@${this.version}`
+  }
 
-	/**
-	 * Convert to Git tag format (edgit format)
-	 */
-	toGitTag(): string {
-		// Map component types to edgit tag namespaces
-		const namespace = this.type === 'agent' ? 'agents' : `${this.type}s`
-		return `${namespace}/${this.path}/${this.version}`
-	}
+  /**
+   * Convert to Git tag format (edgit format)
+   */
+  toGitTag(): string {
+    // Map component types to edgit tag namespaces
+    const namespace = this.type === 'agent' ? 'agents' : `${this.type}s`
+    return `${namespace}/${this.path}/${this.version}`
+  }
 
-	/**
-	 * Convert to VersionReference for runtime resolution
-	 */
-	toVersionReference(): VersionReference {
-		return {
-			type: this.type,
-			path: this.path,
-			version: this.version,
-		}
-	}
+  /**
+   * Convert to VersionReference for runtime resolution
+   */
+  toVersionReference(): VersionReference {
+    return {
+      type: this.type,
+      path: this.path,
+      version: this.version,
+    }
+  }
 
-	/**
-	 * Convert to plain config object for YAML/serialization
-	 */
-	toConfig(): {
-		type: ComponentType
-		path: string
-		version: string
-		fallback?: string
-		required?: boolean
-		resolution?: string
-	} {
-		const config: {
-			type: ComponentType
-			path: string
-			version: string
-			fallback?: string
-			required?: boolean
-			resolution?: string
-		} = {
-			type: this.type,
-			path: this.path,
-			version: this.version,
-		}
-		if (this.fallback !== undefined) {
-			config.fallback = this.fallback
-		}
-		if (!this.required) {
-			config.required = false
-		}
-		if (this.resolution !== 'exact') {
-			config.resolution = this.resolution
-		}
-		return config
-	}
+  /**
+   * Convert to plain config object for YAML/serialization
+   */
+  toConfig(): {
+    type: ComponentType
+    path: string
+    version: string
+    fallback?: string
+    required?: boolean
+    resolution?: string
+  } {
+    const config: {
+      type: ComponentType
+      path: string
+      version: string
+      fallback?: string
+      required?: boolean
+      resolution?: string
+    } = {
+      type: this.type,
+      path: this.path,
+      version: this.version,
+    }
+    if (this.fallback !== undefined) {
+      config.fallback = this.fallback
+    }
+    if (!this.required) {
+      config.required = false
+    }
+    if (this.resolution !== 'exact') {
+      config.resolution = this.resolution
+    }
+    return config
+  }
 }
 
 /**
  * Versioned agent reference class
  */
 export class VersionedAgent extends ComponentRef {
-	public readonly agentConfig?: Record<string, unknown>
-	public readonly input?: Record<string, unknown>
+  public readonly agentConfig?: Record<string, unknown>
+  public readonly input?: Record<string, unknown>
 
-	/** Internal marker for serialization */
-	public readonly __isVersionedAgent = true
+  /** Internal marker for serialization */
+  public readonly __isVersionedAgent = true
 
-	constructor(path: string, version: VersionConstraint, options?: VersionedAgentOptions) {
-		super('agent', path, version, options)
-		this.agentConfig = options?.config
-		this.input = options?.input
-	}
+  constructor(path: string, version: VersionConstraint, options?: VersionedAgentOptions) {
+    super('agent', path, version, options)
+    this.agentConfig = options?.config
+    this.input = options?.input
+  }
 
-	/**
-	 * Convert to agent flow step format
-	 */
-	toFlowStep(): { agent: string; version: string; config?: Record<string, unknown>; input?: Record<string, unknown> } {
-		const step: { agent: string; version: string; config?: Record<string, unknown>; input?: Record<string, unknown> } = {
-			agent: this.path,
-			version: this.version,
-		}
-		if (this.agentConfig) {
-			step.config = this.agentConfig
-		}
-		if (this.input) {
-			step.input = this.input
-		}
-		return step
-	}
+  /**
+   * Convert to agent flow step format
+   */
+  toFlowStep(): {
+    agent: string
+    version: string
+    config?: Record<string, unknown>
+    input?: Record<string, unknown>
+  } {
+    const step: {
+      agent: string
+      version: string
+      config?: Record<string, unknown>
+      input?: Record<string, unknown>
+    } = {
+      agent: this.path,
+      version: this.version,
+    }
+    if (this.agentConfig) {
+      step.config = this.agentConfig
+    }
+    if (this.input) {
+      step.input = this.input
+    }
+    return step
+  }
 }
 
 /**
  * Versioned ensemble reference class
  */
 export class VersionedEnsemble extends ComponentRef {
-	public readonly input?: Record<string, unknown>
-	public readonly inheritState: boolean
+  public readonly input?: Record<string, unknown>
+  public readonly inheritState: boolean
 
-	/** Internal marker for serialization */
-	public readonly __isVersionedEnsemble = true
+  /** Internal marker for serialization */
+  public readonly __isVersionedEnsemble = true
 
-	constructor(path: string, version: VersionConstraint, options?: VersionedEnsembleOptions) {
-		super('ensemble', path, version, options)
-		this.input = options?.input
-		this.inheritState = options?.inheritState ?? false
-	}
+  constructor(path: string, version: VersionConstraint, options?: VersionedEnsembleOptions) {
+    super('ensemble', path, version, options)
+    this.input = options?.input
+    this.inheritState = options?.inheritState ?? false
+  }
 
-	/**
-	 * Convert to ensemble invocation format
-	 */
-	toInvocation(): { ensemble: string; version: string; input?: Record<string, unknown>; inheritState?: boolean } {
-		const invocation: { ensemble: string; version: string; input?: Record<string, unknown>; inheritState?: boolean } = {
-			ensemble: this.path,
-			version: this.version,
-		}
-		if (this.input) {
-			invocation.input = this.input
-		}
-		if (this.inheritState) {
-			invocation.inheritState = true
-		}
-		return invocation
-	}
+  /**
+   * Convert to ensemble invocation format
+   */
+  toInvocation(): {
+    ensemble: string
+    version: string
+    input?: Record<string, unknown>
+    inheritState?: boolean
+  } {
+    const invocation: {
+      ensemble: string
+      version: string
+      input?: Record<string, unknown>
+      inheritState?: boolean
+    } = {
+      ensemble: this.path,
+      version: this.version,
+    }
+    if (this.input) {
+      invocation.input = this.input
+    }
+    if (this.inheritState) {
+      invocation.inheritState = true
+    }
+    return invocation
+  }
 }
 
 /**
  * Deployment reference class - resolves versions based on deployment environment
  */
 export class DeploymentRef {
-	public readonly component: ComponentRef
-	public readonly environment: DeploymentEnvironment
-	public readonly fallback?: DeploymentEnvironment
-	public readonly required: boolean
+  public readonly component: ComponentRef
+  public readonly environment: DeploymentEnvironment
+  public readonly fallback?: DeploymentEnvironment
+  public readonly required: boolean
 
-	/** Internal marker for serialization */
-	public readonly __isDeploymentRef = true
+  /** Internal marker for serialization */
+  public readonly __isDeploymentRef = true
 
-	constructor(
-		component: ComponentRef,
-		environment: DeploymentEnvironment,
-		options?: DeploymentRefOptions
-	) {
-		this.component = component
-		this.environment = environment
-		this.fallback = options?.fallback
-		this.required = options?.required ?? true
-	}
+  constructor(
+    component: ComponentRef,
+    environment: DeploymentEnvironment,
+    options?: DeploymentRefOptions
+  ) {
+    this.component = component
+    this.environment = environment
+    this.fallback = options?.fallback
+    this.required = options?.required ?? true
+  }
 
-	/**
-	 * Get the deployment tag format
-	 */
-	toDeploymentTag(): string {
-		return `deploy/${this.environment}/${this.component.type}s/${this.component.path}`
-	}
+  /**
+   * Get the deployment tag format
+   */
+  toDeploymentTag(): string {
+    return `deploy/${this.environment}/${this.component.type}s/${this.component.path}`
+  }
 
-	/**
-	 * Convert to plain config object
-	 */
-	toConfig(): {
-		component: ReturnType<ComponentRef['toConfig']>
-		environment: string
-		fallback?: string
-		required?: boolean
-	} {
-		const config: {
-			component: ReturnType<ComponentRef['toConfig']>
-			environment: string
-			fallback?: string
-			required?: boolean
-		} = {
-			component: this.component.toConfig(),
-			environment: this.environment,
-		}
-		if (this.fallback) {
-			config.fallback = this.fallback
-		}
-		if (!this.required) {
-			config.required = false
-		}
-		return config
-	}
+  /**
+   * Convert to plain config object
+   */
+  toConfig(): {
+    component: ReturnType<ComponentRef['toConfig']>
+    environment: string
+    fallback?: string
+    required?: boolean
+  } {
+    const config: {
+      component: ReturnType<ComponentRef['toConfig']>
+      environment: string
+      fallback?: string
+      required?: boolean
+    } = {
+      component: this.component.toConfig(),
+      environment: this.environment,
+    }
+    if (this.fallback) {
+      config.fallback = this.fallback
+    }
+    if (!this.required) {
+      config.required = false
+    }
+    return config
+  }
 }
 
 // ============================================================================
@@ -313,12 +333,12 @@ export class DeploymentRef {
  * ```
  */
 export function componentRef(
-	type: ComponentType,
-	path: string,
-	version: VersionConstraint,
-	options?: ComponentRefOptions
+  type: ComponentType,
+  path: string,
+  version: VersionConstraint,
+  options?: ComponentRefOptions
 ): ComponentRef {
-	return new ComponentRef(type, path, version, options)
+  return new ComponentRef(type, path, version, options)
 }
 
 /**
@@ -357,11 +377,11 @@ export function componentRef(
  * ```
  */
 export function versionedAgent(
-	path: string,
-	version: VersionConstraint,
-	options?: VersionedAgentOptions
+  path: string,
+  version: VersionConstraint,
+  options?: VersionedAgentOptions
 ): VersionedAgent {
-	return new VersionedAgent(path, version, options)
+  return new VersionedAgent(path, version, options)
 }
 
 /**
@@ -395,11 +415,11 @@ export function versionedAgent(
  * ```
  */
 export function versionedEnsemble(
-	path: string,
-	version: VersionConstraint,
-	options?: VersionedEnsembleOptions
+  path: string,
+  version: VersionConstraint,
+  options?: VersionedEnsembleOptions
 ): VersionedEnsemble {
-	return new VersionedEnsemble(path, version, options)
+  return new VersionedEnsemble(path, version, options)
 }
 
 /**
@@ -436,11 +456,11 @@ export function versionedEnsemble(
  * ```
  */
 export function deploymentRef(
-	component: ComponentRef,
-	environment: DeploymentEnvironment,
-	options?: DeploymentRefOptions
+  component: ComponentRef,
+  environment: DeploymentEnvironment,
+  options?: DeploymentRefOptions
 ): DeploymentRef {
-	return new DeploymentRef(component, environment, options)
+  return new DeploymentRef(component, environment, options)
 }
 
 // ============================================================================
@@ -451,40 +471,40 @@ export function deploymentRef(
  * Check if a value is a ComponentRef instance
  */
 export function isComponentRef(value: unknown): value is ComponentRef {
-	return (
-		value instanceof ComponentRef ||
-		(typeof value === 'object' && value !== null && '__isComponentRef' in value)
-	)
+  return (
+    value instanceof ComponentRef ||
+    (typeof value === 'object' && value !== null && '__isComponentRef' in value)
+  )
 }
 
 /**
  * Check if a value is a VersionedAgent instance
  */
 export function isVersionedAgent(value: unknown): value is VersionedAgent {
-	return (
-		value instanceof VersionedAgent ||
-		(typeof value === 'object' && value !== null && '__isVersionedAgent' in value)
-	)
+  return (
+    value instanceof VersionedAgent ||
+    (typeof value === 'object' && value !== null && '__isVersionedAgent' in value)
+  )
 }
 
 /**
  * Check if a value is a VersionedEnsemble instance
  */
 export function isVersionedEnsemble(value: unknown): value is VersionedEnsemble {
-	return (
-		value instanceof VersionedEnsemble ||
-		(typeof value === 'object' && value !== null && '__isVersionedEnsemble' in value)
-	)
+  return (
+    value instanceof VersionedEnsemble ||
+    (typeof value === 'object' && value !== null && '__isVersionedEnsemble' in value)
+  )
 }
 
 /**
  * Check if a value is a DeploymentRef instance
  */
 export function isDeploymentRef(value: unknown): value is DeploymentRef {
-	return (
-		value instanceof DeploymentRef ||
-		(typeof value === 'object' && value !== null && '__isDeploymentRef' in value)
-	)
+  return (
+    value instanceof DeploymentRef ||
+    (typeof value === 'object' && value !== null && '__isDeploymentRef' in value)
+  )
 }
 
 // ============================================================================
@@ -502,34 +522,34 @@ export function isDeploymentRef(value: unknown): value is DeploymentRef {
  * ```
  */
 export function parseVersion(version: string): {
-	constraint?: string
-	major?: number
-	minor?: number
-	patch?: number
-	tag?: string
+  constraint?: string
+  major?: number
+  minor?: number
+  patch?: number
+  tag?: string
 } {
-	// Handle special tags
-	if (version === 'latest' || version === 'stable') {
-		return { tag: version }
-	}
+  // Handle special tags
+  if (version === 'latest' || version === 'stable') {
+    return { tag: version }
+  }
 
-	// Extract constraint prefix
-	const constraintMatch = version.match(/^([~^]|>=|<=)/)
-	const constraint = constraintMatch?.[1]
-	const versionPart = constraint ? version.slice(constraint.length) : version
+  // Extract constraint prefix
+  const constraintMatch = version.match(/^([~^]|>=|<=)/)
+  const constraint = constraintMatch?.[1]
+  const versionPart = constraint ? version.slice(constraint.length) : version
 
-	// Parse semver
-	const semverMatch = versionPart.match(/^(\d+)\.(\d+)\.(\d+)/)
-	if (semverMatch) {
-		return {
-			constraint,
-			major: parseInt(semverMatch[1], 10),
-			minor: parseInt(semverMatch[2], 10),
-			patch: parseInt(semverMatch[3], 10),
-		}
-	}
+  // Parse semver
+  const semverMatch = versionPart.match(/^(\d+)\.(\d+)\.(\d+)/)
+  if (semverMatch) {
+    return {
+      constraint,
+      major: parseInt(semverMatch[1], 10),
+      minor: parseInt(semverMatch[2], 10),
+      patch: parseInt(semverMatch[3], 10),
+    }
+  }
 
-	return { tag: version }
+  return { tag: version }
 }
 
 /**
@@ -544,70 +564,70 @@ export function parseVersion(version: string): {
  * ```
  */
 export function satisfiesVersion(version: string, constraint: VersionConstraint): boolean {
-	if (constraint === 'latest' || constraint === 'stable') {
-		return true
-	}
+  if (constraint === 'latest' || constraint === 'stable') {
+    return true
+  }
 
-	const versionParts = parseVersion(version)
-	const constraintParts = parseVersion(constraint)
+  const versionParts = parseVersion(version)
+  const constraintParts = parseVersion(constraint)
 
-	if (versionParts.tag || constraintParts.tag) {
-		return version === constraint
-	}
+  if (versionParts.tag || constraintParts.tag) {
+    return version === constraint
+  }
 
-	if (
-		versionParts.major === undefined ||
-		versionParts.minor === undefined ||
-		versionParts.patch === undefined ||
-		constraintParts.major === undefined ||
-		constraintParts.minor === undefined ||
-		constraintParts.patch === undefined
-	) {
-		return false
-	}
+  if (
+    versionParts.major === undefined ||
+    versionParts.minor === undefined ||
+    versionParts.patch === undefined ||
+    constraintParts.major === undefined ||
+    constraintParts.minor === undefined ||
+    constraintParts.patch === undefined
+  ) {
+    return false
+  }
 
-	switch (constraintParts.constraint) {
-		case '^':
-			// Compatible: same major version
-			return (
-				versionParts.major === constraintParts.major &&
-				(versionParts.minor > constraintParts.minor ||
-					(versionParts.minor === constraintParts.minor &&
-						versionParts.patch >= constraintParts.patch))
-			)
-		case '~':
-			// Patch-compatible: same major.minor
-			return (
-				versionParts.major === constraintParts.major &&
-				versionParts.minor === constraintParts.minor &&
-				versionParts.patch >= constraintParts.patch
-			)
-		case '>=':
-			return (
-				versionParts.major > constraintParts.major ||
-				(versionParts.major === constraintParts.major &&
-					versionParts.minor > constraintParts.minor) ||
-				(versionParts.major === constraintParts.major &&
-					versionParts.minor === constraintParts.minor &&
-					versionParts.patch >= constraintParts.patch)
-			)
-		case '<=':
-			return (
-				versionParts.major < constraintParts.major ||
-				(versionParts.major === constraintParts.major &&
-					versionParts.minor < constraintParts.minor) ||
-				(versionParts.major === constraintParts.major &&
-					versionParts.minor === constraintParts.minor &&
-					versionParts.patch <= constraintParts.patch)
-			)
-		default:
-			// Exact match
-			return (
-				versionParts.major === constraintParts.major &&
-				versionParts.minor === constraintParts.minor &&
-				versionParts.patch === constraintParts.patch
-			)
-	}
+  switch (constraintParts.constraint) {
+    case '^':
+      // Compatible: same major version
+      return (
+        versionParts.major === constraintParts.major &&
+        (versionParts.minor > constraintParts.minor ||
+          (versionParts.minor === constraintParts.minor &&
+            versionParts.patch >= constraintParts.patch))
+      )
+    case '~':
+      // Patch-compatible: same major.minor
+      return (
+        versionParts.major === constraintParts.major &&
+        versionParts.minor === constraintParts.minor &&
+        versionParts.patch >= constraintParts.patch
+      )
+    case '>=':
+      return (
+        versionParts.major > constraintParts.major ||
+        (versionParts.major === constraintParts.major &&
+          versionParts.minor > constraintParts.minor) ||
+        (versionParts.major === constraintParts.major &&
+          versionParts.minor === constraintParts.minor &&
+          versionParts.patch >= constraintParts.patch)
+      )
+    case '<=':
+      return (
+        versionParts.major < constraintParts.major ||
+        (versionParts.major === constraintParts.major &&
+          versionParts.minor < constraintParts.minor) ||
+        (versionParts.major === constraintParts.major &&
+          versionParts.minor === constraintParts.minor &&
+          versionParts.patch <= constraintParts.patch)
+      )
+    default:
+      // Exact match
+      return (
+        versionParts.major === constraintParts.major &&
+        versionParts.minor === constraintParts.minor &&
+        versionParts.patch === constraintParts.patch
+      )
+  }
 }
 
 /**
@@ -633,15 +653,18 @@ export function satisfiesVersion(version: string, constraint: VersionConstraint)
  * ```
  */
 export function versionedAgents(
-	specs: Record<string, VersionConstraint | { version: VersionConstraint; options?: VersionedAgentOptions }>
+  specs: Record<
+    string,
+    VersionConstraint | { version: VersionConstraint; options?: VersionedAgentOptions }
+  >
 ): Record<string, VersionedAgent> {
-	const result: Record<string, VersionedAgent> = {}
-	for (const [path, spec] of Object.entries(specs)) {
-		if (typeof spec === 'string') {
-			result[path] = versionedAgent(path, spec)
-		} else {
-			result[path] = versionedAgent(path, spec.version, spec.options)
-		}
-	}
-	return result
+  const result: Record<string, VersionedAgent> = {}
+  for (const [path, spec] of Object.entries(specs)) {
+    if (typeof spec === 'string') {
+      result[path] = versionedAgent(path, spec)
+    } else {
+      result[path] = versionedAgent(path, spec.version, spec.options)
+    }
+  }
+  return result
 }

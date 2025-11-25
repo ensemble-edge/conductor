@@ -6,20 +6,20 @@
  */
 
 import type {
-	FlowStepType,
-	ParallelFlowStep,
-	BranchFlowStep,
-	ForeachFlowStep,
-	TryFlowStep,
-	SwitchFlowStep,
-	WhileFlowStep,
-	MapReduceFlowStep,
-	ParallelOptions,
-	BranchOptions,
-	ForeachOptions,
-	TryOptions,
-	WhileOptions,
-	MapReduceOptions,
+  FlowStepType,
+  ParallelFlowStep,
+  BranchFlowStep,
+  ForeachFlowStep,
+  TryFlowStep,
+  SwitchFlowStep,
+  WhileFlowStep,
+  MapReduceFlowStep,
+  ParallelOptions,
+  BranchOptions,
+  ForeachOptions,
+  TryOptions,
+  WhileOptions,
+  MapReduceOptions,
 } from './types.js'
 
 // Re-export option types for convenience
@@ -58,11 +58,11 @@ export type { ForeachOptions as LoopOptions }
  * ```
  */
 export function parallel(steps: FlowStepType[], options: ParallelOptions = {}): ParallelFlowStep {
-	return {
-		type: 'parallel',
-		steps,
-		waitFor: options.waitFor ?? 'all',
-	}
+  return {
+    type: 'parallel',
+    steps,
+    waitFor: options.waitFor ?? 'all',
+  }
 }
 
 /**
@@ -101,12 +101,12 @@ export function parallel(steps: FlowStepType[], options: ParallelOptions = {}): 
  * ```
  */
 export function branch(condition: unknown, options: BranchOptions): BranchFlowStep {
-	return {
-		type: 'branch',
-		condition,
-		then: options.then,
-		...(options.else && { else: options.else }),
-	}
+  return {
+    type: 'branch',
+    condition,
+    then: options.then,
+    ...(options.else && { else: options.else }),
+  }
 }
 
 /**
@@ -124,7 +124,7 @@ export function branch(condition: unknown, options: BranchOptions): BranchFlowSt
  * ```
  */
 export function ifThen(condition: unknown, steps: FlowStepType[]): BranchFlowStep {
-	return branch(condition, { then: steps })
+  return branch(condition, { then: steps })
 }
 
 /**
@@ -144,11 +144,11 @@ export function ifThen(condition: unknown, steps: FlowStepType[]): BranchFlowSte
  * ```
  */
 export function ifThenElse(
-	condition: unknown,
-	thenSteps: FlowStepType[],
-	elseSteps: FlowStepType[]
+  condition: unknown,
+  thenSteps: FlowStepType[],
+  elseSteps: FlowStepType[]
 ): BranchFlowStep {
-	return branch(condition, { then: thenSteps, else: elseSteps })
+  return branch(condition, { then: thenSteps, else: elseSteps })
 }
 
 /**
@@ -180,17 +180,17 @@ export function ifThenElse(
  * ```
  */
 export function foreach(
-	items: unknown,
-	stepToExecute: FlowStepType,
-	options: ForeachOptions = {}
+  items: unknown,
+  stepToExecute: FlowStepType,
+  options: ForeachOptions = {}
 ): ForeachFlowStep {
-	return {
-		type: 'foreach',
-		items,
-		step: stepToExecute,
-		...(options.maxConcurrency && { maxConcurrency: options.maxConcurrency }),
-		...(options.breakWhen !== undefined && { breakWhen: options.breakWhen }),
-	}
+  return {
+    type: 'foreach',
+    items,
+    step: stepToExecute,
+    ...(options.maxConcurrency && { maxConcurrency: options.maxConcurrency }),
+    ...(options.breakWhen !== undefined && { breakWhen: options.breakWhen }),
+  }
 }
 
 /**
@@ -232,12 +232,12 @@ export function foreach(
  * ```
  */
 export function tryStep(steps: FlowStepType[], options: TryOptions = {}): TryFlowStep {
-	return {
-		type: 'try',
-		steps,
-		...(options.catch && { catch: options.catch }),
-		...(options.finally && { finally: options.finally }),
-	}
+  return {
+    type: 'try',
+    steps,
+    ...(options.catch && { catch: options.catch }),
+    ...(options.finally && { finally: options.finally }),
+  }
 }
 
 /**
@@ -279,16 +279,16 @@ export function tryStep(steps: FlowStepType[], options: TryOptions = {}): TryFlo
  * ```
  */
 export function switchStep(
-	value: unknown,
-	cases: Record<string, FlowStepType[]>,
-	defaultCase?: FlowStepType[]
+  value: unknown,
+  cases: Record<string, FlowStepType[]>,
+  defaultCase?: FlowStepType[]
 ): SwitchFlowStep {
-	return {
-		type: 'switch',
-		value,
-		cases,
-		...(defaultCase && { default: defaultCase }),
-	}
+  return {
+    type: 'switch',
+    value,
+    cases,
+    ...(defaultCase && { default: defaultCase }),
+  }
 }
 
 /**
@@ -324,16 +324,16 @@ export function switchStep(
  * ```
  */
 export function whileStep(
-	condition: unknown,
-	steps: FlowStepType[],
-	options: WhileOptions = {}
+  condition: unknown,
+  steps: FlowStepType[],
+  options: WhileOptions = {}
 ): WhileFlowStep {
-	return {
-		type: 'while',
-		condition,
-		steps,
-		maxIterations: options.maxIterations ?? 100, // Default safety limit
-	}
+  return {
+    type: 'while',
+    condition,
+    steps,
+    maxIterations: options.maxIterations ?? 100, // Default safety limit
+  }
 }
 
 /**
@@ -355,14 +355,14 @@ export function whileStep(
  * ```
  */
 export function doWhile(
-	steps: FlowStepType[],
-	condition: unknown,
-	options: WhileOptions = {}
+  steps: FlowStepType[],
+  condition: unknown,
+  options: WhileOptions = {}
 ): FlowStepType[] {
-	return [
-		...steps, // Execute once
-		whileStep(condition, steps, options), // Then loop if condition is true
-	]
+  return [
+    ...steps, // Execute once
+    whileStep(condition, steps, options), // Then loop if condition is true
+  ]
 }
 
 /**
@@ -383,15 +383,14 @@ export function doWhile(
  * ```
  */
 export function doUntil(
-	steps: FlowStepType[],
-	condition: unknown,
-	options: WhileOptions = {}
+  steps: FlowStepType[],
+  condition: unknown,
+  options: WhileOptions = {}
 ): FlowStepType[] {
-	// Negate the condition for while
-	const negatedCondition =
-		typeof condition === 'string' ? `!(${condition})` : { $not: condition }
+  // Negate the condition for while
+  const negatedCondition = typeof condition === 'string' ? `!(${condition})` : { $not: condition }
 
-	return [...steps, whileStep(negatedCondition, steps, options)]
+  return [...steps, whileStep(negatedCondition, steps, options)]
 }
 
 /**
@@ -428,18 +427,18 @@ export function doUntil(
  * ```
  */
 export function mapReduce(
-	items: unknown,
-	mapStep: FlowStepType,
-	reduceStep: FlowStepType,
-	options: MapReduceOptions = {}
+  items: unknown,
+  mapStep: FlowStepType,
+  reduceStep: FlowStepType,
+  options: MapReduceOptions = {}
 ): MapReduceFlowStep {
-	return {
-		type: 'map-reduce',
-		items,
-		map: mapStep,
-		reduce: reduceStep,
-		...(options.maxConcurrency && { maxConcurrency: options.maxConcurrency }),
-	}
+  return {
+    type: 'map-reduce',
+    items,
+    map: mapStep,
+    reduce: reduceStep,
+    ...(options.maxConcurrency && { maxConcurrency: options.maxConcurrency }),
+  }
 }
 
 /**
@@ -460,11 +459,11 @@ export function mapReduce(
  * ```
  */
 export function map(
-	items: unknown,
-	stepToExecute: FlowStepType,
-	options: ForeachOptions = {}
+  items: unknown,
+  stepToExecute: FlowStepType,
+  options: ForeachOptions = {}
 ): ForeachFlowStep {
-	return foreach(items, stepToExecute, options)
+  return foreach(items, stepToExecute, options)
 }
 
 /**
@@ -482,12 +481,15 @@ export function map(
  * ```
  */
 export function repeat(count: number, steps: FlowStepType[]): ForeachFlowStep {
-	// Create an array of indices to iterate over
-	return {
-		type: 'foreach',
-		items: `\${Array.from({length: ${count}}, (_, i) => i)}`,
-		step: steps.length === 1 ? steps[0] : { type: 'parallel', steps, waitFor: 'all' } as ParallelFlowStep,
-	}
+  // Create an array of indices to iterate over
+  return {
+    type: 'foreach',
+    items: `\${Array.from({length: ${count}}, (_, i) => i)}`,
+    step:
+      steps.length === 1
+        ? steps[0]
+        : ({ type: 'parallel', steps, waitFor: 'all' } as ParallelFlowStep),
+  }
 }
 
 /**
@@ -507,7 +509,7 @@ export function repeat(count: number, steps: FlowStepType[]): ForeachFlowStep {
  * ```
  */
 export function race(steps: FlowStepType[]): ParallelFlowStep {
-	return parallel(steps, { waitFor: 'first' })
+  return parallel(steps, { waitFor: 'first' })
 }
 
 /**
@@ -528,21 +530,21 @@ export function race(steps: FlowStepType[]): ParallelFlowStep {
  * ```
  */
 export function fallback(steps: FlowStepType[]): FlowStepType {
-	if (steps.length === 0) {
-		throw new Error('fallback requires at least one step')
-	}
+  if (steps.length === 0) {
+    throw new Error('fallback requires at least one step')
+  }
 
-	if (steps.length === 1) {
-		return steps[0]
-	}
+  if (steps.length === 1) {
+    return steps[0]
+  }
 
-	// Build nested try/catch chain
-	// try step[0] catch try step[1] catch try step[2] ...
-	let result: FlowStepType = steps[steps.length - 1]
+  // Build nested try/catch chain
+  // try step[0] catch try step[1] catch try step[2] ...
+  let result: FlowStepType = steps[steps.length - 1]
 
-	for (let i = steps.length - 2; i >= 0; i--) {
-		result = tryStep([steps[i]], { catch: [result] })
-	}
+  for (let i = steps.length - 2; i >= 0; i--) {
+    result = tryStep([steps[i]], { catch: [result] })
+  }
 
-	return result
+  return result
 }

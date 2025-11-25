@@ -11,125 +11,125 @@ import type { OperationType } from '../types/operation.js'
  * Tool parameter definition
  */
 export interface ToolParameter {
-	/** Parameter name */
-	name: string
-	/** Parameter type */
-	type: 'string' | 'number' | 'boolean' | 'object' | 'array'
-	/** Description for the AI model */
-	description?: string
-	/** Whether the parameter is required */
-	required?: boolean
-	/** Default value if not provided */
-	default?: unknown
-	/** Enum values for constrained parameters */
-	enum?: unknown[]
-	/** JSON Schema for complex types */
-	schema?: Record<string, unknown>
+  /** Parameter name */
+  name: string
+  /** Parameter type */
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  /** Description for the AI model */
+  description?: string
+  /** Whether the parameter is required */
+  required?: boolean
+  /** Default value if not provided */
+  default?: unknown
+  /** Enum values for constrained parameters */
+  enum?: unknown[]
+  /** JSON Schema for complex types */
+  schema?: Record<string, unknown>
 }
 
 /**
  * Tool definition for agent use
  */
 export interface ToolDefinition {
-	/** Tool identifier */
-	name: string
-	/** Human-readable description */
-	description: string
-	/** Input parameters */
-	parameters?: ToolParameter[]
-	/** Parameter schema (JSON Schema format) */
-	inputSchema?: Record<string, unknown>
-	/** Return type description */
-	returns?: {
-		type: string
-		description?: string
-		schema?: Record<string, unknown>
-	}
-	/** Tool metadata */
-	metadata?: Record<string, unknown>
+  /** Tool identifier */
+  name: string
+  /** Human-readable description */
+  description: string
+  /** Input parameters */
+  parameters?: ToolParameter[]
+  /** Parameter schema (JSON Schema format) */
+  inputSchema?: Record<string, unknown>
+  /** Return type description */
+  returns?: {
+    type: string
+    description?: string
+    schema?: Record<string, unknown>
+  }
+  /** Tool metadata */
+  metadata?: Record<string, unknown>
 }
 
 /**
  * MCP Server configuration
  */
 export interface MCPServerConfig {
-	/** Server type */
-	type: 'mcp'
-	/** Server URL or connection string */
-	url?: string
-	/** Server name for local servers */
-	name?: string
-	/** Transport type */
-	transport?: 'stdio' | 'http' | 'websocket'
-	/** Command to start the server (for stdio transport) */
-	command?: string
-	/** Arguments for the command */
-	args?: string[]
-	/** Environment variables */
-	env?: Record<string, string>
-	/** Authentication configuration */
-	auth?: {
-		type: 'bearer' | 'api-key' | 'oauth'
-		token?: string
-		secret?: string
-	}
-	/** Tool filtering - only expose these tools */
-	tools?: string[]
-	/** Tool filtering - exclude these tools */
-	excludeTools?: string[]
+  /** Server type */
+  type: 'mcp'
+  /** Server URL or connection string */
+  url?: string
+  /** Server name for local servers */
+  name?: string
+  /** Transport type */
+  transport?: 'stdio' | 'http' | 'websocket'
+  /** Command to start the server (for stdio transport) */
+  command?: string
+  /** Arguments for the command */
+  args?: string[]
+  /** Environment variables */
+  env?: Record<string, string>
+  /** Authentication configuration */
+  auth?: {
+    type: 'bearer' | 'api-key' | 'oauth'
+    token?: string
+    secret?: string
+  }
+  /** Tool filtering - only expose these tools */
+  tools?: string[]
+  /** Tool filtering - exclude these tools */
+  excludeTools?: string[]
 }
 
 /**
  * Custom tool configuration (JavaScript function)
  */
 export interface CustomToolConfig {
-	/** Tool type */
-	type: 'custom'
-	/** Tool definition */
-	definition: ToolDefinition
-	/** Handler function path (for bundled code) */
-	handler?: string
-	/** Inline handler (only for programmatic use) */
-	execute?: (input: Record<string, unknown>) => Promise<unknown>
+  /** Tool type */
+  type: 'custom'
+  /** Tool definition */
+  definition: ToolDefinition
+  /** Handler function path (for bundled code) */
+  handler?: string
+  /** Inline handler (only for programmatic use) */
+  execute?: (input: Record<string, unknown>) => Promise<unknown>
 }
 
 /**
  * HTTP API tool configuration
  */
 export interface HTTPToolConfig {
-	/** Tool type */
-	type: 'http'
-	/** Tool definition */
-	definition: ToolDefinition
-	/** API endpoint URL */
-	url: string
-	/** HTTP method */
-	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-	/** Request headers */
-	headers?: Record<string, string>
-	/** Response mapping */
-	responseMapping?: Record<string, string>
-	/** Authentication */
-	auth?: {
-		type: 'bearer' | 'api-key' | 'basic'
-		token?: string
-		key?: string
-		secret?: string
-	}
+  /** Tool type */
+  type: 'http'
+  /** Tool definition */
+  definition: ToolDefinition
+  /** API endpoint URL */
+  url: string
+  /** HTTP method */
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  /** Request headers */
+  headers?: Record<string, string>
+  /** Response mapping */
+  responseMapping?: Record<string, string>
+  /** Authentication */
+  auth?: {
+    type: 'bearer' | 'api-key' | 'basic'
+    token?: string
+    key?: string
+    secret?: string
+  }
 }
 
 /**
  * Skill reference configuration
  */
 export interface SkillToolConfig {
-	/** Tool type */
-	type: 'skill'
-	/** Skill name to reference */
-	skill: string
-	/** Tool name within the skill */
-	tool?: string
-	/** Override configuration */
-	config?: Record<string, unknown>
+  /** Tool type */
+  type: 'skill'
+  /** Skill name to reference */
+  skill: string
+  /** Tool name within the skill */
+  tool?: string
+  /** Override configuration */
+  config?: Record<string, unknown>
 }
 
 /**
@@ -141,87 +141,87 @@ export type ToolConfig = MCPServerConfig | CustomToolConfig | HTTPToolConfig | S
  * Tool collection for agent configuration
  */
 export interface ToolCollection {
-	/** Collection name */
-	name?: string
-	/** Tools in this collection */
-	tools: ToolConfig[]
-	/** Default timeout for tool calls */
-	timeout?: number
-	/** Maximum concurrent tool calls */
-	maxConcurrent?: number
-	/** Retry configuration */
-	retry?: {
-		maxAttempts: number
-		backoff?: 'linear' | 'exponential'
-		initialDelay?: number
-	}
+  /** Collection name */
+  name?: string
+  /** Tools in this collection */
+  tools: ToolConfig[]
+  /** Default timeout for tool calls */
+  timeout?: number
+  /** Maximum concurrent tool calls */
+  maxConcurrent?: number
+  /** Retry configuration */
+  retry?: {
+    maxAttempts: number
+    backoff?: 'linear' | 'exponential'
+    initialDelay?: number
+  }
 }
 
 /**
  * Tool class - runtime representation of a tool configuration
  */
 export class Tool {
-	public readonly name: string
-	public readonly description: string
-	public readonly config: ToolConfig
-	public readonly parameters?: ToolParameter[]
-	public readonly metadata?: Record<string, unknown>
+  public readonly name: string
+  public readonly description: string
+  public readonly config: ToolConfig
+  public readonly parameters?: ToolParameter[]
+  public readonly metadata?: Record<string, unknown>
 
-	constructor(config: ToolConfig) {
-		this.config = config
+  constructor(config: ToolConfig) {
+    this.config = config
 
-		// Extract name and description based on tool type
-		if (config.type === 'custom' || config.type === 'http') {
-			this.name = config.definition.name
-			this.description = config.definition.description
-			this.parameters = config.definition.parameters
-			this.metadata = config.definition.metadata
-		} else if (config.type === 'mcp') {
-			this.name = config.name ?? 'mcp-server'
-			this.description = `MCP Server: ${config.url ?? config.name}`
-		} else if (config.type === 'skill') {
-			this.name = config.tool ?? config.skill
-			this.description = `Skill: ${config.skill}`
-		} else {
-			this.name = 'unknown'
-			this.description = 'Unknown tool type'
-		}
-	}
+    // Extract name and description based on tool type
+    if (config.type === 'custom' || config.type === 'http') {
+      this.name = config.definition.name
+      this.description = config.definition.description
+      this.parameters = config.definition.parameters
+      this.metadata = config.definition.metadata
+    } else if (config.type === 'mcp') {
+      this.name = config.name ?? 'mcp-server'
+      this.description = `MCP Server: ${config.url ?? config.name}`
+    } else if (config.type === 'skill') {
+      this.name = config.tool ?? config.skill
+      this.description = `Skill: ${config.skill}`
+    } else {
+      this.name = 'unknown'
+      this.description = 'Unknown tool type'
+    }
+  }
 
-	/**
-	 * Check if this is an MCP server tool
-	 */
-	isMCP(): this is Tool & { config: MCPServerConfig } {
-		return this.config.type === 'mcp'
-	}
+  /**
+   * Check if this is an MCP server tool
+   */
+  isMCP(): this is Tool & { config: MCPServerConfig } {
+    return this.config.type === 'mcp'
+  }
 
-	/**
-	 * Check if this is a custom tool
-	 */
-	isCustom(): this is Tool & { config: CustomToolConfig } {
-		return this.config.type === 'custom'
-	}
+  /**
+   * Check if this is a custom tool
+   */
+  isCustom(): this is Tool & { config: CustomToolConfig } {
+    return this.config.type === 'custom'
+  }
 
-	/**
-	 * Check if this is an HTTP tool
-	 */
-	isHTTP(): this is Tool & { config: HTTPToolConfig } {
-		return this.config.type === 'http'
-	}
+  /**
+   * Check if this is an HTTP tool
+   */
+  isHTTP(): this is Tool & { config: HTTPToolConfig } {
+    return this.config.type === 'http'
+  }
 
-	/**
-	 * Check if this is a skill reference
-	 */
-	isSkill(): this is Tool & { config: SkillToolConfig } {
-		return this.config.type === 'skill'
-	}
+  /**
+   * Check if this is a skill reference
+   */
+  isSkill(): this is Tool & { config: SkillToolConfig } {
+    return this.config.type === 'skill'
+  }
 
-	/**
-	 * Convert to plain config object
-	 */
-	toConfig(): ToolConfig {
-		return this.config
-	}
+  /**
+   * Convert to plain config object
+   */
+  toConfig(): ToolConfig {
+    return this.config
+  }
 }
 
 /**
@@ -237,7 +237,7 @@ export class Tool {
  * ```
  */
 export function mcpTool(config: Omit<MCPServerConfig, 'type'>): Tool {
-	return new Tool({ type: 'mcp', ...config })
+  return new Tool({ type: 'mcp', ...config })
 }
 
 /**
@@ -256,24 +256,24 @@ export function mcpTool(config: Omit<MCPServerConfig, 'type'>): Tool {
  * ```
  */
 export function customTool(options: {
-	name: string
-	description: string
-	parameters?: ToolParameter[]
-	handler?: string
-	execute?: (input: Record<string, unknown>) => Promise<unknown>
-	metadata?: Record<string, unknown>
+  name: string
+  description: string
+  parameters?: ToolParameter[]
+  handler?: string
+  execute?: (input: Record<string, unknown>) => Promise<unknown>
+  metadata?: Record<string, unknown>
 }): Tool {
-	return new Tool({
-		type: 'custom',
-		definition: {
-			name: options.name,
-			description: options.description,
-			parameters: options.parameters,
-			metadata: options.metadata,
-		},
-		handler: options.handler,
-		execute: options.execute,
-	})
+  return new Tool({
+    type: 'custom',
+    definition: {
+      name: options.name,
+      description: options.description,
+      parameters: options.parameters,
+      metadata: options.metadata,
+    },
+    handler: options.handler,
+    execute: options.execute,
+  })
 }
 
 /**
@@ -294,28 +294,28 @@ export function customTool(options: {
  * ```
  */
 export function httpTool(options: {
-	name: string
-	description: string
-	url: string
-	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-	headers?: Record<string, string>
-	parameters?: ToolParameter[]
-	auth?: HTTPToolConfig['auth']
-	metadata?: Record<string, unknown>
+  name: string
+  description: string
+  url: string
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  headers?: Record<string, string>
+  parameters?: ToolParameter[]
+  auth?: HTTPToolConfig['auth']
+  metadata?: Record<string, unknown>
 }): Tool {
-	return new Tool({
-		type: 'http',
-		definition: {
-			name: options.name,
-			description: options.description,
-			parameters: options.parameters,
-			metadata: options.metadata,
-		},
-		url: options.url,
-		method: options.method,
-		headers: options.headers,
-		auth: options.auth,
-	})
+  return new Tool({
+    type: 'http',
+    definition: {
+      name: options.name,
+      description: options.description,
+      parameters: options.parameters,
+      metadata: options.metadata,
+    },
+    url: options.url,
+    method: options.method,
+    headers: options.headers,
+    auth: options.auth,
+  })
 }
 
 /**
@@ -331,16 +331,16 @@ export function httpTool(options: {
  * ```
  */
 export function skillTool(options: {
-	skill: string
-	tool?: string
-	config?: Record<string, unknown>
+  skill: string
+  tool?: string
+  config?: Record<string, unknown>
 }): Tool {
-	return new Tool({
-		type: 'skill',
-		skill: options.skill,
-		tool: options.tool,
-		config: options.config,
-	})
+  return new Tool({
+    type: 'skill',
+    skill: options.skill,
+    tool: options.tool,
+    config: options.config,
+  })
 }
 
 /**
@@ -355,7 +355,7 @@ export function skillTool(options: {
  * ```
  */
 export function createTool(config: ToolConfig): Tool {
-	return new Tool(config)
+  return new Tool(config)
 }
 
 /**
@@ -375,35 +375,35 @@ export function createTool(config: ToolConfig): Tool {
  * ```
  */
 export function toolCollection(options: {
-	name?: string
-	tools: (Tool | ToolConfig)[]
-	timeout?: number
-	maxConcurrent?: number
-	retry?: ToolCollection['retry']
+  name?: string
+  tools: (Tool | ToolConfig)[]
+  timeout?: number
+  maxConcurrent?: number
+  retry?: ToolCollection['retry']
 }): ToolCollection {
-	return {
-		name: options.name,
-		tools: options.tools.map((t) => (t instanceof Tool ? t.toConfig() : t)),
-		timeout: options.timeout,
-		maxConcurrent: options.maxConcurrent,
-		retry: options.retry,
-	}
+  return {
+    name: options.name,
+    tools: options.tools.map((t) => (t instanceof Tool ? t.toConfig() : t)),
+    timeout: options.timeout,
+    maxConcurrent: options.maxConcurrent,
+    retry: options.retry,
+  }
 }
 
 /**
  * Check if a value is a Tool instance
  */
 export function isTool(value: unknown): value is Tool {
-	return value instanceof Tool
+  return value instanceof Tool
 }
 
 /**
  * Check if a value is a valid tool configuration
  */
 export function isToolConfig(value: unknown): value is ToolConfig {
-	if (typeof value !== 'object' || value === null) {
-		return false
-	}
-	const config = value as Record<string, unknown>
-	return ['mcp', 'custom', 'http', 'skill'].includes(config.type as string)
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const config = value as Record<string, unknown>
+  return ['mcp', 'custom', 'http', 'skill'].includes(config.type as string)
 }

@@ -10,7 +10,13 @@
  * Both authoring paths produce identical Ensemble instances for execution.
  */
 
-import { Parser, type EnsembleConfig, Ensemble, isEnsemble, ensembleFromConfig } from '../runtime/parser.js'
+import {
+  Parser,
+  type EnsembleConfig,
+  Ensemble,
+  isEnsemble,
+  ensembleFromConfig,
+} from '../runtime/parser.js'
 
 export interface EnsembleLoaderConfig {
   /**
@@ -92,8 +98,8 @@ export class EnsembleLoader {
   async autoDiscover(
     discoveredEnsembles: Array<{
       name: string
-      config?: string        // YAML config string
-      instance?: Ensemble    // TypeScript Ensemble instance
+      config?: string // YAML config string
+      instance?: Ensemble // TypeScript Ensemble instance
     }>
   ): Promise<void> {
     for (const ensembleDef of discoveredEnsembles) {
@@ -108,7 +114,9 @@ export class EnsembleLoader {
           this.registerEnsemble(config)
           console.log(`[EnsembleLoader] Auto-discovered YAML ensemble: ${ensembleDef.name}`)
         } else {
-          console.warn(`[EnsembleLoader] Skipping ensemble "${ensembleDef.name}": no config or instance`)
+          console.warn(
+            `[EnsembleLoader] Skipping ensemble "${ensembleDef.name}": no config or instance`
+          )
         }
       } catch (error) {
         console.error(`[EnsembleLoader] Failed to load ensemble "${ensembleDef.name}":`, error)
@@ -138,7 +146,9 @@ export class EnsembleLoader {
 
     // Create Ensemble instance from config
     // Cast to primitive EnsembleConfig - Zod schema is source of truth for runtime validation
-    const instance = ensembleFromConfig(config as import('../primitives/ensemble.js').EnsembleConfig)
+    const instance = ensembleFromConfig(
+      config as import('../primitives/ensemble.js').EnsembleConfig
+    )
 
     // Register inline agents if present and agent loader is available
     if (config.agents && config.agents.length > 0 && this.config.agentLoader) {
