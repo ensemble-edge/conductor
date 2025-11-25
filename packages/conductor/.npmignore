@@ -1,5 +1,6 @@
 # Source files (only ship compiled dist/)
-src/
+# Note: We exclude /src but NOT catalog/**/src (template files)
+/src/
 tsconfig.json
 
 # Examples and docs (not needed in npm package)
