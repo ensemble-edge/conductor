@@ -1,5 +1,13 @@
 # @ensemble-edge/conductor
 
+## 0.3.1
+
+### Patch Changes
+
+- 3db5493: Fix npm packaging to include template src/build/ vite plugins
+
+  The .npmignore was excluding all `src/` directories, which prevented the vite build plugins in `catalog/cloud/cloudflare/templates/src/build/` from being included in the published package. This caused `conductor init` to create projects that couldn't build due to missing vite plugin files.
+
 ## 0.3.0
 
 ### Minor Changes
