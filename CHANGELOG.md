@@ -1,5 +1,30 @@
 # @ensemble-edge/conductor
 
+## 0.3.0
+
+### Minor Changes
+
+- 8cf07f9: ## TypeScript-First SDK & Hyperdrive Support
+
+  ### TypeScript Agent & Ensemble Authoring
+  - Add full TypeScript support for defining agents and ensembles programmatically
+  - New primitives: `createEnsemble()`, `step()`, `parallel()`, `branch()`, `foreach()`, `tryStep()`, `whileStep()`, `mapReduce()`
+  - Version primitives for component management with semver support
+  - Type-safe ensemble building with fluent builder API
+  - Support for `.ts` agent and ensemble files alongside YAML
+
+  ### Hyperdrive Database Integration
+  - Wire `HyperdriveRepository` into data-agent for PostgreSQL/MySQL access via Cloudflare Hyperdrive
+  - Automatic connection pooling and edge caching for external databases
+  - Dialect-aware SQL (Postgres `$1` vs MySQL `?` placeholders)
+  - Support for `query`, `get`, `put`, `delete`, `list` operations
+  - New config options: `databaseType`, `schema`, `readOnly`
+
+  ### Improvements
+  - Enhanced component loader for TypeScript files
+  - Better validation for agent and ensemble definitions
+  - Expanded parser support for programmatic definitions
+
 ## 0.2.5
 
 ### Patch Changes

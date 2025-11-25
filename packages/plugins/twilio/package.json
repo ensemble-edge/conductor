@@ -1,6 +1,6 @@
 {
   "name": "@conductor/twilio",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Twilio plugin for Conductor - adds SMS and voice messaging capabilities",
@@ -42,7 +42,7 @@
     "directory": "packages/plugins/twilio"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.2.5",
+    "@ensemble-edge/conductor": "^0.3.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
