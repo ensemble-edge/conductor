@@ -434,12 +434,32 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
 
 /**
  * Extract input from HTTP request
+ *
+ * Returns a structured object that provides access to all parts of the request:
+ * - body: Parsed JSON body or form data (for POST/PUT/PATCH)
+ * - params: URL path parameters (e.g., /users/:id → { id: "123" })
+ * - query: Query string parameters (e.g., ?foo=bar → { foo: "bar" })
+ * - method: HTTP method (GET, POST, etc.)
+ * - path: Request path
+ * - headers: Request headers (commonly used ones)
+ *
+ * For backwards compatibility, body fields are also spread at the root level.
+ *
+ * Usage in YAML:
+ *   input:
+ *     email: ${input.body.email}       # Structured access
+ *     email: ${input.email}            # Backwards compatible
+ *     userId: ${input.params.id}       # URL params
+ *     page: ${input.query.page}        # Query params
+ *     isPost: ${input.method == 'POST'} # Check method
  */
 async function extractInput(c: any): Promise<any> {
   const method = c.req.method
   const contentType = c.req.header('content-type') || ''
+  const path = c.req.path
 
-  let body = {}
+  // Parse body for POST/PUT/PATCH requests
+  let body: Record<string, any> = {}
   if (['POST', 'PUT', 'PATCH'].includes(method)) {
     try {
       if (contentType.includes('application/json')) {
@@ -448,14 +468,43 @@ async function extractInput(c: any): Promise<any> {
         body = await c.req.parseBody()
       }
     } catch (e) {
-      // Ignore parsing errors
+      // Ignore parsing errors - body remains empty object
     }
   }
 
+  // Get URL params and query params
+  const params = c.req.param() || {}
+  const query = c.req.query() || {}
+
+  // Extract commonly used headers
+  const headers: Record<string, string | undefined> = {
+    'content-type': c.req.header('content-type'),
+    'user-agent': c.req.header('user-agent'),
+    accept: c.req.header('accept'),
+    authorization: c.req.header('authorization'),
+    'x-request-id': c.req.header('x-request-id'),
+    'x-forwarded-for': c.req.header('x-forwarded-for'),
+    'cf-connecting-ip': c.req.header('cf-connecting-ip'),
+    referer: c.req.header('referer'),
+    origin: c.req.header('origin'),
+  }
+
+  // Return structured input with backwards compatibility
+  // Body fields are spread at root for backwards compatibility
   return {
+    // Backwards compatible: spread body at root
     ...body,
-    params: c.req.param(),
-    query: c.req.query(),
+
+    // Structured access to request parts
+    body,
+    params,
+    query,
+    method,
+    path,
+    headers,
+
+    // Convenience: also expose raw request info
+    url: c.req.url,
   }
 }
 

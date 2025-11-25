@@ -636,6 +636,132 @@ export class Executor {
   }
 
   /**
+   * Register inline agents defined in an ensemble's agents array
+   * These are agents defined directly in the YAML with operation: code and inline code
+   * @private
+   */
+  private registerInlineAgents(ensemble: EnsembleConfig): void {
+    if (!ensemble.agents || ensemble.agents.length === 0) {
+      return
+    }
+
+    for (const agentDef of ensemble.agents) {
+      // Skip if not a valid agent definition object
+      if (typeof agentDef !== 'object' || agentDef === null) {
+        continue
+      }
+
+      const name = (agentDef as Record<string, unknown>).name as string | undefined
+      const operation = (agentDef as Record<string, unknown>).operation as string | undefined
+      const config = (agentDef as Record<string, unknown>).config as
+        | Record<string, unknown>
+        | undefined
+
+      if (!name || !operation) {
+        this.logger.warn('Skipping inline agent without name or operation', { agentDef })
+        continue
+      }
+
+      // Skip if already registered
+      if (this.agentRegistry.has(name)) {
+        this.logger.debug('Inline agent already registered', { name })
+        continue
+      }
+
+      // Build AgentConfig from the inline definition
+      const agentConfig: AgentConfig = {
+        name,
+        operation: operation as AgentConfig['operation'],
+        config: config || {},
+      }
+
+      // Handle inline code - convert string code to handler function for code/function operations
+      if (operation === Operation.code || operation === 'function') {
+        const inlineCode = config?.code || config?.function || config?.handler
+        if (typeof inlineCode === 'string') {
+          // Create a dynamic function from the inline code string
+          try {
+            const handler = this.createInlineHandler(inlineCode, name)
+            agentConfig.config = { ...config, handler }
+          } catch (error) {
+            this.logger.error(
+              'Failed to create inline handler',
+              error instanceof Error ? error : undefined,
+              { name }
+            )
+            continue
+          }
+        }
+      }
+
+      // Create and register the agent
+      const agentResult = this.createAgentFromConfig(agentConfig)
+      if (agentResult.success) {
+        this.agentRegistry.set(name, agentResult.value)
+        this.logger.debug('Registered inline agent', { name, operation })
+      } else {
+        this.logger.warn('Failed to create inline agent', {
+          name,
+          error: agentResult.error.message,
+        })
+      }
+    }
+  }
+
+  /**
+   * Create a handler function from inline code string
+   * Supports both ES module exports and raw function definitions
+   * @private
+   */
+  private createInlineHandler(
+    code: string,
+    agentName: string
+  ): (context: AgentExecutionContext) => Promise<unknown> {
+    // The inline code is expected to be either:
+    // 1. An ES module with default export: `export default async function(input, context) { ... }`
+    // 2. A raw function definition: `async function myFunc(input, context) { ... }`
+    // 3. An arrow function: `async (input, context) => { ... }`
+
+    return async (context: AgentExecutionContext): Promise<unknown> => {
+      try {
+        // Create a sandboxed function from the code string
+        // We need to handle ES module style exports
+        let wrappedCode = code.trim()
+
+        // Check if it's an ES module export
+        if (wrappedCode.includes('export default')) {
+          // Convert ES module to function expression
+          wrappedCode = wrappedCode
+            .replace(/export\s+default\s+async\s+function\s*\w*\s*/, 'return async function ')
+            .replace(/export\s+default\s+function\s*\w*\s*/, 'return function ')
+            .replace(/export\s+default\s+/, 'return ')
+        } else if (wrappedCode.startsWith('async function') || wrappedCode.startsWith('function')) {
+          // Named function - wrap it to return the function
+          wrappedCode = `return ${wrappedCode}`
+        }
+
+        // Create the function factory
+        const factory = new Function(wrappedCode)
+        const fn = factory()
+
+        if (typeof fn !== 'function') {
+          throw new Error(`Inline code for agent "${agentName}" did not return a function`)
+        }
+
+        // Execute with input and context (matching the expected signature)
+        const result = await fn(context.input, context)
+        return result
+      } catch (error) {
+        throw new Error(
+          `Inline code execution failed for agent "${agentName}": ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        )
+      }
+    }
+  }
+
+  /**
    * Execute an ensemble with Result-based error handling
    * @param ensemble - Parsed ensemble configuration
    * @param input - Input data for the ensemble
@@ -654,6 +780,11 @@ export class Executor {
       agents: [],
       cacheHits: 0,
     }
+
+    // Register inline agents from the ensemble's agents array
+    // This enables ensembles to define agents with inline code that work without
+    // separate agent files (e.g., operation: code with config.code)
+    this.registerInlineAgents(ensemble)
 
     // Send execution.started notification (fire and forget)
     this.ctx.waitUntil(

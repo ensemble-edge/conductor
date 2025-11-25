@@ -68,3 +68,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Rename GitHub releases from "@ensemble-edge/conductor@X.Y.Z" to "vX.Y.Z"
+      - name: Rename GitHub Releases
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          # Get the published packages info
+          PUBLISHED='${{ steps.changesets.outputs.publishedPackages }}'
+
+          # Parse each published package and rename its release
+          echo "$PUBLISHED" | jq -r '.[] | select(.name == "@ensemble-edge/conductor") | .version' | while read VERSION; do
+            if [ -n "$VERSION" ]; then
+              OLD_TAG="@ensemble-edge/conductor@${VERSION}"
+              NEW_NAME="v${VERSION}"
+
+              echo "Renaming release: $OLD_TAG -> $NEW_NAME"
+
+              # Update the release name (title) using GitHub API
+              gh release edit "$OLD_TAG" --title "$NEW_NAME" || echo "Could not rename release $OLD_TAG"
+            fi
+          done
