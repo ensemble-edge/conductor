@@ -91,6 +91,19 @@ export declare class ComponentLoader {
     loadJSON<T = any>(uri: string, options?: ComponentLoadOptions): Promise<T>;
     /**
      * Load and evaluate compiled component (for JSX components/pages)
+     *
+     * @deprecated This method uses new Function() which is blocked in Cloudflare Workers.
+     * For scripts, use the ScriptLoader with bundled scripts instead:
+     *
+     * ```typescript
+     * import { scriptsMap } from 'virtual:conductor-scripts'
+     * import { createScriptLoader } from '@ensemble-edge/conductor'
+     *
+     * const loader = createScriptLoader(scriptsMap)
+     * const handler = loader.resolve('script://my-script')
+     * ```
+     *
+     * For other compiled components, bundle them at build time using Vite plugins.
      */
     loadCompiled<T = any>(uri: string, options?: ComponentLoadOptions): Promise<T>;
     /**

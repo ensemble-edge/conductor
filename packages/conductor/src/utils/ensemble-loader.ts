@@ -1,11 +1,16 @@
 /**
  * Ensemble Loader Utility
  *
- * Dynamically loads user-created ensembles from their project directory
- * This runs in the user's project context, not in the conductor package
+ * Dynamically loads user-created ensembles from their project directory.
+ * Supports both YAML and TypeScript ensemble authoring:
+ *
+ * - YAML: Parsed via Parser → EnsembleConfig → Ensemble instance
+ * - TypeScript: Direct import of Ensemble instances via createEnsemble()
+ *
+ * Both authoring paths produce identical Ensemble instances for execution.
  */
 
-import { Parser, type EnsembleConfig } from '../runtime/parser.js'
+import { Parser, type EnsembleConfig, Ensemble, isEnsemble, ensembleFromConfig } from '../runtime/parser.js'
 
 export interface EnsembleLoaderConfig {
   /**
@@ -32,7 +37,12 @@ export interface EnsembleLoaderConfig {
 }
 
 export interface LoadedEnsemble {
+  /** The original config (for YAML-loaded ensembles) */
   config: EnsembleConfig
+  /** The Ensemble instance (canonical runtime object) */
+  instance: Ensemble
+  /** Source type */
+  source: 'yaml' | 'typescript'
 }
 
 /**
@@ -60,31 +70,46 @@ export class EnsembleLoader {
    * This method is designed to work with the Vite plugin system that generates
    * a virtual module containing all ensemble definitions at build time.
    *
+   * Supports both YAML configs and TypeScript Ensemble instances.
+   *
    * @param discoveredEnsembles - Array of ensemble definitions from virtual:conductor-ensembles
    *
    * @example
    * ```typescript
+   * // YAML ensembles
    * import { ensembles as discoveredEnsembles } from 'virtual:conductor-ensembles';
    *
+   * // TypeScript ensembles
+   * import dataPipeline from './ensembles/data-pipeline.ts';
+   *
    * const loader = new EnsembleLoader({ env, ctx });
-   * await loader.autoDiscover(discoveredEnsembles);
+   * await loader.autoDiscover([
+   *   ...discoveredEnsembles,
+   *   { name: 'data-pipeline', instance: dataPipeline }
+   * ]);
    * ```
    */
   async autoDiscover(
     discoveredEnsembles: Array<{
       name: string
-      config: string
+      config?: string        // YAML config string
+      instance?: Ensemble    // TypeScript Ensemble instance
     }>
   ): Promise<void> {
     for (const ensembleDef of discoveredEnsembles) {
       try {
-        // Parse YAML config
-        const config = Parser.parseEnsemble(ensembleDef.config)
-
-        // Register the ensemble
-        this.registerEnsemble(config)
-
-        console.log(`[EnsembleLoader] Auto-discovered ensemble: ${ensembleDef.name}`)
+        if (ensembleDef.instance && isEnsemble(ensembleDef.instance)) {
+          // TypeScript ensemble - register directly
+          this.registerEnsembleInstance(ensembleDef.instance)
+          console.log(`[EnsembleLoader] Auto-discovered TypeScript ensemble: ${ensembleDef.name}`)
+        } else if (ensembleDef.config) {
+          // YAML ensemble - parse and register
+          const config = Parser.parseEnsemble(ensembleDef.config)
+          this.registerEnsemble(config)
+          console.log(`[EnsembleLoader] Auto-discovered YAML ensemble: ${ensembleDef.name}`)
+        } else {
+          console.warn(`[EnsembleLoader] Skipping ensemble "${ensembleDef.name}": no config or instance`)
+        }
       } catch (error) {
         console.error(`[EnsembleLoader] Failed to load ensemble "${ensembleDef.name}":`, error)
         // Continue with other ensembles even if one fails
@@ -97,7 +122,7 @@ export class EnsembleLoader {
   }
 
   /**
-   * Register an ensemble manually
+   * Register an ensemble from a config object or YAML string
    *
    * @example
    * ```typescript
@@ -106,10 +131,14 @@ export class EnsembleLoader {
    * loader.registerEnsemble(blogWorkflowConfig);
    * ```
    */
-  registerEnsemble(ensembleConfig: EnsembleConfig | string): EnsembleConfig {
+  registerEnsemble(ensembleConfig: EnsembleConfig | string): Ensemble {
     // Parse config if it's a string (YAML)
     const config =
       typeof ensembleConfig === 'string' ? Parser.parseEnsemble(ensembleConfig) : ensembleConfig
+
+    // Create Ensemble instance from config
+    // Cast to primitive EnsembleConfig - Zod schema is source of truth for runtime validation
+    const instance = ensembleFromConfig(config as import('../primitives/ensemble.js').EnsembleConfig)
 
     // Register inline agents if present and agent loader is available
     if (config.agents && config.agents.length > 0 && this.config.agentLoader) {
@@ -135,23 +164,116 @@ export class EnsembleLoader {
     // Store in registry
     this.loadedEnsembles.set(config.name, {
       config,
+      instance,
+      source: 'yaml',
     })
 
-    return config
+    return instance
   }
 
   /**
-   * Get a loaded ensemble by name
+   * Register a TypeScript Ensemble instance directly
+   *
+   * Use this when you have an Ensemble created via createEnsemble() in TypeScript.
+   *
+   * @example
+   * ```typescript
+   * import { createEnsemble, step, parallel } from '@ensemble-edge/conductor';
+   *
+   * const myPipeline = createEnsemble({
+   *   name: 'my-pipeline',
+   *   steps: [
+   *     parallel([step('fetch-a'), step('fetch-b')]),
+   *     step('merge')
+   *   ]
+   * });
+   *
+   * loader.registerEnsembleInstance(myPipeline);
+   * ```
+   */
+  registerEnsembleInstance(ensemble: Ensemble): Ensemble {
+    if (!isEnsemble(ensemble)) {
+      throw new Error('registerEnsembleInstance expects an Ensemble instance')
+    }
+
+    // Register inline agents if present and agent loader is available
+    if (ensemble.agents && ensemble.agents.length > 0 && this.config.agentLoader) {
+      for (const agentDef of ensemble.agents) {
+        try {
+          this.config.agentLoader.registerMember({
+            name: agentDef.name,
+            config: agentDef,
+          })
+          console.log(
+            `[EnsembleLoader] Registered inline agent "${agentDef.name}" from TypeScript ensemble "${ensemble.name}"`
+          )
+        } catch (error) {
+          console.error(
+            `[EnsembleLoader] Failed to register inline agent "${agentDef.name}":`,
+            error
+          )
+        }
+      }
+    }
+
+    // Store in registry
+    this.loadedEnsembles.set(ensemble.name, {
+      config: ensemble.toConfig(),
+      instance: ensemble,
+      source: 'typescript',
+    })
+
+    return ensemble
+  }
+
+  /**
+   * Get an ensemble config by name
+   * @deprecated Use getEnsembleInstance() to get the Ensemble instance directly
    */
   getEnsemble(name: string): EnsembleConfig | undefined {
     return this.loadedEnsembles.get(name)?.config
   }
 
   /**
-   * Get all loaded ensembles
+   * Get an Ensemble instance by name
+   *
+   * This is the preferred method - returns the canonical Ensemble object
+   * that can be directly executed.
+   */
+  getEnsembleInstance(name: string): Ensemble | undefined {
+    return this.loadedEnsembles.get(name)?.instance
+  }
+
+  /**
+   * Get full loaded ensemble data (config, instance, and source)
+   */
+  getLoadedEnsemble(name: string): LoadedEnsemble | undefined {
+    return this.loadedEnsembles.get(name)
+  }
+
+  /**
+   * Get all loaded ensemble configs
+   * @deprecated Use getAllEnsembleInstances() to get Ensemble instances directly
    */
   getAllEnsembles(): EnsembleConfig[] {
     return Array.from(this.loadedEnsembles.values()).map((e) => e.config)
+  }
+
+  /**
+   * Get all loaded Ensemble instances
+   *
+   * This is the preferred method - returns canonical Ensemble objects
+   * that can be directly executed.
+   */
+  getAllEnsembleInstances(): Ensemble[] {
+    return Array.from(this.loadedEnsembles.values()).map((e) => e.instance)
+  }
+
+  /**
+   * Get all loaded ensemble data
+   */
+  getAllLoadedEnsembles(): LoadedEnsemble[] {
+    return Array.from(this.loadedEnsembles.values())
   }
 
   /**

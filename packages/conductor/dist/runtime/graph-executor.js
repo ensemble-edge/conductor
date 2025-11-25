@@ -201,7 +201,7 @@ export class GraphExecutor {
     async executeStepWithFeatures(step, context, results) {
         // Check "when" condition - skip if false
         if (step.when) {
-            const shouldExecute = this.evaluateCondition(step.when, context, results);
+            const shouldExecute = this.evaluateCondition(String(step.when), context, results);
             if (!shouldExecute) {
                 return { skipped: true, reason: 'when condition false' };
             }

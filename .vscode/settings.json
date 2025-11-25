@@ -5,11 +5,7 @@
 		"**/ensembles/**/*.yaml": "yaml"
 	},
 	"yaml.schemas": {
-		"./schema/agent.schema.json": [
-			"**/agents/**/agent.yaml",
-			"catalog/**/agents/**/*.yaml"
-		],
-		"./schema/ensemble.schema.json": [
+		"./packages/conductor/catalog/cloud/cloudflare/templates/.vscode/schemas/ensemble.schema.json": [
 			"**/ensembles/**/*.yaml",
 			"catalog/**/ensembles/**/*.yaml"
 		]

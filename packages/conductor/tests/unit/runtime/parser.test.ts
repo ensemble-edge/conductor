@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Parser, type AgentFlowStep, type FlowStepType } from '../../../src/runtime/parser';
+import { Parser, type AgentFlowStep, type FlowStepType, Ensemble, isEnsemble } from '../../../src/runtime/parser';
 
 /**
  * Type guard to check if a flow step is an agent step
@@ -574,6 +574,74 @@ agents:
 			const step2 = result.flow![1];
 			expect(isAgentStep(step1) && step1.agent === 'step1').toBe(true);
 			expect(isAgentStep(step2) && step2.agent === 'step2').toBe(true);
+		});
+	});
+
+	describe('parseEnsembleToInstance', () => {
+		it('should return an Ensemble instance from YAML', () => {
+			const yaml = `
+name: instance-test
+description: Test parsing to Ensemble instance
+flow:
+  - agent: first
+  - agent: second
+			`;
+
+			const ensemble = Parser.parseEnsembleToInstance(yaml);
+
+			// Should be an Ensemble instance
+			expect(isEnsemble(ensemble)).toBe(true);
+			expect(ensemble instanceof Ensemble).toBe(true);
+			expect(ensemble.name).toBe('instance-test');
+			expect(ensemble.description).toBe('Test parsing to Ensemble instance');
+			expect(ensemble.isDynamic).toBe(false);
+			expect(ensemble.flow).toHaveLength(2);
+		});
+
+		it('should create equivalent Ensemble to createEnsemble()', async () => {
+			const yaml = `
+name: equivalence-test
+state:
+  schema:
+    counter: number
+  initial:
+    counter: 0
+flow:
+  - agent: incrementer
+			`;
+
+			const ensemble = Parser.parseEnsembleToInstance(yaml);
+
+			// The Ensemble should have all the same properties
+			expect(ensemble.name).toBe('equivalence-test');
+			expect(ensemble.state).toEqual({
+				schema: { counter: 'number' },
+				initial: { counter: 0 },
+			});
+
+			// resolveSteps should work
+			const mockContext = {
+				input: {},
+				state: {},
+				env: {},
+				ctx: { waitUntil: () => {}, passThroughOnException: () => {} },
+			};
+			const steps = await ensemble.resolveSteps(mockContext);
+			expect(steps).toHaveLength(1);
+		});
+
+		it('should convert toConfig() back to original config shape', () => {
+			const yaml = `
+name: round-trip-test
+flow:
+  - agent: processor
+			`;
+
+			const ensemble = Parser.parseEnsembleToInstance(yaml);
+			const config = ensemble.toConfig();
+
+			expect(config.name).toBe('round-trip-test');
+			expect(config.flow).toHaveLength(1);
 		});
 	});
 });

@@ -210,7 +210,26 @@ agents:
    agents:
      - name: check-rate-limit
        operation: code
-       # Check KV for rate limit counters
+       config:
+         script: scripts/utils/check-rate-limit
+   ```
+
+   ```typescript
+   // scripts/utils/check-rate-limit.ts
+   import type { AgentExecutionContext } from '@ensemble-edge/conductor'
+
+   export default async function checkRateLimit(context: AgentExecutionContext) {
+     const { env, input } = context
+     const key = `rate:${input.clientId}`
+     const count = parseInt(await env.KV?.get(key) || '0')
+
+     if (count > 100) {
+       return { allowed: false, reason: 'Rate limit exceeded' }
+     }
+
+     await env.KV?.put(key, String(count + 1), { expirationTtl: 3600 })
+     return { allowed: true, remaining: 100 - count }
+   }
    ```
 
 5. **Logging**: Log all trigger activations for debugging
@@ -219,8 +238,33 @@ agents:
      - name: log-trigger
        operation: code
        config:
-         code: |
-           console.log('[Trigger]', context.data)
+         script: scripts/utils/log-trigger
+   ```
+
+   ```typescript
+   // scripts/utils/log-trigger.ts
+   import type { AgentExecutionContext } from '@ensemble-edge/conductor'
+
+   export default async function logTrigger(context: AgentExecutionContext) {
+     const { env, input, logger } = context
+
+     const logEntry = {
+       timestamp: new Date().toISOString(),
+       trigger: input.triggerType,
+       path: input.path,
+       method: input.method,
+     }
+
+     logger?.info('[Trigger]', logEntry)
+
+     // Store in KV for analytics
+     if (env.KV) {
+       const key = `trigger:${Date.now()}`
+       await env.KV.put(key, JSON.stringify(logEntry), { expirationTtl: 86400 })
+     }
+
+     return { logged: true }
+   }
    ```
 
 ## Learn More

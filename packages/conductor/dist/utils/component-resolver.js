@@ -5,13 +5,14 @@
  *
  * Resolves values to their actual content:
  * - Inline values (strings, objects, arrays)
- * - File paths (./path/to/file)
- * - Component references (type/name@version)
+ * - Component references (type/name@version) - via KV in Workers
+ *
+ * Note: File system access is NOT available in Cloudflare Workers.
+ * Use component references with KV storage (EDGIT or COMPONENTS namespace) instead.
+ * File path references (./path/to/file) will throw an error in Workers runtime.
  *
  * @module component-resolver
  */
-import * as fs from 'fs/promises';
-import * as path from 'path';
 /**
  * Checks if a string matches the component reference pattern
  *
@@ -47,24 +48,94 @@ function isUnversionedComponent(value) {
     return pathPattern.test(value) && !value.includes('@');
 }
 /**
- * Loads content from a file path
+ * Checks if a string looks like a file path
  *
- * @param filePath - Path to file (relative or absolute)
- * @param context - Resolution context
+ * @param value - String to check
+ * @returns True if it looks like a file path
+ */
+function isFilePath(value) {
+    return /^\.{0,2}\//.test(value);
+}
+/**
+ * Simple path utilities that work in both Node.js and Workers
+ */
+const pathUtils = {
+    /**
+     * Check if a path is absolute (starts with /)
+     */
+    isAbsolute(filePath) {
+        return filePath.startsWith('/');
+    },
+    /**
+     * Join path segments
+     */
+    join(...segments) {
+        return segments.join('/').replace(/\/+/g, '/').replace(/\/$/, '');
+    },
+    /**
+     * Get the basename of a path
+     */
+    basename(filePath) {
+        const parts = filePath.split('/');
+        return parts[parts.length - 1] || '';
+    },
+    /**
+     * Normalize a path (resolve . and ..)
+     */
+    normalize(filePath) {
+        const parts = filePath.split('/');
+        const result = [];
+        for (const part of parts) {
+            if (part === '..') {
+                result.pop();
+            }
+            else if (part !== '.' && part !== '') {
+                result.push(part);
+            }
+        }
+        const normalized = result.join('/');
+        return filePath.startsWith('/') ? '/' + normalized : normalized;
+    },
+};
+/**
+ * Loads content from KV storage (Workers-compatible file loading)
+ *
+ * In Cloudflare Workers, we can't use the filesystem directly.
+ * Instead, files should be stored in KV and loaded from there.
+ *
+ * @param filePath - Path to file (used as KV key)
+ * @param context - Resolution context with KV bindings
  * @returns File content as string
  */
-async function loadFromFile(filePath, context) {
-    const baseDir = context.baseDir || process.cwd();
-    const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath);
+async function loadFromKV(filePath, context) {
+    // Normalize the path for KV lookup
+    const normalizedPath = pathUtils.normalize(filePath).replace(/^\.\//, '');
+    // Try COMPONENTS KV first, then EDGIT
+    const kv = context.env?.COMPONENTS || context.env?.EDGIT;
+    if (!kv) {
+        throw new Error(`Cannot load file "${filePath}" in Workers runtime without KV storage.\n` +
+            `Configure COMPONENTS or EDGIT KV namespace, or use inline content instead.`);
+    }
     try {
-        return await fs.readFile(absolutePath, 'utf-8');
+        const content = await kv.get(`files/${normalizedPath}`);
+        if (content) {
+            return content;
+        }
+        // Try without prefix
+        const contentAlt = await kv.get(normalizedPath);
+        if (contentAlt) {
+            return contentAlt;
+        }
+        throw new Error(`File not found in KV: ${normalizedPath}`);
     }
     catch (error) {
-        throw new Error(`Failed to load file: ${filePath}\nResolved to: ${absolutePath}\nError: ${error}`);
+        throw new Error(`Failed to load file from KV: ${filePath}\n` +
+            `Looked for keys: files/${normalizedPath}, ${normalizedPath}\n` +
+            `Error: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 /**
- * Resolves a component reference from Edgit or local fallback
+ * Resolves a component reference from Edgit KV
  *
  * @param ref - Component reference (e.g., "prompts/extraction@v1.0.0")
  * @param context - Resolution context
@@ -72,7 +143,7 @@ async function loadFromFile(filePath, context) {
  */
 async function resolveComponentRef(ref, context) {
     const [pathPart, version] = ref.split('@');
-    // Try Edgit first (if available)
+    // Try Edgit KV (if available)
     if (context.env?.EDGIT) {
         const edgitPath = `components/${pathPart}/${version}`;
         try {
@@ -89,27 +160,31 @@ async function resolveComponentRef(ref, context) {
         }
         catch (error) {
             console.warn(`Failed to fetch from Edgit: ${edgitPath}`, error);
-            // Fall through to local fallback
+            // Fall through to COMPONENTS KV
         }
     }
-    // Local fallback: path/to/component@version → ./path/to/component.yaml
-    const localPath = `./${pathPart}.yaml`;
-    try {
-        const content = await loadFromFile(localPath, context);
-        // Try parsing as YAML (simple parse, just JSON for now)
+    // Try COMPONENTS KV as fallback
+    if (context.env?.COMPONENTS) {
+        const componentPath = `${pathPart}/${version}`;
         try {
-            return JSON.parse(content);
+            const content = await context.env.COMPONENTS.get(componentPath);
+            if (content) {
+                try {
+                    return JSON.parse(content);
+                }
+                catch {
+                    return content;
+                }
+            }
         }
-        catch {
-            return content;
+        catch (error) {
+            console.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, error);
         }
     }
-    catch (error) {
-        throw new Error(`Component not found: ${ref}\n` +
-            `Tried Edgit: components/${pathPart}/${version}\n` +
-            `Tried local: ${localPath}\n` +
-            `Error: ${error}`);
-    }
+    throw new Error(`Component not found: ${ref}\n` +
+        `Tried EDGIT: components/${pathPart}/${version}\n` +
+        `Tried COMPONENTS: ${pathPart}/${version}\n` +
+        `Make sure the component is stored in KV storage.`);
 }
 /**
  * Resolves any value to its actual content
@@ -119,7 +194,7 @@ async function resolveComponentRef(ref, context) {
  * Resolution logic:
  * 1. Non-string → inline value
  * 2. Multi-line string → inline content
- * 3. Starts with ./ or / → file path
+ * 3. Starts with ./ or / → file reference (loads from KV in Workers)
  * 4. Matches path/name@version → component reference
  * 5. Matches path/name → unversioned component (adds @latest)
  * 6. Everything else → inline string
@@ -133,9 +208,9 @@ async function resolveComponentRef(ref, context) {
  * await resolveValue({ foo: "bar" }, ctx)
  * // → { content: { foo: "bar" }, source: "inline", ... }
  *
- * // File path
+ * // File path (loaded from KV in Workers)
  * await resolveValue("./prompts/my-prompt.md", ctx)
- * // → { content: "<file content>", source: "file", ... }
+ * // → { content: "<file content from KV>", source: "file", ... }
  *
  * // Component reference
  * await resolveValue("prompts/extraction@v1.0.0", ctx)
@@ -165,9 +240,9 @@ export async function resolveValue(value, context) {
         };
     }
     // CASE 3: File path (starts with ./ or ../ or /)
-    // → Load from filesystem
-    if (value.match(/^\.{0,2}\//)) {
-        const content = await loadFromFile(value, context);
+    // → Load from KV storage (Workers don't have filesystem access)
+    if (isFilePath(value)) {
+        const content = await loadFromKV(value, context);
         return {
             content,
             source: 'file',
@@ -175,7 +250,7 @@ export async function resolveValue(value, context) {
         };
     }
     // CASE 4: Component reference (path/name@version)
-    // → Resolve from Edgit or local
+    // → Resolve from Edgit or COMPONENTS KV
     if (isComponentReference(value)) {
         const content = await resolveComponentRef(value, context);
         const [pathPart, version] = value.split('@');
@@ -226,7 +301,7 @@ export function needsResolution(value) {
         return false;
     }
     // File path
-    if (value.match(/^\.{0,2}\//)) {
+    if (isFilePath(value)) {
         return true;
     }
     // Component reference
@@ -235,3 +310,5 @@ export function needsResolution(value) {
     }
     return false;
 }
+// Export path utilities for testing
+export { pathUtils };

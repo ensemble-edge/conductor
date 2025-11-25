@@ -14,6 +14,9 @@ import { createLogsCommand } from './commands/logs.js';
 import { createStateCommand } from './commands/state.js';
 import { createReplayCommand } from './commands/replay.js';
 import { createHistoryCommand } from './commands/history.js';
+import { createValidateCommand } from './commands/validate.js';
+import { createBundleCommand } from './commands/bundle.js';
+import { createImportCommand } from './commands/import.js';
 const version = __CONDUCTOR_VERSION__;
 const program = new Command();
 program
@@ -45,6 +48,10 @@ program.addCommand(createHistoryCommand());
 program.addCommand(createLogsCommand());
 program.addCommand(createStateCommand());
 program.addCommand(createReplayCommand());
+// Utility commands
+program.addCommand(createValidateCommand());
+program.addCommand(createBundleCommand());
+program.addCommand(createImportCommand());
 // Health check command
 program
     .command('health')

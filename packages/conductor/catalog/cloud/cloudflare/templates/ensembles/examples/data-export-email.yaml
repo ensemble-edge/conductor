@@ -12,18 +12,7 @@ flow:
   - agent: export-data
     operation: code
     config:
-      function: |
-        async function exportData(input, env) {
-          // In real app: export from KV storage
-          // For now, return mock data
-          const { prefix, format } = input;
-          return {
-            data: [],  // exported data
-            count: 0,
-            extension: format,
-            contentType: format === 'csv' ? 'text/csv' : 'application/json'
-          };
-        }
+      script: scripts/examples/data/export-data
     input:
       prefix: $input.dataPrefix
       format: $input.format  # csv, json, xlsx, or ndjson
@@ -37,29 +26,9 @@ flow:
 
   # Step 2: Prepare attachment from export
   - agent: prepare-attachment
-    operation: function
+    operation: code
     config:
-      handler: |
-        function prepareAttachment(context) {
-          const { exportResult, format, filename } = context.input;
-
-          // Get file extension
-          const ext = exportResult.extension || format;
-          const finalFilename = filename || `export-${Date.now()}.${ext}`;
-
-          // Convert data to base64 if needed
-          let content = exportResult.data;
-          if (typeof content === 'string') {
-            content = btoa(content);  // Convert to base64
-          }
-
-          return {
-            filename: finalFilename,
-            content: content,
-            contentType: exportResult.contentType,
-            encoding: 'base64'
-          };
-        }
+      script: scripts/examples/data/prepare-attachment
     input:
       exportResult: $export-data.exportResult
       format: $input.format

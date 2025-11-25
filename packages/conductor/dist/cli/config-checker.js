@@ -67,7 +67,7 @@ export class ConfigChecker {
         const filePath = path.join(this.cwd, file);
         try {
             const content = fs.readFileSync(filePath, 'utf-8');
-            const config = YAML.parse(content);
+            const config = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' });
             // Check Think agents for model validation
             if (config.type === 'Think' && config.config?.model) {
                 const modelIssues = this.checkModel(file, config);
@@ -162,7 +162,7 @@ export class ConfigChecker {
         const filePath = path.join(this.cwd, file);
         try {
             const content = fs.readFileSync(filePath, 'utf-8');
-            const config = YAML.parse(content);
+            const config = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' });
             issues.push({
                 severity: 'info',
                 file,

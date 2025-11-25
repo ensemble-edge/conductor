@@ -14,15 +14,7 @@ agents:
   - name: greet-user
     operation: code
     config:
-      code: |
-        export default function greetUser(input, context) {
-          const name = context.request.params.name || 'World';
-          return {
-            greeting: `Hello, ${name}!`,
-            timestamp: new Date().toISOString(),
-            message: `Welcome to Conductor!`
-          };
-        }
+      script: scripts/examples/http/greet-user
 
 flow:
   - agent: greet-user

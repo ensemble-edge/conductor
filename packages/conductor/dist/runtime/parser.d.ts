@@ -3,10 +3,108 @@
  *
  * Uses composition-based interpolation resolvers.
  * Reduced resolveInterpolation from 42 lines to 1 line via chain of responsibility.
+ *
+ * The parser converts YAML to validated config objects, which can then be
+ * converted to Ensemble instances using ensembleFromConfig().
+ *
+ * Architecture:
+ * - YAML → Parser → EnsembleConfig → ensembleFromConfig() → Ensemble
+ * - TypeScript → createEnsemble() → Ensemble
+ * - Both paths produce identical Ensemble instances
  */
 import { z } from 'zod';
 import type { ResolutionContext } from './interpolation/index.js';
 import { Operation } from '../types/constants.js';
+import { ensembleFromConfig, Ensemble, isEnsemble } from '../primitives/ensemble.js';
+export { ensembleFromConfig, Ensemble, isEnsemble };
+/**
+ * TypeScript interfaces for flow steps (used for type casting)
+ */
+export interface AgentFlowStep {
+    agent: string;
+    id?: string;
+    input?: Record<string, unknown>;
+    state?: {
+        use?: string[];
+        set?: string[];
+    };
+    cache?: {
+        ttl?: number;
+        bypass?: boolean;
+    };
+    scoring?: {
+        evaluator: string;
+        thresholds?: {
+            minimum?: number;
+            target?: number;
+            excellent?: number;
+        };
+        criteria?: Record<string, string> | unknown[];
+        onFailure?: 'retry' | 'continue' | 'abort';
+        retryLimit?: number;
+        requireImprovement?: boolean;
+        minImprovement?: number;
+    };
+    condition?: unknown;
+    when?: unknown;
+    depends_on?: string[];
+    retry?: {
+        attempts?: number;
+        backoff?: 'linear' | 'exponential' | 'fixed';
+        initialDelay?: number;
+        maxDelay?: number;
+        retryOn?: string[];
+    };
+    timeout?: number;
+    onTimeout?: {
+        fallback?: unknown;
+        error?: boolean;
+    };
+}
+export interface ParallelFlowStep {
+    type: 'parallel';
+    steps: FlowStepType[];
+    waitFor?: 'all' | 'any' | 'first';
+}
+export interface BranchFlowStep {
+    type: 'branch';
+    condition: unknown;
+    then: FlowStepType[];
+    else?: FlowStepType[];
+}
+export interface ForeachFlowStep {
+    type: 'foreach';
+    items: unknown;
+    maxConcurrency?: number;
+    breakWhen?: unknown;
+    step: FlowStepType;
+}
+export interface TryFlowStep {
+    type: 'try';
+    steps: FlowStepType[];
+    catch?: FlowStepType[];
+    finally?: FlowStepType[];
+}
+export interface SwitchFlowStep {
+    type: 'switch';
+    value: unknown;
+    cases: Record<string, FlowStepType[]>;
+    default?: FlowStepType[];
+}
+export interface WhileFlowStep {
+    type: 'while';
+    condition: unknown;
+    maxIterations?: number;
+    steps: FlowStepType[];
+}
+export interface MapReduceFlowStep {
+    type: 'map-reduce';
+    items: unknown;
+    maxConcurrency?: number;
+    map: FlowStepType;
+    reduce: FlowStepType;
+}
+export type FlowStepType = AgentFlowStep | ParallelFlowStep | BranchFlowStep | ForeachFlowStep | TryFlowStep | SwitchFlowStep | WhileFlowStep | MapReduceFlowStep;
 /**
  * Schema for validating ensemble configuration
  */
@@ -51,12 +149,12 @@ declare const EnsembleSchema: z.ZodObject<{
             target?: number | undefined;
             excellent?: number | undefined;
         };
+        criteria?: unknown[] | Record<string, string> | undefined;
         maxRetries?: number | undefined;
         backoffStrategy?: "linear" | "exponential" | "fixed" | undefined;
         initialBackoff?: number | undefined;
         trackInState?: boolean | undefined;
-        criteria?: unknown[] | Record<string, string> | undefined;
-        aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
+        aggregation?: "weighted_average" | "minimum" | "geometric_mean" | undefined;
     }, {
         enabled: boolean;
         defaultThresholds: {
@@ -64,12 +162,12 @@ declare const EnsembleSchema: z.ZodObject<{
             target?: number | undefined;
             excellent?: number | undefined;
         };
+        criteria?: unknown[] | Record<string, string> | undefined;
         maxRetries?: number | undefined;
         backoffStrategy?: "linear" | "exponential" | "fixed" | undefined;
         initialBackoff?: number | undefined;
         trackInState?: boolean | undefined;
-        criteria?: unknown[] | Record<string, string> | undefined;
-        aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
+        aggregation?: "weighted_average" | "minimum" | "geometric_mean" | undefined;
     }>>;
     trigger: z.ZodEffects<z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
         type: z.ZodLiteral<"webhook">;
@@ -92,6 +190,7 @@ declare const EnsembleSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: "webhook";
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -100,10 +199,10 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
     }, {
         type: "webhook";
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -112,7 +211,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
     }>, z.ZodObject<{
         type: z.ZodLiteral<"mcp">;
         auth: z.ZodOptional<z.ZodObject<{
@@ -194,18 +292,18 @@ declare const EnsembleSchema: z.ZodObject<{
         input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
         metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     }, "strip", z.ZodTypeAny, {
-        type: "cron";
         cron: string;
+        type: "cron";
+        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
         timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
     }, {
-        type: "cron";
         cron: string;
+        type: "cron";
+        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
         timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
     }>, z.ZodObject<{
         type: z.ZodLiteral<"http">;
@@ -264,19 +362,19 @@ declare const EnsembleSchema: z.ZodObject<{
             tags: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
             keyGenerator: z.ZodOptional<z.ZodFunction<z.ZodTuple<[], z.ZodUnknown>, z.ZodUnknown>>;
         }, "strip", z.ZodTypeAny, {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         }, {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         }>>;
-        middleware: z.ZodOptional<z.ZodArray<z.ZodAny, "many">>;
+        middleware: z.ZodOptional<z.ZodArray<z.ZodUnion<[z.ZodString, z.ZodFunction<z.ZodTuple<[], z.ZodUnknown>, z.ZodUnknown>]>, "many">>;
         responses: z.ZodOptional<z.ZodObject<{
             html: z.ZodOptional<z.ZodObject<{
                 enabled: z.ZodBoolean;
@@ -334,13 +432,14 @@ declare const EnsembleSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: "http";
         cache?: {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -349,7 +448,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
         rateLimit?: {
             requests: number;
             window: number;
@@ -362,7 +460,7 @@ declare const EnsembleSchema: z.ZodObject<{
             exposeHeaders?: string[] | undefined;
             credentials?: boolean | undefined;
         } | undefined;
-        middleware?: any[] | undefined;
+        middleware?: (string | ((...args: unknown[]) => unknown))[] | undefined;
         responses?: {
             json?: {
                 enabled: boolean;
@@ -380,13 +478,14 @@ declare const EnsembleSchema: z.ZodObject<{
     }, {
         type: "http";
         cache?: {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -395,7 +494,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
         rateLimit?: {
             requests: number;
             window: number;
@@ -408,7 +506,7 @@ declare const EnsembleSchema: z.ZodObject<{
             exposeHeaders?: string[] | undefined;
             credentials?: boolean | undefined;
         } | undefined;
-        middleware?: any[] | undefined;
+        middleware?: (string | ((...args: unknown[]) => unknown))[] | undefined;
         responses?: {
             json?: {
                 enabled: boolean;
@@ -426,6 +524,7 @@ declare const EnsembleSchema: z.ZodObject<{
     }>]>, "many">>, ({
         type: "webhook";
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -434,7 +533,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
     } | {
         type: "mcp";
         auth?: {
@@ -457,22 +555,23 @@ declare const EnsembleSchema: z.ZodObject<{
         max_retries?: number | undefined;
         max_wait_time?: number | undefined;
     } | {
-        type: "cron";
         cron: string;
+        type: "cron";
+        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
         timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -481,7 +580,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
         rateLimit?: {
             requests: number;
             window: number;
@@ -494,7 +592,7 @@ declare const EnsembleSchema: z.ZodObject<{
             exposeHeaders?: string[] | undefined;
             credentials?: boolean | undefined;
         } | undefined;
-        middleware?: any[] | undefined;
+        middleware?: (string | ((...args: unknown[]) => unknown))[] | undefined;
         responses?: {
             json?: {
                 enabled: boolean;
@@ -512,6 +610,7 @@ declare const EnsembleSchema: z.ZodObject<{
     })[] | undefined, ({
         type: "webhook";
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -520,7 +619,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
     } | {
         type: "mcp";
         auth?: {
@@ -543,22 +641,23 @@ declare const EnsembleSchema: z.ZodObject<{
         max_retries?: number | undefined;
         max_wait_time?: number | undefined;
     } | {
-        type: "cron";
         cron: string;
+        type: "cron";
+        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
         timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -567,7 +666,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
         rateLimit?: {
             requests: number;
             window: number;
@@ -580,7 +678,7 @@ declare const EnsembleSchema: z.ZodObject<{
             exposeHeaders?: string[] | undefined;
             credentials?: boolean | undefined;
         } | undefined;
-        middleware?: any[] | undefined;
+        middleware?: (string | ((...args: unknown[]) => unknown))[] | undefined;
         responses?: {
             json?: {
                 enabled: boolean;
@@ -607,22 +705,22 @@ declare const EnsembleSchema: z.ZodObject<{
         type: "webhook";
         url: string;
         events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
-        secret?: string | undefined;
         timeout?: number | undefined;
+        secret?: string | undefined;
         retries?: number | undefined;
     }, {
         type: "webhook";
         url: string;
         events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
-        secret?: string | undefined;
         timeout?: number | undefined;
+        secret?: string | undefined;
         retries?: number | undefined;
     }>, z.ZodObject<{
         type: z.ZodLiteral<"email">;
-        to: z.ZodArray<z.ZodString, "many">;
+        to: z.ZodArray<z.ZodEffects<z.ZodString, string, string>, "many">;
         events: z.ZodArray<z.ZodEnum<["execution.started", "execution.completed", "execution.failed", "execution.timeout", "agent.completed", "state.updated"]>, "many">;
         subject: z.ZodOptional<z.ZodString>;
-        from: z.ZodOptional<z.ZodString>;
+        from: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
     }, "strip", z.ZodTypeAny, {
         type: "email";
         events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
@@ -636,159 +734,12 @@ declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     }>]>, "many">>;
-    flow: z.ZodArray<z.ZodObject<{
-        agent: z.ZodString;
-        id: z.ZodOptional<z.ZodString>;
-        input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
-        state: z.ZodOptional<z.ZodObject<{
-            use: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-            set: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        }, "strip", z.ZodTypeAny, {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        }, {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        }>>;
-        cache: z.ZodOptional<z.ZodObject<{
-            ttl: z.ZodOptional<z.ZodNumber>;
-            bypass: z.ZodOptional<z.ZodBoolean>;
-        }, "strip", z.ZodTypeAny, {
-            ttl?: number | undefined;
-            bypass?: boolean | undefined;
-        }, {
-            ttl?: number | undefined;
-            bypass?: boolean | undefined;
-        }>>;
-        scoring: z.ZodOptional<z.ZodObject<{
-            evaluator: z.ZodString;
-            thresholds: z.ZodOptional<z.ZodObject<{
-                minimum: z.ZodOptional<z.ZodNumber>;
-                target: z.ZodOptional<z.ZodNumber>;
-                excellent: z.ZodOptional<z.ZodNumber>;
-            }, "strip", z.ZodTypeAny, {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            }, {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            }>>;
-            criteria: z.ZodOptional<z.ZodUnion<[z.ZodRecord<z.ZodString, z.ZodString>, z.ZodArray<z.ZodUnknown, "many">]>>;
-            onFailure: z.ZodOptional<z.ZodEnum<["retry", "continue", "abort"]>>;
-            retryLimit: z.ZodOptional<z.ZodNumber>;
-            requireImprovement: z.ZodOptional<z.ZodBoolean>;
-            minImprovement: z.ZodOptional<z.ZodNumber>;
-        }, "strip", z.ZodTypeAny, {
-            evaluator: string;
-            criteria?: unknown[] | Record<string, string> | undefined;
-            thresholds?: {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            } | undefined;
-            onFailure?: "retry" | "continue" | "abort" | undefined;
-            retryLimit?: number | undefined;
-            requireImprovement?: boolean | undefined;
-            minImprovement?: number | undefined;
-        }, {
-            evaluator: string;
-            criteria?: unknown[] | Record<string, string> | undefined;
-            thresholds?: {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            } | undefined;
-            onFailure?: "retry" | "continue" | "abort" | undefined;
-            retryLimit?: number | undefined;
-            requireImprovement?: boolean | undefined;
-            minImprovement?: number | undefined;
-        }>>;
-        condition: z.ZodOptional<z.ZodUnknown>;
-    }, "strip", z.ZodTypeAny, {
-        agent: string;
-        scoring?: {
-            evaluator: string;
-            criteria?: unknown[] | Record<string, string> | undefined;
-            thresholds?: {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            } | undefined;
-            onFailure?: "retry" | "continue" | "abort" | undefined;
-            retryLimit?: number | undefined;
-            requireImprovement?: boolean | undefined;
-            minImprovement?: number | undefined;
-        } | undefined;
-        cache?: {
-            ttl?: number | undefined;
-            bypass?: boolean | undefined;
-        } | undefined;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
-        input?: Record<string, unknown> | undefined;
-        id?: string | undefined;
-        condition?: unknown;
-    }, {
-        agent: string;
-        scoring?: {
-            evaluator: string;
-            criteria?: unknown[] | Record<string, string> | undefined;
-            thresholds?: {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            } | undefined;
-            onFailure?: "retry" | "continue" | "abort" | undefined;
-            retryLimit?: number | undefined;
-            requireImprovement?: boolean | undefined;
-            minImprovement?: number | undefined;
-        } | undefined;
-        cache?: {
-            ttl?: number | undefined;
-            bypass?: boolean | undefined;
-        } | undefined;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
-        input?: Record<string, unknown> | undefined;
-        id?: string | undefined;
-        condition?: unknown;
-    }>, "many">;
+    agents: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, z.ZodUnknown>, "many">>;
+    flow: z.ZodOptional<z.ZodArray<z.ZodLazy<z.ZodType<FlowStepType, z.ZodTypeDef, FlowStepType>>, "many">>;
+    inputs: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     output: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    flow: {
-        agent: string;
-        scoring?: {
-            evaluator: string;
-            criteria?: unknown[] | Record<string, string> | undefined;
-            thresholds?: {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            } | undefined;
-            onFailure?: "retry" | "continue" | "abort" | undefined;
-            retryLimit?: number | undefined;
-            requireImprovement?: boolean | undefined;
-            minImprovement?: number | undefined;
-        } | undefined;
-        cache?: {
-            ttl?: number | undefined;
-            bypass?: boolean | undefined;
-        } | undefined;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
-        input?: Record<string, unknown> | undefined;
-        id?: string | undefined;
-        condition?: unknown;
-    }[];
     scoring?: {
         enabled: boolean;
         defaultThresholds: {
@@ -796,21 +747,17 @@ declare const EnsembleSchema: z.ZodObject<{
             target?: number | undefined;
             excellent?: number | undefined;
         };
+        criteria?: unknown[] | Record<string, string> | undefined;
         maxRetries?: number | undefined;
         backoffStrategy?: "linear" | "exponential" | "fixed" | undefined;
         initialBackoff?: number | undefined;
         trackInState?: boolean | undefined;
-        criteria?: unknown[] | Record<string, string> | undefined;
-        aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
-    } | undefined;
-    description?: string | undefined;
-    state?: {
-        schema?: Record<string, unknown> | undefined;
-        initial?: Record<string, unknown> | undefined;
+        aggregation?: "weighted_average" | "minimum" | "geometric_mean" | undefined;
     } | undefined;
     trigger?: ({
         type: "webhook";
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -819,7 +766,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
     } | {
         type: "mcp";
         auth?: {
@@ -842,22 +788,23 @@ declare const EnsembleSchema: z.ZodObject<{
         max_retries?: number | undefined;
         max_wait_time?: number | undefined;
     } | {
-        type: "cron";
         cron: string;
+        type: "cron";
+        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
         timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -866,7 +813,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
         rateLimit?: {
             requests: number;
             window: number;
@@ -879,7 +825,7 @@ declare const EnsembleSchema: z.ZodObject<{
             exposeHeaders?: string[] | undefined;
             credentials?: boolean | undefined;
         } | undefined;
-        middleware?: any[] | undefined;
+        middleware?: (string | ((...args: unknown[]) => unknown))[] | undefined;
         responses?: {
             json?: {
                 enabled: boolean;
@@ -895,12 +841,17 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     })[] | undefined;
+    state?: {
+        schema?: Record<string, unknown> | undefined;
+        initial?: Record<string, unknown> | undefined;
+    } | undefined;
+    description?: string | undefined;
     notifications?: ({
         type: "webhook";
         url: string;
         events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
-        secret?: string | undefined;
         timeout?: number | undefined;
+        secret?: string | undefined;
         retries?: number | undefined;
     } | {
         type: "email";
@@ -909,36 +860,12 @@ declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     })[] | undefined;
+    agents?: Record<string, unknown>[] | undefined;
+    flow?: FlowStepType[] | undefined;
+    inputs?: Record<string, unknown> | undefined;
     output?: Record<string, unknown> | undefined;
 }, {
     name: string;
-    flow: {
-        agent: string;
-        scoring?: {
-            evaluator: string;
-            criteria?: unknown[] | Record<string, string> | undefined;
-            thresholds?: {
-                minimum?: number | undefined;
-                target?: number | undefined;
-                excellent?: number | undefined;
-            } | undefined;
-            onFailure?: "retry" | "continue" | "abort" | undefined;
-            retryLimit?: number | undefined;
-            requireImprovement?: boolean | undefined;
-            minImprovement?: number | undefined;
-        } | undefined;
-        cache?: {
-            ttl?: number | undefined;
-            bypass?: boolean | undefined;
-        } | undefined;
-        state?: {
-            set?: string[] | undefined;
-            use?: string[] | undefined;
-        } | undefined;
-        input?: Record<string, unknown> | undefined;
-        id?: string | undefined;
-        condition?: unknown;
-    }[];
     scoring?: {
         enabled: boolean;
         defaultThresholds: {
@@ -946,21 +873,17 @@ declare const EnsembleSchema: z.ZodObject<{
             target?: number | undefined;
             excellent?: number | undefined;
         };
+        criteria?: unknown[] | Record<string, string> | undefined;
         maxRetries?: number | undefined;
         backoffStrategy?: "linear" | "exponential" | "fixed" | undefined;
         initialBackoff?: number | undefined;
         trackInState?: boolean | undefined;
-        criteria?: unknown[] | Record<string, string> | undefined;
-        aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
-    } | undefined;
-    description?: string | undefined;
-    state?: {
-        schema?: Record<string, unknown> | undefined;
-        initial?: Record<string, unknown> | undefined;
+        aggregation?: "weighted_average" | "minimum" | "geometric_mean" | undefined;
     } | undefined;
     trigger?: ({
         type: "webhook";
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -969,7 +892,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
     } | {
         type: "mcp";
         auth?: {
@@ -992,22 +914,23 @@ declare const EnsembleSchema: z.ZodObject<{
         max_retries?: number | undefined;
         max_wait_time?: number | undefined;
     } | {
-        type: "cron";
         cron: string;
+        type: "cron";
+        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
         timezone?: string | undefined;
-        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            enabled: boolean;
             ttl: number;
+            enabled: boolean;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
@@ -1016,7 +939,6 @@ declare const EnsembleSchema: z.ZodObject<{
         public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
-        timeout?: number | undefined;
         rateLimit?: {
             requests: number;
             window: number;
@@ -1029,7 +951,7 @@ declare const EnsembleSchema: z.ZodObject<{
             exposeHeaders?: string[] | undefined;
             credentials?: boolean | undefined;
         } | undefined;
-        middleware?: any[] | undefined;
+        middleware?: (string | ((...args: unknown[]) => unknown))[] | undefined;
         responses?: {
             json?: {
                 enabled: boolean;
@@ -1045,12 +967,17 @@ declare const EnsembleSchema: z.ZodObject<{
         } | undefined;
         templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     })[] | undefined;
+    state?: {
+        schema?: Record<string, unknown> | undefined;
+        initial?: Record<string, unknown> | undefined;
+    } | undefined;
+    description?: string | undefined;
     notifications?: ({
         type: "webhook";
         url: string;
         events: ("execution.started" | "execution.completed" | "execution.failed" | "execution.timeout" | "agent.completed" | "state.updated")[];
-        secret?: string | undefined;
         timeout?: number | undefined;
+        secret?: string | undefined;
         retries?: number | undefined;
     } | {
         type: "email";
@@ -1059,11 +986,14 @@ declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     })[] | undefined;
+    agents?: Record<string, unknown>[] | undefined;
+    flow?: FlowStepType[] | undefined;
+    inputs?: Record<string, unknown> | undefined;
     output?: Record<string, unknown> | undefined;
 }>;
 declare const AgentSchema: z.ZodObject<{
     name: z.ZodString;
-    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.data, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.html, Operation.pdf, Operation.queue, Operation.docs]>;
+    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.data, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.html, Operation.pdf, Operation.queue, Operation.docs, Operation.autorag]>;
     description: z.ZodOptional<z.ZodString>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     schema: z.ZodOptional<z.ZodObject<{
@@ -1077,27 +1007,27 @@ declare const AgentSchema: z.ZodObject<{
         output?: Record<string, unknown> | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    name: string;
     operation: Operation;
-    description?: string | undefined;
+    name: string;
+    config?: Record<string, unknown> | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;
         output?: Record<string, unknown> | undefined;
     } | undefined;
-    config?: Record<string, unknown> | undefined;
+    description?: string | undefined;
 }, {
-    name: string;
     operation: Operation;
-    description?: string | undefined;
+    name: string;
+    config?: Record<string, unknown> | undefined;
     schema?: {
         input?: Record<string, unknown> | undefined;
         output?: Record<string, unknown> | undefined;
     } | undefined;
-    config?: Record<string, unknown> | undefined;
+    description?: string | undefined;
 }>;
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>;
 export type AgentConfig = z.infer<typeof AgentSchema>;
-export type FlowStep = EnsembleConfig['flow'][number];
+export type FlowStep = FlowStepType;
 export type TriggerConfig = NonNullable<EnsembleConfig['trigger']>[number];
 export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number];
 export type ExposeConfig = TriggerConfig;
@@ -1129,6 +1059,25 @@ export declare class Parser {
      */
     static parseEnsemble(yamlContent: string): EnsembleConfig;
     /**
+     * Parse YAML and return an Ensemble instance
+     *
+     * This is the preferred method for loading ensembles, as it returns
+     * the canonical Ensemble primitive used by both YAML and TypeScript authoring.
+     *
+     * @param yamlContent - Raw YAML string
+     * @returns Ensemble instance
+     *
+     * @example
+     * ```typescript
+     * const yaml = fs.readFileSync('ensemble.yaml', 'utf-8');
+     * const ensemble = Parser.parseEnsembleToInstance(yaml);
+     *
+     * // Ensemble is now identical to one created via createEnsemble()
+     * const steps = await ensemble.resolveSteps(context);
+     * ```
+     */
+    static parseEnsembleToInstance(yamlContent: string): Ensemble;
+    /**
      * Parse and validate an agent YAML file
      */
     static parseAgent(yamlContent: string): AgentConfig;
@@ -1157,5 +1106,4 @@ export declare class Parser {
      */
     static validateAgentReferences(ensemble: EnsembleConfig, availableAgents: Set<string>): void;
 }
-export {};
 //# sourceMappingURL=parser.d.ts.map

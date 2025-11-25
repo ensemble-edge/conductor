@@ -25,22 +25,7 @@ agents:
   - name: process-request
     operation: code
     config:
-      code: |
-        export default async function(input, context) {
-          return {
-            message: 'Middleware demo successful!',
-            method: context.metadata.method,
-            path: context.metadata.path,
-            timestamp: new Date().toISOString(),
-            middlewareApplied: [
-              'logger - request logged',
-              'compress - response will be compressed',
-              'timing - Server-Timing header added',
-              'secure-headers - security headers added',
-              'etag - ETag header added'
-            ]
-          }
-        }
+      script: scripts/examples/http/process-middleware-request
 
 output:
   result: ${process-request.output}

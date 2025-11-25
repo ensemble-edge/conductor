@@ -5,8 +5,11 @@
  *
  * Resolves values to their actual content:
  * - Inline values (strings, objects, arrays)
- * - File paths (./path/to/file)
- * - Component references (type/name@version)
+ * - Component references (type/name@version) - via KV in Workers
+ *
+ * Note: File system access is NOT available in Cloudflare Workers.
+ * Use component references with KV storage (EDGIT or COMPONENTS namespace) instead.
+ * File path references (./path/to/file) will throw an error in Workers runtime.
  *
  * @module component-resolver
  */
@@ -18,9 +21,11 @@ export interface ComponentResolutionContext {
     env?: {
         /** Edgit KV store for component versioning */
         EDGIT?: KVNamespace;
+        /** Components KV store for scripts/templates */
+        COMPONENTS?: KVNamespace;
         [key: string]: any;
     };
-    /** Base directory for relative file paths */
+    /** Base directory for relative file paths (not used in Workers) */
     baseDir?: string;
 }
 /**
@@ -41,6 +46,27 @@ export interface ResolvedComponent {
     };
 }
 /**
+ * Simple path utilities that work in both Node.js and Workers
+ */
+declare const pathUtils: {
+    /**
+     * Check if a path is absolute (starts with /)
+     */
+    isAbsolute(filePath: string): boolean;
+    /**
+     * Join path segments
+     */
+    join(...segments: string[]): string;
+    /**
+     * Get the basename of a path
+     */
+    basename(filePath: string): string;
+    /**
+     * Normalize a path (resolve . and ..)
+     */
+    normalize(filePath: string): string;
+};
+/**
  * Resolves any value to its actual content
  *
  * This is the main entry point for Alternative 1: Smart String Parsing
@@ -48,7 +74,7 @@ export interface ResolvedComponent {
  * Resolution logic:
  * 1. Non-string → inline value
  * 2. Multi-line string → inline content
- * 3. Starts with ./ or / → file path
+ * 3. Starts with ./ or / → file reference (loads from KV in Workers)
  * 4. Matches path/name@version → component reference
  * 5. Matches path/name → unversioned component (adds @latest)
  * 6. Everything else → inline string
@@ -62,9 +88,9 @@ export interface ResolvedComponent {
  * await resolveValue({ foo: "bar" }, ctx)
  * // → { content: { foo: "bar" }, source: "inline", ... }
  *
- * // File path
+ * // File path (loaded from KV in Workers)
  * await resolveValue("./prompts/my-prompt.md", ctx)
- * // → { content: "<file content>", source: "file", ... }
+ * // → { content: "<file content from KV>", source: "file", ... }
  *
  * // Component reference
  * await resolveValue("prompts/extraction@v1.0.0", ctx)
@@ -83,4 +109,5 @@ export declare function resolveValue(value: any, context: ComponentResolutionCon
  * @returns True if value needs async resolution
  */
 export declare function needsResolution(value: any): boolean;
+export { pathUtils };
 //# sourceMappingURL=component-resolver.d.ts.map

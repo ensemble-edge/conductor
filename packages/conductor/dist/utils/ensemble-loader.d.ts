@@ -1,10 +1,15 @@
 /**
  * Ensemble Loader Utility
  *
- * Dynamically loads user-created ensembles from their project directory
- * This runs in the user's project context, not in the conductor package
+ * Dynamically loads user-created ensembles from their project directory.
+ * Supports both YAML and TypeScript ensemble authoring:
+ *
+ * - YAML: Parsed via Parser → EnsembleConfig → Ensemble instance
+ * - TypeScript: Direct import of Ensemble instances via createEnsemble()
+ *
+ * Both authoring paths produce identical Ensemble instances for execution.
  */
-import { type EnsembleConfig } from '../runtime/parser.js';
+import { type EnsembleConfig, Ensemble } from '../runtime/parser.js';
 export interface EnsembleLoaderConfig {
     /**
      * Base directory where ensembles are located
@@ -19,9 +24,19 @@ export interface EnsembleLoaderConfig {
      * Execution context (passed from Worker)
      */
     ctx: ExecutionContext;
+    /**
+     * Agent loader instance for registering inline agents
+     * Optional - if provided, inline agents will be automatically registered
+     */
+    agentLoader?: any;
 }
 export interface LoadedEnsemble {
+    /** The original config (for YAML-loaded ensembles) */
     config: EnsembleConfig;
+    /** The Ensemble instance (canonical runtime object) */
+    instance: Ensemble;
+    /** Source type */
+    source: 'yaml' | 'typescript';
 }
 /**
  * EnsembleLoader handles dynamic loading of user-created ensembles
@@ -39,22 +54,32 @@ export declare class EnsembleLoader {
      * This method is designed to work with the Vite plugin system that generates
      * a virtual module containing all ensemble definitions at build time.
      *
+     * Supports both YAML configs and TypeScript Ensemble instances.
+     *
      * @param discoveredEnsembles - Array of ensemble definitions from virtual:conductor-ensembles
      *
      * @example
      * ```typescript
+     * // YAML ensembles
      * import { ensembles as discoveredEnsembles } from 'virtual:conductor-ensembles';
      *
+     * // TypeScript ensembles
+     * import dataPipeline from './ensembles/data-pipeline.ts';
+     *
      * const loader = new EnsembleLoader({ env, ctx });
-     * await loader.autoDiscover(discoveredEnsembles);
+     * await loader.autoDiscover([
+     *   ...discoveredEnsembles,
+     *   { name: 'data-pipeline', instance: dataPipeline }
+     * ]);
      * ```
      */
     autoDiscover(discoveredEnsembles: Array<{
         name: string;
-        config: string;
+        config?: string;
+        instance?: Ensemble;
     }>): Promise<void>;
     /**
-     * Register an ensemble manually
+     * Register an ensemble from a config object or YAML string
      *
      * @example
      * ```typescript
@@ -63,15 +88,60 @@ export declare class EnsembleLoader {
      * loader.registerEnsemble(blogWorkflowConfig);
      * ```
      */
-    registerEnsemble(ensembleConfig: EnsembleConfig | string): EnsembleConfig;
+    registerEnsemble(ensembleConfig: EnsembleConfig | string): Ensemble;
     /**
-     * Get a loaded ensemble by name
+     * Register a TypeScript Ensemble instance directly
+     *
+     * Use this when you have an Ensemble created via createEnsemble() in TypeScript.
+     *
+     * @example
+     * ```typescript
+     * import { createEnsemble, step, parallel } from '@ensemble-edge/conductor';
+     *
+     * const myPipeline = createEnsemble({
+     *   name: 'my-pipeline',
+     *   steps: [
+     *     parallel([step('fetch-a'), step('fetch-b')]),
+     *     step('merge')
+     *   ]
+     * });
+     *
+     * loader.registerEnsembleInstance(myPipeline);
+     * ```
+     */
+    registerEnsembleInstance(ensemble: Ensemble): Ensemble;
+    /**
+     * Get an ensemble config by name
+     * @deprecated Use getEnsembleInstance() to get the Ensemble instance directly
      */
     getEnsemble(name: string): EnsembleConfig | undefined;
     /**
-     * Get all loaded ensembles
+     * Get an Ensemble instance by name
+     *
+     * This is the preferred method - returns the canonical Ensemble object
+     * that can be directly executed.
+     */
+    getEnsembleInstance(name: string): Ensemble | undefined;
+    /**
+     * Get full loaded ensemble data (config, instance, and source)
+     */
+    getLoadedEnsemble(name: string): LoadedEnsemble | undefined;
+    /**
+     * Get all loaded ensemble configs
+     * @deprecated Use getAllEnsembleInstances() to get Ensemble instances directly
      */
     getAllEnsembles(): EnsembleConfig[];
+    /**
+     * Get all loaded Ensemble instances
+     *
+     * This is the preferred method - returns canonical Ensemble objects
+     * that can be directly executed.
+     */
+    getAllEnsembleInstances(): Ensemble[];
+    /**
+     * Get all loaded ensemble data
+     */
+    getAllLoadedEnsembles(): LoadedEnsemble[];
     /**
      * Get all ensemble names
      */

@@ -1,14 +1,19 @@
 /**
- * Inline Agents Integration Tests
+ * Code Agent Integration Tests
  *
- * Tests for inline agent definitions in ensemble YAML files.
- * These tests verify that agents defined directly in ensemble YAML with
- * operation: code and inline code strings work correctly.
+ * Tests for code agents in ensemble YAML files.
+ * These tests verify that agents defined with operation: code and
+ * pre-compiled handlers work correctly.
+ *
+ * Note: Inline code strings (config.code) are NOT supported in Cloudflare Workers
+ * due to security restrictions. Use config.handler (function) or config.script
+ * (bundled script reference) instead.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Executor, type ExecutorConfig } from '../../src/runtime/executor'
 import type { EnsembleConfig } from '../../src/runtime/parser'
+import { Operation } from '../../src/types/operation'
 
 // Mock Cloudflare environment
 const mockEnv = {
@@ -21,7 +26,13 @@ const mockCtx = {
   passThroughOnException: () => {},
 } as any
 
-describe('Inline Agents in Ensemble YAML', () => {
+// Helper to extract result value with type assertion for tests
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getOutput = (result: any): any => result.value?.output
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getError = (result: any): any => result.error
+
+describe('Code Agents in Ensemble YAML', () => {
   let executor: Executor
 
   beforeEach(() => {
@@ -32,20 +43,19 @@ describe('Inline Agents in Ensemble YAML', () => {
     executor = new Executor(config)
   })
 
-  describe('Basic Inline Code Agents', () => {
-    it('should execute inline agent with export default async function', async () => {
+  describe('Basic Code Agents with Handlers', () => {
+    it('should execute code agent with async handler', async () => {
       const ensemble: EnsembleConfig = {
-        name: 'inline-export-default',
+        name: 'handler-async',
         agents: [
           {
             name: 'greeter',
             operation: 'code',
             config: {
-              code: `
-                export default async function greeter(input) {
-                  return { greeting: 'Hello, ' + input.name + '!' };
-                }
-              `,
+              handler: async (context: any) => {
+                const input = context.input
+                return { greeting: 'Hello, ' + input.name + '!' }
+              },
             },
           },
         ],
@@ -55,22 +65,21 @@ describe('Inline Agents in Ensemble YAML', () => {
       const result = await executor.executeEnsemble(ensemble, { name: 'World' })
 
       expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ greeting: 'Hello, World!' })
+      expect(getOutput(result)).toEqual({ greeting: 'Hello, World!' })
     })
 
-    it('should execute inline agent with export default function (non-async)', async () => {
+    it('should execute code agent with sync handler', async () => {
       const ensemble: EnsembleConfig = {
-        name: 'inline-sync-function',
+        name: 'handler-sync',
         agents: [
           {
             name: 'calculator',
             operation: 'code',
             config: {
-              code: `
-                export default function calculator(input) {
-                  return { result: input.a + input.b };
-                }
-              `,
+              handler: (context: any) => {
+                const input = context.input
+                return { result: input.a + input.b }
+              },
             },
           },
         ],
@@ -80,22 +89,24 @@ describe('Inline Agents in Ensemble YAML', () => {
       const result = await executor.executeEnsemble(ensemble, { a: 10, b: 5 })
 
       expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ result: 15 })
+      expect(getOutput(result)).toEqual({ result: 15 })
     })
 
-    it('should execute inline agent with async function (named)', async () => {
+    it('should execute code agent with context access', async () => {
       const ensemble: EnsembleConfig = {
-        name: 'inline-named-async',
+        name: 'handler-with-context',
         agents: [
           {
             name: 'processor',
             operation: 'code',
             config: {
-              code: `
-                async function processData(input) {
-                  return { processed: input.data.toUpperCase() };
+              handler: async (context: any) => {
+                const input = context.input
+                return {
+                  processed: input.data.toUpperCase(),
+                  hasEnv: !!context.env,
                 }
-              `,
+              },
             },
           },
         ],
@@ -105,37 +116,12 @@ describe('Inline Agents in Ensemble YAML', () => {
       const result = await executor.executeEnsemble(ensemble, { data: 'hello' })
 
       expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ processed: 'HELLO' })
-    })
-
-    it('should execute inline agent with function (named, non-async)', async () => {
-      const ensemble: EnsembleConfig = {
-        name: 'inline-named-sync',
-        agents: [
-          {
-            name: 'doubler',
-            operation: 'code',
-            config: {
-              code: `
-                function double(input) {
-                  return { doubled: input.value * 2 };
-                }
-              `,
-            },
-          },
-        ],
-        flow: [{ agent: 'doubler' }],
-      }
-
-      const result = await executor.executeEnsemble(ensemble, { value: 21 })
-
-      expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ doubled: 42 })
+      expect(getOutput(result)).toMatchObject({ processed: 'HELLO' })
     })
   })
 
-  describe('Inline Agents with Context Access', () => {
-    it('should provide context.env to inline agent', async () => {
+  describe('Code Agents with Context Access', () => {
+    it('should provide context.env to code agent', async () => {
       const envWithConfig = {
         ...mockEnv,
         CUSTOM_VALUE: 'secret-123',
@@ -147,20 +133,18 @@ describe('Inline Agents in Ensemble YAML', () => {
       })
 
       const ensemble: EnsembleConfig = {
-        name: 'inline-with-env',
+        name: 'handler-with-env',
         agents: [
           {
             name: 'env-reader',
             operation: 'code',
             config: {
-              code: `
-                export default async function envReader(input, context) {
-                  return {
-                    hasEnv: !!context.env,
-                    customValue: context.env?.CUSTOM_VALUE || 'not-found'
-                  };
+              handler: async (context: any) => {
+                return {
+                  hasEnv: !!context.env,
+                  customValue: context.env?.CUSTOM_VALUE || 'not-found',
                 }
-              `,
+              },
             },
           },
         ],
@@ -170,49 +154,46 @@ describe('Inline Agents in Ensemble YAML', () => {
       const result = await executorWithEnv.executeEnsemble(ensemble, {})
 
       expect(result.success).toBe(true)
-      expect(result.value?.output).toMatchObject({
+      expect(getOutput(result)).toMatchObject({
         hasEnv: true,
         customValue: 'secret-123',
       })
     })
   })
 
-  describe('Multiple Inline Agents in Flow', () => {
-    it('should execute multiple inline agents in sequence', async () => {
+  describe('Multiple Code Agents in Flow', () => {
+    it('should execute multiple code agents in sequence', async () => {
       const ensemble: EnsembleConfig = {
-        name: 'multi-inline-sequence',
+        name: 'multi-handler-sequence',
         agents: [
           {
             name: 'step1',
             operation: 'code',
             config: {
-              code: `
-                export default async function step1(input) {
-                  return { value: input.initial + 10 };
-                }
-              `,
+              handler: async (context: any) => {
+                const input = context.input
+                return { value: input.initial + 10 }
+              },
             },
           },
           {
             name: 'step2',
             operation: 'code',
             config: {
-              code: `
-                export default async function step2(input) {
-                  return { value: input.value * 2 };
-                }
-              `,
+              handler: async (context: any) => {
+                const input = context.input
+                return { value: input.value * 2 }
+              },
             },
           },
           {
             name: 'step3',
             operation: 'code',
             config: {
-              code: `
-                export default async function step3(input) {
-                  return { final: input.value - 5 };
-                }
-              `,
+              handler: async (context: any) => {
+                const input = context.input
+                return { final: input.value - 5 }
+              },
             },
           },
         ],
@@ -223,7 +204,7 @@ describe('Inline Agents in Ensemble YAML', () => {
       const result = await executor.executeEnsemble(ensemble, { initial: 5 })
 
       expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ final: 25 })
+      expect(getOutput(result)).toEqual({ final: 25 })
     })
 
     it('should handle mix of inline and registered agents', async () => {
@@ -232,7 +213,7 @@ describe('Inline Agents in Ensemble YAML', () => {
       const registeredAgent = new FunctionAgent(
         {
           name: 'registered-multiplier',
-          operation: 'code',
+          operation: Operation.code,
           config: {},
         },
         async (context) => ({ multiplied: (context.input as any).value * 3 })
@@ -243,45 +224,39 @@ describe('Inline Agents in Ensemble YAML', () => {
         name: 'mixed-agents',
         agents: [
           {
-            name: 'inline-adder',
+            name: 'handler-adder',
             operation: 'code',
             config: {
-              code: `
-                export default async function adder(input) {
-                  return { value: input.start + 7 };
-                }
-              `,
+              handler: async (context: any) => {
+                const input = context.input
+                return { value: input.start + 7 }
+              },
             },
           },
         ],
-        flow: [
-          { agent: 'inline-adder' },
-          { agent: 'registered-multiplier' },
-        ],
+        flow: [{ agent: 'handler-adder' }, { agent: 'registered-multiplier' }],
       }
 
       // (10 + 7) * 3 = 51
       const result = await executor.executeEnsemble(ensemble, { start: 10 })
 
       expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ multiplied: 51 })
+      expect(getOutput(result)).toEqual({ multiplied: 51 })
     })
   })
 
-  describe('Inline Agent Error Handling', () => {
-    it('should handle inline agent throwing error', async () => {
+  describe('Code Agent Error Handling', () => {
+    it('should handle code agent throwing error', async () => {
       const ensemble: EnsembleConfig = {
-        name: 'inline-error',
+        name: 'handler-error',
         agents: [
           {
             name: 'thrower',
             operation: 'code',
             config: {
-              code: `
-                export default async function thrower() {
-                  throw new Error('Intentional inline error');
-                }
-              `,
+              handler: async () => {
+                throw new Error('Intentional handler error')
+              },
             },
           },
         ],
@@ -291,47 +266,23 @@ describe('Inline Agents in Ensemble YAML', () => {
       const result = await executor.executeEnsemble(ensemble, {})
 
       expect(result.success).toBe(false)
-      expect(result.error?.message).toContain('Intentional inline error')
-    })
-
-    it('should handle syntax error in inline code gracefully', async () => {
-      const ensemble: EnsembleConfig = {
-        name: 'inline-syntax-error',
-        agents: [
-          {
-            name: 'bad-syntax',
-            operation: 'code',
-            config: {
-              code: `
-                export default async function badSyntax(input) {
-                  return { broken  // Missing closing brace
-              `,
-            },
-          },
-        ],
-        flow: [{ agent: 'bad-syntax' }],
-      }
-
-      const result = await executor.executeEnsemble(ensemble, {})
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBeDefined()
+      expect(getError(result)?.message).toContain('Intentional handler error')
     })
 
     it('should skip agents without name or operation', async () => {
       const ensemble: EnsembleConfig = {
-        name: 'invalid-inline-agent',
+        name: 'invalid-agent',
         agents: [
           {
             // Missing name
             operation: 'code',
-            config: { code: 'export default () => ({})' },
+            config: { handler: () => ({}) },
           } as any,
           {
             name: 'valid-agent',
             operation: 'code',
             config: {
-              code: `export default async function valid() { return { valid: true }; }`,
+              handler: async () => ({ valid: true }),
             },
           },
         ],
@@ -341,39 +292,12 @@ describe('Inline Agents in Ensemble YAML', () => {
       const result = await executor.executeEnsemble(ensemble, {})
 
       expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ valid: true })
+      expect(getOutput(result)).toEqual({ valid: true })
     })
   })
 
-  describe('Inline Agent with config.function (Alternative Syntax)', () => {
-    it('should support config.function instead of config.code', async () => {
-      const ensemble: EnsembleConfig = {
-        name: 'inline-function-syntax',
-        agents: [
-          {
-            name: 'func-agent',
-            operation: 'code',
-            config: {
-              function: `
-                async function processInput(input) {
-                  return { functionSyntax: true, received: input.test };
-                }
-              `,
-            },
-          },
-        ],
-        flow: [{ agent: 'func-agent' }],
-      }
-
-      const result = await executor.executeEnsemble(ensemble, { test: 'value' })
-
-      expect(result.success).toBe(true)
-      expect(result.value?.output).toEqual({ functionSyntax: true, received: 'value' })
-    })
-  })
-
-  describe('Real-world YAML-like Patterns', () => {
-    it('should handle login authentication pattern from template', async () => {
+  describe('Real-world Patterns', () => {
+    it('should handle login authentication pattern', async () => {
       const ensemble: EnsembleConfig = {
         name: 'login',
         agents: [
@@ -381,33 +305,31 @@ describe('Inline Agents in Ensemble YAML', () => {
             name: 'authenticate',
             operation: 'code',
             config: {
-              code: `
-                export default async function authenticate(input, context) {
-                  const { email, password } = input;
+              handler: async (context: any) => {
+                const { email, password } = context.input
 
-                  // Validate input
-                  if (!email || !password) {
-                    return {
-                      success: false,
-                      error: 'Email and password are required',
-                    };
-                  }
-
-                  // Demo: Simple check
-                  if (email === 'demo@example.com' && password === 'demo123') {
-                    return {
-                      success: true,
-                      token: 'demo-token-' + Date.now(),
-                      redirectTo: '/dashboard',
-                    };
-                  }
-
+                // Validate input
+                if (!email || !password) {
                   return {
                     success: false,
-                    error: 'Invalid email or password',
-                  };
+                    error: 'Email and password are required',
+                  }
                 }
-              `,
+
+                // Demo: Simple check
+                if (email === 'demo@example.com' && password === 'demo123') {
+                  return {
+                    success: true,
+                    token: 'demo-token-' + Date.now(),
+                    redirectTo: '/dashboard',
+                  }
+                }
+
+                return {
+                  success: false,
+                  error: 'Invalid email or password',
+                }
+              },
             },
           },
         ],
@@ -421,11 +343,11 @@ describe('Inline Agents in Ensemble YAML', () => {
       })
 
       expect(successResult.success).toBe(true)
-      expect(successResult.value?.output).toMatchObject({
+      expect(getOutput(successResult)).toMatchObject({
         success: true,
         redirectTo: '/dashboard',
       })
-      expect((successResult.value?.output as any).token).toMatch(/^demo-token-/)
+      expect(getOutput(successResult).token).toMatch(/^demo-token-/)
 
       // Test failed login
       const failResult = await executor.executeEnsemble(ensemble, {
@@ -434,7 +356,7 @@ describe('Inline Agents in Ensemble YAML', () => {
       })
 
       expect(failResult.success).toBe(true) // Execution succeeded, but auth failed
-      expect(failResult.value?.output).toMatchObject({
+      expect(getOutput(failResult)).toMatchObject({
         success: false,
         error: 'Invalid email or password',
       })
@@ -448,19 +370,17 @@ describe('Inline Agents in Ensemble YAML', () => {
             name: 'transform',
             operation: 'code',
             config: {
-              code: `
-                export default async function transform(input) {
-                  const { items } = input;
-                  return {
-                    count: items.length,
-                    processed: items.map(item => ({
-                      ...item,
-                      processedAt: new Date().toISOString().split('T')[0],
-                    })),
-                    summary: items.map(i => i.name).join(', '),
-                  };
+              handler: async (context: any) => {
+                const { items } = context.input
+                return {
+                  count: items.length,
+                  processed: items.map((item: any) => ({
+                    ...item,
+                    processedAt: new Date().toISOString().split('T')[0],
+                  })),
+                  summary: items.map((i: any) => i.name).join(', '),
                 }
-              `,
+              },
             },
           },
         ],
@@ -468,15 +388,73 @@ describe('Inline Agents in Ensemble YAML', () => {
       }
 
       const result = await executor.executeEnsemble(ensemble, {
-        items: [{ name: 'Item A', id: 1 }, { name: 'Item B', id: 2 }],
+        items: [
+          { name: 'Item A', id: 1 },
+          { name: 'Item B', id: 2 },
+        ],
       })
 
       expect(result.success).toBe(true)
-      const output = result.value?.output as any
+      const output = getOutput(result) as any
       expect(output.count).toBe(2)
       expect(output.summary).toBe('Item A, Item B')
       expect(output.processed).toHaveLength(2)
       expect(output.processed[0]).toHaveProperty('processedAt')
+    })
+  })
+
+  describe('Inline Code Rejection (Cloudflare Workers Compatibility)', () => {
+    it('should reject inline code strings (config.code)', async () => {
+      const ensemble: EnsembleConfig = {
+        name: 'inline-code-rejected',
+        agents: [
+          {
+            name: 'should-fail',
+            operation: 'code',
+            config: {
+              code: `
+                export default async function() {
+                  return { shouldNotWork: true };
+                }
+              `,
+            },
+          },
+        ],
+        flow: [{ agent: 'should-fail' }],
+      }
+
+      // The agent with inline code should be skipped/rejected during registration
+      // and execution should fail because the agent won't be found
+      const result = await executor.executeEnsemble(ensemble, {})
+
+      // Inline code is rejected, so either the execution fails or the agent is skipped
+      // The behavior depends on the executor implementation
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject config.function strings', async () => {
+      const ensemble: EnsembleConfig = {
+        name: 'function-string-rejected',
+        agents: [
+          {
+            name: 'should-fail',
+            operation: 'code',
+            config: {
+              function: `
+                async function processData() {
+                  return { shouldNotWork: true };
+                }
+              `,
+            },
+          },
+        ],
+        flow: [{ agent: 'should-fail' }],
+      }
+
+      const result = await executor.executeEnsemble(ensemble, {})
+
+      // config.function strings are also rejected
+      expect(result.success).toBe(false)
     })
   })
 })

@@ -17,40 +17,7 @@ agents:
   - name: log-error
     operation: code
     config:
-      code: |
-        export default async function logError(input, context) {
-          const { env } = context;
-          const { error, stack, requestPath, requestId } = input;
-
-          // Generate unique error ID
-          const errorId = `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-          // Store error in KV for investigation
-          if (env.KV) {
-            await env.KV.put(`error:${errorId}`, JSON.stringify({
-              errorId,
-              message: error,
-              stack,
-              requestPath,
-              requestId,
-              timestamp: new Date().toISOString(),
-              env: env.ENVIRONMENT || 'production',
-            }), { expirationTtl: 86400 * 7 }); // 7 days
-          }
-
-          // Store in D1 for analytics if available
-          if (env.DB) {
-            try {
-              await env.DB.prepare(
-                'INSERT INTO error_logs (error_id, message, stack, path, timestamp) VALUES (?, ?, ?, ?, ?)'
-              ).bind(errorId, error, stack, requestPath, new Date().toISOString()).run();
-            } catch (dbError) {
-              console.error('Failed to log to DB:', dbError);
-            }
-          }
-
-          return { errorId };
-        }
+      script: scripts/examples/http/log-error
     input:
       error: $input.error
       stack: $input.stack

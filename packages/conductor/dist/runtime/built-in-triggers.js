@@ -9,6 +9,7 @@ import { getTriggerRegistry } from './trigger-registry.js';
 import { Executor } from './executor.js';
 import { createLogger } from '../observability/index.js';
 import { cors } from 'hono/cors';
+import { getHttpMiddlewareRegistry } from './http-middleware-registry.js';
 const logger = createLogger({ serviceName: 'built-in-triggers' });
 /**
  * Rate limiter for HTTP-based triggers
@@ -61,7 +62,9 @@ async function handleHTTPTrigger(context) {
     }
     // Custom middleware
     if (trigger.middleware) {
-        middlewareChain.push(...trigger.middleware);
+        const middlewareRegistry = getHttpMiddlewareRegistry();
+        const resolved = middlewareRegistry.resolve(trigger.middleware);
+        middlewareChain.push(...resolved);
     }
     // Auth
     if (trigger.auth) {
@@ -91,22 +94,14 @@ async function handleHTTPTrigger(context) {
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }
-            const result = await executor.executeEnsemble(ensemble, {
-                input,
-                metadata: {
-                    trigger: 'http',
-                    method: c.req.method,
-                    path: c.req.path,
-                    params: c.req.param(),
-                    query: c.req.query(),
-                    headers: Object.fromEntries(c.req.raw.headers.entries()),
-                },
-            });
+            // Note: executeEnsemble expects input directly, not wrapped
+            // The input already contains body + params + query from extractInput()
+            const result = await executor.executeEnsemble(ensemble, input);
             if (!result.success) {
                 logger.error(`[HTTP] Ensemble execution failed: ${ensemble.name}`, result.error);
                 return c.json({
                     error: 'Ensemble execution failed',
-                    message: result.error.message
+                    message: result.error.message,
                 }, 500);
             }
             return renderResponse(c, result.value, trigger);
@@ -126,6 +121,174 @@ async function handleHTTPTrigger(context) {
             app[m](path, handler);
         }
     }
+}
+/**
+ * MCP Trigger Handler
+ * Exposes ensembles as MCP tools for Claude Desktop and other MCP clients
+ *
+ * MCP (Model Context Protocol) allows AI assistants to discover and invoke tools.
+ * This handler registers routes for:
+ * - GET /mcp/tools - List available tools (ensembles exposed via MCP)
+ * - POST /mcp/tools/:toolName - Invoke a specific tool
+ */
+async function handleMCPTrigger(context) {
+    const { app, ensemble, trigger, agents, env, ctx } = context;
+    // MCP tool name defaults to ensemble name (kebab-case recommended)
+    const toolName = trigger.toolName || ensemble.name;
+    logger.info(`[MCP] Registering tool: ${toolName} → ${ensemble.name}`);
+    // Build middleware chain for auth
+    const middlewareChain = [];
+    if (trigger.auth) {
+        middlewareChain.push(async (c, next) => {
+            const authHeader = c.req.header('authorization');
+            if (!authHeader) {
+                return c.json({ error: 'Authorization required' }, 401);
+            }
+            if (trigger.auth.type === 'bearer') {
+                const token = authHeader.replace(/^Bearer\s+/i, '');
+                if (token !== trigger.auth.secret) {
+                    return c.json({ error: 'Invalid token' }, 401);
+                }
+            }
+            await next();
+        });
+    }
+    else if (trigger.public !== true) {
+        logger.warn(`[MCP] Skipping ${toolName}: no auth and not public`);
+        return;
+    }
+    // Register tool listing endpoint (GET /mcp/tools)
+    // This aggregates all MCP-enabled ensembles
+    const listHandler = async (c) => {
+        // Get all MCP tools from app context (accumulated across ensembles)
+        const mcpTools = c.get('mcpTools') || new Map();
+        // Add this ensemble as a tool
+        mcpTools.set(toolName, {
+            name: toolName,
+            description: ensemble.description || `Execute ${ensemble.name} ensemble`,
+            inputSchema: buildInputSchema(ensemble),
+        });
+        // Store back for other handlers
+        c.set('mcpTools', mcpTools);
+        // Return MCP-compatible tool list
+        return c.json({
+            tools: Array.from(mcpTools.values()),
+        });
+    };
+    // Register tool invocation endpoint (POST /mcp/tools/:toolName)
+    const invokeHandler = async (c) => {
+        const requestedTool = c.req.param('toolName');
+        // Only handle requests for this specific tool
+        if (requestedTool !== toolName) {
+            return c.json({ error: `Tool not found: ${requestedTool}` }, 404);
+        }
+        try {
+            const body = await c.req.json().catch(() => ({}));
+            const input = body.arguments || body.input || body;
+            const executor = new Executor({ env, ctx });
+            for (const agent of agents) {
+                executor.registerAgent(agent);
+            }
+            const result = await executor.executeEnsemble(ensemble, input);
+            if (!result.success) {
+                logger.error(`[MCP] Tool execution failed: ${toolName}`, result.error);
+                return c.json({
+                    content: [
+                        {
+                            type: 'text',
+                            text: `Error: ${result.error.message}`,
+                        },
+                    ],
+                    isError: true,
+                }, 200 // MCP returns 200 even for tool errors
+                );
+            }
+            // Return MCP-compatible response
+            return c.json({
+                content: [
+                    {
+                        type: 'text',
+                        text: typeof result.value.output === 'string'
+                            ? result.value.output
+                            : JSON.stringify(result.value.output, null, 2),
+                    },
+                ],
+            });
+        }
+        catch (error) {
+            logger.error(`[MCP] Tool invocation failed: ${toolName}`, error instanceof Error ? error : undefined);
+            return c.json({
+                content: [
+                    {
+                        type: 'text',
+                        text: `Internal error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                    },
+                ],
+                isError: true,
+            }, 200);
+        }
+    };
+    // Register routes
+    if (middlewareChain.length > 0) {
+        app.get('/mcp/tools', ...middlewareChain, listHandler);
+        app.post('/mcp/tools/:toolName', ...middlewareChain, invokeHandler);
+    }
+    else {
+        app.get('/mcp/tools', listHandler);
+        app.post('/mcp/tools/:toolName', invokeHandler);
+    }
+}
+/**
+ * Build JSON Schema for ensemble input
+ * Used for MCP tool discovery
+ */
+function buildInputSchema(ensemble) {
+    const schema = {
+        type: 'object',
+        properties: {},
+        required: [],
+    };
+    // If ensemble has explicit input definition
+    if (ensemble.input) {
+        for (const [key, value] of Object.entries(ensemble.input)) {
+            if (typeof value === 'object' && value !== null) {
+                const inputDef = value;
+                schema.properties[key] = {
+                    type: inputDef.type || 'string',
+                    description: inputDef.description || key,
+                };
+                if (inputDef.required) {
+                    schema.required.push(key);
+                }
+            }
+            else {
+                // Simple value - infer type
+                schema.properties[key] = {
+                    type: typeof value === 'number'
+                        ? 'number'
+                        : typeof value === 'boolean'
+                            ? 'boolean'
+                            : 'string',
+                };
+            }
+        }
+    }
+    // If ensemble has inputs (alternative format)
+    if (ensemble.inputs) {
+        for (const [key, value] of Object.entries(ensemble.inputs)) {
+            if (typeof value === 'object' && value !== null) {
+                const inputDef = value;
+                schema.properties[key] = {
+                    type: inputDef.type || 'string',
+                    description: inputDef.description || key,
+                };
+                if (inputDef.required) {
+                    schema.required.push(key);
+                }
+            }
+        }
+    }
+    return schema;
 }
 /**
  * Webhook Trigger Handler
@@ -165,15 +328,13 @@ async function handleWebhookTrigger(context) {
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }
-            const result = await executor.executeEnsemble(ensemble, {
-                input,
-                metadata: { trigger: 'webhook', path: c.req.path },
-            });
+            // Note: executeEnsemble expects input directly
+            const result = await executor.executeEnsemble(ensemble, input);
             if (!result.success) {
                 logger.error(`[Webhook] Ensemble execution failed: ${ensemble.name}`, result.error);
                 return c.json({
                     error: 'Ensemble execution failed',
-                    message: result.error.message
+                    message: result.error.message,
                 }, 500);
             }
             return c.json(result.value.output);
@@ -196,10 +357,30 @@ async function handleWebhookTrigger(context) {
 }
 /**
  * Extract input from HTTP request
+ *
+ * Returns a structured object that provides access to all parts of the request:
+ * - body: Parsed JSON body or form data (for POST/PUT/PATCH)
+ * - params: URL path parameters (e.g., /users/:id → { id: "123" })
+ * - query: Query string parameters (e.g., ?foo=bar → { foo: "bar" })
+ * - method: HTTP method (GET, POST, etc.)
+ * - path: Request path
+ * - headers: Request headers (commonly used ones)
+ *
+ * For backwards compatibility, body fields are also spread at the root level.
+ *
+ * Usage in YAML:
+ *   input:
+ *     email: ${input.body.email}       # Structured access
+ *     email: ${input.email}            # Backwards compatible
+ *     userId: ${input.params.id}       # URL params
+ *     page: ${input.query.page}        # Query params
+ *     isPost: ${input.method == 'POST'} # Check method
  */
 async function extractInput(c) {
     const method = c.req.method;
     const contentType = c.req.header('content-type') || '';
+    const path = c.req.path;
+    // Parse body for POST/PUT/PATCH requests
     let body = {};
     if (['POST', 'PUT', 'PATCH'].includes(method)) {
         try {
@@ -211,13 +392,38 @@ async function extractInput(c) {
             }
         }
         catch (e) {
-            // Ignore parsing errors
+            // Ignore parsing errors - body remains empty object
         }
     }
+    // Get URL params and query params
+    const params = c.req.param() || {};
+    const query = c.req.query() || {};
+    // Extract commonly used headers
+    const headers = {
+        'content-type': c.req.header('content-type'),
+        'user-agent': c.req.header('user-agent'),
+        accept: c.req.header('accept'),
+        authorization: c.req.header('authorization'),
+        'x-request-id': c.req.header('x-request-id'),
+        'x-forwarded-for': c.req.header('x-forwarded-for'),
+        'cf-connecting-ip': c.req.header('cf-connecting-ip'),
+        referer: c.req.header('referer'),
+        origin: c.req.header('origin'),
+    };
+    // Return structured input with backwards compatibility
+    // Body fields are spread at root for backwards compatibility
     return {
+        // Backwards compatible: spread body at root
         ...body,
-        params: c.req.param(),
-        query: c.req.query(),
+        // Structured access to request parts
+        body,
+        params,
+        query,
+        method,
+        path,
+        headers,
+        // Convenience: also expose raw request info
+        url: c.req.url,
     };
 }
 /**
@@ -237,7 +443,9 @@ function renderResponse(c, executionOutput, trigger) {
         if (typeof output === 'string') {
             return c.html(output);
         }
-        return c.json({ error: 'HTML output not found. Ensure your ensemble uses operation: html to generate HTML content.' }, 500);
+        return c.json({
+            error: 'HTML output not found. Ensure your ensemble uses operation: html to generate HTML content.',
+        }, 500);
     }
     // JSON (default or explicit)
     if (trigger.responses?.json?.enabled) {
@@ -263,15 +471,21 @@ export function registerBuiltInTriggers() {
         schema: z.object({
             type: z.literal('http'),
             path: z.string().optional(),
-            methods: z.array(z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])).optional(),
-            auth: z.object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() }).optional(),
+            methods: z
+                .array(z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']))
+                .optional(),
+            auth: z
+                .object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() })
+                .optional(),
             public: z.boolean().optional(),
             rateLimit: z.object({ requests: z.number(), window: z.number() }).optional(),
             cors: z.object({ origin: z.union([z.string(), z.array(z.string())]).optional() }).optional(),
-            responses: z.object({
+            responses: z
+                .object({
                 html: z.object({ enabled: z.boolean() }).optional(),
                 json: z.object({ enabled: z.boolean() }).optional(),
-            }).optional(),
+            })
+                .optional(),
             templateEngine: z.enum(['handlebars', 'liquid', 'simple']).optional(),
             middleware: z.array(z.any()).optional(),
         }),
@@ -287,11 +501,29 @@ export function registerBuiltInTriggers() {
             type: z.literal('webhook'),
             path: z.string().optional(),
             methods: z.array(z.enum(['POST', 'GET', 'PUT', 'PATCH', 'DELETE'])).optional(),
-            auth: z.object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() }).optional(),
+            auth: z
+                .object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() })
+                .optional(),
             public: z.boolean().optional(),
         }),
         requiresAuth: false,
         tags: ['webhook', 'api'],
     });
-    logger.info('[Built-in Triggers] Registered HTTP and Webhook triggers');
+    // MCP Trigger
+    registry.register(handleMCPTrigger, {
+        type: 'mcp',
+        name: 'MCP Trigger',
+        description: 'Expose ensembles as MCP tools for Claude Desktop and other MCP clients',
+        schema: z.object({
+            type: z.literal('mcp'),
+            toolName: z.string().optional(),
+            auth: z
+                .object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() })
+                .optional(),
+            public: z.boolean().optional(),
+        }),
+        requiresAuth: false,
+        tags: ['mcp', 'ai', 'tools'],
+    });
+    logger.info('[Built-in Triggers] Registered HTTP, Webhook, and MCP triggers');
 }

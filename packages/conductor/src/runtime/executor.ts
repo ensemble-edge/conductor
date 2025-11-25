@@ -57,6 +57,12 @@ import { ResumptionManager, type SuspendedExecutionState } from './resumption-ma
 import { createLogger, type Logger } from '../observability/index.js'
 import { NotificationManager } from './notifications/index.js'
 import { createComponentLoader, type ComponentLoader } from './component-loader.js'
+import {
+  hasGlobalScriptLoader,
+  getGlobalScriptLoader,
+  parseScriptURI,
+  isScriptReference,
+} from '../utils/script-loader.js'
 
 export interface ExecutorConfig {
   env: ConductorEnv
@@ -637,7 +643,12 @@ export class Executor {
 
   /**
    * Register inline agents defined in an ensemble's agents array
-   * These are agents defined directly in the YAML with operation: code and inline code
+   *
+   * Supports:
+   * 1. script:// URIs - Resolved from bundled scripts (Works in Workers!)
+   * 2. Pre-compiled handlers - Function objects passed in config.handler
+   * 3. Inline code strings - DEPRECATED, only works in test environments
+   *
    * @private
    */
   private registerInlineAgents(ensemble: EnsembleConfig): void {
@@ -675,22 +686,49 @@ export class Executor {
         config: config || {},
       }
 
-      // Handle inline code - convert string code to handler function for code/function operations
+      // Handle code/function operations
       if (operation === Operation.code || operation === 'function') {
-        const inlineCode = config?.code || config?.function || config?.handler
-        if (typeof inlineCode === 'string') {
-          // Create a dynamic function from the inline code string
+        const scriptRef = config?.script as string | undefined
+        const inlineCode = config?.code || config?.function
+        const precompiledHandler = config?.handler
+
+        // Priority 1: Script reference - resolve from bundled scripts
+        // Supports both formats: "script://path" and "scripts/path"
+        if (isScriptReference(scriptRef)) {
           try {
-            const handler = this.createInlineHandler(inlineCode, name)
+            const handler = this.resolveScriptHandler(scriptRef, name)
             agentConfig.config = { ...config, handler }
           } catch (error) {
             this.logger.error(
-              'Failed to create inline handler',
+              'Failed to resolve script',
               error instanceof Error ? error : undefined,
-              { name }
+              { name, scriptRef }
             )
             continue
           }
+        }
+        // Priority 2: Pre-compiled handler function (already a function object)
+        else if (typeof precompiledHandler === 'function') {
+          // Handler is already compiled, nothing to do
+          this.logger.debug('Using pre-compiled handler', { name })
+        }
+        // Priority 3: Inline code string - NOT SUPPORTED
+        // Inline code uses new Function() which is blocked in Cloudflare Workers
+        else if (typeof inlineCode === 'string') {
+          this.logger.error(
+            'Inline code is not supported',
+            new Error(
+              `Agent "${name}" uses inline code (config.code) which is not supported.\n` +
+                `Cloudflare Workers block new Function() and eval() for security.\n\n` +
+                `To fix this, migrate to bundled scripts:\n` +
+                `1. Create a file: scripts/${name}.ts\n` +
+                `2. Export your function: export default async function(context) { ... }\n` +
+                `3. Update your ensemble to use: config.script: "scripts/${name}"\n\n` +
+                `See: https://docs.ensemble.dev/conductor/guides/migrate-inline-code`
+            ),
+            { name }
+          )
+          continue
         }
       }
 
@@ -709,55 +747,32 @@ export class Executor {
   }
 
   /**
-   * Create a handler function from inline code string
-   * Supports both ES module exports and raw function definitions
+   * Resolve a script:// URI to a handler function from bundled scripts
    * @private
    */
-  private createInlineHandler(
-    code: string,
+  private resolveScriptHandler(
+    scriptUri: string,
     agentName: string
   ): (context: AgentExecutionContext) => Promise<unknown> {
-    // The inline code is expected to be either:
-    // 1. An ES module with default export: `export default async function(input, context) { ... }`
-    // 2. A raw function definition: `async function myFunc(input, context) { ... }`
-    // 3. An arrow function: `async (input, context) => { ... }`
+    if (!hasGlobalScriptLoader()) {
+      const scriptPath = parseScriptURI(scriptUri)
+      throw new Error(
+        `Cannot resolve script "${scriptUri}" for agent "${agentName}".\n\n` +
+          `Script loader not initialized. For Cloudflare Workers:\n` +
+          `1. Ensure scripts/${scriptPath}.ts exists with a default export\n` +
+          `2. Initialize the script loader in your worker entry:\n\n` +
+          `   import { scriptsMap } from 'virtual:conductor-scripts'\n` +
+          `   import { setGlobalScriptLoader, createScriptLoader } from '@ensemble-edge/conductor'\n` +
+          `   setGlobalScriptLoader(createScriptLoader(scriptsMap))`
+      )
+    }
 
+    const scriptLoader = getGlobalScriptLoader()
+    const handler = scriptLoader.resolve(scriptUri)
+
+    // Wrap to match expected signature (handler receives full context)
     return async (context: AgentExecutionContext): Promise<unknown> => {
-      try {
-        // Create a sandboxed function from the code string
-        // We need to handle ES module style exports
-        let wrappedCode = code.trim()
-
-        // Check if it's an ES module export
-        if (wrappedCode.includes('export default')) {
-          // Convert ES module to function expression
-          wrappedCode = wrappedCode
-            .replace(/export\s+default\s+async\s+function\s*\w*\s*/, 'return async function ')
-            .replace(/export\s+default\s+function\s*\w*\s*/, 'return function ')
-            .replace(/export\s+default\s+/, 'return ')
-        } else if (wrappedCode.startsWith('async function') || wrappedCode.startsWith('function')) {
-          // Named function - wrap it to return the function
-          wrappedCode = `return ${wrappedCode}`
-        }
-
-        // Create the function factory
-        const factory = new Function(wrappedCode)
-        const fn = factory()
-
-        if (typeof fn !== 'function') {
-          throw new Error(`Inline code for agent "${agentName}" did not return a function`)
-        }
-
-        // Execute with input and context (matching the expected signature)
-        const result = await fn(context.input, context)
-        return result
-      } catch (error) {
-        throw new Error(
-          `Inline code execution failed for agent "${agentName}": ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        )
-      }
+      return handler(context)
     }
   }
 

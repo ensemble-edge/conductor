@@ -6,7 +6,13 @@
  */
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Parser } from '../runtime/parser.js';
+import { Parser, } from '../runtime/parser.js';
+/**
+ * Type guard to check if a flow step is an agent step
+ */
+function isAgentStep(step) {
+    return 'agent' in step && typeof step.agent === 'string';
+}
 import YAML from 'yaml';
 /**
  * OpenAPI Documentation Generator
@@ -47,7 +53,10 @@ export class OpenAPIGenerator {
                 if (file.endsWith('.yaml') || file.endsWith('.yml')) {
                     const filePath = path.join(ensemblesPath, file);
                     const content = await fs.readFile(filePath, 'utf-8');
-                    const ensemble = YAML.parse(content);
+                    const ensemble = YAML.parse(content, {
+                        mapAsMap: false,
+                        logLevel: 'silent',
+                    });
                     this.ensembles.set(ensemble.name, ensemble);
                 }
             }
@@ -67,7 +76,10 @@ export class OpenAPIGenerator {
                     const memberYamlPath = path.join(membersPath, dir.name, 'agent.yaml');
                     try {
                         const content = await fs.readFile(memberYamlPath, 'utf-8');
-                        const agent = YAML.parse(content);
+                        const agent = YAML.parse(content, {
+                            mapAsMap: false,
+                            logLevel: 'silent',
+                        });
                         this.agents.set(agent.name, agent);
                     }
                     catch {
@@ -207,8 +219,14 @@ export class OpenAPIGenerator {
             return ensemble.description;
         }
         // Generate from flow
+        if (!ensemble.flow || ensemble.flow.length === 0) {
+            return 'No flow steps defined';
+        }
         const stepCount = ensemble.flow.length;
-        const memberNames = ensemble.flow.map((step) => step.agent).join(', ');
+        const memberNames = ensemble.flow
+            .filter(isAgentStep)
+            .map((step) => step.agent)
+            .join(', ');
         return `Executes ${stepCount} step${stepCount > 1 ? 's' : ''}: ${memberNames}`;
     }
     /**
@@ -217,13 +235,16 @@ export class OpenAPIGenerator {
     generateInputSchema(ensemble) {
         // Analyze flow steps to determine required inputs
         const inputRefs = new Set();
-        for (const step of ensemble.flow) {
-            if (step.input) {
-                // Extract input variable references (${input.xxx})
-                const inputStr = JSON.stringify(step.input);
-                const matches = inputStr.matchAll(/\$\{input\.(\w+)\}/g);
-                for (const match of matches) {
-                    inputRefs.add(match[1]);
+        if (ensemble.flow) {
+            for (const step of ensemble.flow) {
+                // Only agent steps have input mappings
+                if (isAgentStep(step) && step.input) {
+                    // Extract input variable references (${input.xxx})
+                    const inputStr = JSON.stringify(step.input);
+                    const matches = inputStr.matchAll(/\$\{input\.(\w+)\}/g);
+                    for (const match of matches) {
+                        inputRefs.add(match[1]);
+                    }
                 }
             }
         }

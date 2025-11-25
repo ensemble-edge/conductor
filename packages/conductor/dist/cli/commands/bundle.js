@@ -64,9 +64,10 @@ function extractAgentDependencies(agentPath, agentConfig) {
 }
 /**
  * Find agent file by name in agents directory
+ * Supports both YAML (.yaml, .yml) and TypeScript (.ts) agent files
  */
 async function findAgentFile(agentName, agentsDir) {
-    const extensions = ['.yaml', '.yml'];
+    const extensions = ['.yaml', '.yml', '.ts'];
     for (const ext of extensions) {
         // Try direct name match
         const directPath = path.join(agentsDir, `${agentName}${ext}`);
@@ -75,14 +76,22 @@ async function findAgentFile(agentName, agentsDir) {
             return directPath;
         }
         catch {
-            // Try in subdirectory
-            const subPath = path.join(agentsDir, agentName, `${agentName}${ext}`);
+            // Try in subdirectory with agent.yaml/agent.ts pattern
+            const subPath = path.join(agentsDir, agentName, `agent${ext}`);
             try {
                 await fs.access(subPath);
                 return subPath;
             }
             catch {
-                // Continue searching
+                // Try in subdirectory with agentName pattern
+                const subPath2 = path.join(agentsDir, agentName, `${agentName}${ext}`);
+                try {
+                    await fs.access(subPath2);
+                    return subPath2;
+                }
+                catch {
+                    // Continue searching
+                }
             }
         }
     }

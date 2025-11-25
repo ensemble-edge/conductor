@@ -12,6 +12,7 @@ export { PluginRegistry, getPluginRegistry,
 // Backwards compatibility
 OperationRegistry, getOperationRegistry, } from './runtime/plugin-registry.js';
 export { TriggerRegistry, getTriggerRegistry, } from './runtime/trigger-registry.js';
+export { HttpMiddlewareRegistry, getHttpMiddlewareRegistry, } from './runtime/http-middleware-registry.js';
 // Observability
 export { createLogger } from './observability/index.js';
 // Durable Objects
@@ -41,6 +42,29 @@ export { UnifiedRouter } from './routing/router.js';
 export { isLifecyclePlugin, isFunctionalPlugin, buildPlugin } from './types/plugin.js';
 // Docs - First-class component support for markdown documentation
 export { DocsManager, getGlobalDocsManager } from './docs/index.js';
+// ============================================================================
+// Primitives - TypeScript-first authoring for agents and ensembles
+// ============================================================================
+// The canonical building blocks used by both YAML and TypeScript authoring.
+// Both formats produce identical runtime objects through these primitives.
+// Step Primitives
+export { step, sequence, scriptStep, httpStep, thinkStep, storageStep, dataStep, emailStep, agentStep, } from './primitives/step.js';
+// Flow Control Primitives
+export { parallel, race, branch, ifThen, ifThenElse, switchStep, foreach, map, repeat, whileStep, doWhile, doUntil, tryStep, fallback, mapReduce, } from './primitives/flow.js';
+// Ensemble Primitives
+export { createEnsemble, Ensemble, isEnsemble, ensembleFromConfig } from './primitives/ensemble.js';
+// Tool Primitives
+export { createTool, mcpTool, customTool, httpTool, skillTool, toolCollection, Tool, isTool, isToolConfig, } from './primitives/tool.js';
+// Instruction Primitives
+export { instruction, systemInstruction, userInstruction, assistantInstruction, fileInstruction, templateInstruction, dynamicInstruction, conditionalInstruction, combineInstructions, prompt, Instruction, isInstruction, isInstructionConfig, } from './primitives/instruction.js';
+// Memory Primitives (persistent storage - NOT workflow state)
+export { memory, kvMemory, r2Memory, d1Memory, vectorMemory, durableMemory, customMemory, conversationMemory, knowledgeBase, Memory, isMemory, isMemoryConfig, } from './primitives/memory.js';
+// Reference Primitives
+export { ref, inputRef, stateRef, envRef, stepRef, contextRef, outputRef, computed, template, parseRef, refMap, Reference, isReference, isComputed, isTemplate, isRefExpression, } from './primitives/reference.js';
+// Async Primitives (suspension, scheduling, HITL)
+export { suspend, checkpoint, sleep, sleepSeconds, sleepMinutes, sleepUntil, schedule, approval, waitForWebhook, waitForInput, isSuspendStep, isSleepStep, isScheduleStep, isApprovalStep, isAsyncStep, } from './primitives/async.js';
+// Type Guards from primitives
+export { isParallelStep, isAgentStep, isBranchStep, isForeachStep, isTryStep, isSwitchStep, isWhileStep, isMapReduceStep, isFlowControlStep, isControlFlowStep, } from './primitives/types.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *

@@ -16,18 +16,7 @@ agents:
   - name: export-csv
     operation: code
     config:
-      function: |
-        async function exportToCsv(input) {
-          const { data } = input;
-          // Convert data to CSV format
-          const headers = Object.keys(data[0] || {}).join(',');
-          const rows = data.map(row => Object.values(row).join(',')).join('\n');
-          return {
-            csv: `${headers}\n${rows}`,
-            count: data.length,
-            size: `${headers}\n${rows}`.length
-          };
-        }
+      script: scripts/examples/data/export-to-csv
     input:
       data: $query-data.keys
 
@@ -35,15 +24,7 @@ agents:
   - name: export-json
     operation: code
     config:
-      function: |
-        async function exportToJson(input) {
-          const json = JSON.stringify(input.data, null, input.pretty ? 2 : 0);
-          return {
-            data: json,
-            count: input.data.length,
-            size: json.length
-          };
-        }
+      script: scripts/examples/data/export-to-json
     input:
       data: $query-data.keys
       pretty: $input.prettyJson
@@ -52,15 +33,7 @@ agents:
   - name: export-excel
     operation: code
     config:
-      function: |
-        async function exportToExcel(input) {
-          // In real app, would use a library like xlsx to generate .xlsx file
-          return {
-            data: input.data,
-            count: input.data.length,
-            format: 'xlsx'
-          };
-        }
+      script: scripts/examples/data/export-to-excel
     input:
       data: $query-data.keys
 
