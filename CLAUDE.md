@@ -73,8 +73,11 @@ What type of bump do you want?
 Only after user confirms, create changeset file manually:
 
 ```bash
-# Create .changeset/descriptive-name.md
+# Create .changeset/vX.Y.Z.md (use the target version number)
+# Example: .changeset/v0.2.4.md
 ```
+
+**Filename Convention:** Always use the target version number as the filename (e.g., `v0.2.4.md`).
 
 **Format:**
 ```markdown
