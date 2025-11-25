@@ -43,7 +43,7 @@
     "directory": "packages/plugin-cloudflare"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.2.5"
+    "@ensemble-edge/conductor": "^0.3.0"
   },
   "devDependencies": {
     "@ensemble-edge/conductor": "workspace:*",
