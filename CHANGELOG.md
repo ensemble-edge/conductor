@@ -1,5 +1,13 @@
 # @ensemble-edge/conductor
 
+## 0.3.2
+
+### Patch Changes
+
+- a66a337: Fix template src/build/ vite plugins not being committed to git
+
+  The root .gitignore had `build/` which ignored ALL directories named build/ at any depth, including the template vite plugins at `catalog/cloud/cloudflare/templates/src/build/`. Changed to `/build/` to only ignore the root build directory, and committed the template vite plugin files.
+
 ## 0.3.1
 
 ### Patch Changes
