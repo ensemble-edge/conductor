@@ -19,14 +19,15 @@ trigger:
       secret: ${env.MCP_CLIENT_TOKEN}
 
 # Send notifications when analysis completes
-notifications:
-  - type: webhook
-    url: ${env.SLACK_WEBHOOK_URL}
-    events:
-      - execution.completed
-      - execution.failed
-    secret: ${env.WEBHOOK_SECRET}
-    retries: 3
+# Note: Webhook URL must be a valid URL, not an env variable placeholder
+# notifications:
+#   - type: webhook
+#     url: https://hooks.slack.com/services/YOUR/WEBHOOK/PATH
+#     events:
+#       - execution.completed
+#       - execution.failed
+#     secret: ${env.WEBHOOK_SECRET}
+#     retries: 3
 
 agents:
   # Fetch PR data from GitHub MCP server
@@ -123,26 +124,13 @@ agents:
       tool: create_issue_comment
       timeout: 10000
 
-inputs:
-  owner:
-    type: string
-    required: true
-    description: GitHub repository owner
-  repo:
-    type: string
-    required: true
-    description: GitHub repository name
-  pull_number:
-    type: number
-    required: true
-    description: Pull request number
-  auto_comment:
-    type: boolean
-    required: false
-    default: false
-    description: Automatically post review comment to GitHub
+input:
+  owner: ""
+  repo: ""
+  pull_number: 0
+  auto_comment: false
 
-outputs:
+output:
   pr_url: ${get-pr.output.html_url}
   pr_title: ${get-pr.output.title}
   pr_author: ${get-pr.output.user.login}

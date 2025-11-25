@@ -260,4 +260,5 @@ input:
   path: null
   headers: {}
 
-output: $render-404
+output:
+  html: ${render-404.output}

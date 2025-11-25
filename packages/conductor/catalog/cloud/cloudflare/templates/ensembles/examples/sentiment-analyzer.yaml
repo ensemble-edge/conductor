@@ -59,13 +59,13 @@ agents:
             description: Brief explanation of the sentiment analysis
         required: [sentiment, confidence, reasoning]
 
-inputs:
+input:
   text:
     type: string
     required: true
     description: The text to analyze for sentiment
 
-outputs:
+output:
   sentiment: ${analyze-sentiment.output.sentiment}
   confidence: ${analyze-sentiment.output.confidence}
   emotions: ${analyze-sentiment.output.emotions}

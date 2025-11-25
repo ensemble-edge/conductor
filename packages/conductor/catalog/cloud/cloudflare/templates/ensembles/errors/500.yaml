@@ -211,4 +211,5 @@ input:
   dev: false
   supportEmail: support@example.com
 
-output: $render-500
+output:
+  html: ${render-500.output}

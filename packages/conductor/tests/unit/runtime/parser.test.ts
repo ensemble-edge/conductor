@@ -6,7 +6,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Parser } from '../../../src/runtime/parser';
+import { Parser, type AgentFlowStep, type FlowStepType } from '../../../src/runtime/parser';
+
+/**
+ * Type guard to check if a flow step is an agent step
+ */
+function isAgentStep(step: FlowStepType): step is AgentFlowStep {
+  return 'agent' in step && typeof (step as AgentFlowStep).agent === 'string';
+}
 
 describe('Parser', () => {
 	describe('Ensemble Parsing', () => {
@@ -21,7 +28,11 @@ flow:
 
 			expect(result.name).toBe('test-ensemble');
 			expect(result.flow).toHaveLength(1);
-			expect(result.flow[0].agent).toBe('greeter');
+			const step = result.flow![0];
+			expect(isAgentStep(step)).toBe(true);
+			if (isAgentStep(step)) {
+				expect(step.agent).toBe('greeter');
+			}
 		});
 
 		it('should parse ensemble with description', () => {
@@ -333,6 +344,236 @@ flow:
 
 			const result = Parser.parseEnsemble(yaml);
 			expect(result.description).toBeUndefined();
+		});
+	});
+
+	describe('Flow Control Features', () => {
+		it('should parse parallel flow step', () => {
+			const yaml = `
+name: parallel-test
+flow:
+  - type: parallel
+    steps:
+      - agent: step1
+      - agent: step2
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect('type' in step && step.type === 'parallel').toBe(true);
+		});
+
+		it('should parse branch flow step with then/else', () => {
+			const yaml = `
+name: branch-test
+flow:
+  - type: branch
+    condition: input.value > 0
+    then:
+      - agent: positive-handler
+    else:
+      - agent: negative-handler
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect('type' in step && step.type === 'branch').toBe(true);
+		});
+
+		it('should parse foreach flow step', () => {
+			const yaml = `
+name: foreach-test
+flow:
+  - type: foreach
+    items: \${input.items}
+    maxConcurrency: 5
+    step:
+      agent: processor
+      input:
+        item: \${item}
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect('type' in step && step.type === 'foreach').toBe(true);
+		});
+
+		it('should parse try/catch flow step', () => {
+			const yaml = `
+name: try-catch-test
+flow:
+  - type: try
+    steps:
+      - agent: risky-operation
+    catch:
+      - agent: error-handler
+    finally:
+      - agent: cleanup
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect('type' in step && step.type === 'try').toBe(true);
+		});
+
+		it('should parse switch/case flow step', () => {
+			const yaml = `
+name: switch-test
+flow:
+  - type: switch
+    value: \${input.type}
+    cases:
+      typeA:
+        - agent: handler-a
+      typeB:
+        - agent: handler-b
+    default:
+      - agent: default-handler
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect('type' in step && step.type === 'switch').toBe(true);
+		});
+
+		it('should parse while loop flow step', () => {
+			const yaml = `
+name: while-test
+flow:
+  - type: while
+    condition: \${hasMore}
+    maxIterations: 100
+    steps:
+      - agent: batch-processor
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect('type' in step && step.type === 'while').toBe(true);
+		});
+
+		it('should parse map-reduce flow step', () => {
+			const yaml = `
+name: map-reduce-test
+flow:
+  - type: map-reduce
+    items: \${input.documents}
+    maxConcurrency: 10
+    map:
+      agent: analyzer
+      input:
+        doc: \${item}
+    reduce:
+      agent: aggregator
+      input:
+        results: \${results}
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect('type' in step && step.type === 'map-reduce').toBe(true);
+		});
+
+		it('should parse agent step with retry config', () => {
+			const yaml = `
+name: retry-test
+flow:
+  - agent: api-caller
+    retry:
+      attempts: 3
+      backoff: exponential
+      initialDelay: 1000
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect(isAgentStep(step)).toBe(true);
+			if (isAgentStep(step)) {
+				expect(step.retry?.attempts).toBe(3);
+				expect(step.retry?.backoff).toBe('exponential');
+			}
+		});
+
+		it('should parse agent step with timeout config', () => {
+			const yaml = `
+name: timeout-test
+flow:
+  - agent: slow-operation
+    timeout: 5000
+    onTimeout:
+      fallback: { status: "timeout" }
+      error: false
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect(isAgentStep(step)).toBe(true);
+			if (isAgentStep(step)) {
+				expect(step.timeout).toBe(5000);
+				expect(step.onTimeout?.error).toBe(false);
+			}
+		});
+
+		it('should parse agent step with condition/when', () => {
+			const yaml = `
+name: conditional-test
+flow:
+  - agent: optional-step
+    when: \${input.enabled === true}
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+			const step = result.flow![0];
+			expect(isAgentStep(step)).toBe(true);
+			if (isAgentStep(step)) {
+				expect(step.when).toBeDefined();
+			}
+		});
+
+		it('should parse nested control flow steps', () => {
+			const yaml = `
+name: nested-test
+flow:
+  - type: try
+    steps:
+      - type: parallel
+        steps:
+          - agent: task1
+          - agent: task2
+    catch:
+      - agent: error-handler
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(1);
+		});
+
+		it('should auto-generate flow from inline agents', () => {
+			const yaml = `
+name: auto-flow-test
+agents:
+  - name: step1
+    operation: code
+  - name: step2
+    operation: think
+			`;
+
+			const result = Parser.parseEnsemble(yaml);
+			expect(result.flow).toHaveLength(2);
+			const step1 = result.flow![0];
+			const step2 = result.flow![1];
+			expect(isAgentStep(step1) && step1.agent === 'step1').toBe(true);
+			expect(isAgentStep(step2) && step2.agent === 'step2').toBe(true);
 		});
 	});
 });

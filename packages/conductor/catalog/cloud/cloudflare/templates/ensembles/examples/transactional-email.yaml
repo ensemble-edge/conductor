@@ -73,7 +73,7 @@ flow:
 
 output:
   success: true
-  messageId: ${send-primary.output.messageId || send-fallback.output.messageId}
-  provider: ${send-primary.output.provider || send-fallback.output.provider}
-  timestamp: ${send-primary.output.timestamp || send-fallback.output.timestamp}
-  usedFallback: ${send-fallback.output ? true : false}
+  messageId: "${send-primary.output.messageId || send-fallback.output.messageId}"
+  provider: "${send-primary.output.provider || send-fallback.output.provider}"
+  timestamp: "${send-primary.output.timestamp || send-fallback.output.timestamp}"
+  usedFallback: "${send-fallback.output ? true : false}"

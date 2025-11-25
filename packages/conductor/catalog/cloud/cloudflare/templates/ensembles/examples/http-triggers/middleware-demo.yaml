@@ -42,4 +42,5 @@ agents:
           }
         }
 
-output: $process-request
+output:
+  result: ${process-request.output}

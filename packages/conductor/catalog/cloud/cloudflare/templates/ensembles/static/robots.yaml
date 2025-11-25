@@ -48,7 +48,7 @@ flow:
       sitemap: ${input.sitemap}
 
 # Default configuration
-inputs:
+input:
   disallowAll:
     type: boolean
     required: false

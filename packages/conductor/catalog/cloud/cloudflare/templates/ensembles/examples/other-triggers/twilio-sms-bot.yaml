@@ -4,18 +4,15 @@
 name: sms-support-bot
 description: AI-powered SMS support bot that responds to customer inquiries
 
-# Custom trigger type registered by the Twilio plugin!
+# Webhook trigger for Twilio SMS
 trigger:
-  - type: twilio:sms
+  - type: webhook
     path: /twilio/sms/support
+    methods: [POST]
     auth:
-      accountSid: ${env.TWILIO_ACCOUNT_SID}
-      authToken: ${env.TWILIO_AUTH_TOKEN}
-    filter:
-      to: ["+1234567890"]  # Only respond to messages sent to this number
-    autoReply:
-      enabled: true
-      # Reply message will come from ensemble output
+      type: signature
+      secret: ${env.TWILIO_AUTH_TOKEN}
+    public: false
 
 agents:
   # Classify the intent of the SMS
@@ -84,4 +81,6 @@ input:
   message: null
   from: null
 
-output: $format-sms-reply
+output:
+  reply: ${format-sms-reply.output.reply}
+  timestamp: ${format-sms-reply.output.timestamp}

@@ -339,4 +339,5 @@ input:
   siteName: Conductor
   tagline: Edge-native orchestration for AI agents
 
-output: $render-homepage
+output:
+  html: ${render-homepage.output}

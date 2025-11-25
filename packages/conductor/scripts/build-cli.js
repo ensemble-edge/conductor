@@ -31,8 +31,12 @@ async function build() {
 			},
 			external: [
 				// Don't bundle these, they should be installed as dependencies
+				'archiver',
 				'chalk',
 				'commander',
+				'glob',
+				'tar',
+				'unzipper',
 				'yaml'
 			],
 			define: {

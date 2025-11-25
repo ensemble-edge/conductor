@@ -55,8 +55,7 @@ describe('Phase 1: Installation', () => {
   it('should initialize project with conductor init', async () => {
     await project.init()
 
-    // Verify key directories exist
-    expect(await project.exists('pages')).toBe(true)
+    // Verify key directories exist (pages deprecated, functionality moved to ensembles)
     expect(await project.exists('agents')).toBe(true)
     expect(await project.exists('ensembles')).toBe(true)
     expect(await project.exists('tests')).toBe(true)
@@ -124,13 +123,13 @@ describe('Phase 1: Installation', () => {
   }, 60000) // 1 minute
 
   it('should have examples in the template', async () => {
-    // Check for example pages
-    expect(await project.exists('pages/examples')).toBe(true)
+    // Check for example ensembles (pages deprecated, functionality moved to ensembles)
+    expect(await project.exists('ensembles/examples')).toBe(true)
 
     // Check for example agents
     expect(await project.exists('agents/examples/hello')).toBe(true)
 
-    // Check for example ensemble
+    // Check for hello-world ensemble
     expect(await project.exists('ensembles/hello-world.yaml')).toBe(true)
 
     console.log('✅ Template examples verified')

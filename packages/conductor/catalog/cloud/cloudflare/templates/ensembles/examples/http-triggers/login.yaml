@@ -271,4 +271,5 @@ agents:
       success: $authenticate.success
       redirectTo: $authenticate.redirectTo
 
-output: $render-login
+output:
+  html: ${render-login.output}

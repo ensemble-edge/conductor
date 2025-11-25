@@ -7,7 +7,20 @@
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { Parser, type EnsembleConfig, type AgentConfig } from '../runtime/parser.js'
+import {
+  Parser,
+  type EnsembleConfig,
+  type AgentConfig,
+  type AgentFlowStep,
+  type FlowStepType,
+} from '../runtime/parser.js'
+
+/**
+ * Type guard to check if a flow step is an agent step
+ */
+function isAgentStep(step: FlowStepType): step is AgentFlowStep {
+  return 'agent' in step && typeof (step as AgentFlowStep).agent === 'string'
+}
 import YAML from 'yaml'
 
 export interface OpenAPISpec {
@@ -171,7 +184,7 @@ export class OpenAPIGenerator {
         if (file.endsWith('.yaml') || file.endsWith('.yml')) {
           const filePath = path.join(ensemblesPath, file)
           const content = await fs.readFile(filePath, 'utf-8')
-          const ensemble = YAML.parse(content) as EnsembleConfig
+          const ensemble = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as EnsembleConfig
           this.ensembles.set(ensemble.name, ensemble)
         }
       }
@@ -191,7 +204,7 @@ export class OpenAPIGenerator {
           const memberYamlPath = path.join(membersPath, dir.name, 'agent.yaml')
           try {
             const content = await fs.readFile(memberYamlPath, 'utf-8')
-            const agent = YAML.parse(content) as AgentConfig
+            const agent = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as AgentConfig
             this.agents.set(agent.name, agent)
           } catch {
             // Agent might not have agent.yaml
@@ -338,7 +351,10 @@ export class OpenAPIGenerator {
     }
 
     const stepCount = ensemble.flow.length
-    const memberNames = ensemble.flow.map((step) => step.agent).join(', ')
+    const memberNames = ensemble.flow
+      .filter(isAgentStep)
+      .map((step) => step.agent)
+      .join(', ')
 
     return `Executes ${stepCount} step${stepCount > 1 ? 's' : ''}: ${memberNames}`
   }
@@ -352,7 +368,8 @@ export class OpenAPIGenerator {
 
     if (ensemble.flow) {
       for (const step of ensemble.flow) {
-        if (step.input) {
+        // Only agent steps have input mappings
+        if (isAgentStep(step) && step.input) {
           // Extract input variable references (${input.xxx})
           const inputStr = JSON.stringify(step.input)
           const matches = inputStr.matchAll(/\$\{input\.(\w+)\}/g)

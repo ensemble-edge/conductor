@@ -45,7 +45,7 @@ flow:
 # Default URLs - typically generated dynamically from your pages/content
 # In a real application, you would use a Data agent to query your content
 # and map results to sitemap URL format
-inputs:
+input:
   urls:
     type: array
     required: false

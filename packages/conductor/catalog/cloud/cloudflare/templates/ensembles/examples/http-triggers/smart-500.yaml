@@ -347,4 +347,5 @@ input:
     alertEmail: alerts@example.com
     dashboardUrl: https://dashboard.example.com
 
-output: $render-500
+output:
+  html: ${render-500.output}

@@ -5,7 +5,21 @@
  * Makes all error cases explicit and checked at compile time.
  */
 
-import { Parser, type EnsembleConfig, type FlowStep, type AgentConfig } from './parser.js'
+import {
+  Parser,
+  type EnsembleConfig,
+  type FlowStep,
+  type AgentConfig,
+  type AgentFlowStep,
+  type FlowStepType,
+} from './parser.js'
+
+/**
+ * Type guard to check if a flow step is an agent step (not a control flow step)
+ */
+function isAgentStep(step: FlowStepType): step is AgentFlowStep {
+  return 'agent' in step && typeof (step as AgentFlowStep).agent === 'string'
+}
 import { StateManager, type AccessReport, type AccessLogEntry } from './state-manager.js'
 import type { BaseAgent, AgentExecutionContext, AgentResponse } from '../agents/base-agent.js'
 import type { ConductorEnv } from '../types/env.js'
@@ -285,10 +299,11 @@ export class Executor {
 
   /**
    * Execute a single flow step with all associated logic
+   * Only handles AgentFlowStep - control flow steps should use GraphExecutor
    * @private
    */
   private async executeStep(
-    step: FlowStep,
+    step: AgentFlowStep,
     flowContext: FlowExecutionContext,
     stepIndex: number
   ): AsyncResult<void, ConductorError> {
@@ -310,9 +325,14 @@ export class Executor {
       resolvedInput = Parser.resolveInterpolation(step.input, executionContext)
     } else if (stepIndex > 0 && ensemble.flow) {
       // Default to previous agent's output for chaining
-      const previousAgentName = ensemble.flow[stepIndex - 1].agent
-      const previousResult = executionContext[previousAgentName] as AgentExecutionResult | undefined
-      resolvedInput = previousResult?.output || {}
+      const previousStep = ensemble.flow[stepIndex - 1]
+      const previousAgentName = isAgentStep(previousStep) ? previousStep.agent : undefined
+      if (previousAgentName) {
+        const previousResult = executionContext[previousAgentName] as AgentExecutionResult | undefined
+        resolvedInput = previousResult?.output || {}
+      } else {
+        resolvedInput = executionContext.input || {}
+      }
     } else {
       // First step with no input - use original ensemble input
       resolvedInput = executionContext.input || {}
@@ -541,6 +561,22 @@ export class Executor {
 
     for (let i = startStep; i < ensemble.flow.length; i++) {
       const step = ensemble.flow[i]
+
+      // Only process agent steps - control flow steps (parallel, branch, etc.)
+      // should use GraphExecutor for proper handling
+      if (!isAgentStep(step)) {
+        return Result.err(
+          new EnsembleExecutionError(
+            ensemble.name,
+            'flow',
+            new Error(
+              `Control flow step type "${(step as { type?: string }).type}" requires GraphExecutor. ` +
+                `Use GraphExecutor.execute() for ensembles with parallel, branch, foreach, try, switch, while, or map-reduce steps.`
+            )
+          )
+        )
+      }
+
       const stepResult = await this.executeStep(step, flowContext, i)
 
       if (!stepResult.success) {
@@ -563,9 +599,14 @@ export class Executor {
       finalOutput = Parser.resolveInterpolation(ensemble.output, executionContext)
     } else if (ensemble.flow.length > 0) {
       // Default to last agent's output
-      const lastMemberName = ensemble.flow[ensemble.flow.length - 1].agent
-      const lastResult = executionContext[lastMemberName] as AgentExecutionResult | undefined
-      finalOutput = lastResult?.output
+      const lastStep = ensemble.flow[ensemble.flow.length - 1]
+      const lastMemberName = isAgentStep(lastStep) ? lastStep.agent : undefined
+      if (lastMemberName) {
+        const lastResult = executionContext[lastMemberName] as AgentExecutionResult | undefined
+        finalOutput = lastResult?.output
+      } else {
+        finalOutput = {}
+      }
     } else {
       // No flow steps - return empty
       finalOutput = {}

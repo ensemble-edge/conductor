@@ -140,4 +140,5 @@ agents:
 input:
   message: null
 
-output: $render-401
+output:
+  html: ${render-401.output}

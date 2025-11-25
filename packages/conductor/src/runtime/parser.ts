@@ -12,6 +12,243 @@ import type { ResolutionContext } from './interpolation/index.js'
 import { Operation } from '../types/constants.js'
 
 /**
+ * Base schema for agent flow steps (the most common type)
+ */
+const AgentFlowStepSchema = z.object({
+  agent: z.string().min(1, 'Agent name is required'),
+  id: z.string().optional(),
+  input: z.record(z.unknown()).optional(),
+  state: z
+    .object({
+      use: z.array(z.string()).optional(),
+      set: z.array(z.string()).optional(),
+    })
+    .optional(),
+  cache: z
+    .object({
+      ttl: z.number().positive().optional(),
+      bypass: z.boolean().optional(),
+    })
+    .optional(),
+  scoring: z
+    .object({
+      evaluator: z.string().min(1),
+      thresholds: z
+        .object({
+          minimum: z.number().min(0).max(1).optional(),
+          target: z.number().min(0).max(1).optional(),
+          excellent: z.number().min(0).max(1).optional(),
+        })
+        .optional(),
+      criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
+      onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
+      retryLimit: z.number().positive().optional(),
+      requireImprovement: z.boolean().optional(),
+      minImprovement: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
+  condition: z.unknown().optional(),
+  when: z.unknown().optional(), // Alias for condition
+  depends_on: z.array(z.string()).optional(),
+  retry: z
+    .object({
+      attempts: z.number().positive().optional(),
+      backoff: z.enum(['linear', 'exponential', 'fixed']).optional(),
+      initialDelay: z.number().positive().optional(),
+      maxDelay: z.number().positive().optional(),
+      retryOn: z.array(z.string()).optional(),
+    })
+    .optional(),
+  timeout: z.number().positive().optional(),
+  onTimeout: z
+    .object({
+      fallback: z.unknown().optional(),
+      error: z.boolean().optional(),
+    })
+    .optional(),
+})
+
+/**
+ * Parallel execution step - runs multiple steps concurrently
+ */
+const ParallelFlowStepSchema = z.object({
+  type: z.literal('parallel'),
+  steps: z.array(z.lazy(() => FlowStepSchema)),
+  waitFor: z.enum(['all', 'any', 'first']).optional(), // Default: 'all'
+})
+
+/**
+ * Branch step - conditional branching with then/else
+ */
+const BranchFlowStepSchema = z.object({
+  type: z.literal('branch'),
+  condition: z.unknown(),
+  then: z.array(z.lazy(() => FlowStepSchema)),
+  else: z.array(z.lazy(() => FlowStepSchema)).optional(),
+})
+
+/**
+ * Foreach step - iterate over items
+ */
+const ForeachFlowStepSchema = z.object({
+  type: z.literal('foreach'),
+  items: z.unknown(), // Expression like ${input.items}
+  maxConcurrency: z.number().positive().optional(),
+  breakWhen: z.unknown().optional(), // Early exit condition
+  step: z.lazy(() => FlowStepSchema),
+})
+
+/**
+ * Try/catch step - error handling
+ */
+const TryFlowStepSchema = z.object({
+  type: z.literal('try'),
+  steps: z.array(z.lazy(() => FlowStepSchema)),
+  catch: z.array(z.lazy(() => FlowStepSchema)).optional(),
+  finally: z.array(z.lazy(() => FlowStepSchema)).optional(),
+})
+
+/**
+ * Switch/case step - multi-way branching
+ */
+const SwitchFlowStepSchema = z.object({
+  type: z.literal('switch'),
+  value: z.unknown(), // Expression to evaluate
+  cases: z.record(z.array(z.lazy(() => FlowStepSchema))),
+  default: z.array(z.lazy(() => FlowStepSchema)).optional(),
+})
+
+/**
+ * While loop step - repeat while condition is true
+ */
+const WhileFlowStepSchema = z.object({
+  type: z.literal('while'),
+  condition: z.unknown(),
+  maxIterations: z.number().positive().optional(), // Safety limit
+  steps: z.array(z.lazy(() => FlowStepSchema)),
+})
+
+/**
+ * Map-reduce step - parallel processing with aggregation
+ */
+const MapReduceFlowStepSchema = z.object({
+  type: z.literal('map-reduce'),
+  items: z.unknown(),
+  maxConcurrency: z.number().positive().optional(),
+  map: z.lazy(() => FlowStepSchema),
+  reduce: z.lazy(() => FlowStepSchema),
+})
+
+/**
+ * TypeScript interfaces for flow steps (used for type casting)
+ */
+export interface AgentFlowStep {
+  agent: string
+  id?: string
+  input?: Record<string, unknown>
+  state?: { use?: string[]; set?: string[] }
+  cache?: { ttl?: number; bypass?: boolean }
+  scoring?: {
+    evaluator: string
+    thresholds?: { minimum?: number; target?: number; excellent?: number }
+    criteria?: Record<string, string> | unknown[]
+    onFailure?: 'retry' | 'continue' | 'abort'
+    retryLimit?: number
+    requireImprovement?: boolean
+    minImprovement?: number
+  }
+  condition?: unknown
+  when?: unknown
+  depends_on?: string[]
+  retry?: {
+    attempts?: number
+    backoff?: 'linear' | 'exponential' | 'fixed'
+    initialDelay?: number
+    maxDelay?: number
+    retryOn?: string[]
+  }
+  timeout?: number
+  onTimeout?: { fallback?: unknown; error?: boolean }
+}
+
+export interface ParallelFlowStep {
+  type: 'parallel'
+  steps: FlowStepType[]
+  waitFor?: 'all' | 'any' | 'first'
+}
+
+export interface BranchFlowStep {
+  type: 'branch'
+  condition: unknown
+  then: FlowStepType[]
+  else?: FlowStepType[]
+}
+
+export interface ForeachFlowStep {
+  type: 'foreach'
+  items: unknown
+  maxConcurrency?: number
+  breakWhen?: unknown
+  step: FlowStepType
+}
+
+export interface TryFlowStep {
+  type: 'try'
+  steps: FlowStepType[]
+  catch?: FlowStepType[]
+  finally?: FlowStepType[]
+}
+
+export interface SwitchFlowStep {
+  type: 'switch'
+  value: unknown
+  cases: Record<string, FlowStepType[]>
+  default?: FlowStepType[]
+}
+
+export interface WhileFlowStep {
+  type: 'while'
+  condition: unknown
+  maxIterations?: number
+  steps: FlowStepType[]
+}
+
+export interface MapReduceFlowStep {
+  type: 'map-reduce'
+  items: unknown
+  maxConcurrency?: number
+  map: FlowStepType
+  reduce: FlowStepType
+}
+
+export type FlowStepType =
+  | AgentFlowStep
+  | ParallelFlowStep
+  | BranchFlowStep
+  | ForeachFlowStep
+  | TryFlowStep
+  | SwitchFlowStep
+  | WhileFlowStep
+  | MapReduceFlowStep
+
+/**
+ * Union of all flow step types
+ * Agent steps don't have a 'type' field, control flow steps do
+ */
+const FlowStepSchema: z.ZodType<FlowStepType> = z.union([
+  // Control flow steps (identified by 'type' field)
+  ParallelFlowStepSchema,
+  BranchFlowStepSchema,
+  ForeachFlowStepSchema,
+  TryFlowStepSchema,
+  SwitchFlowStepSchema,
+  WhileFlowStepSchema,
+  MapReduceFlowStepSchema,
+  // Agent steps (no 'type' field, has 'agent' field)
+  AgentFlowStepSchema,
+]) as z.ZodType<FlowStepType>
+
+/**
  * Schema for validating ensemble configuration
  */
 const EnsembleSchema = z.object({
@@ -206,7 +443,11 @@ const EnsembleSchema = z.object({
         // Outbound email notifications
         z.object({
           type: z.literal('email'),
-          to: z.array(z.string().email()).min(1),
+          // Allow either valid email or env variable placeholder (${env.VAR})
+          to: z.array(z.string().refine(
+            (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
+            { message: 'Must be a valid email or environment variable (${env.VAR})' }
+          )).min(1),
           events: z
             .array(
               z.enum([
@@ -220,51 +461,17 @@ const EnsembleSchema = z.object({
             )
             .min(1),
           subject: z.string().optional(),
-          from: z.string().email().optional(),
+          // Allow either valid email or env variable placeholder
+          from: z.string().refine(
+            (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
+            { message: 'Must be a valid email or environment variable (${env.VAR})' }
+          ).optional(),
         }),
       ])
     )
     .optional(),
   agents: z.array(z.record(z.unknown())).optional(), // Inline agent definitions (legacy/optional)
-  flow: z
-    .array(
-      z.object({
-        agent: z.string().min(1, 'Agent name is required'),
-        id: z.string().optional(),
-        input: z.record(z.unknown()).optional(),
-        state: z
-          .object({
-            use: z.array(z.string()).optional(),
-            set: z.array(z.string()).optional(),
-          })
-          .optional(),
-        cache: z
-          .object({
-            ttl: z.number().positive().optional(),
-            bypass: z.boolean().optional(),
-          })
-          .optional(),
-        scoring: z
-          .object({
-            evaluator: z.string().min(1),
-            thresholds: z
-              .object({
-                minimum: z.number().min(0).max(1).optional(),
-                target: z.number().min(0).max(1).optional(),
-                excellent: z.number().min(0).max(1).optional(),
-              })
-              .optional(),
-            criteria: z.union([z.record(z.string()), z.array(z.unknown())]).optional(),
-            onFailure: z.enum(['retry', 'continue', 'abort']).optional(),
-            retryLimit: z.number().positive().optional(),
-            requireImprovement: z.boolean().optional(),
-            minImprovement: z.number().min(0).max(1).optional(),
-          })
-          .optional(),
-        condition: z.unknown().optional(),
-      })
-    )
-    .optional(),
+  flow: z.array(z.lazy(() => FlowStepSchema)).optional(),
   inputs: z.record(z.unknown()).optional(), // Input schema definition
   output: z.record(z.unknown()).optional(),
 })
@@ -286,6 +493,7 @@ const AgentSchema = z.object({
     Operation.pdf,
     Operation.queue,
     Operation.docs,
+    Operation.autorag,
   ]),
   description: z.string().optional(),
   config: z.record(z.unknown()).optional(),
@@ -299,7 +507,8 @@ const AgentSchema = z.object({
 
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>
 export type AgentConfig = z.infer<typeof AgentSchema>
-export type FlowStep = NonNullable<EnsembleConfig['flow']>[number]
+// FlowStep is the union of all flow step types (for backwards compatibility)
+export type FlowStep = FlowStepType
 export type TriggerConfig = NonNullable<EnsembleConfig['trigger']>[number]
 export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number]
 
@@ -323,7 +532,8 @@ export class Parser {
    */
   static parseEnsemble(yamlContent: string): EnsembleConfig {
     try {
-      const parsed = YAML.parse(yamlContent)
+      // Use customTags to handle Handlebars-style templates without warnings
+      const parsed = YAML.parse(yamlContent, { mapAsMap: false, logLevel: 'silent' })
 
       if (!parsed) {
         throw new Error('Empty or invalid YAML content')
@@ -373,7 +583,8 @@ export class Parser {
    */
   static parseAgent(yamlContent: string): AgentConfig {
     try {
-      const parsed = YAML.parse(yamlContent)
+      // Use mapAsMap: false to avoid warnings about complex YAML keys
+      const parsed = YAML.parse(yamlContent, { mapAsMap: false, logLevel: 'silent' })
 
       if (!parsed) {
         throw new Error('Empty or invalid YAML content')
@@ -442,13 +653,65 @@ export class Parser {
 
     const missingAgents: string[] = []
 
-    for (const step of ensemble.flow) {
-      const { name } = this.parseAgentReference(step.agent)
+    // Recursively collect agent references from flow steps
+    const collectAgentRefs = (steps: unknown[]): void => {
+      for (const step of steps) {
+        if (typeof step !== 'object' || step === null) continue
 
-      if (!availableAgents.has(name)) {
-        missingAgents.push(step.agent)
+        const stepObj = step as Record<string, unknown>
+
+        // Agent step - has 'agent' field
+        if ('agent' in stepObj && typeof stepObj.agent === 'string') {
+          const { name } = this.parseAgentReference(stepObj.agent)
+          if (!availableAgents.has(name)) {
+            missingAgents.push(stepObj.agent)
+          }
+        }
+
+        // Control flow steps - recursively check nested steps
+        if ('type' in stepObj) {
+          // Parallel: check steps array
+          if (stepObj.type === 'parallel' && Array.isArray(stepObj.steps)) {
+            collectAgentRefs(stepObj.steps)
+          }
+          // Branch: check then/else arrays
+          if (stepObj.type === 'branch') {
+            if (Array.isArray(stepObj.then)) collectAgentRefs(stepObj.then)
+            if (Array.isArray(stepObj.else)) collectAgentRefs(stepObj.else)
+          }
+          // Foreach: check step
+          if (stepObj.type === 'foreach' && stepObj.step) {
+            collectAgentRefs([stepObj.step])
+          }
+          // Try: check steps/catch/finally
+          if (stepObj.type === 'try') {
+            if (Array.isArray(stepObj.steps)) collectAgentRefs(stepObj.steps)
+            if (Array.isArray(stepObj.catch)) collectAgentRefs(stepObj.catch)
+            if (Array.isArray(stepObj.finally)) collectAgentRefs(stepObj.finally)
+          }
+          // Switch: check cases and default
+          if (stepObj.type === 'switch') {
+            if (typeof stepObj.cases === 'object' && stepObj.cases !== null) {
+              for (const caseSteps of Object.values(stepObj.cases as Record<string, unknown[]>)) {
+                if (Array.isArray(caseSteps)) collectAgentRefs(caseSteps)
+              }
+            }
+            if (Array.isArray(stepObj.default)) collectAgentRefs(stepObj.default)
+          }
+          // While: check steps
+          if (stepObj.type === 'while' && Array.isArray(stepObj.steps)) {
+            collectAgentRefs(stepObj.steps)
+          }
+          // Map-reduce: check map and reduce steps
+          if (stepObj.type === 'map-reduce') {
+            if (stepObj.map) collectAgentRefs([stepObj.map])
+            if (stepObj.reduce) collectAgentRefs([stepObj.reduce])
+          }
+        }
       }
     }
+
+    collectAgentRefs(ensemble.flow)
 
     if (missingAgents.length > 0) {
       throw new Error(
