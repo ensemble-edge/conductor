@@ -19,22 +19,7 @@ agents:
   - name: fetch-user
     operation: code
     config:
-      code: |
-        export default async function fetchUser(input, context) {
-          const { env } = context;
-          const userId = input.userId || 'demo-user';
-
-          // In production, fetch from database
-          // const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
-
-          // Demo data
-          return {
-            id: userId,
-            name: 'Demo User',
-            email: 'demo@example.com',
-            plan: 'Pro',
-          };
-        }
+      script: scripts/examples/http/fetch-user
     input:
       userId: $input.userId
 

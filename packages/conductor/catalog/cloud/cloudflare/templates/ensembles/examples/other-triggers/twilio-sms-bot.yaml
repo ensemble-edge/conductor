@@ -57,22 +57,7 @@ agents:
   - name: format-sms-reply
     operation: code
     config:
-      code: |
-        export default async function formatSmsReply(input, context) {
-          const { response, customerName } = input;
-
-          // Format the reply for SMS (max 160 chars)
-          let reply = response || 'Thank you for contacting us!';
-
-          if (reply.length > 160) {
-            reply = reply.substring(0, 157) + '...';
-          }
-
-          return {
-            reply,
-            timestamp: new Date().toISOString(),
-          };
-        }
+      script: scripts/examples/sms/format-sms-reply
     input:
       response: $handle-support-query.response
       customerName: $handle-support-query.customerName

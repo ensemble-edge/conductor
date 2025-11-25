@@ -1,19 +1,28 @@
 /**
  * Code Agent
  *
- * Executes JavaScript/TypeScript code from KV storage or inline
- * Supports loading scripts via script:// URIs with versioning
+ * Executes JavaScript/TypeScript code from bundled scripts or inline handlers.
+ *
+ * Script Resolution Priority:
+ * 1. Pre-bundled scripts (via script:// URI and global ScriptLoader) - Works in Workers!
+ * 2. Inline handler function (passed in config.handler)
+ * 3. KV-based dynamic loading (DEPRECATED - uses new Function(), blocked in Workers)
+ *
+ * For Cloudflare Workers compatibility, always use bundled scripts:
+ * - Create script files in scripts/ directory
+ * - Reference via script:// URI in ensembles
+ * - Vite plugin bundles them at build time
  */
 
 import { BaseAgent, type AgentExecutionContext } from './base-agent.js'
 import type { AgentConfig } from '../runtime/parser.js'
-import { createComponentLoader } from '../runtime/component-loader.js'
+import { hasGlobalScriptLoader, getGlobalScriptLoader } from '../utils/script-loader.js'
 
 export type FunctionImplementation = (context: AgentExecutionContext) => Promise<unknown> | unknown
 
 interface CodeAgentConfig {
-  script?: string // script:// URI to load from KV
-  handler?: FunctionImplementation // Inline function
+  script?: string // script:// URI to load from bundled scripts
+  handler?: FunctionImplementation // Pre-compiled handler function
   cache?: {
     ttl?: number
     bypass?: boolean
@@ -21,27 +30,23 @@ interface CodeAgentConfig {
 }
 
 /**
- * Code Agent executes JavaScript/TypeScript from KV or inline
+ * Code Agent executes JavaScript/TypeScript from bundled scripts or handlers
  *
- * @example With script URI:
+ * @example With script URI (RECOMMENDED for Workers):
  * ```yaml
  * agents:
  *   - name: transform
  *     operation: code
  *     config:
- *       script: "script://transform-data@v1.0.0"
+ *       script: "script://transforms/csv"
  * ```
  *
- * @example With inline handler (testing):
- * ```yaml
- * agents:
- *   - name: transform
- *     operation: code
- *     config:
- *       handler: |
- *         async function({ input }) {
- *           return { result: input.value * 2 }
- *         }
+ * @example With pre-compiled handler (from agent index.ts):
+ * ```typescript
+ * // agents/my-agent/index.ts
+ * export default async function(context) {
+ *   return { result: context.input.value * 2 }
+ * }
  * ```
  */
 export class CodeAgent extends BaseAgent {
@@ -57,7 +62,7 @@ export class CodeAgent extends BaseAgent {
       throw new Error(`Code agent "${config.name}" requires either a script URI or inline handler`)
     }
 
-    // If inline handler, store it
+    // If inline handler provided, use it directly
     if (this.codeConfig.handler) {
       this.compiledFunction = this.codeConfig.handler
     }
@@ -68,9 +73,9 @@ export class CodeAgent extends BaseAgent {
    */
   protected async run(context: AgentExecutionContext): Promise<unknown> {
     try {
-      // Load script from KV if needed
+      // Resolve script from bundle if needed
       if (!this.compiledFunction && this.codeConfig.script) {
-        this.compiledFunction = await this.loadScript(context)
+        this.compiledFunction = this.loadScript(context)
       }
 
       if (!this.compiledFunction) {
@@ -91,68 +96,49 @@ export class CodeAgent extends BaseAgent {
   }
 
   /**
-   * Load and compile script from KV
+   * Load script from bundled scripts
+   *
+   * Uses the global ScriptLoader which contains pre-bundled scripts
+   * discovered at build time by vite-plugin-script-discovery.
+   *
+   * This approach works in Cloudflare Workers because it doesn't
+   * use new Function() or eval() - scripts are statically imported.
    */
-  private async loadScript(context: AgentExecutionContext): Promise<FunctionImplementation> {
+  private loadScript(context: AgentExecutionContext): FunctionImplementation {
     const scriptUri = this.codeConfig.script
     if (!scriptUri) {
       throw new Error('No script URI provided')
     }
 
-    // Create component loader
-    if (!context.env.COMPONENTS) {
-      throw new Error('COMPONENTS KV namespace not configured')
+    // Check if global script loader is available
+    if (!hasGlobalScriptLoader()) {
+      throw new Error(
+        `Cannot load script "${scriptUri}": Script loader not initialized.\n\n` +
+          `For Cloudflare Workers, scripts must be bundled at build time:\n` +
+          `1. Create your script in scripts/${scriptUri.replace('script://', '')}.ts\n` +
+          `2. Export a default function: export default async function(context) { ... }\n` +
+          `3. Initialize the script loader in your worker entry point:\n\n` +
+          `   import { scriptsMap } from 'virtual:conductor-scripts'\n` +
+          `   import { setGlobalScriptLoader, createScriptLoader } from '@ensemble-edge/conductor'\n` +
+          `   setGlobalScriptLoader(createScriptLoader(scriptsMap))\n\n` +
+          `Note: Dynamic script loading via KV is not supported in Workers due to\n` +
+          `security restrictions (new Function() is blocked).`
+      )
     }
 
-    const componentLoader = createComponentLoader({
-      kv: context.env.COMPONENTS,
-      logger: context.logger,
-    })
+    const scriptLoader = getGlobalScriptLoader()
+    context.logger?.debug('Loading script from bundle', { uri: scriptUri })
 
-    // Load script content
-    context.logger?.debug('Loading script from KV', { uri: scriptUri })
-    const scriptContent = await componentLoader.load(scriptUri, {
-      cache: this.codeConfig.cache,
-    })
-
-    // Compile the script
-    // Scripts should export a default function or return a function
     try {
-      // Try as ES module export
-      const module = new Function(
-        'exports',
-        'context',
-        `
-        ${scriptContent}
-        if (typeof exports.default === 'function') {
-          return exports.default;
-        }
-        throw new Error('Script must export a default function');
-      `
-      )
-
-      const exports: any = {}
-      const fn = module(exports, context)
-
-      if (typeof fn !== 'function') {
-        throw new Error('Script must export a default function')
-      }
-
-      return fn as FunctionImplementation
+      return scriptLoader.resolve(scriptUri)
     } catch (error) {
-      context.logger?.error('Script compilation failed', error as Error, { uri: scriptUri })
-      throw new Error(
-        `Failed to compile script: ${scriptUri}\n` +
-          `Error: ${error instanceof Error ? error.message : String(error)}\n` +
-          `Make sure your script exports a default function:\n` +
-          `  export default async function(context) { ... }`
-      )
+      context.logger?.error('Script resolution failed', error as Error, { uri: scriptUri })
+      throw error
     }
   }
 
   /**
-   * Create a CodeAgent from a config with inline handler
-   * Supports test-style handlers: (input, context?) => result
+   * Create a CodeAgent from a config with script URI or handler
    */
   static fromConfig(config: AgentConfig): CodeAgent | null {
     const codeConfig = config.config as CodeAgentConfig

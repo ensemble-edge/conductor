@@ -84,6 +84,7 @@ export declare class Executor {
     private createAgentFromConfig;
     /**
      * Execute a single flow step with all associated logic
+     * Only handles AgentFlowStep - control flow steps should use GraphExecutor
      * @private
      */
     private executeStep;
@@ -92,6 +93,22 @@ export declare class Executor {
      * @private
      */
     private executeFlow;
+    /**
+     * Register inline agents defined in an ensemble's agents array
+     *
+     * Supports:
+     * 1. script:// URIs - Resolved from bundled scripts (Works in Workers!)
+     * 2. Pre-compiled handlers - Function objects passed in config.handler
+     * 3. Inline code strings - DEPRECATED, only works in test environments
+     *
+     * @private
+     */
+    private registerInlineAgents;
+    /**
+     * Resolve a script:// URI to a handler function from bundled scripts
+     * @private
+     */
+    private resolveScriptHandler;
     /**
      * Execute an ensemble with Result-based error handling
      * @param ensemble - Parsed ensemble configuration

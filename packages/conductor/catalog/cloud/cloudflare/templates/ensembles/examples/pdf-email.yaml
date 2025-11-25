@@ -116,26 +116,9 @@ flow:
 
   # Step 2: Prepare PDF attachment
   - agent: prepare-pdf-attachment
-    operation: function
+    operation: code
     config:
-      handler: |
-        function preparePdfAttachment(context) {
-          const { pdfResult, filename } = context.input;
-
-          // Convert ArrayBuffer to base64
-          const uint8Array = new Uint8Array(pdfResult.pdf);
-          const binaryString = Array.from(uint8Array)
-            .map(byte => String.fromCharCode(byte))
-            .join('');
-          const base64 = btoa(binaryString);
-
-          return {
-            filename: pdfResult.filename || filename || 'document.pdf',
-            content: base64,
-            contentType: 'application/pdf',
-            encoding: 'base64'
-          };
-        }
+      script: scripts/examples/data/prepare-pdf-attachment
     input:
       pdfResult: $generate-pdf
       filename: $input.filename

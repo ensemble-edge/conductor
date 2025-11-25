@@ -1,8 +1,9 @@
 /**
- * Validate Command - Validate and auto-fix YAML ensembles and agents
+ * Validate Command - Validate and auto-fix YAML and TypeScript ensembles and agents
  *
  * Features:
  * - Validates ensemble and agent YAML files against schemas
+ * - Validates TypeScript ensemble and agent files by importing them
  * - Reports detailed errors with file locations
  * - Suggests fixes for common issues
  * - Auto-fixes errors with --fix flag
@@ -15,6 +16,8 @@ import { glob } from 'glob';
 import * as YAML from 'yaml';
 import { Parser } from '../../runtime/parser.js';
 import { z } from 'zod';
+import { isEnsemble } from '../../primitives/ensemble.js';
+import { pathToFileURL } from 'url';
 /**
  * Auto-fix functions for common issues
  */
@@ -226,6 +229,44 @@ async function validateEnsemble(filePath, options) {
         await fs.writeFile(filePath, modifiedContent, 'utf-8');
         content = modifiedContent;
     }
+    // Check for inline code in code operation agents (not supported in Cloudflare Workers)
+    const parsed = YAML.parse(modifiedContent, { mapAsMap: false, logLevel: 'silent' });
+    if (parsed.agents && Array.isArray(parsed.agents)) {
+        for (const agent of parsed.agents) {
+            if (agent.operation === 'code' && agent.config) {
+                // Check for inline code (not allowed)
+                if (typeof agent.config.code === 'string') {
+                    errors.push({
+                        file: filePath,
+                        message: `Agent "${agent.name}": Inline code is not supported in Cloudflare Workers. Use config.script instead.`,
+                        severity: 'error',
+                        fixable: false,
+                        suggestion: `Move the inline code to a script file (e.g., scripts/${agent.name}.ts) and reference it with:\n  config:\n    script: scripts/${agent.name}`,
+                    });
+                }
+                // Check for function reference (not allowed)
+                if (typeof agent.config.function === 'string') {
+                    errors.push({
+                        file: filePath,
+                        message: `Agent "${agent.name}": config.function is deprecated. Use config.script instead.`,
+                        severity: 'error',
+                        fixable: false,
+                        suggestion: `Replace config.function with config.script pointing to a bundled script file`,
+                    });
+                }
+                // Check that script is provided (required for code operations)
+                if (!agent.config.code && !agent.config.script && !agent.config.handler) {
+                    errors.push({
+                        file: filePath,
+                        message: `Agent "${agent.name}": Code operation requires config.script to reference a bundled script`,
+                        severity: 'error',
+                        fixable: false,
+                        suggestion: `Add config.script with a reference to your script:\n  config:\n    script: scripts/your-script`,
+                    });
+                }
+            }
+        }
+    }
     // Now validate against schema
     try {
         Parser.parseEnsemble(content);
@@ -338,6 +379,145 @@ async function validateAgent(filePath, options) {
     };
 }
 /**
+ * Validate a TypeScript ensemble file
+ *
+ * TypeScript ensembles are validated by dynamically importing them
+ * and checking that they export a valid Ensemble instance.
+ */
+async function validateTypeScriptEnsemble(filePath, _options) {
+    const errors = [];
+    try {
+        // Check file exists
+        await fs.access(filePath);
+    }
+    catch (error) {
+        return {
+            file: filePath,
+            valid: false,
+            errors: [
+                {
+                    file: filePath,
+                    message: `Cannot read file: ${error.message}`,
+                    severity: 'error',
+                    fixable: false,
+                },
+            ],
+            fixed: false,
+        };
+    }
+    try {
+        // Dynamically import the TypeScript file
+        // Use pathToFileURL to handle Windows paths and special characters
+        const fileUrl = pathToFileURL(filePath).href;
+        const module = await import(fileUrl);
+        // Check for default export
+        if (!module.default) {
+            errors.push({
+                file: filePath,
+                message: 'TypeScript ensemble must have a default export',
+                severity: 'error',
+                fixable: false,
+                suggestion: 'Add "export default createEnsemble({ ... })" to your file',
+            });
+            return {
+                file: filePath,
+                valid: false,
+                errors,
+                fixed: false,
+            };
+        }
+        const exported = module.default;
+        // Check if it's a valid Ensemble instance
+        if (!isEnsemble(exported)) {
+            // Check if it looks like a config object that should be wrapped
+            if (typeof exported === 'object' && exported !== null && 'name' in exported) {
+                errors.push({
+                    file: filePath,
+                    message: 'Default export is a config object, not an Ensemble instance',
+                    severity: 'error',
+                    fixable: false,
+                    suggestion: 'Wrap your config with createEnsemble(): export default createEnsemble({ ... })',
+                });
+            }
+            else {
+                errors.push({
+                    file: filePath,
+                    message: `Default export is not a valid Ensemble (got ${typeof exported})`,
+                    severity: 'error',
+                    fixable: false,
+                    suggestion: 'Use createEnsemble() to create your ensemble: export default createEnsemble({ ... })',
+                });
+            }
+            return {
+                file: filePath,
+                valid: false,
+                errors,
+                fixed: false,
+            };
+        }
+        // Validate the ensemble has required fields
+        const ensemble = exported;
+        if (!ensemble.name) {
+            errors.push({
+                file: filePath,
+                message: 'Ensemble is missing required "name" field',
+                severity: 'error',
+                fixable: false,
+            });
+        }
+        // Check for steps - either static steps (via .flow getter) or dynamic (via isDynamic flag)
+        const hasStaticSteps = ensemble.flow && ensemble.flow.length > 0;
+        const hasDynamicSteps = ensemble.isDynamic;
+        if (!hasStaticSteps && !hasDynamicSteps) {
+            errors.push({
+                file: filePath,
+                message: 'Ensemble has no steps defined',
+                severity: 'warning',
+                fixable: false,
+                suggestion: 'Add steps to your ensemble using step(), parallel(), branch(), etc.',
+            });
+        }
+        // Check for common issues in static steps
+        if (hasStaticSteps) {
+            const steps = ensemble.flow;
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i];
+                if (!step) {
+                    errors.push({
+                        file: filePath,
+                        message: `Step ${i + 1} is undefined or null`,
+                        severity: 'error',
+                        fixable: false,
+                    });
+                }
+            }
+        }
+    }
+    catch (error) {
+        const errorMessage = error.message;
+        const errorStack = error.stack || '';
+        // Try to extract line number from stack trace
+        const lineMatch = errorStack.match(new RegExp(`${path.basename(filePath)}:(\\d+):(\\d+)`));
+        const line = lineMatch ? parseInt(lineMatch[1], 10) : undefined;
+        const column = lineMatch ? parseInt(lineMatch[2], 10) : undefined;
+        errors.push({
+            file: filePath,
+            line,
+            column,
+            message: `Import/execution error: ${errorMessage}`,
+            severity: 'error',
+            fixable: false,
+            suggestion: 'Check for syntax errors or missing imports in your TypeScript file',
+        });
+    }
+    return {
+        file: filePath,
+        valid: errors.filter((e) => e.severity === 'error').length === 0,
+        errors,
+        fixed: false,
+    };
+}
+/**
  * Format validation results for display
  */
 function formatResults(results, options) {
@@ -387,12 +567,19 @@ function formatResults(results, options) {
     }
     console.log('');
 }
+/**
+ * Determine file format from extension
+ */
+function getFileFormat(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    return ext === '.ts' || ext === '.tsx' ? 'typescript' : 'yaml';
+}
 export function createValidateCommand() {
     const validate = new Command('validate');
     validate
-        .description('Validate ensemble and agent YAML files')
+        .description('Validate ensemble and agent files (YAML and TypeScript)')
         .argument('[paths...]', 'Files or directories to validate (default: ensembles/ and agents/)')
-        .option('--fix', 'Automatically fix fixable issues')
+        .option('--fix', 'Automatically fix fixable issues (YAML only)')
         .option('-q, --quiet', 'Only show errors')
         .option('--format <format>', 'Output format: text or json', 'text')
         .option('--ensembles-dir <dir>', 'Ensembles directory', 'ensembles')
@@ -406,22 +593,24 @@ export function createValidateCommand() {
                 // Default: validate ensembles/ and agents/ directories
                 const ensemblesDir = path.resolve(process.cwd(), options.ensemblesDir || 'ensembles');
                 const agentsDir = path.resolve(process.cwd(), options.agentsDir || 'agents');
-                // Find ensemble files
+                // Find ensemble files (YAML and TypeScript)
                 try {
-                    const ensembleFiles = await glob('**/*.{yaml,yml}', {
+                    const ensembleFiles = await glob('**/*.{yaml,yml,ts}', {
                         cwd: ensemblesDir,
                         absolute: true,
+                        ignore: ['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**'],
                     });
                     filesToValidate.push(...ensembleFiles.map((f) => ({ path: f, type: 'ensemble' })));
                 }
                 catch {
                     // Directory doesn't exist
                 }
-                // Find agent files
+                // Find agent files (YAML and TypeScript)
                 try {
-                    const agentFiles = await glob('**/*.{yaml,yml}', {
+                    const agentFiles = await glob('**/*.{yaml,yml,ts}', {
                         cwd: agentsDir,
                         absolute: true,
+                        ignore: ['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**'],
                     });
                     filesToValidate.push(...agentFiles.map((f) => ({ path: f, type: 'agent' })));
                 }
@@ -435,9 +624,10 @@ export function createValidateCommand() {
                     const resolved = path.resolve(process.cwd(), p);
                     const stat = await fs.stat(resolved);
                     if (stat.isDirectory()) {
-                        const files = await glob('**/*.{yaml,yml}', {
+                        const files = await glob('**/*.{yaml,yml,ts}', {
                             cwd: resolved,
                             absolute: true,
+                            ignore: ['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**'],
                         });
                         // Determine type based on directory name
                         const isAgentsDir = p.includes('agent') || resolved.includes('/agents/');
@@ -457,23 +647,43 @@ export function createValidateCommand() {
                 }
             }
             if (filesToValidate.length === 0) {
-                console.log(chalk.yellow('No YAML files found to validate'));
+                console.log(chalk.yellow('No files found to validate'));
                 console.log('');
                 console.log(chalk.dim('Make sure you have:'));
-                console.log(chalk.dim('  - ensembles/*.yaml'));
-                console.log(chalk.dim('  - agents/*.yaml'));
+                console.log(chalk.dim('  - ensembles/*.yaml or ensembles/*.ts'));
+                console.log(chalk.dim('  - agents/*.yaml or agents/*.ts'));
                 console.log('');
                 return;
             }
             // Validate all files
             if (!options.quiet) {
                 console.log('');
-                console.log(chalk.bold(`Validating ${filesToValidate.length} file(s)...`));
+                const yamlCount = filesToValidate.filter((f) => getFileFormat(f.path) === 'yaml').length;
+                const tsCount = filesToValidate.filter((f) => getFileFormat(f.path) === 'typescript').length;
+                console.log(chalk.bold(`Validating ${filesToValidate.length} file(s)`) +
+                    chalk.dim(` (${yamlCount} YAML, ${tsCount} TypeScript)...`));
             }
             for (const file of filesToValidate) {
-                const result = file.type === 'ensemble'
-                    ? await validateEnsemble(file.path, options)
-                    : await validateAgent(file.path, options);
+                const format = getFileFormat(file.path);
+                let result;
+                if (format === 'typescript') {
+                    // TypeScript files - validate by importing
+                    if (file.type === 'ensemble') {
+                        result = await validateTypeScriptEnsemble(file.path, options);
+                    }
+                    else {
+                        // TODO: Add validateTypeScriptAgent when needed
+                        // For now, treat agent .ts files as ensembles (they use same validation)
+                        result = await validateTypeScriptEnsemble(file.path, options);
+                    }
+                }
+                else {
+                    // YAML files - use schema validation
+                    result =
+                        file.type === 'ensemble'
+                            ? await validateEnsemble(file.path, options)
+                            : await validateAgent(file.path, options);
+                }
                 results.push(result);
             }
             // Display results

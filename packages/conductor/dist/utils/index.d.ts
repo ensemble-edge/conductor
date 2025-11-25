@@ -1,10 +1,12 @@
 /**
  * Utilities - Exports
  *
- * Core utilities for normalization and URL resolution.
+ * Core utilities for normalization, URL resolution, and script loading.
  */
 export { NormalizationRegistry, normalizeURL, normalizeDomain, normalizeCompanyName, normalizeEmail, getGlobalNormalizationRegistry, normalize, } from './normalization.js';
 export type { NormalizerFunction, NormalizerMetadata, NormalizerEntry } from './normalization.js';
 export { URLResolver, resolveURL, isURLReachable } from './url-resolver.js';
 export type { URLResolverOptions, URLResolution } from './url-resolver.js';
+export { createScriptLoader, parseScriptURI, isScriptReference, setGlobalScriptLoader, getGlobalScriptLoader, hasGlobalScriptLoader, } from './script-loader.js';
+export type { ScriptLoader, ScriptHandler } from './script-loader.js';
 //# sourceMappingURL=index.d.ts.map

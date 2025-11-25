@@ -3,6 +3,14 @@
  *
  * Uses composition-based interpolation resolvers.
  * Reduced resolveInterpolation from 42 lines to 1 line via chain of responsibility.
+ *
+ * The parser converts YAML to validated config objects, which can then be
+ * converted to Ensemble instances using ensembleFromConfig().
+ *
+ * Architecture:
+ * - YAML → Parser → EnsembleConfig → ensembleFromConfig() → Ensemble
+ * - TypeScript → createEnsemble() → Ensemble
+ * - Both paths produce identical Ensemble instances
  */
 
 import * as YAML from 'yaml'
@@ -10,6 +18,25 @@ import { z } from 'zod'
 import { getInterpolator } from './interpolation/index.js'
 import type { ResolutionContext } from './interpolation/index.js'
 import { Operation } from '../types/constants.js'
+
+// Import primitive types - the parser produces objects compatible with these
+import type {
+	FlowStepType as PrimitiveFlowStepType,
+	AgentFlowStep as PrimitiveAgentFlowStep,
+	ParallelFlowStep as PrimitiveParallelFlowStep,
+	BranchFlowStep as PrimitiveBranchFlowStep,
+	ForeachFlowStep as PrimitiveForeachFlowStep,
+	TryFlowStep as PrimitiveTryFlowStep,
+	SwitchFlowStep as PrimitiveSwitchFlowStep,
+	WhileFlowStep as PrimitiveWhileFlowStep,
+	MapReduceFlowStep as PrimitiveMapReduceFlowStep,
+} from '../primitives/types.js'
+
+// Import ensemble factory for creating Ensemble instances from parsed config
+import { ensembleFromConfig, Ensemble, isEnsemble } from '../primitives/ensemble.js'
+
+// Re-export for convenience
+export { ensembleFromConfig, Ensemble, isEnsemble }
 
 /**
  * Base schema for agent flow steps (the most common type)
@@ -585,6 +612,31 @@ export class Parser {
         `Failed to parse ensemble YAML: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
     }
+  }
+
+  /**
+   * Parse YAML and return an Ensemble instance
+   *
+   * This is the preferred method for loading ensembles, as it returns
+   * the canonical Ensemble primitive used by both YAML and TypeScript authoring.
+   *
+   * @param yamlContent - Raw YAML string
+   * @returns Ensemble instance
+   *
+   * @example
+   * ```typescript
+   * const yaml = fs.readFileSync('ensemble.yaml', 'utf-8');
+   * const ensemble = Parser.parseEnsembleToInstance(yaml);
+   *
+   * // Ensemble is now identical to one created via createEnsemble()
+   * const steps = await ensemble.resolveSteps(context);
+   * ```
+   */
+  static parseEnsembleToInstance(yamlContent: string): Ensemble {
+    const config = this.parseEnsemble(yamlContent)
+    // Cast to primitive EnsembleConfig - Zod schema is source of truth for runtime validation
+    // The primitive type is simpler (doesn't include function types like rateLimit.key function)
+    return ensembleFromConfig(config as import('../primitives/ensemble.js').EnsembleConfig)
   }
 
   /**

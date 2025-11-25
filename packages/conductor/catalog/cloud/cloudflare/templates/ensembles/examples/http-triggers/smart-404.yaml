@@ -17,24 +17,7 @@ agents:
   - name: track-404
     operation: code
     config:
-      code: |
-        export default async function track404(input, context) {
-          const { env } = context;
-          const { requestedPath, referrer, userAgent } = input;
-
-          // Store in KV for analytics
-          if (env.KV) {
-            const key = `404:${requestedPath}:${Date.now()}`;
-            await env.KV.put(key, JSON.stringify({
-              path: requestedPath,
-              referrer,
-              userAgent,
-              timestamp: new Date().toISOString(),
-            }), { expirationTtl: 86400 * 30 }); // 30 days
-          }
-
-          return { tracked: true };
-        }
+      script: scripts/examples/http/track-404
     input:
       requestedPath: $input.path
       referrer: $input.headers.referer

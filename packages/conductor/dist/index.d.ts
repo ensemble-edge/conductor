@@ -9,6 +9,7 @@ export { Parser } from './runtime/parser.js';
 export { StateManager } from './runtime/state-manager.js';
 export { PluginRegistry, getPluginRegistry, OperationRegistry, getOperationRegistry, type OperationHandler, type OperationContext, type OperationConfig, type OperationMetadata, } from './runtime/plugin-registry.js';
 export { TriggerRegistry, getTriggerRegistry, type TriggerHandler, type TriggerHandlerContext, type TriggerMetadata, } from './runtime/trigger-registry.js';
+export { HttpMiddlewareRegistry, getHttpMiddlewareRegistry, type HttpMiddlewareMetadata, } from './runtime/http-middleware-registry.js';
 export { createLogger } from './observability/index.js';
 export { BaseAgent } from './agents/base-agent.js';
 export { FunctionAgent } from './agents/function-agent.js';
@@ -32,6 +33,22 @@ export type { ConductorPlugin, FunctionalPlugin, LifecyclePlugin, ConductorConfi
 export { isLifecyclePlugin, isFunctionalPlugin, buildPlugin } from './types/plugin.js';
 export { DocsManager, getGlobalDocsManager } from './docs/index.js';
 export type { DocsTemplate, DocsManagerConfig, RenderOptions as DocsRenderOptions, RenderedDocs, } from './docs/index.js';
+export { step, sequence, scriptStep, httpStep, thinkStep, storageStep, dataStep, emailStep, agentStep, } from './primitives/step.js';
+export { parallel, race, branch, ifThen, ifThenElse, switchStep, foreach, map, repeat, whileStep, doWhile, doUntil, tryStep, fallback, mapReduce, } from './primitives/flow.js';
+export { createEnsemble, Ensemble, isEnsemble, ensembleFromConfig } from './primitives/ensemble.js';
+export { createTool, mcpTool, customTool, httpTool, skillTool, toolCollection, Tool, isTool, isToolConfig, } from './primitives/tool.js';
+export { instruction, systemInstruction, userInstruction, assistantInstruction, fileInstruction, templateInstruction, dynamicInstruction, conditionalInstruction, combineInstructions, prompt, Instruction, isInstruction, isInstructionConfig, } from './primitives/instruction.js';
+export { memory, kvMemory, r2Memory, d1Memory, vectorMemory, durableMemory, customMemory, conversationMemory, knowledgeBase, Memory, isMemory, isMemoryConfig, } from './primitives/memory.js';
+export { ref, inputRef, stateRef, envRef, stepRef, contextRef, outputRef, computed, template, parseRef, refMap, Reference, isReference, isComputed, isTemplate, isRefExpression, } from './primitives/reference.js';
+export { suspend, checkpoint, sleep, sleepSeconds, sleepMinutes, sleepUntil, schedule, approval, waitForWebhook, waitForInput, isSuspendStep, isSleepStep, isScheduleStep, isApprovalStep, isAsyncStep, } from './primitives/async.js';
+export { isParallelStep, isAgentStep, isBranchStep, isForeachStep, isTryStep, isSwitchStep, isWhileStep, isMapReduceStep, isFlowControlStep, isControlFlowStep, } from './primitives/types.js';
+export type { Context, FlowStepType, AgentFlowStep, ParallelFlowStep, BranchFlowStep, ForeachFlowStep, TryFlowStep, SwitchFlowStep, WhileFlowStep, MapReduceFlowStep, StepOptions, AgentSchemaConfig, EnsembleHooks, OutputConfig, ParallelOptions, BranchOptions, ForeachOptions, TryOptions, WhileOptions, MapReduceOptions, } from './primitives/types.js';
+export type { EnsembleOptions, EnsembleConfig as PrimitiveEnsembleConfig, TriggerConfig, WebhookTrigger, HttpTrigger, McpTrigger, EmailTrigger, QueueTrigger, CronTrigger, NotificationConfig as PrimitiveNotificationConfig, WebhookNotification, EmailNotification, ScoringConfig, InlineAgentConfig, } from './primitives/ensemble.js';
+export type { ToolConfig, ToolDefinition, ToolParameter, ToolCollection, MCPServerConfig, CustomToolConfig, HTTPToolConfig, SkillToolConfig, } from './primitives/tool.js';
+export type { InstructionConfig, InstructionSource, InstructionContext, } from './primitives/instruction.js';
+export type { MemoryConfig as PrimitiveMemoryConfig, AgentMemoryConfig, MemoryProviderType, MemoryScope, MemoryEntry, VectorMemoryEntry, KVMemoryConfig, R2MemoryConfig, D1MemoryConfig, VectorizeMemoryConfig, DurableObjectMemoryConfig, CustomMemoryConfig, MemoryImplementation, } from './primitives/memory.js';
+export type { ReferenceSource, ReferenceOptions } from './primitives/reference.js';
+export type { SuspensionReason, SuspensionState, SleepConfig, ScheduleConfig as AsyncScheduleConfig, ApprovalConfig, WebhookWaitConfig, SuspendStepConfig, SleepStepConfig, ScheduleStepConfig, ApprovalStepConfig, } from './primitives/async.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *

@@ -1590,7 +1590,7 @@ var init_fetch_agent = __esm({
         };
       }
       sleep(ms) {
-        return new Promise((resolve2) => setTimeout(resolve2, ms));
+        return new Promise((resolve5) => setTimeout(resolve5, ms));
       }
     };
   }
@@ -1986,8 +1986,8 @@ var init_queries = __esm({
 });
 
 // src/cli/index.ts
-import { Command as Command10 } from "commander";
-import chalk10 from "chalk";
+import { Command as Command13 } from "commander";
+import chalk13 from "chalk";
 
 // src/cli/commands/init.ts
 import { Command } from "commander";
@@ -2630,8 +2630,8 @@ var ConductorClient = class {
     const response = await this.request("GET", "/health/live");
     return response.alive;
   }
-  async request(method, path5, body) {
-    const url = `${this.baseUrl}${path5}`;
+  async request(method, path8, body) {
+    const url = `${this.baseUrl}${path8}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     try {
@@ -2676,8 +2676,8 @@ function createExecCommand() {
       if (options.input) {
         input = JSON.parse(options.input);
       } else if (options.file) {
-        const fs6 = await import("fs");
-        const content = fs6.readFileSync(options.file, "utf-8");
+        const fs9 = await import("fs");
+        const content = fs9.readFileSync(options.file, "utf-8");
         input = JSON.parse(content);
       }
       let config = {};
@@ -3430,8 +3430,8 @@ function getErrorMap() {
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path5, errorMaps, issueData } = params;
-  const fullPath = [...path5, ...issueData.path || []];
+  const { data, path: path8, errorMaps, issueData } = params;
+  const fullPath = [...path8, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -3547,11 +3547,11 @@ var errorUtil;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path5, key) {
+  constructor(parent, value, path8, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path5;
+    this._path = path8;
     this._key = key;
   }
   get path() {
@@ -7085,17 +7085,17 @@ var StringResolver = class {
     const handlebarMatch = template.match(this.fullPatternHandlebar);
     const fullMatch = dollarMatch || handlebarMatch;
     if (fullMatch) {
-      const path5 = fullMatch[1].trim();
-      if (!path5) {
+      const path8 = fullMatch[1].trim();
+      if (!path8) {
         return void 0;
       }
-      return this.traversePath(path5, context);
+      return this.traversePath(path8, context);
     }
     const result = template.replace(
       /(\$\{([^}]*)\}|\{\{([^}]*)\}\})/g,
       (match, _full, dollarPath, handlebarPath) => {
-        const path5 = dollarPath !== void 0 ? dollarPath : handlebarPath;
-        const trimmedPath = path5.trim();
+        const path8 = dollarPath !== void 0 ? dollarPath : handlebarPath;
+        const trimmedPath = path8.trim();
         if (!trimmedPath) {
           return "";
         }
@@ -7110,10 +7110,10 @@ var StringResolver = class {
    * Supports: input.text | split(' ') | length
    * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
    */
-  traversePath(path5, context) {
-    const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path5);
+  traversePath(path8, context) {
+    const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path8);
     if (hasSinglePipe) {
-      const parts = path5.split(/(?<!\|)\|(?!\|)/);
+      const parts = path8.split(/(?<!\|)\|(?!\|)/);
       const propertyPath = parts[0].trim();
       let value = this.resolvePropertyPath(propertyPath, context);
       if (parts.length > 1) {
@@ -7124,13 +7124,13 @@ var StringResolver = class {
       }
       return value;
     }
-    return this.resolvePropertyPath(path5, context);
+    return this.resolvePropertyPath(path8, context);
   }
   /**
    * Resolve a simple dot-separated property path
    */
-  resolvePropertyPath(path5, context) {
-    const parts = path5.split(".").map((p) => p.trim());
+  resolvePropertyPath(path8, context) {
+    const parts = path8.split(".").map((p) => p.trim());
     let value = context;
     for (const part of parts) {
       if (value && typeof value === "object" && part in value) {
@@ -7203,7 +7203,197 @@ function getInterpolator() {
   return globalInterpolator;
 }
 
+// src/primitives/ensemble.ts
+var Ensemble = class {
+  constructor(options) {
+    this.name = options.name;
+    this.version = options.version;
+    this.description = options.description;
+    this.agents = options.agents;
+    this.state = options.state;
+    this.scoring = options.scoring;
+    this.trigger = options.trigger;
+    this.notifications = options.notifications;
+    this.inputs = options.inputs;
+    this.output = options.output;
+    if (typeof options.steps === "function") {
+      this.isDynamic = true;
+      this.hooks = {
+        dynamicSteps: options.steps,
+        beforeExecute: options.beforeExecute,
+        afterExecute: options.afterExecute,
+        onError: options.onError
+      };
+    } else {
+      this.isDynamic = false;
+      this.staticSteps = options.steps;
+      this.hooks = {
+        beforeExecute: options.beforeExecute,
+        afterExecute: options.afterExecute,
+        onError: options.onError
+      };
+    }
+  }
+  /**
+   * Resolve steps for execution
+   *
+   * For static ensembles, returns the static steps.
+   * For dynamic ensembles, calls the step generator function.
+   */
+  async resolveSteps(context) {
+    if (this.isDynamic && this.hooks?.dynamicSteps) {
+      return await this.hooks.dynamicSteps(context);
+    }
+    return this.staticSteps ?? [];
+  }
+  /**
+   * Get the flow steps (for backward compatibility)
+   *
+   * Note: For dynamic ensembles, this returns an empty array.
+   * Use resolveSteps() for runtime step resolution.
+   */
+  get flow() {
+    return this.staticSteps ?? [];
+  }
+  /**
+   * Convert to plain config object (for serialization/YAML export)
+   */
+  toConfig() {
+    return {
+      name: this.name,
+      description: this.description,
+      state: this.state,
+      scoring: this.scoring,
+      trigger: this.trigger,
+      notifications: this.notifications,
+      agents: this.agents,
+      flow: this.staticSteps,
+      inputs: this.inputs,
+      output: this.output
+    };
+  }
+};
+function isEnsemble(value) {
+  return value instanceof Ensemble;
+}
+function ensembleFromConfig(config) {
+  return new Ensemble({
+    name: config.name,
+    description: config.description,
+    steps: config.flow ?? [],
+    agents: config.agents,
+    state: config.state,
+    scoring: config.scoring,
+    trigger: config.trigger,
+    notifications: config.notifications,
+    inputs: config.inputs,
+    output: config.output
+  });
+}
+
 // src/runtime/parser.ts
+var AgentFlowStepSchema = external_exports.object({
+  agent: external_exports.string().min(1, "Agent name is required"),
+  id: external_exports.string().optional(),
+  input: external_exports.record(external_exports.unknown()).optional(),
+  state: external_exports.object({
+    use: external_exports.array(external_exports.string()).optional(),
+    set: external_exports.array(external_exports.string()).optional()
+  }).optional(),
+  cache: external_exports.object({
+    ttl: external_exports.number().positive().optional(),
+    bypass: external_exports.boolean().optional()
+  }).optional(),
+  scoring: external_exports.object({
+    evaluator: external_exports.string().min(1),
+    thresholds: external_exports.object({
+      minimum: external_exports.number().min(0).max(1).optional(),
+      target: external_exports.number().min(0).max(1).optional(),
+      excellent: external_exports.number().min(0).max(1).optional()
+    }).optional(),
+    criteria: external_exports.union([external_exports.record(external_exports.string()), external_exports.array(external_exports.unknown())]).optional(),
+    onFailure: external_exports.enum(["retry", "continue", "abort"]).optional(),
+    retryLimit: external_exports.number().positive().optional(),
+    requireImprovement: external_exports.boolean().optional(),
+    minImprovement: external_exports.number().min(0).max(1).optional()
+  }).optional(),
+  condition: external_exports.unknown().optional(),
+  when: external_exports.unknown().optional(),
+  // Alias for condition
+  depends_on: external_exports.array(external_exports.string()).optional(),
+  retry: external_exports.object({
+    attempts: external_exports.number().positive().optional(),
+    backoff: external_exports.enum(["linear", "exponential", "fixed"]).optional(),
+    initialDelay: external_exports.number().positive().optional(),
+    maxDelay: external_exports.number().positive().optional(),
+    retryOn: external_exports.array(external_exports.string()).optional()
+  }).optional(),
+  timeout: external_exports.number().positive().optional(),
+  onTimeout: external_exports.object({
+    fallback: external_exports.unknown().optional(),
+    error: external_exports.boolean().optional()
+  }).optional()
+});
+var ParallelFlowStepSchema = external_exports.object({
+  type: external_exports.literal("parallel"),
+  steps: external_exports.array(external_exports.lazy(() => FlowStepSchema)),
+  waitFor: external_exports.enum(["all", "any", "first"]).optional()
+  // Default: 'all'
+});
+var BranchFlowStepSchema = external_exports.object({
+  type: external_exports.literal("branch"),
+  condition: external_exports.unknown(),
+  then: external_exports.array(external_exports.lazy(() => FlowStepSchema)),
+  else: external_exports.array(external_exports.lazy(() => FlowStepSchema)).optional()
+});
+var ForeachFlowStepSchema = external_exports.object({
+  type: external_exports.literal("foreach"),
+  items: external_exports.unknown(),
+  // Expression like ${input.items}
+  maxConcurrency: external_exports.number().positive().optional(),
+  breakWhen: external_exports.unknown().optional(),
+  // Early exit condition
+  step: external_exports.lazy(() => FlowStepSchema)
+});
+var TryFlowStepSchema = external_exports.object({
+  type: external_exports.literal("try"),
+  steps: external_exports.array(external_exports.lazy(() => FlowStepSchema)),
+  catch: external_exports.array(external_exports.lazy(() => FlowStepSchema)).optional(),
+  finally: external_exports.array(external_exports.lazy(() => FlowStepSchema)).optional()
+});
+var SwitchFlowStepSchema = external_exports.object({
+  type: external_exports.literal("switch"),
+  value: external_exports.unknown(),
+  // Expression to evaluate
+  cases: external_exports.record(external_exports.array(external_exports.lazy(() => FlowStepSchema))),
+  default: external_exports.array(external_exports.lazy(() => FlowStepSchema)).optional()
+});
+var WhileFlowStepSchema = external_exports.object({
+  type: external_exports.literal("while"),
+  condition: external_exports.unknown(),
+  maxIterations: external_exports.number().positive().optional(),
+  // Safety limit
+  steps: external_exports.array(external_exports.lazy(() => FlowStepSchema))
+});
+var MapReduceFlowStepSchema = external_exports.object({
+  type: external_exports.literal("map-reduce"),
+  items: external_exports.unknown(),
+  maxConcurrency: external_exports.number().positive().optional(),
+  map: external_exports.lazy(() => FlowStepSchema),
+  reduce: external_exports.lazy(() => FlowStepSchema)
+});
+var FlowStepSchema = external_exports.union([
+  // Control flow steps (identified by 'type' field)
+  ParallelFlowStepSchema,
+  BranchFlowStepSchema,
+  ForeachFlowStepSchema,
+  TryFlowStepSchema,
+  SwitchFlowStepSchema,
+  WhileFlowStepSchema,
+  MapReduceFlowStepSchema,
+  // Agent steps (no 'type' field, has 'agent' field)
+  AgentFlowStepSchema
+]);
 var EnsembleSchema = external_exports.object({
   name: external_exports.string().min(1, "Ensemble name is required"),
   description: external_exports.string().optional(),
@@ -7319,8 +7509,8 @@ var EnsembleSchema = external_exports.object({
           tags: external_exports.array(external_exports.string()).optional(),
           keyGenerator: external_exports.function().optional()
         }).optional(),
-        middleware: external_exports.array(external_exports.any()).optional(),
-        // Hono middleware functions
+        middleware: external_exports.array(external_exports.union([external_exports.string(), external_exports.function()])).optional(),
+        // Middleware names or functions
         responses: external_exports.object({
           html: external_exports.object({ enabled: external_exports.boolean() }).optional(),
           json: external_exports.object({
@@ -7370,7 +7560,13 @@ var EnsembleSchema = external_exports.object({
       // Outbound email notifications
       external_exports.object({
         type: external_exports.literal("email"),
-        to: external_exports.array(external_exports.string().email()).min(1),
+        // Allow either valid email or env variable placeholder (${env.VAR})
+        to: external_exports.array(
+          external_exports.string().refine(
+            (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
+            { message: "Must be a valid email or environment variable (${env.VAR})" }
+          )
+        ).min(1),
         events: external_exports.array(
           external_exports.enum([
             "execution.started",
@@ -7382,39 +7578,19 @@ var EnsembleSchema = external_exports.object({
           ])
         ).min(1),
         subject: external_exports.string().optional(),
-        from: external_exports.string().email().optional()
+        // Allow either valid email or env variable placeholder
+        from: external_exports.string().refine(
+          (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
+          { message: "Must be a valid email or environment variable (${env.VAR})" }
+        ).optional()
       })
     ])
   ).optional(),
-  flow: external_exports.array(
-    external_exports.object({
-      agent: external_exports.string().min(1, "Agent name is required"),
-      id: external_exports.string().optional(),
-      input: external_exports.record(external_exports.unknown()).optional(),
-      state: external_exports.object({
-        use: external_exports.array(external_exports.string()).optional(),
-        set: external_exports.array(external_exports.string()).optional()
-      }).optional(),
-      cache: external_exports.object({
-        ttl: external_exports.number().positive().optional(),
-        bypass: external_exports.boolean().optional()
-      }).optional(),
-      scoring: external_exports.object({
-        evaluator: external_exports.string().min(1),
-        thresholds: external_exports.object({
-          minimum: external_exports.number().min(0).max(1).optional(),
-          target: external_exports.number().min(0).max(1).optional(),
-          excellent: external_exports.number().min(0).max(1).optional()
-        }).optional(),
-        criteria: external_exports.union([external_exports.record(external_exports.string()), external_exports.array(external_exports.unknown())]).optional(),
-        onFailure: external_exports.enum(["retry", "continue", "abort"]).optional(),
-        retryLimit: external_exports.number().positive().optional(),
-        requireImprovement: external_exports.boolean().optional(),
-        minImprovement: external_exports.number().min(0).max(1).optional()
-      }).optional(),
-      condition: external_exports.unknown().optional()
-    })
-  ),
+  agents: external_exports.array(external_exports.record(external_exports.unknown())).optional(),
+  // Inline agent definitions (legacy/optional)
+  flow: external_exports.array(external_exports.lazy(() => FlowStepSchema)).optional(),
+  inputs: external_exports.record(external_exports.unknown()).optional(),
+  // Input schema definition
   output: external_exports.record(external_exports.unknown()).optional()
 });
 var AgentSchema = external_exports.object({
@@ -7433,7 +7609,8 @@ var AgentSchema = external_exports.object({
     "html" /* html */,
     "pdf" /* pdf */,
     "queue" /* queue */,
-    "docs" /* docs */
+    "docs" /* docs */,
+    "autorag" /* autorag */
   ]),
   description: external_exports.string().optional(),
   config: external_exports.record(external_exports.unknown()).optional(),
@@ -7451,11 +7628,24 @@ var Parser = class {
    */
   static parseEnsemble(yamlContent) {
     try {
-      const parsed = YAML.parse(yamlContent);
+      const parsed = YAML.parse(yamlContent, { mapAsMap: false, logLevel: "silent" });
       if (!parsed) {
         throw new Error("Empty or invalid YAML content");
       }
       const validated = EnsembleSchema.parse(parsed);
+      if (!validated.flow && validated.agents && validated.agents.length > 0) {
+        validated.flow = validated.agents.map((agent) => {
+          const name = typeof agent === "object" && agent !== null && "name" in agent ? String(agent.name) : void 0;
+          if (!name) {
+            console.warn(`[Parser] Skipping agent without name in ensemble "${validated.name}"`);
+            return null;
+          }
+          return { agent: name };
+        }).filter((step) => step !== null);
+        console.log(
+          `[Parser] Auto-generated sequential flow for ensemble "${validated.name}" with ${validated.flow.length} agent(s)`
+        );
+      }
       return validated;
     } catch (error) {
       if (error instanceof external_exports.ZodError) {
@@ -7469,11 +7659,33 @@ var Parser = class {
     }
   }
   /**
+   * Parse YAML and return an Ensemble instance
+   *
+   * This is the preferred method for loading ensembles, as it returns
+   * the canonical Ensemble primitive used by both YAML and TypeScript authoring.
+   *
+   * @param yamlContent - Raw YAML string
+   * @returns Ensemble instance
+   *
+   * @example
+   * ```typescript
+   * const yaml = fs.readFileSync('ensemble.yaml', 'utf-8');
+   * const ensemble = Parser.parseEnsembleToInstance(yaml);
+   *
+   * // Ensemble is now identical to one created via createEnsemble()
+   * const steps = await ensemble.resolveSteps(context);
+   * ```
+   */
+  static parseEnsembleToInstance(yamlContent) {
+    const config = this.parseEnsemble(yamlContent);
+    return ensembleFromConfig(config);
+  }
+  /**
    * Parse and validate an agent YAML file
    */
   static parseAgent(yamlContent) {
     try {
-      const parsed = YAML.parse(yamlContent);
+      const parsed = YAML.parse(yamlContent, { mapAsMap: false, logLevel: "silent" });
       if (!parsed) {
         throw new Error("Empty or invalid YAML content");
       }
@@ -7527,13 +7739,55 @@ var Parser = class {
    * Validate that all required agents exist
    */
   static validateAgentReferences(ensemble, availableAgents) {
-    const missingAgents = [];
-    for (const step of ensemble.flow) {
-      const { name } = this.parseAgentReference(step.agent);
-      if (!availableAgents.has(name)) {
-        missingAgents.push(step.agent);
-      }
+    if (!ensemble.flow || ensemble.flow.length === 0) {
+      return;
     }
+    const missingAgents = [];
+    const collectAgentRefs = (steps) => {
+      for (const step of steps) {
+        if (typeof step !== "object" || step === null) continue;
+        const stepObj = step;
+        if ("agent" in stepObj && typeof stepObj.agent === "string") {
+          const { name } = this.parseAgentReference(stepObj.agent);
+          if (!availableAgents.has(name)) {
+            missingAgents.push(stepObj.agent);
+          }
+        }
+        if ("type" in stepObj) {
+          if (stepObj.type === "parallel" && Array.isArray(stepObj.steps)) {
+            collectAgentRefs(stepObj.steps);
+          }
+          if (stepObj.type === "branch") {
+            if (Array.isArray(stepObj.then)) collectAgentRefs(stepObj.then);
+            if (Array.isArray(stepObj.else)) collectAgentRefs(stepObj.else);
+          }
+          if (stepObj.type === "foreach" && stepObj.step) {
+            collectAgentRefs([stepObj.step]);
+          }
+          if (stepObj.type === "try") {
+            if (Array.isArray(stepObj.steps)) collectAgentRefs(stepObj.steps);
+            if (Array.isArray(stepObj.catch)) collectAgentRefs(stepObj.catch);
+            if (Array.isArray(stepObj.finally)) collectAgentRefs(stepObj.finally);
+          }
+          if (stepObj.type === "switch") {
+            if (typeof stepObj.cases === "object" && stepObj.cases !== null) {
+              for (const caseSteps of Object.values(stepObj.cases)) {
+                if (Array.isArray(caseSteps)) collectAgentRefs(caseSteps);
+              }
+            }
+            if (Array.isArray(stepObj.default)) collectAgentRefs(stepObj.default);
+          }
+          if (stepObj.type === "while" && Array.isArray(stepObj.steps)) {
+            collectAgentRefs(stepObj.steps);
+          }
+          if (stepObj.type === "map-reduce") {
+            if (stepObj.map) collectAgentRefs([stepObj.map]);
+            if (stepObj.reduce) collectAgentRefs([stepObj.reduce]);
+          }
+        }
+      }
+    };
+    collectAgentRefs(ensemble.flow);
     if (missingAgents.length > 0) {
       throw new Error(
         `Ensemble "${ensemble.name}" references missing agents: ${missingAgents.join(", ")}`
@@ -7544,6 +7798,9 @@ var Parser = class {
 
 // src/cli/openapi-generator.ts
 import YAML2 from "yaml";
+function isAgentStep(step) {
+  return "agent" in step && typeof step.agent === "string";
+}
 var OpenAPIGenerator = class {
   constructor(projectPath) {
     this.ensembles = /* @__PURE__ */ new Map();
@@ -7574,7 +7831,10 @@ var OpenAPIGenerator = class {
         if (file.endsWith(".yaml") || file.endsWith(".yml")) {
           const filePath = path2.join(ensemblesPath, file);
           const content = await fs2.readFile(filePath, "utf-8");
-          const ensemble = YAML2.parse(content);
+          const ensemble = YAML2.parse(content, {
+            mapAsMap: false,
+            logLevel: "silent"
+          });
           this.ensembles.set(ensemble.name, ensemble);
         }
       }
@@ -7589,7 +7849,10 @@ var OpenAPIGenerator = class {
           const memberYamlPath = path2.join(membersPath, dir.name, "agent.yaml");
           try {
             const content = await fs2.readFile(memberYamlPath, "utf-8");
-            const agent = YAML2.parse(content);
+            const agent = YAML2.parse(content, {
+              mapAsMap: false,
+              logLevel: "silent"
+            });
             this.agents.set(agent.name, agent);
           } catch {
           }
@@ -7710,8 +7973,11 @@ var OpenAPIGenerator = class {
     if (ensemble.description) {
       return ensemble.description;
     }
+    if (!ensemble.flow || ensemble.flow.length === 0) {
+      return "No flow steps defined";
+    }
     const stepCount = ensemble.flow.length;
-    const memberNames = ensemble.flow.map((step) => step.agent).join(", ");
+    const memberNames = ensemble.flow.filter(isAgentStep).map((step) => step.agent).join(", ");
     return `Executes ${stepCount} step${stepCount > 1 ? "s" : ""}: ${memberNames}`;
   }
   /**
@@ -7719,12 +7985,14 @@ var OpenAPIGenerator = class {
    */
   generateInputSchema(ensemble) {
     const inputRefs = /* @__PURE__ */ new Set();
-    for (const step of ensemble.flow) {
-      if (step.input) {
-        const inputStr = JSON.stringify(step.input);
-        const matches = inputStr.matchAll(/\$\{input\.(\w+)\}/g);
-        for (const match of matches) {
-          inputRefs.add(match[1]);
+    if (ensemble.flow) {
+      for (const step of ensemble.flow) {
+        if (isAgentStep(step) && step.input) {
+          const inputStr = JSON.stringify(step.input);
+          const matches = inputStr.matchAll(/\$\{input\.(\w+)\}/g);
+          for (const match of matches) {
+            inputRefs.add(match[1]);
+          }
         }
       }
     }
@@ -8284,7 +8552,7 @@ function createDocsCommand() {
       console.log(chalk4.bold("\u{1F50D} Validating OpenAPI specification..."));
       console.log("");
       const content = await fs4.readFile(file, "utf-8");
-      const spec = file.endsWith(".json") ? JSON.parse(content) : YAML3.parse(content);
+      const spec = file.endsWith(".json") ? JSON.parse(content) : YAML3.parse(content, { mapAsMap: false, logLevel: "silent" });
       const errors = [];
       if (!spec.openapi) {
         errors.push("Missing openapi version");
@@ -8773,9 +9041,9 @@ function createReplayCommand() {
                 }
               }
               if (options.stepByStep && i < record.steps.length - 1) {
-                await new Promise((resolve2) => {
+                await new Promise((resolve5) => {
                   console.log(chalk8.yellow("Press Enter to continue..."));
-                  process.stdin.once("data", () => resolve2());
+                  process.stdin.once("data", () => resolve5());
                 });
               }
             }
@@ -8893,24 +9161,1281 @@ function createHistoryCommand() {
   return history;
 }
 
+// src/cli/commands/validate.ts
+import { Command as Command10 } from "commander";
+import chalk10 from "chalk";
+import * as fs6 from "fs/promises";
+import * as path5 from "path";
+import { glob } from "glob";
+import * as YAML4 from "yaml";
+import { pathToFileURL as pathToFileURL2 } from "url";
+var autoFixes = {
+  /**
+   * Fix output: $agent-name to output: { result: ${agent-name.output} }
+   */
+  async fixOutputSyntax(filePath, content, agentName) {
+    const pattern = new RegExp(`^output:\\s*\\$${agentName}\\s*$`, "m");
+    return content.replace(pattern, `output:
+  result: \${${agentName}.output}`);
+  },
+  /**
+   * Fix inputs: to input: (schema field name)
+   */
+  async fixInputsToInput(content) {
+    return content.replace(/^inputs:/gm, "input:");
+  },
+  /**
+   * Fix outputs: to output: (schema field name)
+   */
+  async fixOutputsToOutput(content) {
+    return content.replace(/^outputs:/gm, "output:");
+  },
+  /**
+   * Add missing flow field for ensembles with agents but no flow
+   */
+  async addMissingFlow(content, agentNames) {
+    if (/^flow:/m.test(content)) {
+      return content;
+    }
+    const flowYaml = agentNames.map((name) => `  - agent: ${name}`).join("\n");
+    const agentsMatch = content.match(/^agents:[\s\S]*?(?=^[a-z]|\Z)/m);
+    if (agentsMatch) {
+      const insertPos = (agentsMatch.index || 0) + agentsMatch[0].length;
+      return content.slice(0, insertPos) + `
+flow:
+${flowYaml}
+` + content.slice(insertPos);
+    }
+    return content + `
+flow:
+${flowYaml}
+`;
+  },
+  /**
+   * Fix YAML indentation issues
+   */
+  async fixIndentation(content) {
+    try {
+      const parsed = YAML4.parse(content, { mapAsMap: false, logLevel: "silent" });
+      return YAML4.stringify(parsed, { indent: 2 });
+    } catch {
+      return content;
+    }
+  },
+  /**
+   * Fix unquoted Handlebars expressions that YAML interprets as flow mappings
+   * e.g., `title: {{title}}` becomes `title: "{{title}}"`
+   */
+  async fixUnquotedHandlebars(content) {
+    return content.replace(/^(\s*)(\w+):\s+({{[^}]+}})\s*$/gm, '$1$2: "$3"');
+  }
+};
+async function validateEnsemble(filePath, options) {
+  const errors = [];
+  let content;
+  let fixed = false;
+  try {
+    content = await fs6.readFile(filePath, "utf-8");
+  } catch (error) {
+    return {
+      file: filePath,
+      valid: false,
+      errors: [
+        {
+          file: filePath,
+          message: `Cannot read file: ${error.message}`,
+          severity: "error",
+          fixable: false
+        }
+      ],
+      fixed: false
+    };
+  }
+  try {
+    YAML4.parse(content, { mapAsMap: false, logLevel: "silent" });
+  } catch (error) {
+    const yamlError = error;
+    return {
+      file: filePath,
+      valid: false,
+      errors: [
+        {
+          file: filePath,
+          line: yamlError.linePos?.[0]?.line,
+          column: yamlError.linePos?.[0]?.col,
+          message: `YAML syntax error: ${yamlError.message}`,
+          severity: "error",
+          fixable: false,
+          suggestion: "Check YAML indentation and syntax"
+        }
+      ],
+      fixed: false
+    };
+  }
+  let modifiedContent = content;
+  if (/^inputs:/m.test(content)) {
+    errors.push({
+      file: filePath,
+      message: 'Found "inputs:" - should be "input:"',
+      severity: "warning",
+      fixable: true,
+      suggestion: 'Rename "inputs:" to "input:"'
+    });
+    if (options.fix) {
+      modifiedContent = await autoFixes.fixInputsToInput(modifiedContent);
+      fixed = true;
+    }
+  }
+  if (/^outputs:/m.test(content)) {
+    errors.push({
+      file: filePath,
+      message: 'Found "outputs:" - should be "output:"',
+      severity: "warning",
+      fixable: true,
+      suggestion: 'Rename "outputs:" to "output:"'
+    });
+    if (options.fix) {
+      modifiedContent = await autoFixes.fixOutputsToOutput(modifiedContent);
+      fixed = true;
+    }
+  }
+  const outputMatch = content.match(/^output:\s*\$([a-zA-Z0-9_-]+)\s*$/m);
+  if (outputMatch) {
+    const agentName = outputMatch[1];
+    errors.push({
+      file: filePath,
+      message: `Invalid output syntax: "output: $${agentName}" - must be an object`,
+      severity: "error",
+      fixable: true,
+      suggestion: `Change to:
+output:
+  result: \${${agentName}.output}`
+    });
+    if (options.fix) {
+      modifiedContent = await autoFixes.fixOutputSyntax(filePath, modifiedContent, agentName);
+      fixed = true;
+    }
+  }
+  const lines = content.split("\n");
+  let inMultilineString = false;
+  let multilineIndent = 0;
+  const unquotedHandlebarsLines = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (/^\w+:\s*[|>]/.test(trimmed)) {
+      inMultilineString = true;
+      multilineIndent = line.search(/\S/);
+      continue;
+    }
+    if (inMultilineString) {
+      const currentIndent = line.search(/\S/);
+      if (currentIndent !== -1 && currentIndent <= multilineIndent && trimmed !== "") {
+        inMultilineString = false;
+      } else {
+        continue;
+      }
+    }
+    if (/^\s*\w+:\s+{{[^}]+}}\s*$/.test(line) && !line.includes('"') && !line.includes("'")) {
+      unquotedHandlebarsLines.push(trimmed);
+    }
+  }
+  if (unquotedHandlebarsLines.length > 0) {
+    for (const match of unquotedHandlebarsLines) {
+      errors.push({
+        file: filePath,
+        message: `Unquoted Handlebars expression: "${match}" - YAML interprets {{}} as a flow mapping`,
+        severity: "warning",
+        fixable: true,
+        suggestion: 'Quote Handlebars expressions: title: "{{title}}"'
+      });
+    }
+    if (options.fix) {
+      modifiedContent = await autoFixes.fixUnquotedHandlebars(modifiedContent);
+      fixed = true;
+    }
+  }
+  if (fixed && modifiedContent !== content) {
+    await fs6.writeFile(filePath, modifiedContent, "utf-8");
+    content = modifiedContent;
+  }
+  const parsed = YAML4.parse(modifiedContent, { mapAsMap: false, logLevel: "silent" });
+  if (parsed.agents && Array.isArray(parsed.agents)) {
+    for (const agent of parsed.agents) {
+      if (agent.operation === "code" && agent.config) {
+        if (typeof agent.config.code === "string") {
+          errors.push({
+            file: filePath,
+            message: `Agent "${agent.name}": Inline code is not supported in Cloudflare Workers. Use config.script instead.`,
+            severity: "error",
+            fixable: false,
+            suggestion: `Move the inline code to a script file (e.g., scripts/${agent.name}.ts) and reference it with:
+  config:
+    script: scripts/${agent.name}`
+          });
+        }
+        if (typeof agent.config.function === "string") {
+          errors.push({
+            file: filePath,
+            message: `Agent "${agent.name}": config.function is deprecated. Use config.script instead.`,
+            severity: "error",
+            fixable: false,
+            suggestion: `Replace config.function with config.script pointing to a bundled script file`
+          });
+        }
+        if (!agent.config.code && !agent.config.script && !agent.config.handler) {
+          errors.push({
+            file: filePath,
+            message: `Agent "${agent.name}": Code operation requires config.script to reference a bundled script`,
+            severity: "error",
+            fixable: false,
+            suggestion: `Add config.script with a reference to your script:
+  config:
+    script: scripts/your-script`
+          });
+        }
+      }
+    }
+  }
+  try {
+    Parser.parseEnsemble(content);
+  } catch (error) {
+    const errorMessage = error.message;
+    if (error instanceof external_exports.ZodError) {
+      for (const issue of error.issues) {
+        errors.push({
+          file: filePath,
+          message: `${issue.path.join(".")}: ${issue.message}`,
+          severity: "error",
+          fixable: false
+        });
+      }
+    } else {
+      errors.push({
+        file: filePath,
+        message: errorMessage,
+        severity: "error",
+        fixable: false
+      });
+    }
+  }
+  return {
+    file: filePath,
+    valid: errors.filter((e) => e.severity === "error").length === 0,
+    errors,
+    fixed
+  };
+}
+async function validateAgent(filePath, options) {
+  const errors = [];
+  let content;
+  try {
+    content = await fs6.readFile(filePath, "utf-8");
+  } catch (error) {
+    return {
+      file: filePath,
+      valid: false,
+      errors: [
+        {
+          file: filePath,
+          message: `Cannot read file: ${error.message}`,
+          severity: "error",
+          fixable: false
+        }
+      ],
+      fixed: false
+    };
+  }
+  try {
+    YAML4.parse(content, { mapAsMap: false, logLevel: "silent" });
+  } catch (error) {
+    const yamlError = error;
+    return {
+      file: filePath,
+      valid: false,
+      errors: [
+        {
+          file: filePath,
+          line: yamlError.linePos?.[0]?.line,
+          column: yamlError.linePos?.[0]?.col,
+          message: `YAML syntax error: ${yamlError.message}`,
+          severity: "error",
+          fixable: false
+        }
+      ],
+      fixed: false
+    };
+  }
+  try {
+    Parser.parseAgent(content);
+  } catch (error) {
+    const errorMessage = error.message;
+    if (error instanceof external_exports.ZodError) {
+      for (const issue of error.issues) {
+        errors.push({
+          file: filePath,
+          message: `${issue.path.join(".")}: ${issue.message}`,
+          severity: "error",
+          fixable: false
+        });
+      }
+    } else {
+      errors.push({
+        file: filePath,
+        message: errorMessage,
+        severity: "error",
+        fixable: false
+      });
+    }
+  }
+  return {
+    file: filePath,
+    valid: errors.filter((e) => e.severity === "error").length === 0,
+    errors,
+    fixed: false
+  };
+}
+async function validateTypeScriptEnsemble(filePath, _options) {
+  const errors = [];
+  try {
+    await fs6.access(filePath);
+  } catch (error) {
+    return {
+      file: filePath,
+      valid: false,
+      errors: [
+        {
+          file: filePath,
+          message: `Cannot read file: ${error.message}`,
+          severity: "error",
+          fixable: false
+        }
+      ],
+      fixed: false
+    };
+  }
+  try {
+    const fileUrl = pathToFileURL2(filePath).href;
+    const module = await import(fileUrl);
+    if (!module.default) {
+      errors.push({
+        file: filePath,
+        message: "TypeScript ensemble must have a default export",
+        severity: "error",
+        fixable: false,
+        suggestion: 'Add "export default createEnsemble({ ... })" to your file'
+      });
+      return {
+        file: filePath,
+        valid: false,
+        errors,
+        fixed: false
+      };
+    }
+    const exported = module.default;
+    if (!isEnsemble(exported)) {
+      if (typeof exported === "object" && exported !== null && "name" in exported) {
+        errors.push({
+          file: filePath,
+          message: "Default export is a config object, not an Ensemble instance",
+          severity: "error",
+          fixable: false,
+          suggestion: "Wrap your config with createEnsemble(): export default createEnsemble({ ... })"
+        });
+      } else {
+        errors.push({
+          file: filePath,
+          message: `Default export is not a valid Ensemble (got ${typeof exported})`,
+          severity: "error",
+          fixable: false,
+          suggestion: "Use createEnsemble() to create your ensemble: export default createEnsemble({ ... })"
+        });
+      }
+      return {
+        file: filePath,
+        valid: false,
+        errors,
+        fixed: false
+      };
+    }
+    const ensemble = exported;
+    if (!ensemble.name) {
+      errors.push({
+        file: filePath,
+        message: 'Ensemble is missing required "name" field',
+        severity: "error",
+        fixable: false
+      });
+    }
+    const hasStaticSteps = ensemble.flow && ensemble.flow.length > 0;
+    const hasDynamicSteps = ensemble.isDynamic;
+    if (!hasStaticSteps && !hasDynamicSteps) {
+      errors.push({
+        file: filePath,
+        message: "Ensemble has no steps defined",
+        severity: "warning",
+        fixable: false,
+        suggestion: "Add steps to your ensemble using step(), parallel(), branch(), etc."
+      });
+    }
+    if (hasStaticSteps) {
+      const steps = ensemble.flow;
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (!step) {
+          errors.push({
+            file: filePath,
+            message: `Step ${i + 1} is undefined or null`,
+            severity: "error",
+            fixable: false
+          });
+        }
+      }
+    }
+  } catch (error) {
+    const errorMessage = error.message;
+    const errorStack = error.stack || "";
+    const lineMatch = errorStack.match(new RegExp(`${path5.basename(filePath)}:(\\d+):(\\d+)`));
+    const line = lineMatch ? parseInt(lineMatch[1], 10) : void 0;
+    const column = lineMatch ? parseInt(lineMatch[2], 10) : void 0;
+    errors.push({
+      file: filePath,
+      line,
+      column,
+      message: `Import/execution error: ${errorMessage}`,
+      severity: "error",
+      fixable: false,
+      suggestion: "Check for syntax errors or missing imports in your TypeScript file"
+    });
+  }
+  return {
+    file: filePath,
+    valid: errors.filter((e) => e.severity === "error").length === 0,
+    errors,
+    fixed: false
+  };
+}
+function formatResults(results, options) {
+  if (options.format === "json") {
+    console.log(JSON.stringify(results, null, 2));
+    return;
+  }
+  const totalFiles = results.length;
+  const validFiles = results.filter((r) => r.valid).length;
+  const invalidFiles = totalFiles - validFiles;
+  const fixedFiles = results.filter((r) => r.fixed).length;
+  const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
+  console.log("");
+  console.log(chalk10.bold("Validation Results"));
+  console.log(chalk10.dim("\u2500".repeat(50)));
+  console.log("");
+  for (const result of results) {
+    if (result.valid && !result.fixed && options.quiet) {
+      continue;
+    }
+    const statusIcon = result.valid ? chalk10.green("\u2713") : chalk10.red("\u2717");
+    const fixedBadge = result.fixed ? chalk10.yellow(" [FIXED]") : "";
+    console.log(`${statusIcon} ${path5.relative(process.cwd(), result.file)}${fixedBadge}`);
+    for (const error of result.errors) {
+      const severity = error.severity === "error" ? chalk10.red("ERROR") : chalk10.yellow("WARN");
+      const location = error.line !== void 0 ? chalk10.dim(`:${error.line}${error.column ? `:${error.column}` : ""}`) : "";
+      const fixable = error.fixable ? chalk10.cyan(" [fixable]") : "";
+      console.log(`  ${severity}${location}: ${error.message}${fixable}`);
+      if (error.suggestion && !options.quiet) {
+        console.log(chalk10.dim(`    \u2192 ${error.suggestion}`));
+      }
+    }
+    if (result.errors.length > 0) {
+      console.log("");
+    }
+  }
+  console.log(chalk10.dim("\u2500".repeat(50)));
+  console.log("");
+  console.log(
+    `${chalk10.bold("Summary:")} ${validFiles}/${totalFiles} files valid, ${totalErrors} issue${totalErrors !== 1 ? "s" : ""} found` + (fixedFiles > 0 ? `, ${fixedFiles} file${fixedFiles !== 1 ? "s" : ""} fixed` : "")
+  );
+  if (invalidFiles > 0 && !options.fix) {
+    console.log("");
+    console.log(chalk10.dim("Run with --fix to automatically fix fixable issues"));
+  }
+  console.log("");
+}
+function getFileFormat(filePath) {
+  const ext = path5.extname(filePath).toLowerCase();
+  return ext === ".ts" || ext === ".tsx" ? "typescript" : "yaml";
+}
+function createValidateCommand() {
+  const validate = new Command10("validate");
+  validate.description("Validate ensemble and agent files (YAML and TypeScript)").argument("[paths...]", "Files or directories to validate (default: ensembles/ and agents/)").option("--fix", "Automatically fix fixable issues (YAML only)").option("-q, --quiet", "Only show errors").option("--format <format>", "Output format: text or json", "text").option("--ensembles-dir <dir>", "Ensembles directory", "ensembles").option("--agents-dir <dir>", "Agents directory", "agents").action(async (paths, options) => {
+    try {
+      const results = [];
+      let filesToValidate = [];
+      if (paths.length === 0) {
+        const ensemblesDir = path5.resolve(process.cwd(), options.ensemblesDir || "ensembles");
+        const agentsDir = path5.resolve(process.cwd(), options.agentsDir || "agents");
+        try {
+          const ensembleFiles = await glob("**/*.{yaml,yml,ts}", {
+            cwd: ensemblesDir,
+            absolute: true,
+            ignore: ["**/*.test.ts", "**/*.spec.ts", "**/node_modules/**"]
+          });
+          filesToValidate.push(
+            ...ensembleFiles.map((f) => ({ path: f, type: "ensemble" }))
+          );
+        } catch {
+        }
+        try {
+          const agentFiles = await glob("**/*.{yaml,yml,ts}", {
+            cwd: agentsDir,
+            absolute: true,
+            ignore: ["**/*.test.ts", "**/*.spec.ts", "**/node_modules/**"]
+          });
+          filesToValidate.push(...agentFiles.map((f) => ({ path: f, type: "agent" })));
+        } catch {
+        }
+      } else {
+        for (const p of paths) {
+          const resolved = path5.resolve(process.cwd(), p);
+          const stat3 = await fs6.stat(resolved);
+          if (stat3.isDirectory()) {
+            const files = await glob("**/*.{yaml,yml,ts}", {
+              cwd: resolved,
+              absolute: true,
+              ignore: ["**/*.test.ts", "**/*.spec.ts", "**/node_modules/**"]
+            });
+            const isAgentsDir = p.includes("agent") || resolved.includes("/agents/");
+            filesToValidate.push(
+              ...files.map((f) => ({
+                path: f,
+                type: isAgentsDir ? "agent" : "ensemble"
+              }))
+            );
+          } else {
+            const isAgent = p.includes("agent") || resolved.includes("/agents/");
+            filesToValidate.push({
+              path: resolved,
+              type: isAgent ? "agent" : "ensemble"
+            });
+          }
+        }
+      }
+      if (filesToValidate.length === 0) {
+        console.log(chalk10.yellow("No files found to validate"));
+        console.log("");
+        console.log(chalk10.dim("Make sure you have:"));
+        console.log(chalk10.dim("  - ensembles/*.yaml or ensembles/*.ts"));
+        console.log(chalk10.dim("  - agents/*.yaml or agents/*.ts"));
+        console.log("");
+        return;
+      }
+      if (!options.quiet) {
+        console.log("");
+        const yamlCount = filesToValidate.filter((f) => getFileFormat(f.path) === "yaml").length;
+        const tsCount = filesToValidate.filter((f) => getFileFormat(f.path) === "typescript").length;
+        console.log(
+          chalk10.bold(`Validating ${filesToValidate.length} file(s)`) + chalk10.dim(` (${yamlCount} YAML, ${tsCount} TypeScript)...`)
+        );
+      }
+      for (const file of filesToValidate) {
+        const format = getFileFormat(file.path);
+        let result;
+        if (format === "typescript") {
+          if (file.type === "ensemble") {
+            result = await validateTypeScriptEnsemble(file.path, options);
+          } else {
+            result = await validateTypeScriptEnsemble(file.path, options);
+          }
+        } else {
+          result = file.type === "ensemble" ? await validateEnsemble(file.path, options) : await validateAgent(file.path, options);
+        }
+        results.push(result);
+      }
+      formatResults(results, options);
+      const hasErrors = results.some((r) => !r.valid);
+      if (hasErrors) {
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(chalk10.red("Error:"), error.message);
+      process.exit(1);
+    }
+  });
+  return validate;
+}
+
+// src/cli/commands/bundle.ts
+import { Command as Command11 } from "commander";
+import chalk11 from "chalk";
+import * as fs7 from "fs/promises";
+import * as path6 from "path";
+import * as YAML5 from "yaml";
+import { createWriteStream } from "fs";
+import archiver from "archiver";
+function resolvePath(basePath, referencePath) {
+  if (path6.isAbsolute(referencePath)) {
+    return referencePath;
+  }
+  return path6.resolve(path6.dirname(basePath), referencePath);
+}
+function extractAgentDependencies(agentPath, agentConfig) {
+  const prompts = [];
+  const handlers = [];
+  const configs = [];
+  const config = agentConfig.config;
+  if (config) {
+    if (typeof config.systemPrompt === "string" && config.systemPrompt.startsWith("./")) {
+      prompts.push(resolvePath(agentPath, config.systemPrompt));
+    }
+    if (typeof config.promptFile === "string") {
+      prompts.push(resolvePath(agentPath, config.promptFile));
+    }
+    if (typeof config.prompt === "string" && config.prompt.startsWith("./")) {
+      prompts.push(resolvePath(agentPath, config.prompt));
+    }
+    if (typeof config.handler === "string" && config.handler.startsWith("./")) {
+      handlers.push(resolvePath(agentPath, config.handler));
+    }
+    if (typeof config.script === "string" && config.script.startsWith("./")) {
+      handlers.push(resolvePath(agentPath, config.script));
+    }
+    if (typeof config.configFile === "string") {
+      configs.push(resolvePath(agentPath, config.configFile));
+    }
+  }
+  if (typeof agentConfig.template === "string" && agentConfig.template.startsWith("./")) {
+    prompts.push(resolvePath(agentPath, agentConfig.template));
+  }
+  return { prompts, handlers, configs };
+}
+async function findAgentFile(agentName, agentsDir) {
+  const extensions = [".yaml", ".yml", ".ts"];
+  for (const ext of extensions) {
+    const directPath = path6.join(agentsDir, `${agentName}${ext}`);
+    try {
+      await fs7.access(directPath);
+      return directPath;
+    } catch {
+      const subPath = path6.join(agentsDir, agentName, `agent${ext}`);
+      try {
+        await fs7.access(subPath);
+        return subPath;
+      } catch {
+        const subPath2 = path6.join(agentsDir, agentName, `${agentName}${ext}`);
+        try {
+          await fs7.access(subPath2);
+          return subPath2;
+        } catch {
+        }
+      }
+    }
+  }
+  return null;
+}
+async function bundleEnsemble(ensemblePath, options) {
+  const files = [];
+  const agentNames = [];
+  const promptFiles = [];
+  const handlerFiles = [];
+  const configFiles = [];
+  const ensembleContent = await fs7.readFile(ensemblePath, "utf-8");
+  const ensembleConfig = YAML5.parse(ensembleContent, {
+    mapAsMap: false,
+    logLevel: "silent"
+  });
+  const parsedEnsemble = Parser.parseEnsemble(ensembleContent);
+  const ensembleName = parsedEnsemble.name;
+  const agentsDir = path6.resolve(process.cwd(), options.agentsDir || "agents");
+  files.push({
+    sourcePath: ensemblePath,
+    bundlePath: `ensembles/${path6.basename(ensemblePath)}`,
+    type: "ensemble"
+  });
+  const flow = ensembleConfig.flow;
+  if (flow) {
+    for (const step of flow) {
+      if (typeof step.agent === "string" && !agentNames.includes(step.agent)) {
+        agentNames.push(step.agent);
+      }
+      extractNestedAgents(step, agentNames);
+    }
+  }
+  const inlineAgents = ensembleConfig.agents;
+  if (inlineAgents) {
+    for (const agent of inlineAgents) {
+      if (typeof agent.name === "string") {
+        const deps = extractAgentDependencies(ensemblePath, agent);
+        promptFiles.push(...deps.prompts);
+        handlerFiles.push(...deps.handlers);
+        configFiles.push(...deps.configs);
+      }
+    }
+  }
+  for (const agentName of agentNames) {
+    const agentPath = await findAgentFile(agentName, agentsDir);
+    if (agentPath) {
+      files.push({
+        sourcePath: agentPath,
+        bundlePath: `agents/${path6.basename(agentPath)}`,
+        type: "agent"
+      });
+      const agentContent = await fs7.readFile(agentPath, "utf-8");
+      const agentConfig = YAML5.parse(agentContent, {
+        mapAsMap: false,
+        logLevel: "silent"
+      });
+      const deps = extractAgentDependencies(agentPath, agentConfig);
+      promptFiles.push(...deps.prompts);
+      handlerFiles.push(...deps.handlers);
+      configFiles.push(...deps.configs);
+    }
+  }
+  for (const promptPath of [...new Set(promptFiles)]) {
+    try {
+      await fs7.access(promptPath);
+      files.push({
+        sourcePath: promptPath,
+        bundlePath: `prompts/${path6.basename(promptPath)}`,
+        type: "prompt"
+      });
+    } catch {
+    }
+  }
+  for (const handlerPath of [...new Set(handlerFiles)]) {
+    try {
+      await fs7.access(handlerPath);
+      files.push({
+        sourcePath: handlerPath,
+        bundlePath: `handlers/${path6.basename(handlerPath)}`,
+        type: "handler"
+      });
+    } catch {
+    }
+  }
+  for (const configPath of [...new Set(configFiles)]) {
+    try {
+      await fs7.access(configPath);
+      files.push({
+        sourcePath: configPath,
+        bundlePath: `configs/${path6.basename(configPath)}`,
+        type: "config"
+      });
+    } catch {
+    }
+  }
+  const manifest = {
+    version: "1.0.0",
+    type: "ensemble",
+    name: ensembleName,
+    description: parsedEnsemble.description,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    files: await Promise.all(
+      files.map(async (f) => {
+        const stats = await fs7.stat(f.sourcePath);
+        return {
+          path: f.bundlePath,
+          type: f.type,
+          size: stats.size
+        };
+      })
+    ),
+    dependencies: {
+      agents: agentNames,
+      prompts: promptFiles.map((p) => path6.basename(p)),
+      handlers: handlerFiles.map((h) => path6.basename(h)),
+      configs: configFiles.map((c) => path6.basename(c))
+    }
+  };
+  return { files, manifest };
+}
+function extractNestedAgents(step, agentNames) {
+  if (Array.isArray(step.steps)) {
+    for (const nestedStep of step.steps) {
+      if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+        agentNames.push(nestedStep.agent);
+      }
+      extractNestedAgents(nestedStep, agentNames);
+    }
+  }
+  if (Array.isArray(step.then)) {
+    for (const nestedStep of step.then) {
+      if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+        agentNames.push(nestedStep.agent);
+      }
+      extractNestedAgents(nestedStep, agentNames);
+    }
+  }
+  if (Array.isArray(step.else)) {
+    for (const nestedStep of step.else) {
+      if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+        agentNames.push(nestedStep.agent);
+      }
+      extractNestedAgents(nestedStep, agentNames);
+    }
+  }
+  if (Array.isArray(step.catch)) {
+    for (const nestedStep of step.catch) {
+      if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+        agentNames.push(nestedStep.agent);
+      }
+      extractNestedAgents(nestedStep, agentNames);
+    }
+  }
+  if (Array.isArray(step.finally)) {
+    for (const nestedStep of step.finally) {
+      if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+        agentNames.push(nestedStep.agent);
+      }
+      extractNestedAgents(nestedStep, agentNames);
+    }
+  }
+  if (step.cases && typeof step.cases === "object") {
+    for (const caseSteps of Object.values(step.cases)) {
+      if (Array.isArray(caseSteps)) {
+        for (const nestedStep of caseSteps) {
+          if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+            agentNames.push(nestedStep.agent);
+          }
+          extractNestedAgents(nestedStep, agentNames);
+        }
+      }
+    }
+  }
+  if (Array.isArray(step.default)) {
+    for (const nestedStep of step.default) {
+      if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+        agentNames.push(nestedStep.agent);
+      }
+      extractNestedAgents(nestedStep, agentNames);
+    }
+  }
+  if (step.step && typeof step.step === "object") {
+    const nestedStep = step.step;
+    if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+      agentNames.push(nestedStep.agent);
+    }
+    extractNestedAgents(nestedStep, agentNames);
+  }
+  if (step.map && typeof step.map === "object") {
+    const nestedStep = step.map;
+    if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+      agentNames.push(nestedStep.agent);
+    }
+  }
+  if (step.reduce && typeof step.reduce === "object") {
+    const nestedStep = step.reduce;
+    if (typeof nestedStep.agent === "string" && !agentNames.includes(nestedStep.agent)) {
+      agentNames.push(nestedStep.agent);
+    }
+  }
+}
+async function bundleAgent(agentPath, _options) {
+  const files = [];
+  const agentContent = await fs7.readFile(agentPath, "utf-8");
+  const agentConfig = YAML5.parse(agentContent, { mapAsMap: false, logLevel: "silent" });
+  const parsedAgent = Parser.parseAgent(agentContent);
+  const agentName = parsedAgent.name;
+  files.push({
+    sourcePath: agentPath,
+    bundlePath: `agents/${path6.basename(agentPath)}`,
+    type: "agent"
+  });
+  const deps = extractAgentDependencies(agentPath, agentConfig);
+  for (const promptPath of [...new Set(deps.prompts)]) {
+    try {
+      await fs7.access(promptPath);
+      files.push({
+        sourcePath: promptPath,
+        bundlePath: `prompts/${path6.basename(promptPath)}`,
+        type: "prompt"
+      });
+    } catch {
+    }
+  }
+  for (const handlerPath of [...new Set(deps.handlers)]) {
+    try {
+      await fs7.access(handlerPath);
+      files.push({
+        sourcePath: handlerPath,
+        bundlePath: `handlers/${path6.basename(handlerPath)}`,
+        type: "handler"
+      });
+    } catch {
+    }
+  }
+  for (const configPath of [...new Set(deps.configs)]) {
+    try {
+      await fs7.access(configPath);
+      files.push({
+        sourcePath: configPath,
+        bundlePath: `configs/${path6.basename(configPath)}`,
+        type: "config"
+      });
+    } catch {
+    }
+  }
+  const manifest = {
+    version: "1.0.0",
+    type: "agent",
+    name: agentName,
+    description: parsedAgent.description,
+    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+    files: await Promise.all(
+      files.map(async (f) => {
+        const stats = await fs7.stat(f.sourcePath);
+        return {
+          path: f.bundlePath,
+          type: f.type,
+          size: stats.size
+        };
+      })
+    ),
+    dependencies: {
+      prompts: deps.prompts.map((p) => path6.basename(p)),
+      handlers: deps.handlers.map((h) => path6.basename(h)),
+      configs: deps.configs.map((c) => path6.basename(c))
+    }
+  };
+  return { files, manifest };
+}
+async function createArchive(files, manifest, outputPath, format) {
+  return new Promise((resolve5, reject) => {
+    const output = createWriteStream(outputPath);
+    const archive = archiver(format === "tar" ? "tar" : "zip", {
+      gzip: format === "tar",
+      zlib: { level: 9 }
+    });
+    output.on("close", () => resolve5());
+    archive.on("error", reject);
+    archive.pipe(output);
+    archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
+    for (const file of files) {
+      archive.file(file.sourcePath, { name: file.bundlePath });
+    }
+    archive.finalize();
+  });
+}
+function createBundleCommand() {
+  const bundle = new Command11("bundle");
+  bundle.description("Bundle an ensemble or agent with all dependencies").argument("<path>", "Path to ensemble or agent YAML file").option("-o, --output <path>", "Output file path (default: <name>.bundle.tar.gz)").option("--format <format>", "Archive format: tar or zip", "tar").option("--dry-run", "Preview what would be bundled without creating archive").option("--agents-dir <dir>", "Agents directory", "agents").option("--prompts-dir <dir>", "Prompts directory", "prompts").option("--ensembles-dir <dir>", "Ensembles directory", "ensembles").action(async (inputPath, options) => {
+    try {
+      const resolvedPath = path6.resolve(process.cwd(), inputPath);
+      try {
+        await fs7.access(resolvedPath);
+      } catch {
+        console.error(chalk11.red("Error:"), `File not found: ${inputPath}`);
+        process.exit(1);
+      }
+      const content = await fs7.readFile(resolvedPath, "utf-8");
+      const parsed = YAML5.parse(content, { mapAsMap: false, logLevel: "silent" });
+      const isEnsemble2 = "flow" in parsed || "agents" in parsed || "trigger" in parsed;
+      const isAgent = "operation" in parsed;
+      if (!isEnsemble2 && !isAgent) {
+        console.error(
+          chalk11.red("Error:"),
+          "File does not appear to be a valid ensemble or agent YAML"
+        );
+        process.exit(1);
+      }
+      console.log("");
+      console.log(
+        chalk11.bold(`Bundling ${isEnsemble2 ? "ensemble" : "agent"}: ${parsed.name || "unknown"}`)
+      );
+      console.log(chalk11.dim("\u2500".repeat(50)));
+      const { files, manifest } = isEnsemble2 ? await bundleEnsemble(resolvedPath, options) : await bundleAgent(resolvedPath, options);
+      console.log("");
+      console.log(chalk11.bold("Files to bundle:"));
+      for (const file of files) {
+        const typeIcon = {
+          ensemble: "\u{1F4E6}",
+          agent: "\u{1F916}",
+          prompt: "\u{1F4DD}",
+          handler: "\u2699\uFE0F",
+          config: "\u{1F527}",
+          other: "\u{1F4C4}"
+        }[file.type];
+        console.log(`  ${typeIcon} ${file.bundlePath}`);
+        console.log(chalk11.dim(`     \u2190 ${path6.relative(process.cwd(), file.sourcePath)}`));
+      }
+      console.log("");
+      console.log(chalk11.bold("Dependencies:"));
+      if (manifest.dependencies.agents?.length) {
+        console.log(`  Agents: ${manifest.dependencies.agents.join(", ")}`);
+      }
+      if (manifest.dependencies.prompts?.length) {
+        console.log(`  Prompts: ${manifest.dependencies.prompts.join(", ")}`);
+      }
+      if (manifest.dependencies.handlers?.length) {
+        console.log(`  Handlers: ${manifest.dependencies.handlers.join(", ")}`);
+      }
+      if (manifest.dependencies.configs?.length) {
+        console.log(`  Configs: ${manifest.dependencies.configs.join(", ")}`);
+      }
+      if (!manifest.dependencies.agents?.length && !manifest.dependencies.prompts?.length && !manifest.dependencies.handlers?.length && !manifest.dependencies.configs?.length) {
+        console.log(chalk11.dim("  (no external dependencies)"));
+      }
+      if (options.dryRun) {
+        console.log("");
+        console.log(chalk11.yellow("Dry run - no archive created"));
+        console.log("");
+        return;
+      }
+      const ext = options.format === "tar" ? ".tar.gz" : ".zip";
+      const outputPath = options.output || path6.join(process.cwd(), `${manifest.name}.bundle${ext}`);
+      console.log("");
+      console.log(chalk11.dim("Creating archive..."));
+      await createArchive(files, manifest, outputPath, options.format || "tar");
+      const stats = await fs7.stat(outputPath);
+      const sizeKB = (stats.size / 1024).toFixed(1);
+      console.log("");
+      console.log(chalk11.green("\u2713"), `Bundle created: ${path6.relative(process.cwd(), outputPath)}`);
+      console.log(chalk11.dim(`  Size: ${sizeKB} KB`));
+      console.log(chalk11.dim(`  Files: ${files.length}`));
+      console.log("");
+      console.log(chalk11.dim("To import this bundle:"));
+      console.log(chalk11.dim(`  conductor import ${path6.basename(outputPath)}`));
+      console.log("");
+    } catch (error) {
+      console.error(chalk11.red("Error:"), error.message);
+      process.exit(1);
+    }
+  });
+  return bundle;
+}
+
+// src/cli/commands/import.ts
+import { Command as Command12 } from "commander";
+import chalk12 from "chalk";
+import * as fs8 from "fs/promises";
+import * as path7 from "path";
+import { createReadStream } from "fs";
+import { createGunzip } from "zlib";
+import { extract as tarExtract } from "tar";
+import * as unzipper from "unzipper";
+async function extractTarGz(archivePath) {
+  const files = [];
+  const tempDir = path7.join(path7.dirname(archivePath), `.temp-extract-${Date.now()}`);
+  try {
+    await fs8.mkdir(tempDir, { recursive: true });
+    await new Promise((resolve5, reject) => {
+      createReadStream(archivePath).pipe(createGunzip()).pipe(tarExtract({ cwd: tempDir })).on("finish", resolve5).on("error", reject);
+    });
+    async function readDir(dir, basePath = "") {
+      const entries = await fs8.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path7.join(dir, entry.name);
+        const relativePath = path7.join(basePath, entry.name);
+        if (entry.isDirectory()) {
+          await readDir(fullPath, relativePath);
+        } else {
+          const content = await fs8.readFile(fullPath);
+          files.push({ path: relativePath, content });
+        }
+      }
+    }
+    await readDir(tempDir);
+    return files;
+  } finally {
+    await fs8.rm(tempDir, { recursive: true, force: true });
+  }
+}
+async function extractZip(archivePath) {
+  const files = [];
+  const directory = await unzipper.Open.file(archivePath);
+  for (const file of directory.files) {
+    if (file.type === "File") {
+      const content = await file.buffer();
+      files.push({ path: file.path, content });
+    }
+  }
+  return files;
+}
+async function detectFormat(archivePath) {
+  if (archivePath.endsWith(".tar.gz") || archivePath.endsWith(".tgz")) {
+    return "tar";
+  }
+  if (archivePath.endsWith(".zip")) {
+    return "zip";
+  }
+  const handle = await fs8.open(archivePath, "r");
+  const buffer = Buffer.alloc(4);
+  await handle.read(buffer, 0, 4, 0);
+  await handle.close();
+  if (buffer[0] === 80 && buffer[1] === 75) {
+    return "zip";
+  }
+  if (buffer[0] === 31 && buffer[1] === 139) {
+    return "tar";
+  }
+  return "tar";
+}
+function mapBundlePathToTarget(bundlePath, options) {
+  const targetDir = options.targetDir || process.cwd();
+  const segments = bundlePath.split("/");
+  const dir = segments[0];
+  const fileName = segments.slice(1).join("/");
+  switch (dir) {
+    case "ensembles":
+      return path7.join(targetDir, options.ensemblesDir || "ensembles", fileName);
+    case "agents":
+      return path7.join(targetDir, options.agentsDir || "agents", fileName);
+    case "prompts":
+      return path7.join(targetDir, options.promptsDir || "prompts", fileName);
+    case "handlers":
+      return path7.join(targetDir, options.handlersDir || "handlers", fileName);
+    case "configs":
+      return path7.join(targetDir, options.configsDir || "configs", fileName);
+    default:
+      return path7.join(targetDir, bundlePath);
+  }
+}
+async function checkConflict(targetPath, newContent) {
+  try {
+    const existingContent = await fs8.readFile(targetPath);
+    return {
+      exists: true,
+      different: !existingContent.equals(newContent)
+    };
+  } catch {
+    return { exists: false, different: false };
+  }
+}
+function createImportCommand() {
+  const importCmd = new Command12("import");
+  importCmd.description("Import a bundled ensemble or agent into the project").argument("<bundle>", "Path to the bundle file (.tar.gz or .zip)").option("-f, --force", "Overwrite existing files without prompting").option("-s, --skip", "Skip existing files without prompting").option("--dry-run", "Preview import without writing files").option("--target-dir <dir>", "Target directory for import", ".").option("--ensembles-dir <dir>", "Ensembles directory", "ensembles").option("--agents-dir <dir>", "Agents directory", "agents").option("--prompts-dir <dir>", "Prompts directory", "prompts").option("--handlers-dir <dir>", "Handlers directory", "handlers").option("--configs-dir <dir>", "Configs directory", "configs").action(async (bundlePath, options) => {
+    try {
+      const resolvedPath = path7.resolve(process.cwd(), bundlePath);
+      try {
+        await fs8.access(resolvedPath);
+      } catch {
+        console.error(chalk12.red("Error:"), `Bundle not found: ${bundlePath}`);
+        process.exit(1);
+      }
+      console.log("");
+      console.log(chalk12.bold("Importing bundle:"), path7.basename(bundlePath));
+      console.log(chalk12.dim("\u2500".repeat(50)));
+      const format = await detectFormat(resolvedPath);
+      console.log(chalk12.dim(`Format: ${format === "tar" ? "tar.gz" : "zip"}`));
+      console.log("");
+      const files = format === "tar" ? await extractTarGz(resolvedPath) : await extractZip(resolvedPath);
+      const manifestFile = files.find((f) => f.path === "manifest.json");
+      if (!manifestFile) {
+        console.error(chalk12.red("Error:"), "Bundle is missing manifest.json - invalid bundle");
+        process.exit(1);
+      }
+      const manifest = JSON.parse(manifestFile.content.toString("utf-8"));
+      console.log(chalk12.bold("Bundle Info:"));
+      console.log(`  Type: ${manifest.type}`);
+      console.log(`  Name: ${manifest.name}`);
+      if (manifest.description) {
+        console.log(`  Description: ${manifest.description}`);
+      }
+      console.log(`  Created: ${new Date(manifest.createdAt).toLocaleString()}`);
+      console.log(`  Files: ${manifest.files.length}`);
+      console.log("");
+      const filesToImport = files.filter((f) => f.path !== "manifest.json");
+      const results = [];
+      const conflicts = [];
+      console.log(chalk12.bold("Processing files:"));
+      for (const file of filesToImport) {
+        const targetPath = mapBundlePathToTarget(file.path, options);
+        const { exists, different } = await checkConflict(targetPath, file.content);
+        const typeIcon = {
+          ensembles: "\u{1F4E6}",
+          agents: "\u{1F916}",
+          prompts: "\u{1F4DD}",
+          handlers: "\u2699\uFE0F",
+          configs: "\u{1F527}"
+        }[file.path.split("/")[0]] || "\u{1F4C4}";
+        if (!exists) {
+          console.log(
+            `  ${typeIcon} ${chalk12.green("+")} ${file.path}`,
+            chalk12.dim(`\u2192 ${path7.relative(process.cwd(), targetPath)}`)
+          );
+          results.push({ path: targetPath, status: "created" });
+          if (!options.dryRun) {
+            await fs8.mkdir(path7.dirname(targetPath), { recursive: true });
+            await fs8.writeFile(targetPath, file.content);
+          }
+        } else if (!different) {
+          console.log(`  ${typeIcon} ${chalk12.dim("=")} ${file.path}`, chalk12.dim("(unchanged)"));
+          results.push({ path: targetPath, status: "skipped" });
+        } else if (options.force) {
+          console.log(
+            `  ${typeIcon} ${chalk12.yellow("!")} ${file.path}`,
+            chalk12.yellow("(overwritten)")
+          );
+          results.push({ path: targetPath, status: "updated" });
+          if (!options.dryRun) {
+            await fs8.writeFile(targetPath, file.content);
+          }
+        } else if (options.skip) {
+          console.log(
+            `  ${typeIcon} ${chalk12.cyan("-")} ${file.path}`,
+            chalk12.cyan("(skipped - exists)")
+          );
+          results.push({ path: targetPath, status: "skipped" });
+        } else {
+          console.log(`  ${typeIcon} ${chalk12.red("?")} ${file.path}`, chalk12.red("(conflict)"));
+          conflicts.push({ bundlePath: file.path, targetPath });
+          results.push({ path: targetPath, status: "conflict" });
+        }
+      }
+      console.log("");
+      console.log(chalk12.dim("\u2500".repeat(50)));
+      const created = results.filter((r) => r.status === "created").length;
+      const updated = results.filter((r) => r.status === "updated").length;
+      const skipped = results.filter((r) => r.status === "skipped").length;
+      const conflictCount = results.filter((r) => r.status === "conflict").length;
+      console.log("");
+      console.log(chalk12.bold("Summary:"));
+      if (created > 0) console.log(`  ${chalk12.green("+")} ${created} file(s) created`);
+      if (updated > 0) console.log(`  ${chalk12.yellow("!")} ${updated} file(s) updated`);
+      if (skipped > 0) console.log(`  ${chalk12.dim("=")} ${skipped} file(s) skipped`);
+      if (conflictCount > 0) {
+        console.log(`  ${chalk12.red("?")} ${conflictCount} conflict(s)`);
+      }
+      if (options.dryRun) {
+        console.log("");
+        console.log(chalk12.yellow("Dry run - no files were written"));
+      }
+      if (conflicts.length > 0 && !options.dryRun) {
+        console.log("");
+        console.log(chalk12.yellow("Conflicts detected!"));
+        console.log(chalk12.dim("Re-run with --force to overwrite or --skip to keep existing"));
+        console.log("");
+        process.exit(1);
+      }
+      console.log("");
+      if (!options.dryRun && conflictCount === 0) {
+        console.log(chalk12.green("\u2713"), `Successfully imported ${manifest.type}: ${manifest.name}`);
+        console.log("");
+      }
+    } catch (error) {
+      console.error(chalk12.red("Error:"), error.message);
+      process.exit(1);
+    }
+  });
+  return importCmd;
+}
+
 // src/cli/index.ts
-var version = "0.2.1";
-var program = new Command10();
+var version = "0.2.4";
+var program = new Command13();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",
   `
-${chalk10.bold.cyan("Getting Started:")}
+${chalk13.bold.cyan("Getting Started:")}
 
-  ${chalk10.bold("Create new project:")}
-    ${chalk10.cyan("conductor init my-new-project")}
-    ${chalk10.dim("cd my-new-project")}
-    ${chalk10.dim("npm install")}
+  ${chalk13.bold("Create new project:")}
+    ${chalk13.cyan("conductor init my-new-project")}
+    ${chalk13.dim("cd my-new-project")}
+    ${chalk13.dim("npm install")}
 
-  ${chalk10.bold("Initialize existing project:")}
-    ${chalk10.cyan("conductor init .")}
-    ${chalk10.dim("npm install")}
+  ${chalk13.bold("Initialize existing project:")}
+    ${chalk13.cyan("conductor init .")}
+    ${chalk13.dim("npm install")}
 
-${chalk10.dim("Documentation:")} ${chalk10.cyan("https://docs.ensemble-edge.com/conductor")}
+${chalk13.dim("Documentation:")} ${chalk13.cyan("https://docs.ensemble-edge.com/conductor")}
 `
 );
 program.addCommand(createInitCommand());
@@ -8922,48 +10447,51 @@ program.addCommand(createHistoryCommand());
 program.addCommand(createLogsCommand());
 program.addCommand(createStateCommand());
 program.addCommand(createReplayCommand());
+program.addCommand(createValidateCommand());
+program.addCommand(createBundleCommand());
+program.addCommand(createImportCommand());
 program.command("health").description("Check API health").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").action(async (options) => {
   try {
     const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;
     if (!apiUrl) {
       console.error(
-        chalk10.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
+        chalk13.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
       );
       process.exit(1);
     }
     const response = await fetch(`${apiUrl}/health`);
     const data = await response.json();
     console.log("");
-    console.log(chalk10.bold("API Health:"));
+    console.log(chalk13.bold("API Health:"));
     console.log("");
     console.log(
-      `Status: ${data.status === "healthy" ? chalk10.green(data.status) : chalk10.yellow(data.status)}`
+      `Status: ${data.status === "healthy" ? chalk13.green(data.status) : chalk13.yellow(data.status)}`
     );
     console.log(`Version: ${data.version}`);
     console.log("");
-    console.log(chalk10.bold("Checks:"));
+    console.log(chalk13.bold("Checks:"));
     Object.entries(data.checks).forEach(([key, value]) => {
-      const status = value ? chalk10.green("\u2713") : chalk10.red("\u2717");
+      const status = value ? chalk13.green("\u2713") : chalk13.red("\u2717");
       console.log(`  ${status} ${key}`);
     });
     console.log("");
   } catch (error) {
-    console.error(chalk10.red("Error:"), error.message);
+    console.error(chalk13.red("Error:"), error.message);
     process.exit(1);
   }
 });
 program.command("config").description("Show current configuration").action(() => {
   console.log("");
-  console.log(chalk10.bold("Configuration:"));
+  console.log(chalk13.bold("Configuration:"));
   console.log("");
-  console.log(`API URL: ${process.env.CONDUCTOR_API_URL || chalk10.dim("not set")}`);
+  console.log(`API URL: ${process.env.CONDUCTOR_API_URL || chalk13.dim("not set")}`);
   console.log(
-    `API Key: ${process.env.CONDUCTOR_API_KEY ? chalk10.green("set") : chalk10.dim("not set")}`
+    `API Key: ${process.env.CONDUCTOR_API_KEY ? chalk13.green("set") : chalk13.dim("not set")}`
   );
   console.log("");
-  console.log(chalk10.dim("Set via environment variables:"));
-  console.log(chalk10.dim("  export CONDUCTOR_API_URL=https://api.conductor.dev"));
-  console.log(chalk10.dim("  export CONDUCTOR_API_KEY=your-api-key"));
+  console.log(chalk13.dim("Set via environment variables:"));
+  console.log(chalk13.dim("  export CONDUCTOR_API_URL=https://api.conductor.dev"));
+  console.log(chalk13.dim("  export CONDUCTOR_API_KEY=your-api-key"));
   console.log("");
 });
 program.parse(process.argv);

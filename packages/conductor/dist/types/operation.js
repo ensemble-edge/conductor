@@ -22,6 +22,7 @@
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
  * - docs: API documentation generation and serving
+ * - autorag: Cloudflare AutoRAG for automatic retrieval-augmented generation
  */
 export var Operation;
 (function (Operation) {
@@ -39,6 +40,7 @@ export var Operation;
     Operation["pdf"] = "pdf";
     Operation["queue"] = "queue";
     Operation["docs"] = "docs";
+    Operation["autorag"] = "autorag";
 })(Operation || (Operation = {}));
 /**
  * Type guard to check if a value is a valid Operation
@@ -71,6 +73,7 @@ export const getOperationDisplayName = (operation) => {
         [Operation.pdf]: 'PDF Agent',
         [Operation.queue]: 'Queue Agent',
         [Operation.docs]: 'Docs Agent',
+        [Operation.autorag]: 'AutoRAG Agent',
     };
     return names[operation];
 };
@@ -93,6 +96,7 @@ export const getOperationDescription = (operation) => {
         [Operation.pdf]: 'PDF document generation and processing',
         [Operation.queue]: 'Message queue processing and batch operations',
         [Operation.docs]: 'API documentation generation and serving',
+        [Operation.autorag]: 'Automatic retrieval-augmented generation with Cloudflare AutoRAG',
     };
     return descriptions[operation];
 };
@@ -112,13 +116,7 @@ export const isExternalOperation = (operation) => {
  * Check if an operation generates content
  */
 export const isContentGenerationOperation = (operation) => {
-    return [
-        Operation.think,
-        Operation.html,
-        Operation.pdf,
-        Operation.form,
-        Operation.docs,
-    ].includes(operation);
+    return [Operation.think, Operation.html, Operation.pdf, Operation.form, Operation.docs].includes(operation);
 };
 /**
  * Check if an operation involves data storage

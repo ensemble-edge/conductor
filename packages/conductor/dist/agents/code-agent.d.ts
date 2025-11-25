@@ -1,34 +1,39 @@
 /**
  * Code Agent
  *
- * Executes JavaScript/TypeScript code from KV storage or inline
- * Supports loading scripts via script:// URIs with versioning
+ * Executes JavaScript/TypeScript code from bundled scripts or inline handlers.
+ *
+ * Script Resolution Priority:
+ * 1. Pre-bundled scripts (via script:// URI and global ScriptLoader) - Works in Workers!
+ * 2. Inline handler function (passed in config.handler)
+ * 3. KV-based dynamic loading (DEPRECATED - uses new Function(), blocked in Workers)
+ *
+ * For Cloudflare Workers compatibility, always use bundled scripts:
+ * - Create script files in scripts/ directory
+ * - Reference via script:// URI in ensembles
+ * - Vite plugin bundles them at build time
  */
 import { BaseAgent, type AgentExecutionContext } from './base-agent.js';
 import type { AgentConfig } from '../runtime/parser.js';
 export type FunctionImplementation = (context: AgentExecutionContext) => Promise<unknown> | unknown;
 /**
- * Code Agent executes JavaScript/TypeScript from KV or inline
+ * Code Agent executes JavaScript/TypeScript from bundled scripts or handlers
  *
- * @example With script URI:
+ * @example With script URI (RECOMMENDED for Workers):
  * ```yaml
  * agents:
  *   - name: transform
  *     operation: code
  *     config:
- *       script: "script://transform-data@v1.0.0"
+ *       script: "script://transforms/csv"
  * ```
  *
- * @example With inline handler (testing):
- * ```yaml
- * agents:
- *   - name: transform
- *     operation: code
- *     config:
- *       handler: |
- *         async function({ input }) {
- *           return { result: input.value * 2 }
- *         }
+ * @example With pre-compiled handler (from agent index.ts):
+ * ```typescript
+ * // agents/my-agent/index.ts
+ * export default async function(context) {
+ *   return { result: context.input.value * 2 }
+ * }
  * ```
  */
 export declare class CodeAgent extends BaseAgent {
@@ -40,12 +45,17 @@ export declare class CodeAgent extends BaseAgent {
      */
     protected run(context: AgentExecutionContext): Promise<unknown>;
     /**
-     * Load and compile script from KV
+     * Load script from bundled scripts
+     *
+     * Uses the global ScriptLoader which contains pre-bundled scripts
+     * discovered at build time by vite-plugin-script-discovery.
+     *
+     * This approach works in Cloudflare Workers because it doesn't
+     * use new Function() or eval() - scripts are statically imported.
      */
     private loadScript;
     /**
-     * Create a CodeAgent from a config with inline handler
-     * Supports test-style handlers: (input, context?) => result
+     * Create a CodeAgent from a config with script URI or handler
      */
     static fromConfig(config: AgentConfig): CodeAgent | null;
 }

@@ -4,7 +4,13 @@
  * Orchestrates ensemble execution with explicit error handling using Result types.
  * Makes all error cases explicit and checked at compile time.
  */
-import { Parser } from './parser.js';
+import { Parser, } from './parser.js';
+/**
+ * Type guard to check if a flow step is an agent step (not a control flow step)
+ */
+function isAgentStep(step) {
+    return 'agent' in step && typeof step.agent === 'string';
+}
 import { StateManager } from './state-manager.js';
 import { FunctionAgent } from '../agents/function-agent.js';
 import { CodeAgent } from '../agents/code-agent.js';
@@ -25,6 +31,7 @@ import { Operation } from '../types/constants.js';
 import { ScoringExecutor, EnsembleScorer, } from './scoring/index.js';
 import { createLogger } from '../observability/index.js';
 import { NotificationManager } from './notifications/index.js';
+import { hasGlobalScriptLoader, getGlobalScriptLoader, parseScriptURI, isScriptReference, } from '../utils/script-loader.js';
 /**
  * Core execution engine for ensembles with Result-based error handling
  */
@@ -146,6 +153,7 @@ export class Executor {
     }
     /**
      * Execute a single flow step with all associated logic
+     * Only handles AgentFlowStep - control flow steps should use GraphExecutor
      * @private
      */
     async executeStep(step, flowContext, stepIndex) {
@@ -157,11 +165,17 @@ export class Executor {
             // User specified explicit input mapping
             resolvedInput = Parser.resolveInterpolation(step.input, executionContext);
         }
-        else if (stepIndex > 0) {
+        else if (stepIndex > 0 && ensemble.flow) {
             // Default to previous agent's output for chaining
-            const previousAgentName = ensemble.flow[stepIndex - 1].agent;
-            const previousResult = executionContext[previousAgentName];
-            resolvedInput = previousResult?.output || {};
+            const previousStep = ensemble.flow[stepIndex - 1];
+            const previousAgentName = isAgentStep(previousStep) ? previousStep.agent : undefined;
+            if (previousAgentName) {
+                const previousResult = executionContext[previousAgentName];
+                resolvedInput = previousResult?.output || {};
+            }
+            else {
+                resolvedInput = executionContext.input || {};
+            }
         }
         else {
             // First step with no input - use original ensemble input
@@ -330,8 +344,17 @@ export class Executor {
     async executeFlow(flowContext, startStep = 0) {
         const { ensemble, executionContext, metrics, stateManager, scoringState, ensembleScorer, startTime, } = flowContext;
         // Execute flow steps sequentially from startStep
+        if (!ensemble.flow || ensemble.flow.length === 0) {
+            return Result.err(new EnsembleExecutionError(ensemble.name, 'validation', new Error('Ensemble has no flow steps defined')));
+        }
         for (let i = startStep; i < ensemble.flow.length; i++) {
             const step = ensemble.flow[i];
+            // Only process agent steps - control flow steps (parallel, branch, etc.)
+            // should use GraphExecutor for proper handling
+            if (!isAgentStep(step)) {
+                return Result.err(new EnsembleExecutionError(ensemble.name, 'flow', new Error(`Control flow step type "${step.type}" requires GraphExecutor. ` +
+                    `Use GraphExecutor.execute() for ensembles with parallel, branch, foreach, try, switch, while, or map-reduce steps.`)));
+            }
             const stepResult = await this.executeStep(step, flowContext, i);
             if (!stepResult.success) {
                 return Result.err(stepResult.error);
@@ -350,9 +373,15 @@ export class Executor {
         }
         else if (ensemble.flow.length > 0) {
             // Default to last agent's output
-            const lastMemberName = ensemble.flow[ensemble.flow.length - 1].agent;
-            const lastResult = executionContext[lastMemberName];
-            finalOutput = lastResult?.output;
+            const lastStep = ensemble.flow[ensemble.flow.length - 1];
+            const lastMemberName = isAgentStep(lastStep) ? lastStep.agent : undefined;
+            if (lastMemberName) {
+                const lastResult = executionContext[lastMemberName];
+                finalOutput = lastResult?.output;
+            }
+            else {
+                finalOutput = {};
+            }
         }
         else {
             // No flow steps - return empty
@@ -375,6 +404,114 @@ export class Executor {
         return Result.ok(executionOutput);
     }
     /**
+     * Register inline agents defined in an ensemble's agents array
+     *
+     * Supports:
+     * 1. script:// URIs - Resolved from bundled scripts (Works in Workers!)
+     * 2. Pre-compiled handlers - Function objects passed in config.handler
+     * 3. Inline code strings - DEPRECATED, only works in test environments
+     *
+     * @private
+     */
+    registerInlineAgents(ensemble) {
+        if (!ensemble.agents || ensemble.agents.length === 0) {
+            return;
+        }
+        for (const agentDef of ensemble.agents) {
+            // Skip if not a valid agent definition object
+            if (typeof agentDef !== 'object' || agentDef === null) {
+                continue;
+            }
+            const name = agentDef.name;
+            const operation = agentDef.operation;
+            const config = agentDef.config;
+            if (!name || !operation) {
+                this.logger.warn('Skipping inline agent without name or operation', { agentDef });
+                continue;
+            }
+            // Skip if already registered
+            if (this.agentRegistry.has(name)) {
+                this.logger.debug('Inline agent already registered', { name });
+                continue;
+            }
+            // Build AgentConfig from the inline definition
+            const agentConfig = {
+                name,
+                operation: operation,
+                config: config || {},
+            };
+            // Handle code/function operations
+            if (operation === Operation.code || operation === 'function') {
+                const scriptRef = config?.script;
+                const inlineCode = config?.code || config?.function;
+                const precompiledHandler = config?.handler;
+                // Priority 1: Script reference - resolve from bundled scripts
+                // Supports both formats: "script://path" and "scripts/path"
+                if (isScriptReference(scriptRef)) {
+                    try {
+                        const handler = this.resolveScriptHandler(scriptRef, name);
+                        agentConfig.config = { ...config, handler };
+                    }
+                    catch (error) {
+                        this.logger.error('Failed to resolve script', error instanceof Error ? error : undefined, { name, scriptRef });
+                        continue;
+                    }
+                }
+                // Priority 2: Pre-compiled handler function (already a function object)
+                else if (typeof precompiledHandler === 'function') {
+                    // Handler is already compiled, nothing to do
+                    this.logger.debug('Using pre-compiled handler', { name });
+                }
+                // Priority 3: Inline code string - NOT SUPPORTED
+                // Inline code uses new Function() which is blocked in Cloudflare Workers
+                else if (typeof inlineCode === 'string') {
+                    this.logger.error('Inline code is not supported', new Error(`Agent "${name}" uses inline code (config.code) which is not supported.\n` +
+                        `Cloudflare Workers block new Function() and eval() for security.\n\n` +
+                        `To fix this, migrate to bundled scripts:\n` +
+                        `1. Create a file: scripts/${name}.ts\n` +
+                        `2. Export your function: export default async function(context) { ... }\n` +
+                        `3. Update your ensemble to use: config.script: "scripts/${name}"\n\n` +
+                        `See: https://docs.ensemble.dev/conductor/guides/migrate-inline-code`), { name });
+                    continue;
+                }
+            }
+            // Create and register the agent
+            const agentResult = this.createAgentFromConfig(agentConfig);
+            if (agentResult.success) {
+                this.agentRegistry.set(name, agentResult.value);
+                this.logger.debug('Registered inline agent', { name, operation });
+            }
+            else {
+                this.logger.warn('Failed to create inline agent', {
+                    name,
+                    error: agentResult.error.message,
+                });
+            }
+        }
+    }
+    /**
+     * Resolve a script:// URI to a handler function from bundled scripts
+     * @private
+     */
+    resolveScriptHandler(scriptUri, agentName) {
+        if (!hasGlobalScriptLoader()) {
+            const scriptPath = parseScriptURI(scriptUri);
+            throw new Error(`Cannot resolve script "${scriptUri}" for agent "${agentName}".\n\n` +
+                `Script loader not initialized. For Cloudflare Workers:\n` +
+                `1. Ensure scripts/${scriptPath}.ts exists with a default export\n` +
+                `2. Initialize the script loader in your worker entry:\n\n` +
+                `   import { scriptsMap } from 'virtual:conductor-scripts'\n` +
+                `   import { setGlobalScriptLoader, createScriptLoader } from '@ensemble-edge/conductor'\n` +
+                `   setGlobalScriptLoader(createScriptLoader(scriptsMap))`);
+        }
+        const scriptLoader = getGlobalScriptLoader();
+        const handler = scriptLoader.resolve(scriptUri);
+        // Wrap to match expected signature (handler receives full context)
+        return async (context) => {
+            return handler(context);
+        };
+    }
+    /**
      * Execute an ensemble with Result-based error handling
      * @param ensemble - Parsed ensemble configuration
      * @param input - Input data for the ensemble
@@ -389,6 +526,10 @@ export class Executor {
             agents: [],
             cacheHits: 0,
         };
+        // Register inline agents from the ensemble's agents array
+        // This enables ensembles to define agents with inline code that work without
+        // separate agent files (e.g., operation: code with config.code)
+        this.registerInlineAgents(ensemble);
         // Send execution.started notification (fire and forget)
         this.ctx.waitUntil(NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env));
         // Initialize state manager if configured

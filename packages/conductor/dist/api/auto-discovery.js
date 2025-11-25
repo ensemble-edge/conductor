@@ -13,6 +13,7 @@ import { Executor } from '../runtime/executor.js';
 import { createLogger } from '../observability/index.js';
 import { getTriggerRegistry } from '../runtime/trigger-registry.js';
 import { registerBuiltInTriggers } from '../runtime/built-in-triggers.js';
+import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js';
 const logger = createLogger({ serviceName: 'auto-discovery-api' });
 // Global loaders (initialized once per Worker instance)
 let memberLoader = null;
@@ -49,21 +50,19 @@ async function registerErrorPages(app, config, env, ctx) {
                     executor.registerAgent(agent);
                 }
                 // Execute the error page ensemble with error context
+                // Note: executeEnsemble expects input directly, not wrapped
                 const result = await executor.executeEnsemble(ensemble, {
-                    input: {
-                        error: error.message,
-                        stack: error.stack,
-                        path: c.req.path,
-                        method: c.req.method,
-                        requestId: c.req.header('cf-ray') || `req_${Date.now()}`,
-                        timestamp: new Date().toISOString(),
-                        headers: {
-                            'user-agent': c.req.header('user-agent'),
-                            referer: c.req.header('referer'),
-                        },
-                        dev: env.ENVIRONMENT === 'development',
+                    error: error.message,
+                    stack: error.stack,
+                    path: c.req.path,
+                    method: c.req.method,
+                    requestId: c.req.header('cf-ray') || `req_${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    headers: {
+                        'user-agent': c.req.header('user-agent'),
+                        referer: c.req.header('referer'),
                     },
-                    metadata: { trigger: 'error', statusCode: code },
+                    dev: env.ENVIRONMENT === 'development',
                 });
                 if (!result.success) {
                     logger.error(`[Auto-Discovery] Error page execution failed: ${result.error.message}`);
@@ -97,18 +96,16 @@ async function registerErrorPages(app, config, env, ctx) {
                 for (const agent of agents) {
                     executor.registerAgent(agent);
                 }
+                // Note: executeEnsemble expects input directly, not wrapped
                 const result = await executor.executeEnsemble(ensemble, {
-                    input: {
-                        path: c.req.path,
-                        method: c.req.method,
-                        params: c.req.param(),
-                        query: c.req.query(),
-                        headers: {
-                            'user-agent': c.req.header('user-agent'),
-                            referer: c.req.header('referer'),
-                        },
+                    path: c.req.path,
+                    method: c.req.method,
+                    params: c.req.param(),
+                    query: c.req.query(),
+                    headers: {
+                        'user-agent': c.req.header('user-agent'),
+                        referer: c.req.header('referer'),
                     },
-                    metadata: { trigger: 'error', statusCode: 404 },
                 });
                 if (!result.success) {
                     logger.error('[Auto-Discovery] 404 page execution failed');
@@ -140,6 +137,9 @@ async function initializeLoaders(env, ctx, config) {
         // Register built-in triggers (http, webhook, etc.)
         registerBuiltInTriggers();
         logger.info('[Auto-Discovery] Registered built-in triggers');
+        // Register built-in HTTP middleware (logger, compress, etc.)
+        registerBuiltInMiddleware();
+        logger.info('[Auto-Discovery] Registered built-in HTTP middleware');
         // Initialize AgentLoader
         memberLoader = new AgentLoader({
             membersDir: './agents',
@@ -153,11 +153,12 @@ async function initializeLoaders(env, ctx, config) {
             await memberLoader.autoDiscover(config.agents);
             logger.info(`[Auto-Discovery] Agents loaded: ${memberLoader.getMemberNames().join(', ')}`);
         }
-        // Initialize EnsembleLoader
+        // Initialize EnsembleLoader with agent loader reference for inline agents
         ensembleLoader = new EnsembleLoader({
             ensemblesDir: './ensembles',
             env,
             ctx,
+            agentLoader: memberLoader, // Pass agent loader to register inline agents
         });
         // Auto-discover ensembles if enabled and available
         if (config.autoDiscover !== false && config.ensembles && config.ensembles.length > 0) {

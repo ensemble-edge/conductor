@@ -103,7 +103,10 @@ export class ProjectValidator {
         // Parse and validate agent.yaml
         try {
             const yamlContent = fs.readFileSync(memberYamlPath, 'utf-8');
-            const agentConfig = YAML.parse(yamlContent);
+            const agentConfig = YAML.parse(yamlContent, {
+                mapAsMap: false,
+                logLevel: 'silent',
+            });
             // Validate required fields
             if (!agentConfig.name) {
                 errors.push({
@@ -124,6 +127,22 @@ export class ProjectValidator {
                         file: `agents/${agentName}/agent.yaml`,
                         message: `Invalid agent type: ${agentConfig.type}`,
                     });
+                }
+                // Validate code operation agents don't use inline code
+                if (agentConfig.type === Operation.code && agentConfig.config) {
+                    const config = agentConfig.config;
+                    if (typeof config.code === 'string') {
+                        errors.push({
+                            file: `agents/${agentName}/agent.yaml`,
+                            message: 'Inline code is not supported in Cloudflare Workers. Use config.script or an index.ts handler instead.',
+                        });
+                    }
+                    if (typeof config.function === 'string') {
+                        errors.push({
+                            file: `agents/${agentName}/agent.yaml`,
+                            message: 'config.function is deprecated. Use config.script or an index.ts handler instead.',
+                        });
+                    }
                 }
             }
             // Store validated agent
@@ -174,7 +193,10 @@ export class ProjectValidator {
         const ensemblePath = path.join(this.ensemblesDir, ensembleFile);
         try {
             const yamlContent = fs.readFileSync(ensemblePath, 'utf-8');
-            const ensembleConfig = YAML.parse(yamlContent);
+            const ensembleConfig = YAML.parse(yamlContent, {
+                mapAsMap: false,
+                logLevel: 'silent',
+            });
             // Validate required fields
             if (!ensembleConfig.name) {
                 errors.push({

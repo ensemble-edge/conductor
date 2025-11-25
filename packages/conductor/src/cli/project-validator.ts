@@ -188,6 +188,23 @@ export class ProjectValidator {
             message: `Invalid agent type: ${agentConfig.type}`,
           })
         }
+
+        // Validate code operation agents don't use inline code
+        if (agentConfig.type === Operation.code && agentConfig.config) {
+          const config = agentConfig.config as Record<string, unknown>
+          if (typeof config.code === 'string') {
+            errors.push({
+              file: `agents/${agentName}/agent.yaml`,
+              message: 'Inline code is not supported in Cloudflare Workers. Use config.script or an index.ts handler instead.',
+            })
+          }
+          if (typeof config.function === 'string') {
+            errors.push({
+              file: `agents/${agentName}/agent.yaml`,
+              message: 'config.function is deprecated. Use config.script or an index.ts handler instead.',
+            })
+          }
+        }
       }
 
       // Store validated agent

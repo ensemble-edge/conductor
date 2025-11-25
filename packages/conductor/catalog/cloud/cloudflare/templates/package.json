@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"build": "vite build",
-		"dev": "node scripts/watch-pages.js & vite dev",
+		"dev": "vite dev",
 		"dev:wrangler": "wrangler dev",
 		"deploy": "pnpm run build && wrangler deploy",
 		"cf-typegen": "wrangler types",
