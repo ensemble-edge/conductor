@@ -1,5 +1,15 @@
 # @ensemble-edge/conductor
 
+## 0.2.5
+
+### Patch Changes
+
+- 0c5d482: Fix inline code agents, HTTP input parameters, and build warnings
+  - **Inline Code Agents**: Ensembles can now define agents with inline `operation: code` and embedded code strings that execute correctly
+  - **HTTP Input Parameters**: HTTP triggers now provide structured access to `body`, `params`, `query`, `method`, `path`, and `headers` with backwards compatibility
+  - **Build Warnings**: Eliminated Node.js import warnings by using browser-optimized builds for liquidjs and handlebars, reducing bundle size by ~15%
+  - **Component Resolver**: Refactored to be Workers-compatible using KV storage instead of filesystem
+
 ## 0.2.4
 
 ### Patch Changes
