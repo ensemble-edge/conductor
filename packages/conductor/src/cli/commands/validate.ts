@@ -50,16 +50,9 @@ const autoFixes = {
   /**
    * Fix output: $agent-name to output: { result: ${agent-name.output} }
    */
-  async fixOutputSyntax(
-    filePath: string,
-    content: string,
-    agentName: string
-  ): Promise<string> {
+  async fixOutputSyntax(filePath: string, content: string, agentName: string): Promise<string> {
     const pattern = new RegExp(`^output:\\s*\\$${agentName}\\s*$`, 'm')
-    return content.replace(
-      pattern,
-      `output:\n  result: \${${agentName}.output}`
-    )
+    return content.replace(pattern, `output:\n  result: \${${agentName}.output}`)
   },
 
   /**
@@ -87,19 +80,13 @@ const autoFixes = {
     }
 
     // Generate flow from agent names
-    const flowYaml = agentNames
-      .map((name) => `  - agent: ${name}`)
-      .join('\n')
+    const flowYaml = agentNames.map((name) => `  - agent: ${name}`).join('\n')
 
     // Find position after agents section or at end
     const agentsMatch = content.match(/^agents:[\s\S]*?(?=^[a-z]|\Z)/m)
     if (agentsMatch) {
       const insertPos = (agentsMatch.index || 0) + agentsMatch[0].length
-      return (
-        content.slice(0, insertPos) +
-        `\nflow:\n${flowYaml}\n` +
-        content.slice(insertPos)
-      )
+      return content.slice(0, insertPos) + `\nflow:\n${flowYaml}\n` + content.slice(insertPos)
     }
 
     // Append at end
@@ -126,10 +113,7 @@ const autoFixes = {
   async fixUnquotedHandlebars(content: string): Promise<string> {
     // Match lines like `key: {{value}}` where the Handlebars is not quoted
     // This pattern finds: word: {{something}} (not already quoted)
-    return content.replace(
-      /^(\s*)(\w+):\s+({{[^}]+}})\s*$/gm,
-      '$1$2: "$3"'
-    )
+    return content.replace(/^(\s*)(\w+):\s+({{[^}]+}})\s*$/gm, '$1$2: "$3"')
   },
 }
 
@@ -233,11 +217,7 @@ async function validateEnsemble(
     })
 
     if (options.fix) {
-      modifiedContent = await autoFixes.fixOutputSyntax(
-        filePath,
-        modifiedContent,
-        agentName
-      )
+      modifiedContent = await autoFixes.fixOutputSyntax(filePath, modifiedContent, agentName)
       fixed = true
     }
   }
@@ -420,10 +400,7 @@ async function validateAgent(
 /**
  * Format validation results for display
  */
-function formatResults(
-  results: ValidationResult[],
-  options: ValidateOptions
-): void {
+function formatResults(results: ValidationResult[], options: ValidateOptions): void {
   if (options.format === 'json') {
     console.log(JSON.stringify(results, null, 2))
     return
@@ -445,16 +422,13 @@ function formatResults(
       continue
     }
 
-    const statusIcon = result.valid
-      ? chalk.green('✓')
-      : chalk.red('✗')
+    const statusIcon = result.valid ? chalk.green('✓') : chalk.red('✗')
     const fixedBadge = result.fixed ? chalk.yellow(' [FIXED]') : ''
 
     console.log(`${statusIcon} ${path.relative(process.cwd(), result.file)}${fixedBadge}`)
 
     for (const error of result.errors) {
-      const severity =
-        error.severity === 'error' ? chalk.red('ERROR') : chalk.yellow('WARN')
+      const severity = error.severity === 'error' ? chalk.red('ERROR') : chalk.yellow('WARN')
       const location =
         error.line !== undefined
           ? chalk.dim(`:${error.line}${error.column ? `:${error.column}` : ''}`)
@@ -483,9 +457,7 @@ function formatResults(
 
   if (invalidFiles > 0 && !options.fix) {
     console.log('')
-    console.log(
-      chalk.dim('Run with --fix to automatically fix fixable issues')
-    )
+    console.log(chalk.dim('Run with --fix to automatically fix fixable issues'))
   }
 
   console.log('')
@@ -496,18 +468,11 @@ export function createValidateCommand(): Command {
 
   validate
     .description('Validate ensemble and agent YAML files')
-    .argument(
-      '[paths...]',
-      'Files or directories to validate (default: ensembles/ and agents/)'
-    )
+    .argument('[paths...]', 'Files or directories to validate (default: ensembles/ and agents/)')
     .option('--fix', 'Automatically fix fixable issues')
     .option('-q, --quiet', 'Only show errors')
     .option('--format <format>', 'Output format: text or json', 'text')
-    .option(
-      '--ensembles-dir <dir>',
-      'Ensembles directory',
-      'ensembles'
-    )
+    .option('--ensembles-dir <dir>', 'Ensembles directory', 'ensembles')
     .option('--agents-dir <dir>', 'Agents directory', 'agents')
     .action(async (paths: string[], options: ValidateOptions) => {
       try {
@@ -540,9 +505,7 @@ export function createValidateCommand(): Command {
               cwd: agentsDir,
               absolute: true,
             })
-            filesToValidate.push(
-              ...agentFiles.map((f) => ({ path: f, type: 'agent' as const }))
-            )
+            filesToValidate.push(...agentFiles.map((f) => ({ path: f, type: 'agent' as const })))
           } catch {
             // Directory doesn't exist
           }
@@ -558,8 +521,7 @@ export function createValidateCommand(): Command {
                 absolute: true,
               })
               // Determine type based on directory name
-              const isAgentsDir =
-                p.includes('agent') || resolved.includes('/agents/')
+              const isAgentsDir = p.includes('agent') || resolved.includes('/agents/')
               filesToValidate.push(
                 ...files.map((f) => ({
                   path: f,
@@ -568,9 +530,7 @@ export function createValidateCommand(): Command {
               )
             } else {
               // Single file - determine type from content or path
-              const isAgent =
-                p.includes('agent') ||
-                resolved.includes('/agents/')
+              const isAgent = p.includes('agent') || resolved.includes('/agents/')
               filesToValidate.push({
                 path: resolved,
                 type: isAgent ? 'agent' : 'ensemble',

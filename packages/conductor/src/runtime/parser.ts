@@ -444,10 +444,16 @@ const EnsembleSchema = z.object({
         z.object({
           type: z.literal('email'),
           // Allow either valid email or env variable placeholder (${env.VAR})
-          to: z.array(z.string().refine(
-            (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
-            { message: 'Must be a valid email or environment variable (${env.VAR})' }
-          )).min(1),
+          to: z
+            .array(
+              z
+                .string()
+                .refine(
+                  (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
+                  { message: 'Must be a valid email or environment variable (${env.VAR})' }
+                )
+            )
+            .min(1),
           events: z
             .array(
               z.enum([
@@ -462,10 +468,13 @@ const EnsembleSchema = z.object({
             .min(1),
           subject: z.string().optional(),
           // Allow either valid email or env variable placeholder
-          from: z.string().refine(
-            (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
-            { message: 'Must be a valid email or environment variable (${env.VAR})' }
-          ).optional(),
+          from: z
+            .string()
+            .refine(
+              (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || /^\$\{env\.[^}]+\}$/.test(val),
+              { message: 'Must be a valid email or environment variable (${env.VAR})' }
+            )
+            .optional(),
         }),
       ])
     )

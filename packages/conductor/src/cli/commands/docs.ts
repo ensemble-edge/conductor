@@ -91,7 +91,9 @@ export function createDocsCommand(): Command {
         console.log('')
 
         const content = await fs.readFile(file, 'utf-8')
-        const spec = file.endsWith('.json') ? JSON.parse(content) : YAML.parse(content, { mapAsMap: false, logLevel: 'silent' })
+        const spec = file.endsWith('.json')
+          ? JSON.parse(content)
+          : YAML.parse(content, { mapAsMap: false, logLevel: 'silent' })
 
         // Basic validation
         const errors: string[] = []
