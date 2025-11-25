@@ -112,8 +112,7 @@ export function parseScriptURI(uri: string): string {
  */
 export function isScriptReference(value: unknown): value is string {
   return (
-    typeof value === 'string' &&
-    (value.startsWith('script://') || value.startsWith('scripts/'))
+    typeof value === 'string' && (value.startsWith('script://') || value.startsWith('scripts/'))
   )
 }
 
@@ -132,7 +131,8 @@ export function createScriptLoader(scriptsMap: Map<string, ScriptHandler>): Scri
 
       if (!handler) {
         const available = Array.from(scriptsMap.keys())
-        const suggestions = available.length > 0 ? `\nAvailable scripts:\n  - ${available.join('\n  - ')}` : ''
+        const suggestions =
+          available.length > 0 ? `\nAvailable scripts:\n  - ${available.join('\n  - ')}` : ''
 
         throw new Error(
           `Script not found: ${uri}\n` +

@@ -10,129 +10,129 @@
  * Instruction source types
  */
 export type InstructionSource =
-	| { type: 'inline'; content: string }
-	| { type: 'file'; path: string }
-	| { type: 'template'; name: string; variables?: Record<string, unknown> }
-	| { type: 'dynamic'; generator: (context: InstructionContext) => string | Promise<string> }
+  | { type: 'inline'; content: string }
+  | { type: 'file'; path: string }
+  | { type: 'template'; name: string; variables?: Record<string, unknown> }
+  | { type: 'dynamic'; generator: (context: InstructionContext) => string | Promise<string> }
 
 /**
  * Context available during instruction generation
  */
 export interface InstructionContext {
-	/** Current input to the agent */
-	input: Record<string, unknown>
-	/** Current state */
-	state: Record<string, unknown>
-	/** Environment variables */
-	env: Record<string, unknown>
-	/** Results from previous steps */
-	results: Record<string, unknown>
+  /** Current input to the agent */
+  input: Record<string, unknown>
+  /** Current state */
+  state: Record<string, unknown>
+  /** Environment variables */
+  env: Record<string, unknown>
+  /** Results from previous steps */
+  results: Record<string, unknown>
 }
 
 /**
  * Instruction configuration
  */
 export interface InstructionConfig {
-	/** Instruction name/identifier */
-	name?: string
-	/** The instruction content or source */
-	source: InstructionSource
-	/** Role for the instruction (system, user, assistant) */
-	role?: 'system' | 'user' | 'assistant'
-	/** Priority for ordering multiple instructions */
-	priority?: number
-	/** Conditional application */
-	when?: string | ((context: InstructionContext) => boolean)
-	/** Variables for template interpolation */
-	variables?: Record<string, unknown>
-	/** Cache the resolved instruction */
-	cache?: boolean
+  /** Instruction name/identifier */
+  name?: string
+  /** The instruction content or source */
+  source: InstructionSource
+  /** Role for the instruction (system, user, assistant) */
+  role?: 'system' | 'user' | 'assistant'
+  /** Priority for ordering multiple instructions */
+  priority?: number
+  /** Conditional application */
+  when?: string | ((context: InstructionContext) => boolean)
+  /** Variables for template interpolation */
+  variables?: Record<string, unknown>
+  /** Cache the resolved instruction */
+  cache?: boolean
 }
 
 /**
  * Instruction class - runtime representation of an instruction
  */
 export class Instruction {
-	public readonly name?: string
-	public readonly source: InstructionSource
-	public readonly role: 'system' | 'user' | 'assistant'
-	public readonly priority: number
-	public readonly when?: string | ((context: InstructionContext) => boolean)
-	public readonly variables?: Record<string, unknown>
-	public readonly cache: boolean
+  public readonly name?: string
+  public readonly source: InstructionSource
+  public readonly role: 'system' | 'user' | 'assistant'
+  public readonly priority: number
+  public readonly when?: string | ((context: InstructionContext) => boolean)
+  public readonly variables?: Record<string, unknown>
+  public readonly cache: boolean
 
-	constructor(config: InstructionConfig) {
-		this.name = config.name
-		this.source = config.source
-		this.role = config.role ?? 'system'
-		this.priority = config.priority ?? 0
-		this.when = config.when
-		this.variables = config.variables
-		this.cache = config.cache ?? false
-	}
+  constructor(config: InstructionConfig) {
+    this.name = config.name
+    this.source = config.source
+    this.role = config.role ?? 'system'
+    this.priority = config.priority ?? 0
+    this.when = config.when
+    this.variables = config.variables
+    this.cache = config.cache ?? false
+  }
 
-	/**
-	 * Check if this is an inline instruction
-	 */
-	isInline(): boolean {
-		return this.source.type === 'inline'
-	}
+  /**
+   * Check if this is an inline instruction
+   */
+  isInline(): boolean {
+    return this.source.type === 'inline'
+  }
 
-	/**
-	 * Check if this is a file-based instruction
-	 */
-	isFile(): boolean {
-		return this.source.type === 'file'
-	}
+  /**
+   * Check if this is a file-based instruction
+   */
+  isFile(): boolean {
+    return this.source.type === 'file'
+  }
 
-	/**
-	 * Check if this is a template instruction
-	 */
-	isTemplate(): boolean {
-		return this.source.type === 'template'
-	}
+  /**
+   * Check if this is a template instruction
+   */
+  isTemplate(): boolean {
+    return this.source.type === 'template'
+  }
 
-	/**
-	 * Check if this is a dynamic instruction
-	 */
-	isDynamic(): boolean {
-		return this.source.type === 'dynamic'
-	}
+  /**
+   * Check if this is a dynamic instruction
+   */
+  isDynamic(): boolean {
+    return this.source.type === 'dynamic'
+  }
 
-	/**
-	 * Get the raw content (for inline instructions)
-	 */
-	getContent(): string | undefined {
-		if (this.source.type === 'inline') {
-			return this.source.content
-		}
-		return undefined
-	}
+  /**
+   * Get the raw content (for inline instructions)
+   */
+  getContent(): string | undefined {
+    if (this.source.type === 'inline') {
+      return this.source.content
+    }
+    return undefined
+  }
 
-	/**
-	 * Get the file path (for file instructions)
-	 */
-	getFilePath(): string | undefined {
-		if (this.source.type === 'file') {
-			return this.source.path
-		}
-		return undefined
-	}
+  /**
+   * Get the file path (for file instructions)
+   */
+  getFilePath(): string | undefined {
+    if (this.source.type === 'file') {
+      return this.source.path
+    }
+    return undefined
+  }
 
-	/**
-	 * Convert to plain config object
-	 */
-	toConfig(): InstructionConfig {
-		return {
-			name: this.name,
-			source: this.source,
-			role: this.role,
-			priority: this.priority,
-			when: typeof this.when === 'string' ? this.when : undefined,
-			variables: this.variables,
-			cache: this.cache,
-		}
-	}
+  /**
+   * Convert to plain config object
+   */
+  toConfig(): InstructionConfig {
+    return {
+      name: this.name,
+      source: this.source,
+      role: this.role,
+      priority: this.priority,
+      when: typeof this.when === 'string' ? this.when : undefined,
+      variables: this.variables,
+      cache: this.cache,
+    }
+  }
 }
 
 /**
@@ -146,11 +146,14 @@ export class Instruction {
  * `);
  * ```
  */
-export function instruction(content: string, options?: Omit<InstructionConfig, 'source'>): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'inline', content },
-	})
+export function instruction(
+  content: string,
+  options?: Omit<InstructionConfig, 'source'>
+): Instruction {
+  return new Instruction({
+    ...options,
+    source: { type: 'inline', content },
+  })
 }
 
 /**
@@ -165,14 +168,14 @@ export function instruction(content: string, options?: Omit<InstructionConfig, '
  * ```
  */
 export function systemInstruction(
-	content: string,
-	options?: Omit<InstructionConfig, 'source' | 'role'>
+  content: string,
+  options?: Omit<InstructionConfig, 'source' | 'role'>
 ): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'inline', content },
-		role: 'system',
-	})
+  return new Instruction({
+    ...options,
+    source: { type: 'inline', content },
+    role: 'system',
+  })
 }
 
 /**
@@ -187,14 +190,14 @@ export function systemInstruction(
  * ```
  */
 export function userInstruction(
-	content: string,
-	options?: Omit<InstructionConfig, 'source' | 'role'>
+  content: string,
+  options?: Omit<InstructionConfig, 'source' | 'role'>
 ): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'inline', content },
-		role: 'user',
-	})
+  return new Instruction({
+    ...options,
+    source: { type: 'inline', content },
+    role: 'user',
+  })
 }
 
 /**
@@ -208,14 +211,14 @@ export function userInstruction(
  * ```
  */
 export function assistantInstruction(
-	content: string,
-	options?: Omit<InstructionConfig, 'source' | 'role'>
+  content: string,
+  options?: Omit<InstructionConfig, 'source' | 'role'>
 ): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'inline', content },
-		role: 'assistant',
-	})
+  return new Instruction({
+    ...options,
+    source: { type: 'inline', content },
+    role: 'assistant',
+  })
 }
 
 /**
@@ -227,13 +230,13 @@ export function assistantInstruction(
  * ```
  */
 export function fileInstruction(
-	path: string,
-	options?: Omit<InstructionConfig, 'source'>
+  path: string,
+  options?: Omit<InstructionConfig, 'source'>
 ): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'file', path },
-	})
+  return new Instruction({
+    ...options,
+    source: { type: 'file', path },
+  })
 }
 
 /**
@@ -248,14 +251,14 @@ export function fileInstruction(
  * ```
  */
 export function templateInstruction(
-	name: string,
-	variables?: Record<string, unknown>,
-	options?: Omit<InstructionConfig, 'source'>
+  name: string,
+  variables?: Record<string, unknown>,
+  options?: Omit<InstructionConfig, 'source'>
 ): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'template', name, variables },
-	})
+  return new Instruction({
+    ...options,
+    source: { type: 'template', name, variables },
+  })
 }
 
 /**
@@ -270,13 +273,13 @@ export function templateInstruction(
  * ```
  */
 export function dynamicInstruction(
-	generator: (context: InstructionContext) => string | Promise<string>,
-	options?: Omit<InstructionConfig, 'source'>
+  generator: (context: InstructionContext) => string | Promise<string>,
+  options?: Omit<InstructionConfig, 'source'>
 ): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'dynamic', generator },
-	})
+  return new Instruction({
+    ...options,
+    source: { type: 'dynamic', generator },
+  })
 }
 
 /**
@@ -291,15 +294,15 @@ export function dynamicInstruction(
  * ```
  */
 export function conditionalInstruction(
-	condition: string | ((context: InstructionContext) => boolean),
-	content: string,
-	options?: Omit<InstructionConfig, 'source' | 'when'>
+  condition: string | ((context: InstructionContext) => boolean),
+  content: string,
+  options?: Omit<InstructionConfig, 'source' | 'when'>
 ): Instruction {
-	return new Instruction({
-		...options,
-		source: { type: 'inline', content },
-		when: condition,
-	})
+  return new Instruction({
+    ...options,
+    source: { type: 'inline', content },
+    when: condition,
+  })
 }
 
 /**
@@ -315,8 +318,8 @@ export function conditionalInstruction(
  * ```
  */
 export function combineInstructions(instructions: Instruction[]): Instruction[] {
-	// Sort by priority (higher priority first)
-	return [...instructions].sort((a, b) => b.priority - a.priority)
+  // Sort by priority (higher priority first)
+  return [...instructions].sort((a, b) => b.priority - a.priority)
 }
 
 /**
@@ -334,61 +337,61 @@ export function combineInstructions(instructions: Instruction[]): Instruction[] 
  * ```
  */
 export function prompt(config: {
-	system?: string | Instruction
-	user?: string | Instruction
-	examples?: Array<{ user: string; assistant: string }>
-	additional?: Instruction[]
+  system?: string | Instruction
+  user?: string | Instruction
+  examples?: Array<{ user: string; assistant: string }>
+  additional?: Instruction[]
 }): Instruction[] {
-	const instructions: Instruction[] = []
+  const instructions: Instruction[] = []
 
-	// Add system instruction
-	if (config.system) {
-		if (typeof config.system === 'string') {
-			instructions.push(systemInstruction(config.system, { priority: 100 }))
-		} else {
-			instructions.push(config.system)
-		}
-	}
+  // Add system instruction
+  if (config.system) {
+    if (typeof config.system === 'string') {
+      instructions.push(systemInstruction(config.system, { priority: 100 }))
+    } else {
+      instructions.push(config.system)
+    }
+  }
 
-	// Add examples as few-shot prompts
-	if (config.examples) {
-		config.examples.forEach((example, index) => {
-			instructions.push(userInstruction(example.user, { priority: 50 - index }))
-			instructions.push(assistantInstruction(example.assistant, { priority: 50 - index }))
-		})
-	}
+  // Add examples as few-shot prompts
+  if (config.examples) {
+    config.examples.forEach((example, index) => {
+      instructions.push(userInstruction(example.user, { priority: 50 - index }))
+      instructions.push(assistantInstruction(example.assistant, { priority: 50 - index }))
+    })
+  }
 
-	// Add user instruction
-	if (config.user) {
-		if (typeof config.user === 'string') {
-			instructions.push(userInstruction(config.user, { priority: 0 }))
-		} else {
-			instructions.push(config.user)
-		}
-	}
+  // Add user instruction
+  if (config.user) {
+    if (typeof config.user === 'string') {
+      instructions.push(userInstruction(config.user, { priority: 0 }))
+    } else {
+      instructions.push(config.user)
+    }
+  }
 
-	// Add any additional instructions
-	if (config.additional) {
-		instructions.push(...config.additional)
-	}
+  // Add any additional instructions
+  if (config.additional) {
+    instructions.push(...config.additional)
+  }
 
-	return combineInstructions(instructions)
+  return combineInstructions(instructions)
 }
 
 /**
  * Check if a value is an Instruction instance
  */
 export function isInstruction(value: unknown): value is Instruction {
-	return value instanceof Instruction
+  return value instanceof Instruction
 }
 
 /**
  * Check if a value is a valid instruction config
  */
 export function isInstructionConfig(value: unknown): value is InstructionConfig {
-	if (typeof value !== 'object' || value === null) {
-		return false
-	}
-	const config = value as Record<string, unknown>
-	return typeof config.source === 'object' && config.source !== null
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const config = value as Record<string, unknown>
+  return typeof config.source === 'object' && config.source !== null
 }

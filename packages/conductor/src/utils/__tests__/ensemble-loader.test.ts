@@ -264,12 +264,14 @@ flow:
       const tsEnsemble = createEnsemble({
         name: 'triggered-ensemble',
         steps: [step('handler')],
-        trigger: [{
-          type: 'http',
-          path: '/api/handler',
-          methods: ['POST'],
-          public: true,
-        }],
+        trigger: [
+          {
+            type: 'http',
+            path: '/api/handler',
+            methods: ['POST'],
+            public: true,
+          },
+        ],
       })
 
       loader.registerEnsembleInstance(tsEnsemble)
@@ -429,14 +431,16 @@ flow:
 
     it('should return all Ensemble instances', () => {
       loader.registerEnsemble(`name: yaml1\nflow:\n  - agent: a1`)
-      loader.registerEnsembleInstance(createEnsemble({
-        name: 'ts1',
-        steps: [step('s1')],
-      }))
+      loader.registerEnsembleInstance(
+        createEnsemble({
+          name: 'ts1',
+          steps: [step('s1')],
+        })
+      )
 
       const instances = loader.getAllEnsembleInstances()
       expect(instances).toHaveLength(2)
-      expect(instances.every(i => i instanceof Ensemble)).toBe(true)
+      expect(instances.every((i) => i instanceof Ensemble)).toBe(true)
     })
   })
 
@@ -460,14 +464,16 @@ flow:
   describe('getAllLoadedEnsembles', () => {
     it('should return all loaded ensemble data', () => {
       loader.registerEnsemble(`name: e1\nflow:\n  - agent: a1`)
-      loader.registerEnsembleInstance(createEnsemble({
-        name: 'e2',
-        steps: [step('s2')],
-      }))
+      loader.registerEnsembleInstance(
+        createEnsemble({
+          name: 'e2',
+          steps: [step('s2')],
+        })
+      )
 
       const allLoaded = loader.getAllLoadedEnsembles()
       expect(allLoaded).toHaveLength(2)
-      expect(allLoaded.every(l => l.config && l.instance && l.source)).toBe(true)
+      expect(allLoaded.every((l) => l.config && l.instance && l.source)).toBe(true)
     })
   })
 

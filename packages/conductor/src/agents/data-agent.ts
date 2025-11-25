@@ -151,10 +151,7 @@ export class DataAgent extends BaseAgent {
   /**
    * Execute Hyperdrive operation (SQL-native)
    */
-  private async executeHyperdriveOperation(
-    env: ConductorEnv,
-    input: DataInput
-  ): Promise<unknown> {
+  private async executeHyperdriveOperation(env: ConductorEnv, input: DataInput): Promise<unknown> {
     // Create or get cached Hyperdrive repository
     if (!this.hyperdriveRepo) {
       this.hyperdriveRepo = this.createHyperdriveRepository(env)
@@ -258,7 +255,10 @@ export class DataAgent extends BaseAgent {
       }
 
       default:
-        return { success: false, error: `Operation ${this.dataConfig.operation} not supported for Hyperdrive` }
+        return {
+          success: false,
+          error: `Operation ${this.dataConfig.operation} not supported for Hyperdrive`,
+        }
     }
   }
 

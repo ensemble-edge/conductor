@@ -242,10 +242,9 @@ export class ComponentLoader {
    */
   async loadCompiled<T = any>(uri: string, options?: ComponentLoadOptions): Promise<T> {
     // Log deprecation warning
-    this.logger?.warn(
-      'loadCompiled() is deprecated and will not work in Cloudflare Workers',
-      { uri }
-    )
+    this.logger?.warn('loadCompiled() is deprecated and will not work in Cloudflare Workers', {
+      uri,
+    })
 
     const content = await this.load(uri, options)
 

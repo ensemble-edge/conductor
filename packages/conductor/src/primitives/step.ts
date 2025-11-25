@@ -6,62 +6,62 @@
  */
 
 import type {
-	AgentFlowStep,
-	AgentStepConfig,
-	FlowStepType,
-	OperationType,
-	RetryConfig,
-	CacheConfig,
-	ScoringConfig,
-	StateAccessConfig,
-	TimeoutConfig,
+  AgentFlowStep,
+  AgentStepConfig,
+  FlowStepType,
+  OperationType,
+  RetryConfig,
+  CacheConfig,
+  ScoringConfig,
+  StateAccessConfig,
+  TimeoutConfig,
 } from './types.js'
 
 /**
  * Configuration options for creating a step
  */
 export interface StepOptions {
-	/** Operation type (think, code, http, etc.) - used when referencing inline agent */
-	operation?: OperationType
+  /** Operation type (think, code, http, etc.) - used when referencing inline agent */
+  operation?: OperationType
 
-	/** Script path for code operations */
-	script?: string
+  /** Script path for code operations */
+  script?: string
 
-	/** Agent-specific configuration */
-	config?: Record<string, unknown>
+  /** Agent-specific configuration */
+  config?: Record<string, unknown>
 
-	/** Input data mapping (supports expression syntax like ${previous.output}) */
-	input?: Record<string, unknown>
+  /** Input data mapping (supports expression syntax like ${previous.output}) */
+  input?: Record<string, unknown>
 
-	/** Conditional execution expression */
-	condition?: unknown
+  /** Conditional execution expression */
+  condition?: unknown
 
-	/** Alias for condition */
-	when?: unknown
+  /** Alias for condition */
+  when?: unknown
 
-	/** Step identifier for referencing in expressions */
-	id?: string
+  /** Step identifier for referencing in expressions */
+  id?: string
 
-	/** Dependencies (step names that must complete first) */
-	depends_on?: string[]
+  /** Dependencies (step names that must complete first) */
+  depends_on?: string[]
 
-	/** Retry configuration */
-	retry?: RetryConfig
+  /** Retry configuration */
+  retry?: RetryConfig
 
-	/** Timeout in milliseconds */
-	timeout?: number
+  /** Timeout in milliseconds */
+  timeout?: number
 
-	/** Timeout behavior */
-	onTimeout?: TimeoutConfig
+  /** Timeout behavior */
+  onTimeout?: TimeoutConfig
 
-	/** Cache configuration */
-	cache?: CacheConfig
+  /** Cache configuration */
+  cache?: CacheConfig
 
-	/** Scoring configuration */
-	scoring?: ScoringConfig
+  /** Scoring configuration */
+  scoring?: ScoringConfig
 
-	/** State access configuration */
-	state?: StateAccessConfig
+  /** State access configuration */
+  state?: StateAccessConfig
 }
 
 /**
@@ -103,53 +103,53 @@ export interface StepOptions {
  * ```
  */
 export function step(name: string, options: StepOptions = {}): AgentFlowStep {
-	const {
-		operation,
-		script,
-		config,
-		input,
-		condition,
-		when,
-		id,
-		depends_on,
-		retry,
-		timeout,
-		onTimeout,
-		cache,
-		scoring,
-		state,
-	} = options
+  const {
+    operation,
+    script,
+    config,
+    input,
+    condition,
+    when,
+    id,
+    depends_on,
+    retry,
+    timeout,
+    onTimeout,
+    cache,
+    scoring,
+    state,
+  } = options
 
-	// Build the step object
-	const agentStep: AgentFlowStep = {
-		agent: name,
-	}
+  // Build the step object
+  const agentStep: AgentFlowStep = {
+    agent: name,
+  }
 
-	// Add optional fields only if provided
-	if (id !== undefined) agentStep.id = id
-	if (input !== undefined) agentStep.input = input
-	if (condition !== undefined) agentStep.condition = condition
-	if (when !== undefined) agentStep.when = when
-	if (depends_on !== undefined) agentStep.depends_on = depends_on
-	if (retry !== undefined) agentStep.retry = retry
-	if (timeout !== undefined) agentStep.timeout = timeout
-	if (onTimeout !== undefined) agentStep.onTimeout = onTimeout
-	if (cache !== undefined) agentStep.cache = cache
-	if (scoring !== undefined) agentStep.scoring = scoring
-	if (state !== undefined) agentStep.state = state
+  // Add optional fields only if provided
+  if (id !== undefined) agentStep.id = id
+  if (input !== undefined) agentStep.input = input
+  if (condition !== undefined) agentStep.condition = condition
+  if (when !== undefined) agentStep.when = when
+  if (depends_on !== undefined) agentStep.depends_on = depends_on
+  if (retry !== undefined) agentStep.retry = retry
+  if (timeout !== undefined) agentStep.timeout = timeout
+  if (onTimeout !== undefined) agentStep.onTimeout = onTimeout
+  if (cache !== undefined) agentStep.cache = cache
+  if (scoring !== undefined) agentStep.scoring = scoring
+  if (state !== undefined) agentStep.state = state
 
-	// Handle operation/script/config - these go into the step for inline agents
-	// When the step references a pre-defined agent, these are ignored
-	// When the step IS the agent definition, these define it
-	if (operation !== undefined || script !== undefined || config !== undefined) {
-		// For inline agent definition, we store these in a way the executor understands
-		// The executor will create an inline agent from these properties
-		;(agentStep as AgentFlowStep & AgentStepConfig).operation = operation
-		;(agentStep as AgentFlowStep & AgentStepConfig).script = script
-		;(agentStep as AgentFlowStep & AgentStepConfig).config = config
-	}
+  // Handle operation/script/config - these go into the step for inline agents
+  // When the step references a pre-defined agent, these are ignored
+  // When the step IS the agent definition, these define it
+  if (operation !== undefined || script !== undefined || config !== undefined) {
+    // For inline agent definition, we store these in a way the executor understands
+    // The executor will create an inline agent from these properties
+    ;(agentStep as AgentFlowStep & AgentStepConfig).operation = operation
+    ;(agentStep as AgentFlowStep & AgentStepConfig).script = script
+    ;(agentStep as AgentFlowStep & AgentStepConfig).config = config
+  }
 
-	return agentStep
+  return agentStep
 }
 
 /**
@@ -171,7 +171,7 @@ export function step(name: string, options: StepOptions = {}): AgentFlowStep {
  * ```
  */
 export function sequence(...steps: FlowStepType[]): FlowStepType[] {
-	return steps
+  return steps
 }
 
 /**
@@ -192,15 +192,15 @@ export function sequence(...steps: FlowStepType[]): FlowStepType[] {
  * ```
  */
 export function scriptStep(
-	name: string,
-	scriptPath: string,
-	options: Omit<StepOptions, 'script' | 'operation'> = {}
+  name: string,
+  scriptPath: string,
+  options: Omit<StepOptions, 'script' | 'operation'> = {}
 ): AgentFlowStep {
-	return step(name, {
-		...options,
-		operation: 'code',
-		script: scriptPath,
-	})
+  return step(name, {
+    ...options,
+    operation: 'code',
+    script: scriptPath,
+  })
 }
 
 /**
@@ -222,28 +222,28 @@ export function scriptStep(
  * ```
  */
 export function httpStep(
-	name: string,
-	url: string,
-	options: Omit<StepOptions, 'operation'> & {
-		method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-		headers?: Record<string, string>
-		body?: unknown
-	} = {}
+  name: string,
+  url: string,
+  options: Omit<StepOptions, 'operation'> & {
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+    headers?: Record<string, string>
+    body?: unknown
+  } = {}
 ): AgentFlowStep {
-	const { method, headers, body, ...stepOptions } = options
+  const { method, headers, body, ...stepOptions } = options
 
-	const config: Record<string, unknown> = {
-		url,
-		method: method ?? 'GET',
-	}
-	if (headers) config.headers = headers
-	if (body !== undefined) config.body = body
+  const config: Record<string, unknown> = {
+    url,
+    method: method ?? 'GET',
+  }
+  if (headers) config.headers = headers
+  if (body !== undefined) config.body = body
 
-	return step(name, {
-		...stepOptions,
-		operation: 'http',
-		config,
-	})
+  return step(name, {
+    ...stepOptions,
+    operation: 'http',
+    config,
+  })
 }
 
 /**
@@ -265,30 +265,30 @@ export function httpStep(
  * ```
  */
 export function thinkStep(
-	name: string,
-	prompt: string,
-	options: Omit<StepOptions, 'operation'> & {
-		model?: string
-		provider?: string
-		temperature?: number
-		maxTokens?: number
-		systemPrompt?: string
-	} = {}
+  name: string,
+  prompt: string,
+  options: Omit<StepOptions, 'operation'> & {
+    model?: string
+    provider?: string
+    temperature?: number
+    maxTokens?: number
+    systemPrompt?: string
+  } = {}
 ): AgentFlowStep {
-	const { model, provider, temperature, maxTokens, systemPrompt, ...stepOptions } = options
+  const { model, provider, temperature, maxTokens, systemPrompt, ...stepOptions } = options
 
-	return step(name, {
-		...stepOptions,
-		operation: 'think',
-		config: {
-			prompt,
-			...(model && { model }),
-			...(provider && { provider }),
-			...(temperature !== undefined && { temperature }),
-			...(maxTokens && { maxTokens }),
-			...(systemPrompt && { systemPrompt }),
-		},
-	})
+  return step(name, {
+    ...stepOptions,
+    operation: 'think',
+    config: {
+      prompt,
+      ...(model && { model }),
+      ...(provider && { provider }),
+      ...(temperature !== undefined && { temperature }),
+      ...(maxTokens && { maxTokens }),
+      ...(systemPrompt && { systemPrompt }),
+    },
+  })
 }
 
 /**
@@ -311,30 +311,30 @@ export function thinkStep(
  * ```
  */
 export function storageStep(
-	name: string,
-	action: 'get' | 'put' | 'delete' | 'list',
-	options: Omit<StepOptions, 'operation'> & {
-		binding: string
-		type?: 'kv' | 'r2' | 'cache'
-		key?: string
-		value?: unknown
-		prefix?: string
-	} = {} as any
+  name: string,
+  action: 'get' | 'put' | 'delete' | 'list',
+  options: Omit<StepOptions, 'operation'> & {
+    binding: string
+    type?: 'kv' | 'r2' | 'cache'
+    key?: string
+    value?: unknown
+    prefix?: string
+  } = {} as any
 ): AgentFlowStep {
-	const { binding, type, key, value, prefix, ...stepOptions } = options
+  const { binding, type, key, value, prefix, ...stepOptions } = options
 
-	return step(name, {
-		...stepOptions,
-		operation: 'storage',
-		config: {
-			action,
-			binding,
-			...(type && { type }),
-			...(key && { key }),
-			...(value !== undefined && { value }),
-			...(prefix && { prefix }),
-		},
-	})
+  return step(name, {
+    ...stepOptions,
+    operation: 'storage',
+    config: {
+      action,
+      binding,
+      ...(type && { type }),
+      ...(key && { key }),
+      ...(value !== undefined && { value }),
+      ...(prefix && { prefix }),
+    },
+  })
 }
 
 /**
@@ -356,26 +356,26 @@ export function storageStep(
  * ```
  */
 export function dataStep(
-	name: string,
-	query: string,
-	options: Omit<StepOptions, 'operation'> & {
-		binding: string
-		type?: 'd1' | 'hyperdrive' | 'vectorize'
-		params?: unknown[]
-	} = {} as any
+  name: string,
+  query: string,
+  options: Omit<StepOptions, 'operation'> & {
+    binding: string
+    type?: 'd1' | 'hyperdrive' | 'vectorize'
+    params?: unknown[]
+  } = {} as any
 ): AgentFlowStep {
-	const { binding, type, params, ...stepOptions } = options
+  const { binding, type, params, ...stepOptions } = options
 
-	return step(name, {
-		...stepOptions,
-		operation: 'data',
-		config: {
-			query,
-			binding,
-			...(type && { type }),
-			...(params && { params }),
-		},
-	})
+  return step(name, {
+    ...stepOptions,
+    operation: 'data',
+    config: {
+      query,
+      binding,
+      ...(type && { type }),
+      ...(params && { params }),
+    },
+  })
 }
 
 /**
@@ -397,28 +397,28 @@ export function dataStep(
  * ```
  */
 export function emailStep(
-	name: string,
-	options: Omit<StepOptions, 'operation'> & {
-		to: string[]
-		subject?: string
-		body?: string
-		from?: string
-		template?: string
-	}
+  name: string,
+  options: Omit<StepOptions, 'operation'> & {
+    to: string[]
+    subject?: string
+    body?: string
+    from?: string
+    template?: string
+  }
 ): AgentFlowStep {
-	const { to, subject, body, from, template, ...stepOptions } = options
+  const { to, subject, body, from, template, ...stepOptions } = options
 
-	return step(name, {
-		...stepOptions,
-		operation: 'email',
-		config: {
-			to,
-			...(subject && { subject }),
-			...(body && { body }),
-			...(from && { from }),
-			...(template && { template }),
-		},
-	})
+  return step(name, {
+    ...stepOptions,
+    operation: 'email',
+    config: {
+      to,
+      ...(subject && { subject }),
+      ...(body && { body }),
+      ...(from && { from }),
+      ...(template && { template }),
+    },
+  })
 }
 
 /**
@@ -437,6 +437,9 @@ export function emailStep(
  * })
  * ```
  */
-export function agentStep(agentName: string, options: Omit<StepOptions, 'operation' | 'script'> = {}): AgentFlowStep {
-	return step(agentName, options)
+export function agentStep(
+  agentName: string,
+  options: Omit<StepOptions, 'operation' | 'script'> = {}
+): AgentFlowStep {
+  return step(agentName, options)
 }
