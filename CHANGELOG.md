@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 0.2.4
+
+### Patch Changes
+
+- 8e41363: Fix all v0.2.3 testing report issues including ensemble validation errors, inline agent registration, HTTP trigger input mapping, and template syntax fixes. Add autorag operation type and MCP trigger handler. Add validate CLI command with auto-fix capability.
+
 ## 0.2.3
 
 ### Patch Changes
