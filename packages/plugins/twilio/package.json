@@ -42,7 +42,7 @@
     "directory": "packages/plugins/twilio"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.3.0",
+    "@ensemble-edge/conductor": "^0.3.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

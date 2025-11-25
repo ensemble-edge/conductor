@@ -42,7 +42,7 @@
     "directory": "packages/plugin-unkey"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.3.0"
+    "@ensemble-edge/conductor": "^0.3.1"
   },
   "dependencies": {
     "@unkey/api": "^0.25.0"
