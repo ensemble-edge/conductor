@@ -266,7 +266,10 @@ async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
         ],
       })
     } catch (error) {
-      logger.error(`[MCP] Tool invocation failed: ${toolName}`, error instanceof Error ? error : undefined)
+      logger.error(
+        `[MCP] Tool invocation failed: ${toolName}`,
+        error instanceof Error ? error : undefined
+      )
       return c.json(
         {
           content: [
@@ -318,7 +321,12 @@ function buildInputSchema(ensemble: any): any {
       } else {
         // Simple value - infer type
         schema.properties[key] = {
-          type: typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : 'string',
+          type:
+            typeof value === 'number'
+              ? 'number'
+              : typeof value === 'boolean'
+                ? 'boolean'
+                : 'string',
         }
       }
     }

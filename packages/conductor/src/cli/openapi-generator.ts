@@ -184,7 +184,10 @@ export class OpenAPIGenerator {
         if (file.endsWith('.yaml') || file.endsWith('.yml')) {
           const filePath = path.join(ensemblesPath, file)
           const content = await fs.readFile(filePath, 'utf-8')
-          const ensemble = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as EnsembleConfig
+          const ensemble = YAML.parse(content, {
+            mapAsMap: false,
+            logLevel: 'silent',
+          }) as EnsembleConfig
           this.ensembles.set(ensemble.name, ensemble)
         }
       }
@@ -204,7 +207,10 @@ export class OpenAPIGenerator {
           const memberYamlPath = path.join(membersPath, dir.name, 'agent.yaml')
           try {
             const content = await fs.readFile(memberYamlPath, 'utf-8')
-            const agent = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as AgentConfig
+            const agent = YAML.parse(content, {
+              mapAsMap: false,
+              logLevel: 'silent',
+            }) as AgentConfig
             this.agents.set(agent.name, agent)
           } catch {
             // Agent might not have agent.yaml

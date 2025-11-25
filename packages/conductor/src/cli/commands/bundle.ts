@@ -113,10 +113,7 @@ function extractAgentDependencies(
 /**
  * Find agent file by name in agents directory
  */
-async function findAgentFile(
-  agentName: string,
-  agentsDir: string
-): Promise<string | null> {
+async function findAgentFile(agentName: string, agentsDir: string): Promise<string | null> {
   const extensions = ['.yaml', '.yml']
 
   for (const ext of extensions) {
@@ -155,16 +152,16 @@ async function bundleEnsemble(
 
   // Read and parse ensemble
   const ensembleContent = await fs.readFile(ensemblePath, 'utf-8')
-  const ensembleConfig = YAML.parse(ensembleContent, { mapAsMap: false, logLevel: 'silent' }) as Record<string, unknown>
+  const ensembleConfig = YAML.parse(ensembleContent, {
+    mapAsMap: false,
+    logLevel: 'silent',
+  }) as Record<string, unknown>
 
   // Validate ensemble
   const parsedEnsemble = Parser.parseEnsemble(ensembleContent)
 
   const ensembleName = parsedEnsemble.name
-  const agentsDir = path.resolve(
-    process.cwd(),
-    options.agentsDir || 'agents'
-  )
+  const agentsDir = path.resolve(process.cwd(), options.agentsDir || 'agents')
 
   // Add ensemble file
   files.push({
@@ -211,7 +208,10 @@ async function bundleEnsemble(
 
       // Parse agent and extract its dependencies
       const agentContent = await fs.readFile(agentPath, 'utf-8')
-      const agentConfig = YAML.parse(agentContent, { mapAsMap: false, logLevel: 'silent' }) as Record<string, unknown>
+      const agentConfig = YAML.parse(agentContent, {
+        mapAsMap: false,
+        logLevel: 'silent',
+      }) as Record<string, unknown>
       const deps = extractAgentDependencies(agentPath, agentConfig)
       promptFiles.push(...deps.prompts)
       handlerFiles.push(...deps.handlers)
@@ -292,10 +292,7 @@ async function bundleEnsemble(
 /**
  * Extract agent names from nested flow steps
  */
-function extractNestedAgents(
-  step: Record<string, unknown>,
-  agentNames: string[]
-): void {
+function extractNestedAgents(step: Record<string, unknown>, agentNames: string[]): void {
   // Parallel steps
   if (Array.isArray(step.steps)) {
     for (const nestedStep of step.steps as Array<Record<string, unknown>>) {
@@ -397,7 +394,10 @@ async function bundleAgent(
 
   // Read and parse agent
   const agentContent = await fs.readFile(agentPath, 'utf-8')
-  const agentConfig = YAML.parse(agentContent, { mapAsMap: false, logLevel: 'silent' }) as Record<string, unknown>
+  const agentConfig = YAML.parse(agentContent, { mapAsMap: false, logLevel: 'silent' }) as Record<
+    string,
+    unknown
+  >
 
   // Validate agent
   const parsedAgent = Parser.parseAgent(agentContent)
@@ -542,7 +542,10 @@ export function createBundleCommand(): Command {
 
         // Read file to determine type
         const content = await fs.readFile(resolvedPath, 'utf-8')
-        const parsed = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as Record<string, unknown>
+        const parsed = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' }) as Record<
+          string,
+          unknown
+        >
 
         // Determine if it's an ensemble or agent
         const isEnsemble = 'flow' in parsed || 'agents' in parsed || 'trigger' in parsed
@@ -617,8 +620,7 @@ export function createBundleCommand(): Command {
         // Create output path
         const ext = options.format === 'tar' ? '.tar.gz' : '.zip'
         const outputPath =
-          options.output ||
-          path.join(process.cwd(), `${manifest.name}.bundle${ext}`)
+          options.output || path.join(process.cwd(), `${manifest.name}.bundle${ext}`)
 
         // Create archive
         console.log('')

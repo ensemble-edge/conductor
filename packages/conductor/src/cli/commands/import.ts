@@ -151,10 +151,7 @@ async function detectFormat(archivePath: string): Promise<'tar' | 'zip'> {
 /**
  * Map bundle path to target path
  */
-function mapBundlePathToTarget(
-  bundlePath: string,
-  options: ImportOptions
-): string {
+function mapBundlePathToTarget(bundlePath: string, options: ImportOptions): string {
   const targetDir = options.targetDir || process.cwd()
   const segments = bundlePath.split('/')
   const dir = segments[0]
@@ -231,17 +228,12 @@ export function createImportCommand(): Command {
         console.log('')
 
         const files =
-          format === 'tar'
-            ? await extractTarGz(resolvedPath)
-            : await extractZip(resolvedPath)
+          format === 'tar' ? await extractTarGz(resolvedPath) : await extractZip(resolvedPath)
 
         // Find and parse manifest
         const manifestFile = files.find((f) => f.path === 'manifest.json')
         if (!manifestFile) {
-          console.error(
-            chalk.red('Error:'),
-            'Bundle is missing manifest.json - invalid bundle'
-          )
+          console.error(chalk.red('Error:'), 'Bundle is missing manifest.json - invalid bundle')
           process.exit(1)
         }
 
@@ -259,7 +251,8 @@ export function createImportCommand(): Command {
 
         // Process files (excluding manifest)
         const filesToImport = files.filter((f) => f.path !== 'manifest.json')
-        const results: { path: string; status: 'created' | 'updated' | 'skipped' | 'conflict' }[] = []
+        const results: { path: string; status: 'created' | 'updated' | 'skipped' | 'conflict' }[] =
+          []
         const conflicts: { bundlePath: string; targetPath: string }[] = []
 
         console.log(chalk.bold('Processing files:'))
@@ -268,13 +261,14 @@ export function createImportCommand(): Command {
           const targetPath = mapBundlePathToTarget(file.path, options)
           const { exists, different } = await checkConflict(targetPath, file.content)
 
-          const typeIcon = {
-            ensembles: '📦',
-            agents: '🤖',
-            prompts: '📝',
-            handlers: '⚙️',
-            configs: '🔧',
-          }[file.path.split('/')[0]] || '📄'
+          const typeIcon =
+            {
+              ensembles: '📦',
+              agents: '🤖',
+              prompts: '📝',
+              handlers: '⚙️',
+              configs: '🔧',
+            }[file.path.split('/')[0]] || '📄'
 
           if (!exists) {
             // New file - will be created
@@ -290,10 +284,7 @@ export function createImportCommand(): Command {
             }
           } else if (!different) {
             // Same content - skip
-            console.log(
-              `  ${typeIcon} ${chalk.dim('=')} ${file.path}`,
-              chalk.dim('(unchanged)')
-            )
+            console.log(`  ${typeIcon} ${chalk.dim('=')} ${file.path}`, chalk.dim('(unchanged)'))
             results.push({ path: targetPath, status: 'skipped' })
           } else if (options.force) {
             // Different but force - overwrite
@@ -315,10 +306,7 @@ export function createImportCommand(): Command {
             results.push({ path: targetPath, status: 'skipped' })
           } else {
             // Conflict - needs resolution
-            console.log(
-              `  ${typeIcon} ${chalk.red('?')} ${file.path}`,
-              chalk.red('(conflict)')
-            )
+            console.log(`  ${typeIcon} ${chalk.red('?')} ${file.path}`, chalk.red('(conflict)'))
             conflicts.push({ bundlePath: file.path, targetPath })
             results.push({ path: targetPath, status: 'conflict' })
           }
@@ -358,10 +346,7 @@ export function createImportCommand(): Command {
         console.log('')
 
         if (!options.dryRun && conflictCount === 0) {
-          console.log(
-            chalk.green('✓'),
-            `Successfully imported ${manifest.type}: ${manifest.name}`
-          )
+          console.log(chalk.green('✓'), `Successfully imported ${manifest.type}: ${manifest.name}`)
           console.log('')
         }
       } catch (error) {

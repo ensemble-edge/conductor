@@ -328,7 +328,9 @@ export class Executor {
       const previousStep = ensemble.flow[stepIndex - 1]
       const previousAgentName = isAgentStep(previousStep) ? previousStep.agent : undefined
       if (previousAgentName) {
-        const previousResult = executionContext[previousAgentName] as AgentExecutionResult | undefined
+        const previousResult = executionContext[previousAgentName] as
+          | AgentExecutionResult
+          | undefined
         resolvedInput = previousResult?.output || {}
       } else {
         resolvedInput = executionContext.input || {}
