@@ -9,7 +9,7 @@
  *
  * Both authoring paths produce identical Ensemble instances for execution.
  */
-import { Parser, isEnsemble, ensembleFromConfig } from '../runtime/parser.js';
+import { Parser, isEnsemble, ensembleFromConfig, } from '../runtime/parser.js';
 /**
  * EnsembleLoader handles dynamic loading of user-created ensembles
  *

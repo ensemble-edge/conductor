@@ -11,7 +11,7 @@
  * - External: Supabase, Neon, PlanetScale, etc.
  */
 import { BaseAgent } from './base-agent.js';
-import { D1Repository, JSONSerializer } from '../storage/index.js';
+import { D1Repository, JSONSerializer, HyperdriveRepository, } from '../storage/index.js';
 import { DatabaseType } from '../types/constants.js';
 import { exportData, createStreamingExport, } from './data/export-formats.js';
 /**
@@ -33,6 +33,11 @@ export class DataAgent extends BaseAgent {
             operation: cfg?.operation,
             binding: cfg?.binding,
             tableName: cfg?.tableName,
+            // Hyperdrive options
+            databaseType: cfg?.databaseType,
+            schema: cfg?.schema,
+            readOnly: cfg?.readOnly,
+            // Export options
             exportFormat: cfg?.exportFormat,
             exportOptions: cfg?.exportOptions,
         };
@@ -49,7 +54,11 @@ export class DataAgent extends BaseAgent {
      */
     async run(context) {
         const { input, env } = context;
-        // Get or create repository
+        // Handle Hyperdrive separately (SQL-native, not key-value)
+        if (this.dataConfig.database === DatabaseType.Hyperdrive) {
+            return await this.executeHyperdriveOperation(env, input);
+        }
+        // Get or create repository for KV-style databases
         const repo = this.repository || this.createRepository(env);
         switch (this.dataConfig.operation) {
             case 'get':
@@ -67,6 +76,125 @@ export class DataAgent extends BaseAgent {
             default:
                 throw new Error(`Unknown operation: ${this.dataConfig.operation}`);
         }
+    }
+    /**
+     * Execute Hyperdrive operation (SQL-native)
+     */
+    async executeHyperdriveOperation(env, input) {
+        // Create or get cached Hyperdrive repository
+        if (!this.hyperdriveRepo) {
+            this.hyperdriveRepo = this.createHyperdriveRepository(env);
+        }
+        switch (this.dataConfig.operation) {
+            case 'query': {
+                // Execute SQL query
+                if (!input.query) {
+                    return {
+                        success: false,
+                        error: 'SQL query is required for Hyperdrive query operation',
+                    };
+                }
+                const result = await this.hyperdriveRepo.query(input.query, input.params);
+                if (result.success) {
+                    return {
+                        rows: result.value.rows,
+                        metadata: result.value.metadata,
+                        success: true,
+                    };
+                }
+                else {
+                    return {
+                        rows: [],
+                        success: false,
+                        error: result.error.message,
+                    };
+                }
+            }
+            case 'get': {
+                // Simple get by key - requires tableName and key
+                if (!input.key) {
+                    return { value: null, success: false, error: 'Key is required for get operation' };
+                }
+                const tableName = this.dataConfig.tableName || 'data';
+                const sql = this.dataConfig.databaseType === 'postgres'
+                    ? `SELECT * FROM ${tableName} WHERE id = $1 LIMIT 1`
+                    : `SELECT * FROM ${tableName} WHERE id = ? LIMIT 1`;
+                const result = await this.hyperdriveRepo.query(sql, [input.key]);
+                if (result.success && result.value.rows.length > 0) {
+                    return { value: result.value.rows[0], found: true, success: true };
+                }
+                return { value: null, found: false, success: true };
+            }
+            case 'put': {
+                // Upsert operation
+                if (!input.key || input.value === undefined) {
+                    return { success: false, error: 'Key and value are required for put operation' };
+                }
+                const tableName = this.dataConfig.tableName || 'data';
+                const valueJson = JSON.stringify(input.value);
+                let sql;
+                if (this.dataConfig.databaseType === 'postgres') {
+                    sql = `INSERT INTO ${tableName} (id, value) VALUES ($1, $2)
+                 ON CONFLICT (id) DO UPDATE SET value = $2`;
+                }
+                else {
+                    sql = `INSERT INTO ${tableName} (id, value) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE value = VALUES(value)`;
+                }
+                const result = await this.hyperdriveRepo.execute(sql, [input.key, valueJson]);
+                return result.success
+                    ? { success: true, rowsAffected: result.value.rowsAffected }
+                    : { success: false, error: result.error.message };
+            }
+            case 'delete': {
+                if (!input.key) {
+                    return { success: false, error: 'Key is required for delete operation' };
+                }
+                const tableName = this.dataConfig.tableName || 'data';
+                const sql = this.dataConfig.databaseType === 'postgres'
+                    ? `DELETE FROM ${tableName} WHERE id = $1`
+                    : `DELETE FROM ${tableName} WHERE id = ?`;
+                const result = await this.hyperdriveRepo.execute(sql, [input.key]);
+                return result.success
+                    ? { success: true, rowsAffected: result.value.rowsAffected }
+                    : { success: false, error: result.error.message };
+            }
+            case 'list': {
+                const tableName = this.dataConfig.tableName || 'data';
+                const limit = input.limit || 100;
+                const sql = this.dataConfig.databaseType === 'postgres'
+                    ? `SELECT * FROM ${tableName} LIMIT $1`
+                    : `SELECT * FROM ${tableName} LIMIT ?`;
+                const result = await this.hyperdriveRepo.query(sql, [limit]);
+                return result.success
+                    ? { items: result.value.rows, count: result.value.rows.length, success: true }
+                    : { items: [], success: false, error: result.error.message };
+            }
+            default:
+                return {
+                    success: false,
+                    error: `Operation ${this.dataConfig.operation} not supported for Hyperdrive`,
+                };
+        }
+    }
+    /**
+     * Create Hyperdrive repository from environment bindings
+     */
+    createHyperdriveRepository(env) {
+        const bindingName = this.getBindingName();
+        const binding = env[bindingName];
+        if (!binding) {
+            throw new Error(`Hyperdrive binding "${bindingName}" not found. ` +
+                `Add [[hyperdrive]] to wrangler.toml with binding = "${bindingName}".`);
+        }
+        const config = {
+            databaseType: this.dataConfig.databaseType || 'postgres',
+            schema: this.dataConfig.schema,
+            options: {
+                readOnly: this.dataConfig.readOnly,
+            },
+        };
+        return new HyperdriveRepository(binding, config);
     }
     /**
      * Execute GET operation
@@ -178,8 +306,9 @@ export class DataAgent extends BaseAgent {
                     valueColumn: 'value',
                 }, new JSONSerializer());
             case DatabaseType.Hyperdrive:
-                // TODO: Implement HyperdriveRepository for PostgreSQL/MySQL
-                throw new Error('Hyperdrive repository not yet implemented');
+                // Hyperdrive is handled separately in executeHyperdriveOperation()
+                // This should never be reached due to the check in run()
+                throw new Error('Hyperdrive uses SQL-native operations, not Repository pattern');
             case DatabaseType.Vectorize:
                 // TODO: Implement VectorizeRepository for vector operations
                 throw new Error('Vectorize repository not yet implemented');

@@ -10,14 +10,10 @@ trigger:
       json:
         enabled: true
 
-agents:
-  - name: greet-user
-    operation: code
-    config:
-      script: scripts/examples/http/greet-user
-
 flow:
   - agent: greet-user
+    input:
+      name: ${input.params.name}
 
 output:
   greeting: ${greet-user.output.greeting}

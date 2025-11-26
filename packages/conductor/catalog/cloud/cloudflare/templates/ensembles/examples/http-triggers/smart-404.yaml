@@ -12,43 +12,17 @@ trigger:
       json:
         enabled: true
 
+flow:
+  - agent: track-404
+    input:
+      requestedPath: ${input.query.path}
+      referrer: ${input.headers.referer}
+      userAgent: ${input.headers.user-agent}
+  - agent: suggest-pages
+    input:
+      requestedPath: ${input.query.path}
+
 agents:
-  # Track the missing URL for analytics
-  - name: track-404
-    operation: code
-    config:
-      script: scripts/examples/http/track-404
-    input:
-      requestedPath: $input.path
-      referrer: $input.headers.referer
-      userAgent: $input.headers['user-agent']
-
-  # Use AI to suggest similar pages
-  - name: suggest-pages
-    operation: think
-    config:
-      model: gpt-4-mini
-      systemPrompt: |
-        You are a helpful assistant that suggests relevant pages when a user lands on a 404 page.
-        Based on the requested URL, suggest 3-5 similar pages that might be what they were looking for.
-        Return your response as a JSON array of objects with 'title', 'url', and 'description' fields.
-      temperature: 0.7
-    input:
-      userPrompt: |
-        A user tried to access: {{requestedPath}}
-
-        Available pages in our site:
-        - / (Homepage)
-        - /docs (Documentation)
-        - /blog (Blog posts)
-        - /dashboard (User dashboard)
-        - /login (Login page)
-        - /support (Contact support)
-
-        Suggest 3-5 pages they might have been looking for, based on the requested path.
-        Return as JSON array: [{"title": "...", "url": "...", "description": "..."}]
-      requestedPath: $input.path
-
   # Render the smart 404 page
   - name: render-404
     operation: html
@@ -236,12 +210,14 @@ agents:
         - http-equiv: status
           content: "404"
     input:
-      requestedPath: $input.path
-      suggestions: $suggest-pages.suggestions
-
-input:
-  path: null
-  headers: {}
+      requestedPath: ${input.query.path}
+      suggestions: ${suggest-pages.output.response}
 
 output:
-  html: ${render-404.output}
+  error:
+    code: 404
+    message: Page Not Found
+  requestedPath: ${input.query.path}
+  tracked: ${track-404.output.tracked}
+  aiResponse: ${suggest-pages.output.response}
+  helpText: Can't find what you're looking for? Try one of our AI-suggested pages above.

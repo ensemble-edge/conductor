@@ -7649,9 +7649,27 @@ var Parser = class {
       return validated;
     } catch (error) {
       if (error instanceof external_exports.ZodError) {
-        throw new Error(
-          `Ensemble validation failed: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`
-        );
+        const enhancedErrors = error.errors.map((e) => {
+          const path8 = e.path.join(".");
+          const baseMessage = `${path8}: ${e.message}`;
+          if (path8 === "output" && e.code === "invalid_type" && e.expected === "object") {
+            return `${baseMessage}
+    \u21B3 Hint: Use object syntax with field mappings:
+      output:
+        result: \${agent-name.output.fieldName}`;
+          }
+          if (path8.startsWith("flow") && e.message.includes("agent")) {
+            return `${baseMessage}
+    \u21B3 Hint: Flow steps should use 'agent' key:
+      flow:
+        - agent: my-agent
+          input:
+            field: \${input.value}`;
+          }
+          return baseMessage;
+        });
+        throw new Error(`Ensemble validation failed:
+  ${enhancedErrors.join("\n  ")}`);
       }
       throw new Error(
         `Failed to parse ensemble YAML: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -9731,7 +9749,9 @@ function createValidateCommand() {
       if (!options.quiet) {
         console.log("");
         const yamlCount = filesToValidate.filter((f) => getFileFormat(f.path) === "yaml").length;
-        const tsCount = filesToValidate.filter((f) => getFileFormat(f.path) === "typescript").length;
+        const tsCount = filesToValidate.filter(
+          (f) => getFileFormat(f.path) === "typescript"
+        ).length;
         console.log(
           chalk10.bold(`Validating ${filesToValidate.length} file(s)`) + chalk10.dim(` (${yamlCount} YAML, ${tsCount} TypeScript)...`)
         );
@@ -10419,7 +10439,7 @@ function createImportCommand() {
 }
 
 // src/cli/index.ts
-var version = "0.2.4";
+var version = "0.3.2";
 var program = new Command13();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

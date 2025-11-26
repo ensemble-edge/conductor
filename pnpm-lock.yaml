@@ -105,12 +105,12 @@ importers:
 
   packages/playground:
     dependencies:
-      '@conductor/unkey':
-        specifier: workspace:*
-        version: link:../plugins/unkey
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../conductor
+      '@ensemble-edge/plugin-unkey':
+        specifier: workspace:*
+        version: link:../plugins/unkey
     devDependencies:
       wrangler:
         specifier: ^3.107.0

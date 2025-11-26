@@ -155,7 +155,8 @@ export function outputRef(path, options) {
  * Check if a value is a Reference instance
  */
 export function isReference(value) {
-    return value instanceof Reference || (typeof value === 'object' && value !== null && '__isReference' in value);
+    return (value instanceof Reference ||
+        (typeof value === 'object' && value !== null && '__isReference' in value));
 }
 /**
  * Create a computed value from multiple references

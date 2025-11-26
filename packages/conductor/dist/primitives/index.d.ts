@@ -22,11 +22,13 @@ export type { EnsembleOptions, EnsembleConfig, TriggerConfig, WebhookTrigger, Ht
 export { createTool, mcpTool, customTool, httpTool, skillTool, toolCollection, Tool, isTool, isToolConfig, } from './tool.js';
 export type { ToolConfig, ToolDefinition, ToolParameter, ToolCollection, MCPServerConfig, CustomToolConfig, HTTPToolConfig, SkillToolConfig, } from './tool.js';
 export { instruction, systemInstruction, userInstruction, assistantInstruction, fileInstruction, templateInstruction, dynamicInstruction, conditionalInstruction, combineInstructions, prompt, Instruction, isInstruction, isInstructionConfig, } from './instruction.js';
-export type { InstructionConfig, InstructionSource, InstructionContext, } from './instruction.js';
+export type { InstructionConfig, InstructionSource, InstructionContext } from './instruction.js';
 export { memory, kvMemory, r2Memory, d1Memory, vectorMemory, durableMemory, customMemory, conversationMemory, knowledgeBase, Memory, isMemory, isMemoryConfig, } from './memory.js';
 export type { MemoryConfig, AgentMemoryConfig, MemoryProviderType, MemoryScope, MemoryEntry, VectorMemoryEntry, KVMemoryConfig, R2MemoryConfig, D1MemoryConfig, VectorizeMemoryConfig, DurableObjectMemoryConfig, CustomMemoryConfig, MemoryImplementation, } from './memory.js';
 export { ref, inputRef, stateRef, envRef, stepRef, contextRef, outputRef, computed, template, parseRef, refMap, Reference, isReference, isComputed, isTemplate, isRefExpression, } from './reference.js';
 export type { ReferenceSource, ReferenceOptions } from './reference.js';
 export { suspend, checkpoint, sleep, sleepSeconds, sleepMinutes, sleepUntil, schedule, approval, waitForWebhook, waitForInput, isSuspendStep, isSleepStep, isScheduleStep, isApprovalStep, isAsyncStep, } from './async.js';
 export type { SuspensionReason, SuspensionState, SleepConfig, ScheduleConfig, ApprovalConfig, WebhookWaitConfig, SuspendStepConfig, SleepStepConfig, ScheduleStepConfig, ApprovalStepConfig, } from './async.js';
+export { componentRef, versionedAgent, versionedEnsemble, deploymentRef, versionedAgents, ComponentRef, VersionedAgent, VersionedEnsemble, DeploymentRef, isComponentRef, isVersionedAgent, isVersionedEnsemble, isDeploymentRef, parseVersion, satisfiesVersion, } from './version.js';
+export type { VersionConstraint, DeploymentEnvironment, ComponentRefOptions, VersionedAgentOptions, VersionedEnsembleOptions, DeploymentRefOptions, } from './version.js';
 //# sourceMappingURL=index.d.ts.map

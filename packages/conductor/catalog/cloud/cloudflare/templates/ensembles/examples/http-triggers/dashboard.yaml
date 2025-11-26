@@ -14,16 +14,13 @@ trigger:
       json:
         enabled: true
 
-agents:
-  # Fetch user data
-  - name: fetch-user
-    operation: code
-    config:
-      script: scripts/examples/http/fetch-user
+flow:
+  - agent: fetch-user
     input:
-      userId: $input.userId
+      userId: ${input.userId}
 
-  # Fetch analytics metrics
+agents:
+  # Fetch analytics metrics (D1) - requires D1 setup
   - name: fetch-metrics
     operation: data
     config:

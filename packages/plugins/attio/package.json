@@ -1,7 +1,6 @@
 {
-  "name": "@conductor/attio",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@ensemble-edge/plugin-attio",
+  "version": "0.0.1",
   "type": "module",
   "description": "Attio CRM plugin for Conductor",
   "main": "./dist/index.js",
@@ -38,7 +37,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/ensemble-edge/conductor",
-    "directory": "packages/plugin-attio"
+    "directory": "packages/plugins/attio"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "@ensemble-edge/conductor": "^0.3.3"

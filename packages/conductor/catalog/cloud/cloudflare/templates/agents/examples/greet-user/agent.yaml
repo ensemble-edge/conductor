@@ -1,0 +1,11 @@
+name: greet-user
+operation: code
+description: Simple greeting handler for HTTP endpoints
+
+schema:
+  input:
+    name: string?
+  output:
+    greeting: string
+    timestamp: string
+    message: string

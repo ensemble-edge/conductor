@@ -417,7 +417,9 @@ export function repeat(count, steps) {
     return {
         type: 'foreach',
         items: `\${Array.from({length: ${count}}, (_, i) => i)}`,
-        step: steps.length === 1 ? steps[0] : { type: 'parallel', steps, waitFor: 'all' },
+        step: steps.length === 1
+            ? steps[0]
+            : { type: 'parallel', steps, waitFor: 'all' },
     };
 }
 /**

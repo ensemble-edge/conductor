@@ -12,17 +12,13 @@ trigger:
       json:
         enabled: true
 
-agents:
-  # Handle login submission (only runs on POST)
-  - name: authenticate
-    operation: code
-    config:
-      script: scripts/examples/auth/authenticate
+flow:
+  - agent: authenticate
     input:
-      email: $input.body.email
-      password: $input.body.password
-    when: $input.method == 'POST'
+      email: ${input.body.email}
+      password: ${input.body.password}
 
+agents:
   # Render login page
   - name: render-login
     operation: html
@@ -225,9 +221,12 @@ agents:
       scripts:
         - src: https://unpkg.com/htmx.org@1.9.10
     input:
-      error: $authenticate.error
-      success: $authenticate.success
-      redirectTo: $authenticate.redirectTo
+      error: ${authenticate.output.error}
+      success: ${authenticate.output.success}
+      redirectTo: ${authenticate.output.redirectTo}
 
 output:
-  html: ${render-login.output}
+  success: ${authenticate.output.success}
+  token: ${authenticate.output.token}
+  redirectTo: ${authenticate.output.redirectTo}
+  error: ${authenticate.output.error}

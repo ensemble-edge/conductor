@@ -88,6 +88,28 @@ Only after user confirms, create changeset file manually:
 Brief description of changes
 ```
 
+### Step 4b: Check for Plugin Changes (If Applicable)
+If any plugins were modified (`packages/plugins/*`), ask user:
+```
+Were any plugins changed? If so, which ones need a release?
+- @ensemble-edge/plugin-attio
+- @ensemble-edge/plugin-cloudflare
+- @ensemble-edge/plugin-payload
+- @ensemble-edge/plugin-twilio
+- @ensemble-edge/plugin-unkey
+
+What bump type for each? (patch/minor/major)
+```
+
+Create separate changeset entries for each plugin in the same or separate file:
+```markdown
+---
+"@ensemble-edge/plugin-cloudflare": patch
+---
+
+Brief description of plugin changes
+```
+
 ### Step 5: Commit Changeset
 ```bash
 git add .changeset/
