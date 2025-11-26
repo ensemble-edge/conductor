@@ -1,5 +1,16 @@
 # @ensemble-edge/conductor
 
+## 0.3.3
+
+### Patch Changes
+
+- 8d533c2: Schema-aware output for think agents and improved developer experience
+  - Think agents now map AI responses to schema-defined field names (e.g., `output: { greeting: string }` makes response available as `${agent.output.greeting}`)
+  - AI metadata (model, provider, tokensUsed) now accessible via `_meta` namespace
+  - Better validation error messages with helpful hints for common mistakes
+  - Improved Workers AI setup documentation in templates
+  - Documented YAML hot-reload limitation with workaround
+
 ## 0.3.2
 
 ### Patch Changes
