@@ -119,7 +119,9 @@ export const keysCommands = {
      * Generate a new API key
      */
     generate: async (args) => {
-        const permissions = args.permissions ? args.permissions.split(',').map((p) => p.trim()) : undefined;
+        const permissions = args.permissions
+            ? args.permissions.split(',').map((p) => p.trim())
+            : undefined;
         const { key, keyId, record } = generateApiKey({
             name: args.name,
             permissions,
@@ -144,7 +146,7 @@ export const keysCommands = {
             console.log(`Name:        ${record.name}`);
             console.log(`Permissions: ${formatPermissions(record.permissions)}`);
             console.log(`Expires:     ${formatExpiration(record.expiresAt)}`);
-            console.log('\n⚠️  Save this key now - it won\'t be shown again!\n');
+            console.log("\n⚠️  Save this key now - it won't be shown again!\n");
             console.log('To use this key, add it to your Cloudflare KV namespace:');
             console.log(`  wrangler kv:key put --namespace-id=<your-namespace-id> "${key}" '${JSON.stringify(record)}'`);
             console.log('');
@@ -164,7 +166,7 @@ export const keysCommands = {
             console.log('\n📋 API Key Management\n');
             console.log('To list keys, query your Cloudflare KV namespace:');
             console.log('  wrangler kv:key list --namespace-id=<your-namespace-id>');
-            console.log('\nTo view a key\'s metadata:');
+            console.log("\nTo view a key's metadata:");
             console.log('  wrangler kv:key get --namespace-id=<your-namespace-id> "<key-prefix>..."');
             console.log('');
         }
@@ -220,7 +222,7 @@ export const keysCommands = {
             console.log('  1. Update the keyHash in your KV record');
             console.log('  2. Update your application with the new key');
             console.log('  3. The old key will stop working after KV update');
-            console.log('\n⚠️  Save the new key now - it won\'t be shown again!\n');
+            console.log("\n⚠️  Save the new key now - it won't be shown again!\n");
         }
         return { newKey };
     },

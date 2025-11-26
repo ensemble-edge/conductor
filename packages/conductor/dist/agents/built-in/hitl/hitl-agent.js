@@ -65,8 +65,9 @@ export class HITLMember extends BaseAgent {
         if (this.hitlConfig.notificationChannel) {
             await this.sendNotification(executionId, input.approvalData);
         }
-        // Generate approval URL (placeholder)
-        const approvalUrl = `https://your-app.com/approve/${executionId}`;
+        // Generate approval URL (placeholder - user should configure their base URL)
+        // Uses /callbacks/approve/:token endpoint for token-based auth
+        const approvalUrl = `https://your-worker.workers.dev/callbacks/approve/${executionId}`;
         return {
             status: 'suspended',
             executionId,
@@ -229,7 +230,8 @@ export class HITLMember extends BaseAgent {
             body: JSON.stringify({
                 executionId,
                 approvalData,
-                approvalUrl: `https://your-app.com/approve/${executionId}`,
+                // Uses /callbacks/approve/:token endpoint for token-based auth
+                approvalUrl: `https://your-worker.workers.dev/callbacks/approve/${executionId}`,
                 expiresAt: Date.now() + this.hitlConfig.timeout,
             }),
         });

@@ -41,7 +41,7 @@ export function createAuthMiddleware(config: AuthConfig): MiddlewareHandler {
       return c.json(
         {
           error: 'Unauthorized',
-          message: 'Invalid API key',
+          message: 'Invalid credentials',
           timestamp: Date.now(),
         },
         401

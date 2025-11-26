@@ -72,12 +72,7 @@ export function resolveObservabilityConfig(config) {
             enabled: loggingConfig.enabled !== false,
             level: stringToLogLevel(loggingConfig.level ?? 'info'),
             format: loggingConfig.format ?? 'json',
-            context: loggingConfig.context ?? [
-                'requestId',
-                'executionId',
-                'ensembleName',
-                'agentName',
-            ],
+            context: loggingConfig.context ?? ['requestId', 'executionId', 'ensembleName', 'agentName'],
             redact: loggingConfig.redact ?? DEFAULT_REDACT_PATTERNS,
             events: new Set(loggingConfig.events ?? DEFAULT_LOG_EVENTS),
         },
@@ -158,7 +153,11 @@ export function createMetricsRecorder(analyticsEngine, config, baseContext) {
             if (!shouldTrack('ensemble:execution'))
                 return;
             writeMetric({
-                blobs: [ensembleName, success ? 'success' : 'failure', baseContext.environment ?? 'unknown'],
+                blobs: [
+                    ensembleName,
+                    success ? 'success' : 'failure',
+                    baseContext.environment ?? 'unknown',
+                ],
                 doubles: [durationMs, success ? 1 : 0],
                 indexes: ['ensemble.execution'],
             });

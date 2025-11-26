@@ -6,7 +6,7 @@ flow:
 
 trigger:
   - type: webhook
-    path: /analyze/sentiment
+    path: /webhooks/analyze/sentiment  # Recommended: /webhooks/* prefix
     methods: [POST]
     public: true
 

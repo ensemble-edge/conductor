@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js';
-import { execute, agents, ensembles, docs, health, stream, async, webhooks, executions, schedules, mcp, email, } from './routes/index.js';
+import { execute, agents, ensembles, docs, health, stream, async, webhooks, executions, schedules, mcp, email, callbacks, } from './routes/index.js';
 import { openapi } from './openapi/index.js';
 import { ScheduleManager } from '../runtime/schedule-manager.js';
 import { CatalogLoader } from '../runtime/catalog-loader.js';
@@ -47,18 +47,19 @@ export function createConductorAPI(config = {}) {
     }));
     // Error handler (early in chain)
     app.use('*', errorHandler());
-    // SECURE BY DEFAULT: Always apply auth middleware to /api/* routes
-    // Auth will be enforced unless explicitly disabled with requireAuth: false
+    // SECURE BY DEFAULT: Apply auth middleware to built-in /api/v1/* routes only
+    // User-defined trigger routes (e.g., /api/protected) handle their own auth via trigger config
+    // This prevents the global auth from blocking trigger-specific auth
     const requireAuth = config.auth?.requireAuth ?? true;
     if (requireAuth) {
-        app.use('/api/*', createAuthMiddleware({
+        app.use('/api/v1/*', createAuthMiddleware({
             apiKeys: config.auth?.apiKeys || [],
             allowAnonymous: config.auth?.allowAnonymous ?? false,
         }));
     }
     else if (config.auth) {
         // Auth configured but not required - still apply middleware for optional auth
-        app.use('/api/*', createAuthMiddleware({
+        app.use('/api/v1/*', createAuthMiddleware({
             apiKeys: config.auth.apiKeys || [],
             allowAnonymous: true, // Allow anonymous when requireAuth is false
         }));
@@ -84,6 +85,9 @@ export function createConductorAPI(config = {}) {
     app.route('/mcp', mcp);
     // Email handler routes (Cloudflare Email Routing integration)
     app.route('/email', email);
+    // Callback routes (HITL resumption, workflow callbacks)
+    // Token-based auth - the token itself IS the authentication
+    app.route('/callbacks', callbacks);
     // Root endpoint
     app.get('/', (c) => {
         return c.json({

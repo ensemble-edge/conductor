@@ -8,7 +8,8 @@ import { type ScheduledEvent } from '../runtime/schedule-manager.js';
 export interface APIConfig {
     /**
      * Authentication configuration
-     * SECURE BY DEFAULT: Auth is required on /api/* routes unless explicitly disabled
+     * SECURE BY DEFAULT: Auth is required on /api/v1/* routes unless explicitly disabled
+     * Note: User-defined trigger routes (e.g., /api/protected) use their own auth config
      */
     auth?: {
         /** List of valid API keys */
@@ -19,8 +20,9 @@ export interface APIConfig {
          */
         allowAnonymous?: boolean;
         /**
-         * Require authentication on /api/* routes
+         * Require authentication on /api/v1/* routes (built-in API endpoints)
          * Set to false only for development/testing
+         * Note: Does not affect user-defined trigger routes which have their own auth
          * @default true
          */
         requireAuth?: boolean;
