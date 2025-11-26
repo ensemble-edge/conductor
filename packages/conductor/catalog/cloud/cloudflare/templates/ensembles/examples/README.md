@@ -362,12 +362,12 @@ output:
 
 ## 📖 Learn More
 
-- **HTTP Trigger Documentation**: https://docs.ensemble.dev/conductor/core-concepts/triggers#http
-- **Building with Conductor**: https://docs.ensemble.dev/conductor/building/creating-agents
-- **Your First Website Guide**: https://docs.ensemble.dev/conductor/getting-started/your-first-website
+- **HTTP Trigger Documentation**: https://docs.ensemble.ai/conductor/core-concepts/triggers#http
+- **Building with Conductor**: https://docs.ensemble.ai/conductor/building/creating-agents
+- **Your First Website Guide**: https://docs.ensemble.ai/conductor/getting-started/your-first-website
 
 ## 💡 Need Help?
 
-- **Documentation**: https://docs.ensemble.dev
-- **GitHub Issues**: https://github.com/ensemble-edge/edgit/issues
-- **Community Discussions**: https://github.com/ensemble-edge/edgit/discussions
+- **Documentation**: https://docs.ensemble.ai
+- **GitHub Issues**: https://github.com/anthropics/conductor/issues
+- **Community Discussions**: https://github.com/anthropics/conductor/discussions

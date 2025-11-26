@@ -27,13 +27,38 @@ import { openapi } from './openapi/index.js'
 import { ScheduleManager, type ScheduledEvent } from '../runtime/schedule-manager.js'
 import { CatalogLoader } from '../runtime/catalog-loader.js'
 import { createLogger } from '../observability/index.js'
+import { initSecurityConfig } from '../config/security.js'
 
 const appLogger = createLogger({ serviceName: 'api-app' })
 
 export interface APIConfig {
+  /**
+   * Authentication configuration
+   * SECURE BY DEFAULT: Auth is required on /api/* routes unless explicitly disabled
+   */
   auth?: {
+    /** List of valid API keys */
     apiKeys?: string[]
+    /**
+     * Allow anonymous access to API routes
+     * @default false - requires authentication
+     */
     allowAnonymous?: boolean
+    /**
+     * Require authentication on /api/* routes
+     * Set to false only for development/testing
+     * @default true
+     */
+    requireAuth?: boolean
+  }
+  /**
+   * Security configuration for execution
+   */
+  security?: {
+    /** Allow direct agent execution via /api/v1/execute/agent/:name */
+    allowDirectAgentExecution?: boolean
+    /** Automatically require resource-specific permissions */
+    autoPermissions?: boolean
   }
   cors?: {
     origin?: string | string[]
@@ -48,6 +73,13 @@ export interface APIConfig {
  */
 export function createConductorAPI(config: APIConfig = {}): Hono {
   const app = new Hono<{ Bindings: Env }>()
+
+  // Initialize security configuration
+  initSecurityConfig({
+    requireAuth: config.auth?.requireAuth ?? true, // SECURE BY DEFAULT
+    allowDirectAgentExecution: config.security?.allowDirectAgentExecution ?? true,
+    autoPermissions: config.security?.autoPermissions ?? false,
+  })
 
   // ==================== Global Middleware ====================
 
@@ -80,13 +112,25 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
   // Error handler (early in chain)
   app.use('*', errorHandler())
 
-  // Authentication (if configured)
-  if (config.auth) {
+  // SECURE BY DEFAULT: Always apply auth middleware to /api/* routes
+  // Auth will be enforced unless explicitly disabled with requireAuth: false
+  const requireAuth = config.auth?.requireAuth ?? true
+
+  if (requireAuth) {
+    app.use(
+      '/api/*',
+      createAuthMiddleware({
+        apiKeys: config.auth?.apiKeys || [],
+        allowAnonymous: config.auth?.allowAnonymous ?? false,
+      })
+    )
+  } else if (config.auth) {
+    // Auth configured but not required - still apply middleware for optional auth
     app.use(
       '/api/*',
       createAuthMiddleware({
         apiKeys: config.auth.apiKeys || [],
-        allowAnonymous: config.auth.allowAnonymous ?? false,
+        allowAnonymous: true, // Allow anonymous when requireAuth is false
       })
     )
   }

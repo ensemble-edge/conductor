@@ -8,11 +8,24 @@
  */
 export const DEFAULT_CONFIG = {
     docs: {
-        useAI: false,
-        aiAgent: 'docs-writer',
-        format: 'yaml',
+        title: 'API Documentation',
+        ui: 'stoplight',
+        auth: {
+            requirement: 'public',
+        },
+        ai: {
+            enabled: false,
+            model: '@cf/meta/llama-3.1-8b-instruct',
+            provider: 'cloudflare',
+            temperature: 0.3,
+        },
         includeExamples: true,
         includeSecurity: true,
+        cache: {
+            enabled: true,
+            ttl: 300,
+        },
+        format: 'yaml',
         outputDir: './docs',
     },
     testing: {
@@ -27,9 +40,19 @@ export const DEFAULT_CONFIG = {
         globals: true,
     },
     observability: {
-        logging: true,
-        logLevel: 'info',
-        metrics: true,
+        logging: {
+            enabled: true,
+            level: 'info',
+            format: 'json',
+            context: ['requestId', 'executionId', 'ensembleName', 'agentName'],
+            redact: ['password', 'apiKey', 'token', 'authorization', 'secret', 'creditCard'],
+            events: ['request', 'response', 'agent:start', 'agent:complete', 'agent:error'],
+        },
+        metrics: {
+            enabled: true,
+            binding: 'ANALYTICS',
+            track: ['ensemble:execution', 'agent:execution', 'http:request', 'error'],
+        },
         trackTokenUsage: true,
     },
     execution: {

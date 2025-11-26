@@ -42,12 +42,16 @@ export function isReservedRoute(slug) {
 }
 /**
  * Internal default values for route config
+ *
+ * SECURE BY DEFAULT: Auth requirement defaults to 'required'.
+ * Shipped templates explicitly set 'public' for user convenience.
+ * Users can change this in their docs.yaml or conductor.config.ts.
  */
 const DEFAULT_ROUTE = {
     path: '/docs',
     methods: ['GET'],
     auth: {
-        requirement: 'public',
+        requirement: 'required', // SECURE BY DEFAULT
     },
     priority: 50,
 };
@@ -72,6 +76,10 @@ const DEFAULT_NAV = {
 };
 /**
  * Default docs definition values
+ *
+ * SECURE BY DEFAULT: Auth requirement defaults to 'required'.
+ * When users run `conductor init`, the generated docs.yaml will have
+ * explicit `auth.requirement: public` for their convenience.
  */
 export const DEFAULT_DOCS_DEFINITION = {
     name: 'docs',
@@ -86,7 +94,7 @@ export const DEFAULT_DOCS_DEFINITION = {
         darkMode: false,
     },
     auth: {
-        requirement: 'public',
+        requirement: 'required', // SECURE BY DEFAULT
     },
     cache: {
         enabled: true,

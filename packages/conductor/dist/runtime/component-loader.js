@@ -200,7 +200,7 @@ export class ComponentLoader {
                 `Error: ${err.message}\n\n` +
                 `Note: This method uses new Function() which is blocked in Cloudflare Workers.\n` +
                 `For Workers compatibility, use bundled scripts via script:// URIs instead.\n` +
-                `See: https://docs.ensemble.dev/conductor/guides/migrate-inline-code`);
+                `See: https://docs.ensemble.ai/conductor/guides/migrate-inline-code`);
         }
     }
     /**

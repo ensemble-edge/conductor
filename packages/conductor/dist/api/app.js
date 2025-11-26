@@ -7,17 +7,24 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js';
-import { execute, agents, health, stream, async, webhooks, executions, schedules, mcp, email, } from './routes/index.js';
+import { execute, agents, ensembles, docs, health, stream, async, webhooks, executions, schedules, mcp, email, } from './routes/index.js';
 import { openapi } from './openapi/index.js';
 import { ScheduleManager } from '../runtime/schedule-manager.js';
 import { CatalogLoader } from '../runtime/catalog-loader.js';
 import { createLogger } from '../observability/index.js';
+import { initSecurityConfig } from '../config/security.js';
 const appLogger = createLogger({ serviceName: 'api-app' });
 /**
  * Create Conductor API application
  */
 export function createConductorAPI(config = {}) {
     const app = new Hono();
+    // Initialize security configuration
+    initSecurityConfig({
+        requireAuth: config.auth?.requireAuth ?? true, // SECURE BY DEFAULT
+        allowDirectAgentExecution: config.security?.allowDirectAgentExecution ?? true,
+        autoPermissions: config.security?.autoPermissions ?? false,
+    });
     // ==================== Global Middleware ====================
     // Request ID (first, so all logs have it)
     app.use('*', requestId());
@@ -40,21 +47,33 @@ export function createConductorAPI(config = {}) {
     }));
     // Error handler (early in chain)
     app.use('*', errorHandler());
-    // Authentication (if configured)
-    if (config.auth) {
+    // SECURE BY DEFAULT: Always apply auth middleware to /api/* routes
+    // Auth will be enforced unless explicitly disabled with requireAuth: false
+    const requireAuth = config.auth?.requireAuth ?? true;
+    if (requireAuth) {
+        app.use('/api/*', createAuthMiddleware({
+            apiKeys: config.auth?.apiKeys || [],
+            allowAnonymous: config.auth?.allowAnonymous ?? false,
+        }));
+    }
+    else if (config.auth) {
+        // Auth configured but not required - still apply middleware for optional auth
         app.use('/api/*', createAuthMiddleware({
             apiKeys: config.auth.apiKeys || [],
-            allowAnonymous: config.auth.allowAnonymous ?? false,
+            allowAnonymous: true, // Allow anonymous when requireAuth is false
         }));
     }
     // ==================== Routes ====================
     // Health checks (public, no auth)
     app.route('/health', health);
+    // Documentation (public, no auth)
+    app.route('/docs', docs);
     // OpenAPI documentation (public, no auth)
     app.route('/', openapi);
     // API routes (authenticated)
     app.route('/api/v1/execute', execute);
     app.route('/api/v1/agents', agents);
+    app.route('/api/v1/ensembles', ensembles);
     app.route('/api/v1/stream', stream);
     app.route('/api/v1/async', async);
     app.route('/api/v1/executions', executions);
@@ -71,11 +90,13 @@ export function createConductorAPI(config = {}) {
             name: 'Conductor API',
             version: '1.0.0',
             description: 'Agentic workflow orchestration framework for Cloudflare Workers',
-            documentation: 'https://conductor.dev/docs',
+            documentation: '/docs',
             endpoints: {
+                docs: '/docs',
                 health: '/health',
                 execute: '/api/v1/execute',
                 agents: '/api/v1/agents',
+                ensembles: '/api/v1/ensembles',
             },
         });
     });

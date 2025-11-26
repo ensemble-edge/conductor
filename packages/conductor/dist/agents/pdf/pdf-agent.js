@@ -18,7 +18,8 @@ import { createTemplateEngine } from '../../utils/templates/index.js';
 export class PdfMember extends BaseAgent {
     constructor(config) {
         super(config);
-        this.pdfConfig = config;
+        // Extract nested config (config.config contains the agent-specific settings)
+        this.pdfConfig = (config.config || {});
         // Initialize template engine (default to 'simple')
         const engine = this.pdfConfig.templateEngine || 'simple';
         this.templateEngine = createTemplateEngine(engine);

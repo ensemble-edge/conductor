@@ -16,9 +16,59 @@ import { createSetCookieHeader, createDeleteCookie, parseSignedCookies, isValidC
 export class HtmlMember extends BaseAgent {
     constructor(config) {
         super(config);
-        this.htmlConfig = config;
+        // Extract nested config (config.config contains the agent-specific settings)
+        const rawConfig = (config.config || {});
+        // Normalize the template configuration
+        // YAML configs use `template: "<content>"` with `templateEngine: "liquid"`
+        // But the type expects `template: { inline: "<content>", engine: "liquid" }`
+        this.htmlConfig = this.normalizeConfig(rawConfig);
         // Validate configuration
         this.validateConfig();
+    }
+    /**
+     * Normalize YAML config format to typed config
+     *
+     * Handles the common YAML pattern:
+     *   config:
+     *     templateEngine: liquid
+     *     template: |
+     *       <html>...
+     *
+     * Converts to:
+     *   template: { inline: "<html>...", engine: "liquid" }
+     */
+    normalizeConfig(rawConfig) {
+        const { template, templateEngine, ...rest } = rawConfig;
+        // If template is already a TemplateSource object, use it as-is
+        if (template && typeof template === 'object' && !Array.isArray(template)) {
+            const templateObj = template;
+            // Check if it has TemplateSource properties (inline, kv, r2, file)
+            if ('inline' in templateObj ||
+                'kv' in templateObj ||
+                'r2' in templateObj ||
+                'file' in templateObj) {
+                // Apply templateEngine if specified at top level but not in template object
+                if (templateEngine && !templateObj.engine) {
+                    templateObj.engine = templateEngine;
+                }
+                return {
+                    ...rest,
+                    template: templateObj,
+                };
+            }
+        }
+        // If template is a string, convert to { inline: template }
+        if (typeof template === 'string') {
+            return {
+                ...rest,
+                template: {
+                    inline: template,
+                    engine: templateEngine,
+                },
+            };
+        }
+        // Fallback: return as-is and let validation catch issues
+        return rawConfig;
     }
     /**
      * Validate agent configuration

@@ -53,7 +53,15 @@ import {
   type EnsembleScoringConfig,
 } from './scoring/index.js'
 import { ResumptionManager, type SuspendedExecutionState } from './resumption-manager.js'
-import { createLogger, type Logger } from '../observability/index.js'
+import {
+  createLogger,
+  type Logger,
+  ObservabilityManager,
+  createObservabilityManager,
+  generateExecutionId,
+  type MetricsRecorder,
+} from '../observability/index.js'
+import type { ObservabilityConfig } from '../config/types.js'
 import { NotificationManager } from './notifications/index.js'
 import { createComponentLoader, type ComponentLoader } from './component-loader.js'
 import {
@@ -67,6 +75,10 @@ export interface ExecutorConfig {
   env: ConductorEnv
   ctx: ExecutionContext
   logger?: Logger
+  /** Observability configuration from conductor.config.ts */
+  observability?: ObservabilityConfig
+  /** Request ID from incoming HTTP request (for tracing) */
+  requestId?: string
 }
 
 /**
@@ -136,6 +148,10 @@ interface FlowExecutionContext {
   ensembleScorer: EnsembleScorer | null
   scoringExecutor: ScoringExecutor
   startTime: number
+  /** Observability manager for this execution */
+  observability: ObservabilityManager
+  /** Execution ID for tracing */
+  executionId: string
 }
 
 /**
@@ -146,11 +162,15 @@ export class Executor {
   private ctx: ExecutionContext
   private agentRegistry: Map<string, BaseAgent>
   private logger: Logger
+  private observabilityConfig?: ObservabilityConfig
+  private requestId?: string
 
   constructor(config: ExecutorConfig) {
     this.env = config.env
     this.ctx = config.ctx
     this.agentRegistry = new Map()
+    this.observabilityConfig = config.observability
+    this.requestId = config.requestId
     this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS)
   }
 
@@ -349,12 +369,30 @@ export class Executor {
     }
     const agent = agentResult.value
 
-    // Create agent execution context
+    // Create scoped observability for this agent
+    const agentObservability = flowContext.observability.forAgent(step.agent, stepIndex)
+    const agentLogger = agentObservability.getLogger()
+    const agentMetrics = agentObservability.getMetrics()
+
+    // Log agent start if configured
+    if (flowContext.observability.shouldLogEvent('agent:start')) {
+      agentLogger.info('Agent execution started', {
+        agentName: step.agent,
+        stepIndex,
+        ensembleName: ensemble.name,
+      })
+    }
+
+    // Create agent execution context with observability
     const agentContext: AgentExecutionContext = {
       input: resolvedInput as Record<string, any>,
       env: this.env,
       ctx: this.ctx,
       previousOutputs: executionContext,
+      logger: agentLogger,
+      metrics: agentMetrics,
+      executionId: flowContext.executionId,
+      requestId: this.requestId,
     }
 
     // Add state context if available and track updates
@@ -505,13 +543,46 @@ export class Executor {
 
     if (response.cached) {
       metrics.cacheHits++
+      // Log cache hit if configured
+      if (flowContext.observability.shouldLogEvent('cache:hit')) {
+        agentLogger.debug('Cache hit', { agentName: step.agent })
+      }
+      // Record cache metric
+      agentMetrics.recordCachePerformance(true, step.agent)
+    } else {
+      // Record cache miss metric
+      agentMetrics.recordCachePerformance(false, step.agent)
     }
+
+    // Record agent execution metric
+    agentMetrics.recordAgentExecution(step.agent, agentDuration, response.success, response.cached)
 
     // Handle agent execution errors explicitly
     if (!response.success) {
+      // Log agent error if configured
+      if (flowContext.observability.shouldLogEvent('agent:error')) {
+        agentLogger.error('Agent execution failed', new Error(response.error || 'Unknown error'), {
+          agentName: step.agent,
+          durationMs: agentDuration,
+          stepIndex,
+        })
+      }
+      // Record error metric
+      agentMetrics.recordError('AgentExecutionError', step.agent)
+
       return Result.err(
         new AgentExecutionError(step.agent, response.error || 'Unknown error', undefined)
       )
+    }
+
+    // Log agent completion if configured
+    if (flowContext.observability.shouldLogEvent('agent:complete')) {
+      agentLogger.info('Agent execution completed', {
+        agentName: step.agent,
+        durationMs: agentDuration,
+        stepIndex,
+        cached: response.cached,
+      })
     }
 
     // Store agent output in context for future interpolations
@@ -720,7 +791,7 @@ export class Executor {
                 `1. Create a file: scripts/${name}.ts\n` +
                 `2. Export your function: export default async function(context) { ... }\n` +
                 `3. Update your ensemble to use: config.script: "scripts/${name}"\n\n` +
-                `See: https://docs.ensemble.dev/conductor/guides/migrate-inline-code`
+                `See: https://docs.ensemble.ai/conductor/guides/migrate-inline-code`
             ),
             { name }
           )
@@ -783,7 +854,30 @@ export class Executor {
     input: Record<string, any>
   ): AsyncResult<ExecutionOutput, ConductorError> {
     const startTime = Date.now()
-    const executionId = `exec-${crypto.randomUUID()}`
+    const executionId = generateExecutionId()
+
+    // Initialize observability for this execution
+    const observability = createObservabilityManager(
+      this.observabilityConfig,
+      {
+        requestId: this.requestId,
+        executionId,
+        ensembleName: ensemble.name,
+        environment: (this.env as any).ENVIRONMENT,
+      },
+      this.env.ANALYTICS
+    )
+
+    const ensembleLogger = observability.getLogger()
+    const ensembleMetrics = observability.getMetrics()
+
+    // Log ensemble start if configured
+    if (observability.shouldLogEvent('ensemble:start')) {
+      ensembleLogger.info('Ensemble execution started', {
+        ensembleName: ensemble.name,
+        executionId,
+      })
+    }
 
     const metrics: ExecutionMetrics = {
       ensemble: ensemble.name,
@@ -827,7 +921,7 @@ export class Executor {
       scoring: scoringState || {},
     }
 
-    // Create flow execution context
+    // Create flow execution context with observability
     const flowContext: FlowExecutionContext = {
       ensemble,
       executionContext,
@@ -837,10 +931,38 @@ export class Executor {
       ensembleScorer,
       scoringExecutor,
       startTime,
+      observability,
+      executionId,
     }
 
     // Execute flow from the beginning
     const result = await this.executeFlow(flowContext, 0)
+
+    // Record ensemble execution metric
+    const totalDuration = Date.now() - startTime
+    ensembleMetrics.recordEnsembleExecution(ensemble.name, totalDuration, result.success)
+
+    // Log ensemble completion/error
+    if (result.success) {
+      if (observability.shouldLogEvent('ensemble:complete')) {
+        ensembleLogger.info('Ensemble execution completed', {
+          ensembleName: ensemble.name,
+          executionId,
+          durationMs: totalDuration,
+          agentCount: metrics.agents.length,
+          cacheHits: metrics.cacheHits,
+        })
+      }
+    } else {
+      if (observability.shouldLogEvent('ensemble:error')) {
+        ensembleLogger.error('Ensemble execution failed', result.error, {
+          ensembleName: ensemble.name,
+          executionId,
+          durationMs: totalDuration,
+        })
+      }
+      ensembleMetrics.recordError('EnsembleExecutionError', result.error.code)
+    }
 
     // Send notifications based on result
     if (result.success) {
@@ -985,6 +1107,21 @@ export class Executor {
       executionContext.scoring = scoringState
     }
 
+    // Restore or generate execution ID
+    const executionId = suspendedState.executionId || generateExecutionId()
+
+    // Initialize observability for resumed execution
+    const observability = createObservabilityManager(
+      this.observabilityConfig,
+      {
+        requestId: this.requestId,
+        executionId,
+        ensembleName: ensemble.name,
+        environment: (this.env as any).ENVIRONMENT,
+      },
+      this.env.ANALYTICS
+    )
+
     // Create flow execution context
     const flowContext: FlowExecutionContext = {
       ensemble,
@@ -995,6 +1132,8 @@ export class Executor {
       ensembleScorer,
       scoringExecutor,
       startTime,
+      observability,
+      executionId,
     }
 
     // Resume from the specified step

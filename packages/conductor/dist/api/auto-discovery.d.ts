@@ -33,6 +33,14 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
         config: string;
     }>;
     /**
+     * Virtual docs module (injected by Vite plugin)
+     * If not provided, docs pages will not be available
+     */
+    docs?: Array<{
+        name: string;
+        content: string;
+    }>;
+    /**
      * Configure custom error pages using ensembles
      * Maps HTTP error codes to ensemble names
      *

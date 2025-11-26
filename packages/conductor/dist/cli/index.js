@@ -17,6 +17,7 @@ import { createHistoryCommand } from './commands/history.js';
 import { createValidateCommand } from './commands/validate.js';
 import { createBundleCommand } from './commands/bundle.js';
 import { createImportCommand } from './commands/import.js';
+import { handleKeysCommand } from './commands/keys.js';
 const version = __CONDUCTOR_VERSION__;
 const program = new Command();
 program
@@ -52,6 +53,56 @@ program.addCommand(createReplayCommand());
 program.addCommand(createValidateCommand());
 program.addCommand(createBundleCommand());
 program.addCommand(createImportCommand());
+// API Key management command
+const keysCommand = new Command('keys')
+    .description('Manage API keys for authentication')
+    .addHelpText('after', `
+${chalk.bold('Examples:')}
+  ${chalk.cyan('conductor keys generate --name "my-service" --permissions "ensemble:*:execute"')}
+  ${chalk.cyan('conductor keys generate --name "admin" --permissions "*" --expires never')}
+  ${chalk.cyan('conductor keys list')}
+  ${chalk.cyan('conductor keys revoke key_abc123')}
+`);
+keysCommand
+    .command('generate')
+    .description('Generate a new API key')
+    .requiredOption('--name <name>', 'Human-readable name for the key')
+    .option('--permissions <perms>', 'Comma-separated permissions (default: "*")')
+    .option('--expires <duration>', 'Expiration (e.g., "30d", "90d", "1y", "never")', '90d')
+    .option('--user-id <userId>', 'User/service ID this key belongs to')
+    .option('--json', 'Output as JSON')
+    .action(async (options) => {
+    await handleKeysCommand('generate', options);
+});
+keysCommand
+    .command('list')
+    .description('List all API keys')
+    .option('--json', 'Output as JSON')
+    .action(async (options) => {
+    await handleKeysCommand('list', options);
+});
+keysCommand
+    .command('revoke <keyId>')
+    .description('Revoke an API key')
+    .option('--json', 'Output as JSON')
+    .action(async (keyId, options) => {
+    await handleKeysCommand('revoke', { keyId, ...options });
+});
+keysCommand
+    .command('info <keyId>')
+    .description('Show information about an API key')
+    .option('--json', 'Output as JSON')
+    .action(async (keyId, options) => {
+    await handleKeysCommand('info', { keyId, ...options });
+});
+keysCommand
+    .command('rotate <keyId>')
+    .description('Rotate an API key (generate new, keep metadata)')
+    .option('--json', 'Output as JSON')
+    .action(async (keyId, options) => {
+    await handleKeysCommand('rotate', { keyId, ...options });
+});
+program.addCommand(keysCommand);
 // Health check command
 program
     .command('health')

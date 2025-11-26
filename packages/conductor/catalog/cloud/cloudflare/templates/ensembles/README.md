@@ -199,6 +199,6 @@ See the [examples/](examples/) directory for advanced examples including:
 ## Support
 
 For questions or issues:
-- Documentation: https://docs.ensemble.dev
-- GitHub Issues: https://github.com/ensemble-edge/edgit/issues
-- Community: https://github.com/ensemble-edge/edgit/discussions
+- Documentation: https://docs.ensemble.ai
+- GitHub Issues: https://github.com/anthropics/conductor/issues
+- Community: https://github.com/anthropics/conductor/discussions

@@ -2,6 +2,12 @@
 
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined") return require.apply(this, arguments);
+  throw Error('Dynamic require of "' + x + '" is not supported');
+});
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -444,6 +450,15 @@ var init_opentelemetry = __esm({
   }
 });
 
+// src/observability/context.ts
+var init_context = __esm({
+  "src/observability/context.ts"() {
+    "use strict";
+    init_logger();
+    init_types();
+  }
+});
+
 // src/observability/index.ts
 var init_observability = __esm({
   "src/observability/index.ts"() {
@@ -451,6 +466,7 @@ var init_observability = __esm({
     init_types();
     init_logger();
     init_opentelemetry();
+    init_context();
   }
 });
 
@@ -1982,6 +1998,328 @@ var init_queries = __esm({
   "src/agents/built-in/queries/index.ts"() {
     "use strict";
     init_queries_agent();
+  }
+});
+
+// src/cli/docs-ai-enhancer.ts
+var docs_ai_enhancer_exports = {};
+__export(docs_ai_enhancer_exports, {
+  DEFAULT_AI_CONFIG: () => DEFAULT_AI_CONFIG,
+  DocsAIEnhancer: () => DocsAIEnhancer,
+  createAgentDescriptionPrompt: () => createAgentDescriptionPrompt,
+  createAgentExamplePrompt: () => createAgentExamplePrompt,
+  createEnsembleDescriptionPrompt: () => createEnsembleDescriptionPrompt,
+  createEnsembleExamplePrompt: () => createEnsembleExamplePrompt,
+  createOpenAPIOperationPrompt: () => createOpenAPIOperationPrompt,
+  getConductorContext: () => getConductorContext,
+  getSystemPrompt: () => getSystemPrompt
+});
+function createAgentDescriptionPrompt(agent) {
+  return `Enhance the description for this Conductor agent:
+
+Agent Name: ${agent.name}
+Operation Type: ${agent.operation}
+Current Description: ${agent.description || "No description provided"}
+
+Input Schema:
+${agent.inputSchema ? JSON.stringify(agent.inputSchema, null, 2) : "Not specified"}
+
+Output Schema:
+${agent.outputSchema ? JSON.stringify(agent.outputSchema, null, 2) : "Not specified"}
+
+Write an improved description (2-3 sentences) that explains:
+1. What this agent does
+2. When you would use it
+3. What makes it useful
+
+Keep it practical and developer-friendly.`;
+}
+function createEnsembleDescriptionPrompt(ensemble) {
+  return `Enhance the description for this Conductor ensemble:
+
+Ensemble Name: ${ensemble.name}
+Current Description: ${ensemble.description || "No description provided"}
+Number of Steps: ${ensemble.stepCount}
+Agents Used: ${ensemble.agentNames.join(", ") || "None specified"}
+Triggers: ${ensemble.triggers?.length ? ensemble.triggers.map((t) => `${t.type}${t.path ? ` at ${t.path}` : ""}${t.cron ? ` (${t.cron})` : ""}`).join(", ") : "None configured"}
+
+Write an improved description (2-3 sentences) that explains:
+1. What workflow this ensemble implements
+2. How it's triggered and what it produces
+3. The business problem it solves
+
+Keep it practical and developer-friendly.`;
+}
+function createAgentExamplePrompt(agent) {
+  return `Generate a YAML usage example for this Conductor agent:
+
+Agent Name: ${agent.name}
+Operation Type: ${agent.operation}
+
+Input Schema:
+${agent.inputSchema ? JSON.stringify(agent.inputSchema, null, 2) : "Accept any input"}
+
+Create a realistic YAML snippet showing how to use this agent in an ensemble flow.
+Include:
+1. The agent step with realistic input values
+2. A brief comment explaining what it does
+
+Example format:
+\`\`\`yaml
+# Brief comment explaining the step
+- agent: agent-name
+  input:
+    field: \${input.value}
+\`\`\`
+
+Generate ONLY the YAML code block, nothing else.`;
+}
+function createEnsembleExamplePrompt(ensemble) {
+  return `Generate a curl command example for invoking this Conductor ensemble:
+
+Ensemble Name: ${ensemble.name}
+
+Input Schema:
+${ensemble.inputSchema ? JSON.stringify(ensemble.inputSchema, null, 2) : "Accept any input"}
+
+Create a realistic curl command showing how to invoke this ensemble via HTTP.
+Include:
+1. The POST request to /execute/${ensemble.name}
+2. Realistic input data based on the schema
+3. Common headers
+
+Example format:
+\`\`\`bash
+curl -X POST http://localhost:8787/execute/${ensemble.name} \\
+  -H "Content-Type: application/json" \\
+  -d '{"field": "value"}'
+\`\`\`
+
+Generate ONLY the bash code block, nothing else.`;
+}
+function createOpenAPIOperationPrompt(operation) {
+  return `Enhance the OpenAPI operation description:
+
+Endpoint: ${operation.method.toUpperCase()} ${operation.path}
+Current Summary: ${operation.summary || "Not provided"}
+Current Description: ${operation.description || "Not provided"}
+
+Request Body Schema:
+${operation.requestBody ? JSON.stringify(operation.requestBody, null, 2) : "None"}
+
+Responses:
+${operation.responses ? JSON.stringify(operation.responses, null, 2) : "Not specified"}
+
+Write:
+1. A clear summary (one line, <10 words)
+2. A helpful description (2-3 sentences) explaining what this endpoint does, when to use it, and any important notes
+
+Format:
+SUMMARY: [your summary]
+DESCRIPTION: [your description]`;
+}
+function getSystemPrompt() {
+  return SYSTEM_PROMPT;
+}
+function getConductorContext() {
+  return CONDUCTOR_CONTEXT;
+}
+var CONDUCTOR_CONTEXT, SYSTEM_PROMPT, DEFAULT_AI_CONFIG, DocsAIEnhancer;
+var init_docs_ai_enhancer = __esm({
+  "src/cli/docs-ai-enhancer.ts"() {
+    "use strict";
+    CONDUCTOR_CONTEXT = `
+# Ensemble Conductor \u2014 Context for Documentation
+
+Conductor is an agentic workflow orchestration framework for Cloudflare Workers.
+It enables building AI-powered workflows using declarative YAML or TypeScript.
+
+## Core Architecture
+- **Agents** \u2014 Reusable units of work with specific operations
+- **Ensembles** \u2014 Orchestrations that combine agents into workflows
+- **Operations** \u2014 Atomic execution primitives (14 types)
+- **Triggers** \u2014 Invocation methods: http, webhook, mcp, email, queue, cron
+
+## Operations (14 types)
+| Operation | Purpose |
+|-----------|---------|
+| think | LLM reasoning with any provider (OpenAI, Anthropic, Cloudflare, Groq) |
+| code | Execute JavaScript/TypeScript scripts |
+| storage | KV/R2 key-value and object storage |
+| data | D1 SQL, Hyperdrive Postgres, Vectorize vector DB |
+| http | Make HTTP requests to external APIs |
+| tools | Call MCP tools |
+| email | Send emails via providers |
+| sms | Send SMS messages |
+| html | Render HTML templates with data |
+| pdf | Generate PDFs from HTML |
+| form | Generate and handle forms |
+| queue | Send/consume queue messages |
+| docs | Generate API documentation |
+| scoring | Score and evaluate agent outputs |
+
+## Expression Syntax
+- \${input.field} \u2014 Access ensemble input
+- \${agent-name.output} \u2014 Reference another agent's output
+- \${env.VARIABLE} \u2014 Environment variables
+- \${state.field} \u2014 State variables
+
+## Common Patterns
+1. **Linear Pipeline** \u2014 Sequential agent execution
+2. **Parallel Execution** \u2014 Concurrent independent tasks
+3. **Conditional Branching** \u2014 Execute based on conditions
+4. **Cache-or-Generate** \u2014 Check cache before expensive operations
+5. **Fallback Chain** \u2014 Try primary, then backup on failure
+6. **RAG Pipeline** \u2014 Embed \u2192 Vector Search \u2192 Generate
+
+## File Structure
+project/
+\u251C\u2500\u2500 ensembles/     # Workflow definitions (YAML or TypeScript)
+\u251C\u2500\u2500 agents/        # Custom agent configurations
+\u251C\u2500\u2500 scripts/       # TypeScript/JavaScript for code operations
+\u251C\u2500\u2500 prompts/       # Prompt templates for think operations
+\u2514\u2500\u2500 wrangler.toml  # Cloudflare Workers configuration
+
+## Key Concepts
+- Agents are stateless and reusable across ensembles
+- Ensembles define the flow and can have multiple triggers
+- All operations run on Cloudflare's edge network (200+ regions, <50ms cold start)
+- Built-in retry, caching, and error handling support
+`.trim();
+    SYSTEM_PROMPT = `You are a technical documentation writer for Ensemble Conductor.
+
+${CONDUCTOR_CONTEXT}
+
+Your task is to enhance auto-generated API documentation to be:
+1. **Clear** \u2014 Easy to understand for developers of all skill levels
+2. **Actionable** \u2014 Include practical usage examples
+3. **Accurate** \u2014 Match the actual behavior of the code
+4. **Concise** \u2014 No unnecessary verbosity, but complete enough to be useful
+
+Guidelines:
+- Write in second person ("You can..." not "Users can...")
+- Use active voice
+- Include code examples where helpful
+- Explain the "why" not just the "what"
+- Mention related endpoints or features when relevant
+- Highlight important caveats or limitations
+- Don't invent features that don't exist
+
+Output format: Return ONLY the enhanced text, no explanations or meta-commentary.`;
+    DEFAULT_AI_CONFIG = {
+      enabled: false,
+      model: "@cf/meta/llama-3.1-8b-instruct",
+      provider: "cloudflare",
+      temperature: 0.3
+    };
+    DocsAIEnhancer = class {
+      constructor(aiBinding, config) {
+        this.aiBinding = aiBinding;
+        this.config = { ...DEFAULT_AI_CONFIG, ...config };
+      }
+      /**
+       * Get current AI configuration
+       */
+      getConfig() {
+        return { ...this.config };
+      }
+      /**
+       * Update AI configuration
+       */
+      setConfig(config) {
+        this.config = { ...this.config, ...config };
+      }
+      /**
+       * Enhance a single text using AI
+       */
+      async enhance(prompt) {
+        if (!this.config.enabled) {
+          return "";
+        }
+        if (!this.aiBinding) {
+          console.warn("[DocsAIEnhancer] No AI binding available, returning original");
+          return "";
+        }
+        try {
+          const model = this.config.model || DEFAULT_AI_CONFIG.model;
+          const temperature = this.config.temperature ?? DEFAULT_AI_CONFIG.temperature;
+          const response = await this.aiBinding.run(model, {
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: prompt }
+            ],
+            max_tokens: 500,
+            temperature
+          });
+          return response.response || "";
+        } catch (error) {
+          console.error("[DocsAIEnhancer] AI enhancement failed:", error);
+          return "";
+        }
+      }
+      /**
+       * Enhance an entire OpenAPI spec
+       */
+      async enhanceSpec(spec) {
+        const enhanced = { ...spec };
+        for (const [path8, pathItem] of Object.entries(spec.paths)) {
+          for (const method of ["get", "post", "put", "delete", "patch"]) {
+            const operation = pathItem[method];
+            if (!operation) continue;
+            const prompt = createOpenAPIOperationPrompt({
+              path: path8,
+              method,
+              summary: operation.summary,
+              description: operation.description,
+              requestBody: operation.requestBody,
+              responses: operation.responses
+            });
+            const result = await this.enhance(prompt);
+            if (result) {
+              const summaryMatch = result.match(/SUMMARY:\s*(.+)/i);
+              const descMatch = result.match(/DESCRIPTION:\s*(.+)/is);
+              if (summaryMatch) {
+                operation.summary = summaryMatch[1].trim();
+              }
+              if (descMatch) {
+                operation.description = descMatch[1].trim();
+              }
+            }
+          }
+        }
+        return enhanced;
+      }
+      /**
+       * Enhance agent description
+       */
+      async enhanceAgentDescription(agent) {
+        const prompt = createAgentDescriptionPrompt(agent);
+        const result = await this.enhance(prompt);
+        return result || agent.description || "";
+      }
+      /**
+       * Enhance ensemble description
+       */
+      async enhanceEnsembleDescription(ensemble) {
+        const prompt = createEnsembleDescriptionPrompt(ensemble);
+        const result = await this.enhance(prompt);
+        return result || ensemble.description || "";
+      }
+      /**
+       * Generate agent usage example
+       */
+      async generateAgentExample(agent) {
+        const prompt = createAgentExamplePrompt(agent);
+        return await this.enhance(prompt);
+      }
+      /**
+       * Generate ensemble usage example
+       */
+      async generateEnsembleExample(ensemble) {
+        const prompt = createEnsembleExamplePrompt(ensemble);
+        return await this.enhance(prompt);
+      }
+    };
   }
 });
 
@@ -7591,8 +7929,71 @@ var EnsembleSchema = external_exports.object({
   flow: external_exports.array(external_exports.lazy(() => FlowStepSchema)).optional(),
   inputs: external_exports.record(external_exports.unknown()).optional(),
   // Input schema definition
-  output: external_exports.record(external_exports.unknown()).optional()
+  output: external_exports.record(external_exports.unknown()).optional(),
+  /** Ensemble-level logging configuration */
+  logging: external_exports.object({
+    /** Override log level for this ensemble */
+    level: external_exports.enum(["debug", "info", "warn", "error"]).optional(),
+    /** Execution trace logging */
+    trace: external_exports.object({
+      enabled: external_exports.boolean().optional(),
+      includeInputs: external_exports.boolean().optional(),
+      includeOutputs: external_exports.boolean().optional(),
+      redactInputs: external_exports.array(external_exports.string()).optional(),
+      redactOutputs: external_exports.array(external_exports.string()).optional()
+    }).optional(),
+    /** Per-step logging overrides (keyed by step agent name or ID) */
+    steps: external_exports.record(external_exports.record(external_exports.unknown())).optional()
+  }).optional(),
+  /** Ensemble-level metrics configuration */
+  metrics: external_exports.object({
+    enabled: external_exports.boolean().optional(),
+    /** Custom business metrics to track */
+    custom: external_exports.array(
+      external_exports.object({
+        name: external_exports.string(),
+        condition: external_exports.string().optional(),
+        // e.g., 'success' or expression
+        value: external_exports.string().optional(),
+        // Expression like '_executionTime'
+        type: external_exports.enum(["counter", "histogram", "gauge"]).optional()
+      })
+    ).optional()
+  }).optional(),
+  /** Ensemble-level tracing configuration */
+  tracing: external_exports.object({
+    enabled: external_exports.boolean().optional(),
+    samplingRate: external_exports.number().min(0).max(1).optional()
+  }).optional()
 });
+var AgentLoggingSchema = external_exports.object({
+  /** Override log level for this agent */
+  level: external_exports.enum(["debug", "info", "warn", "error"]).optional(),
+  /** Additional context fields to include in logs */
+  context: external_exports.array(external_exports.string()).optional(),
+  /** Fields to redact from logs (merged with global) */
+  redact: external_exports.array(external_exports.string()).optional(),
+  /** Events to log for this agent */
+  events: external_exports.object({
+    onStart: external_exports.boolean().optional(),
+    onComplete: external_exports.boolean().optional(),
+    onError: external_exports.boolean().optional(),
+    onCacheHit: external_exports.boolean().optional()
+  }).optional()
+}).optional();
+var AgentMetricsSchema = external_exports.object({
+  /** Enable/disable metrics for this agent */
+  enabled: external_exports.boolean().optional(),
+  /** Custom metrics to record */
+  custom: external_exports.array(
+    external_exports.object({
+      name: external_exports.string(),
+      value: external_exports.string(),
+      // Expression to extract value (e.g., 'output.count')
+      type: external_exports.enum(["counter", "histogram", "gauge"]).optional()
+    })
+  ).optional()
+}).optional();
 var AgentSchema = external_exports.object({
   name: external_exports.string().min(1, "Agent name is required"),
   operation: external_exports.enum([
@@ -7609,7 +8010,6 @@ var AgentSchema = external_exports.object({
     "html" /* html */,
     "pdf" /* pdf */,
     "queue" /* queue */,
-    "docs" /* docs */,
     "autorag" /* autorag */
   ]),
   description: external_exports.string().optional(),
@@ -7617,7 +8017,11 @@ var AgentSchema = external_exports.object({
   schema: external_exports.object({
     input: external_exports.record(external_exports.unknown()).optional(),
     output: external_exports.record(external_exports.unknown()).optional()
-  }).optional()
+  }).optional(),
+  /** Agent-level logging configuration */
+  logging: AgentLoggingSchema,
+  /** Agent-level metrics configuration */
+  metrics: AgentMetricsSchema
 });
 var Parser = class {
   static {
@@ -7923,14 +8327,15 @@ var OpenAPIGenerator = class {
     for (const [name, ensemble] of this.ensembles) {
       const tag = this.inferTag(ensemble);
       tags.add(tag);
-      spec.paths[`/execute/${name}`] = {
+      spec.paths[`/api/v1/execute/ensemble/${name}`] = {
         post: {
           summary: ensemble.description || `Execute ${name} workflow`,
           description: this.generateDescription(ensemble),
-          operationId: `execute_${name}`,
+          operationId: `execute_ensemble_${name}`,
           tags: [tag],
+          security: [{ bearerAuth: [] }, { apiKey: [] }],
           requestBody: {
-            required: true,
+            required: false,
             content: {
               "application/json": {
                 schema: this.generateInputSchema(ensemble)
@@ -7949,6 +8354,15 @@ var OpenAPIGenerator = class {
             "400": {
               description: "Invalid input"
             },
+            "401": {
+              description: "Unauthorized - authentication required"
+            },
+            "403": {
+              description: "Forbidden - missing required permission"
+            },
+            "404": {
+              description: "Ensemble not found"
+            },
             "500": {
               description: "Execution error"
             }
@@ -7966,8 +8380,126 @@ var OpenAPIGenerator = class {
    * Enhance documentation with AI
    */
   async enhanceWithAI(spec, aiAgent) {
-    console.log("AI enhancement not yet implemented");
-    return spec;
+    try {
+      const { DocsAIEnhancer: DocsAIEnhancer2, createOpenAPIOperationPrompt: createOpenAPIOperationPrompt2 } = await Promise.resolve().then(() => (init_docs_ai_enhancer(), docs_ai_enhancer_exports));
+      console.log("  Enhancing documentation with AI...");
+      console.log("  Note: Full AI enhancement requires Workers AI binding (runtime only)");
+      console.log("  Generating enhanced descriptions from templates...");
+      const enhanced = this.applyTemplateEnhancements(spec);
+      return enhanced;
+    } catch (error) {
+      console.warn("  AI enhancement module not available:", error.message);
+      return spec;
+    }
+  }
+  /**
+   * Apply template-based enhancements (deterministic, no AI)
+   */
+  applyTemplateEnhancements(spec) {
+    const enhanced = { ...spec };
+    enhanced.info.description = `${spec.info.description}
+
+This API is powered by Ensemble Conductor, an agentic workflow orchestration framework for Cloudflare Workers.
+
+## Quick Start
+
+1. **Execute an ensemble**: POST to \`/api/v1/execute/ensemble/{name}\` with input data
+2. **Execute an agent**: POST to \`/api/v1/execute/agent/{name}\` (if enabled)
+3. **List agents**: GET \`/api/v1/agents\` to see available agents
+4. **List ensembles**: GET \`/api/v1/ensembles\` to see available workflows
+5. **Browse docs**: Visit \`/docs\` for interactive documentation
+
+## Authentication
+
+All \`/api/v1/*\` routes require authentication by default. Provide one of:
+- \`Authorization: Bearer <token>\` header (JWT)
+- \`X-API-Key: <key>\` header (API key)
+
+## Permissions
+
+API keys can be scoped with permissions like:
+- \`ensemble:invoice-pdf:execute\` - Execute specific ensemble
+- \`ensemble:*:execute\` - Execute any ensemble
+- \`agent:http:execute\` - Execute specific agent
+- \`*\` - Full access (admin)
+
+## Rate Limits
+
+Check response headers for rate limit information:
+- \`X-RateLimit-Limit\`: Maximum requests per window
+- \`X-RateLimit-Remaining\`: Requests remaining
+- \`X-RateLimit-Reset\`: When the window resets`;
+    for (const [path8, pathItem] of Object.entries(enhanced.paths)) {
+      for (const method of ["get", "post", "put", "delete", "patch"]) {
+        const operation = pathItem[method];
+        if (!operation) continue;
+        if (path8.includes("/api/v1/execute/ensemble/")) {
+          const ensembleName = path8.split("/api/v1/execute/ensemble/")[1];
+          operation.description = `Execute the **${ensembleName}** ensemble workflow.
+
+This endpoint triggers the ensemble's flow, executing each agent in sequence (or parallel where configured).
+
+**Authentication**: Requires Bearer token or API key.
+**Permission**: \`ensemble:${ensembleName}:execute\` (if auto-permissions enabled)
+
+**Input**: Provide the ensemble's expected input in the request body.
+**Output**: Returns the final output after all steps complete.
+
+The ensemble may include:
+- AI/LLM operations (think)
+- External API calls (http)
+- Database operations (data)
+- And more...`;
+        }
+        if (path8.includes("/api/v1/execute/agent/")) {
+          const agentName = path8.split("/api/v1/execute/agent/")[1];
+          operation.description = `Execute the **${agentName}** agent directly.
+
+This endpoint bypasses the ensemble flow and executes an agent directly.
+
+**Authentication**: Requires Bearer token or API key.
+**Permission**: \`agent:${agentName}:execute\` (if auto-permissions enabled)
+**Note**: Direct agent execution can be disabled via \`allowDirectAgentExecution: false\`.
+
+**Input**: Provide the agent's expected input in the request body.
+**Output**: Returns the agent's output.`;
+        }
+        if (path8 === "/api/v1/agents") {
+          operation.description = `List all available agents in this Conductor project.
+
+Returns both **built-in agents** (provided by Conductor) and **custom agents** (defined in your \`agents/\` directory).
+
+Use this to discover what agents are available for use in your ensembles.`;
+        }
+        if (path8 === "/api/v1/agents/{name}") {
+          operation.description = `Get detailed information about a specific agent.
+
+Returns:
+- Agent configuration schema
+- Input/output schemas
+- Usage examples
+- Whether it's a built-in or custom agent`;
+        }
+        if (path8 === "/api/v1/ensembles") {
+          operation.description = `List all available ensembles in this Conductor project.
+
+Returns ensembles defined in your \`ensembles/\` directory, including:
+- Name and description
+- Trigger configuration (HTTP, cron, webhook, etc.)
+- Number of flow steps`;
+        }
+        if (path8 === "/api/v1/ensembles/{name}") {
+          operation.description = `Get detailed information about a specific ensemble.
+
+Returns:
+- Full flow definition (all steps)
+- Trigger configurations
+- Input/output schemas
+- Inline agent definitions`;
+        }
+      }
+    }
+    return enhanced;
   }
   /**
    * Infer API tag from ensemble name/description
@@ -8092,11 +8624,24 @@ var OpenAPIGenerator = class {
 // src/config/types.ts
 var DEFAULT_CONFIG = {
   docs: {
-    useAI: false,
-    aiAgent: "docs-writer",
-    format: "yaml",
+    title: "API Documentation",
+    ui: "stoplight",
+    auth: {
+      requirement: "public"
+    },
+    ai: {
+      enabled: false,
+      model: "@cf/meta/llama-3.1-8b-instruct",
+      provider: "cloudflare",
+      temperature: 0.3
+    },
     includeExamples: true,
     includeSecurity: true,
+    cache: {
+      enabled: true,
+      ttl: 300
+    },
+    format: "yaml",
     outputDir: "./docs"
   },
   testing: {
@@ -8111,9 +8656,19 @@ var DEFAULT_CONFIG = {
     globals: true
   },
   observability: {
-    logging: true,
-    logLevel: "info",
-    metrics: true,
+    logging: {
+      enabled: true,
+      level: "info",
+      format: "json",
+      context: ["requestId", "executionId", "ensembleName", "agentName"],
+      redact: ["password", "apiKey", "token", "authorization", "secret", "creditCard"],
+      events: ["request", "response", "agent:start", "agent:complete", "agent:error"]
+    },
+    metrics: {
+      enabled: true,
+      binding: "ANALYTICS",
+      track: ["ensemble:execution", "agent:execution", "http:request", "error"]
+    },
     trackTokenUsage: true
   },
   execution: {
@@ -8480,12 +9035,15 @@ function validateConfig(config) {
       errors.push(`Invalid testing.coverage.statements: ${c.statements}. Must be between 0 and 100`);
     }
   }
-  if (config.observability?.logLevel) {
-    const validLevels = ["debug", "info", "warn", "error"];
-    if (!validLevels.includes(config.observability.logLevel)) {
-      errors.push(
-        `Invalid observability.logLevel: ${config.observability.logLevel}. Must be one of: ${validLevels.join(", ")}`
-      );
+  if (config.observability?.logging && typeof config.observability.logging === "object") {
+    const logLevel = config.observability.logging.level;
+    if (logLevel) {
+      const validLevels = ["debug", "info", "warn", "error"];
+      if (!validLevels.includes(logLevel)) {
+        errors.push(
+          `Invalid observability.logging.level: ${logLevel}. Must be one of: ${validLevels.join(", ")}`
+        );
+      }
     }
   }
   if (config.execution) {
@@ -8514,6 +9072,14 @@ ${errors.join("\n")}`));
   }
   return Result.ok(void 0);
 }
+
+// src/config/security.ts
+var DEFAULT_SECURITY_CONFIG = {
+  requireAuth: true,
+  allowDirectAgentExecution: true,
+  autoPermissions: false
+};
+var securityConfig = { ...DEFAULT_SECURITY_CONFIG };
 
 // src/cli/commands/docs.ts
 import * as fs4 from "fs/promises";
@@ -9187,6 +9753,32 @@ import * as path5 from "path";
 import { glob } from "glob";
 import * as YAML4 from "yaml";
 import { pathToFileURL as pathToFileURL2 } from "url";
+var AGENT_CONFIG_PROPERTIES = {
+  html: ["template", "renderOptions", "cookieSecret", "defaultCookieOptions"],
+  queue: ["queue", "mode", "deliveryMode", "consumer", "retry", "dlq", "contentType"],
+  form: ["fields", "submitUrl", "method", "validation", "submitButton", "resetButton"],
+  pdf: ["template", "renderOptions", "puppeteer", "pageOptions"],
+  docs: ["source", "format", "outputPath", "title", "toc", "theme"],
+  email: ["provider", "rateLimit", "retries", "batchSize"],
+  sms: ["provider", "rateLimit", "retries"],
+  storage: ["backend", "operation", "binding", "prefix"],
+  data: ["source", "transform", "output"],
+  scoring: ["criteria", "weights", "threshold"]
+};
+function detectFlatConfigProperties(agent, operation) {
+  const configProps = AGENT_CONFIG_PROPERTIES[operation];
+  if (!configProps) return [];
+  const flatProps = [];
+  for (const prop of configProps) {
+    if (prop in agent && !agent.config) {
+      flatProps.push(prop);
+    }
+    if (prop in agent && agent.config && typeof agent.config === "object" && prop in agent.config) {
+      flatProps.push(`${prop} (duplicated in root and config)`);
+    }
+  }
+  return flatProps;
+}
 var autoFixes = {
   /**
    * Fix output: $agent-name to output: { result: ${agent-name.output} }
@@ -9380,6 +9972,25 @@ output:
   const parsed = YAML4.parse(modifiedContent, { mapAsMap: false, logLevel: "silent" });
   if (parsed.agents && Array.isArray(parsed.agents)) {
     for (const agent of parsed.agents) {
+      if (agent.operation && typeof agent.operation === "string") {
+        const flatProps = detectFlatConfigProperties(agent, agent.operation);
+        if (flatProps.length > 0) {
+          const propsStr = flatProps.join(", ");
+          errors.push({
+            file: filePath,
+            message: `Agent "${agent.name || "unnamed"}": Found flat config properties at root level: ${propsStr}. These should be nested under "config:".`,
+            severity: "error",
+            fixable: false,
+            suggestion: `Move operation-specific properties under "config:":
+
+agents:
+  - name: ${agent.name || "my-agent"}
+    operation: ${agent.operation}
+    config:
+      ${flatProps[0]}: ... # Move properties here`
+          });
+        }
+      }
       if (agent.operation === "code" && agent.config) {
         if (typeof agent.config.code === "string") {
           errors.push({
@@ -9464,8 +10075,9 @@ async function validateAgent(filePath, options) {
       fixed: false
     };
   }
+  let parsed;
   try {
-    YAML4.parse(content, { mapAsMap: false, logLevel: "silent" });
+    parsed = YAML4.parse(content, { mapAsMap: false, logLevel: "silent" });
   } catch (error) {
     const yamlError = error;
     return {
@@ -9483,6 +10095,24 @@ async function validateAgent(filePath, options) {
       ],
       fixed: false
     };
+  }
+  if (parsed.operation && typeof parsed.operation === "string") {
+    const flatProps = detectFlatConfigProperties(parsed, parsed.operation);
+    if (flatProps.length > 0) {
+      const propsStr = flatProps.join(", ");
+      errors.push({
+        file: filePath,
+        message: `Found flat config properties at root level: ${propsStr}. These should be nested under "config:".`,
+        severity: "error",
+        fixable: false,
+        suggestion: `Move operation-specific properties under "config:":
+
+name: ${parsed.name || "my-agent"}
+operation: ${parsed.operation}
+config:
+  ${flatProps[0]}: ... # Move properties here`
+      });
+    }
   }
   try {
     Parser.parseAgent(content);
@@ -10438,8 +11068,221 @@ function createImportCommand() {
   return importCmd;
 }
 
+// src/cli/commands/keys.ts
+import { randomBytes } from "crypto";
+function generateApiKey(options) {
+  const keyId = `key_${randomBytes(8).toString("hex")}`;
+  const keyBytes = randomBytes(32);
+  const key = `cnd_live_${keyBytes.toString("hex")}`;
+  const keyHash = hashKey(key);
+  const expiresAt = parseExpiration(options.expires);
+  const record = {
+    keyId,
+    name: options.name,
+    keyHash,
+    keyPrefix: key.substring(0, 12),
+    // Store prefix for identification
+    userId: options.userId,
+    permissions: options.permissions || ["*"],
+    // Default to full access
+    createdAt: Date.now(),
+    expiresAt,
+    active: true,
+    metadata: options.metadata
+  };
+  return { key, keyId, record };
+}
+function hashKey(key) {
+  const { createHash } = __require("crypto");
+  return createHash("sha256").update(key).digest("hex");
+}
+function parseExpiration(expires) {
+  if (!expires || expires === "never") {
+    return null;
+  }
+  const match = expires.match(/^(\d+)(d|w|m|y)$/);
+  if (!match) {
+    throw new Error(`Invalid expiration format: ${expires}. Use format like "30d", "90d", "1y", or "never"`);
+  }
+  const [, amount, unit] = match;
+  const num = parseInt(amount, 10);
+  const ms = {
+    d: 24 * 60 * 60 * 1e3,
+    // days
+    w: 7 * 24 * 60 * 60 * 1e3,
+    // weeks
+    m: 30 * 24 * 60 * 60 * 1e3,
+    // months (approx)
+    y: 365 * 24 * 60 * 60 * 1e3
+    // years
+  };
+  return Date.now() + num * ms[unit];
+}
+function formatExpiration(expiresAt) {
+  if (!expiresAt) {
+    return "never";
+  }
+  const date = new Date(expiresAt);
+  return date.toISOString().split("T")[0];
+}
+function formatPermissions(permissions) {
+  if (permissions.length === 1 && permissions[0] === "*") {
+    return "full access";
+  }
+  if (permissions.length > 3) {
+    return `${permissions.slice(0, 3).join(", ")} (+${permissions.length - 3} more)`;
+  }
+  return permissions.join(", ");
+}
+var keysCommands = {
+  /**
+   * Generate a new API key
+   */
+  generate: async (args) => {
+    const permissions = args.permissions ? args.permissions.split(",").map((p) => p.trim()) : void 0;
+    const { key, keyId, record } = generateApiKey({
+      name: args.name,
+      permissions,
+      expires: args.expires || "90d",
+      userId: args.userId
+    });
+    if (args.json) {
+      console.log(
+        JSON.stringify(
+          {
+            success: true,
+            keyId,
+            key,
+            // Only shown in JSON output on generation
+            name: record.name,
+            permissions: record.permissions,
+            expiresAt: record.expiresAt,
+            createdAt: record.createdAt
+          },
+          null,
+          2
+        )
+      );
+    } else {
+      console.log("\n\u2705 API Key generated\n");
+      console.log(`Key ID:      ${keyId}`);
+      console.log(`Key:         ${key}`);
+      console.log(`Name:        ${record.name}`);
+      console.log(`Permissions: ${formatPermissions(record.permissions)}`);
+      console.log(`Expires:     ${formatExpiration(record.expiresAt)}`);
+      console.log("\n\u26A0\uFE0F  Save this key now - it won't be shown again!\n");
+      console.log("To use this key, add it to your Cloudflare KV namespace:");
+      console.log(`  wrangler kv:key put --namespace-id=<your-namespace-id> "${key}" '${JSON.stringify(record)}'`);
+      console.log("");
+    }
+    return { key, keyId, record };
+  },
+  /**
+   * List all keys (shows metadata only, not the keys themselves)
+   */
+  list: async (args) => {
+    if (args.json) {
+      console.log(JSON.stringify({ message: "Use wrangler to list keys from your KV namespace" }));
+    } else {
+      console.log("\n\u{1F4CB} API Key Management\n");
+      console.log("To list keys, query your Cloudflare KV namespace:");
+      console.log("  wrangler kv:key list --namespace-id=<your-namespace-id>");
+      console.log("\nTo view a key's metadata:");
+      console.log('  wrangler kv:key get --namespace-id=<your-namespace-id> "<key-prefix>..."');
+      console.log("");
+    }
+  },
+  /**
+   * Revoke a key
+   */
+  revoke: async (args) => {
+    if (args.json) {
+      console.log(JSON.stringify({ message: `To revoke key ${args.keyId}, delete it from KV` }));
+    } else {
+      console.log("\n\u{1F510} Revoke API Key\n");
+      console.log(`To revoke key ${args.keyId}:`);
+      console.log("  1. Find the key in your KV namespace");
+      console.log('  2. Delete it: wrangler kv:key delete --namespace-id=<id> "<key>"');
+      console.log("");
+    }
+  },
+  /**
+   * Show key info (without the key itself)
+   */
+  info: async (args) => {
+    if (args.json) {
+      console.log(JSON.stringify({ message: `Query your KV namespace for key ${args.keyId}` }));
+    } else {
+      console.log("\n\u{1F50D} API Key Info\n");
+      console.log(`To view info for key ${args.keyId}:`);
+      console.log('  wrangler kv:key get --namespace-id=<your-namespace-id> "<key>"');
+      console.log("");
+    }
+  },
+  /**
+   * Rotate a key (generate new, show instructions to update)
+   */
+  rotate: async (args) => {
+    const newKeyBytes = randomBytes(32);
+    const newKey = `cnd_live_${newKeyBytes.toString("hex")}`;
+    if (args.json) {
+      console.log(
+        JSON.stringify({
+          message: `Rotation for ${args.keyId}`,
+          newKey,
+          instructions: "Update your KV record with the new key hash"
+        })
+      );
+    } else {
+      console.log("\n\u{1F504} Rotate API Key\n");
+      console.log(`Old Key ID: ${args.keyId}`);
+      console.log(`New Key:    ${newKey}`);
+      console.log("\nTo complete rotation:");
+      console.log("  1. Update the keyHash in your KV record");
+      console.log("  2. Update your application with the new key");
+      console.log("  3. The old key will stop working after KV update");
+      console.log("\n\u26A0\uFE0F  Save the new key now - it won't be shown again!\n");
+    }
+    return { newKey };
+  }
+};
+async function handleKeysCommand(subcommand, args) {
+  switch (subcommand) {
+    case "generate":
+      await keysCommands.generate(args);
+      break;
+    case "list":
+      await keysCommands.list(args);
+      break;
+    case "revoke":
+      await keysCommands.revoke(args);
+      break;
+    case "info":
+      await keysCommands.info(args);
+      break;
+    case "rotate":
+      await keysCommands.rotate(args);
+      break;
+    default:
+      console.log(`
+\u{1F511} Conductor API Key Management
+`);
+      console.log("Commands:");
+      console.log("  generate  Generate a new API key");
+      console.log("  list      List all API keys");
+      console.log("  revoke    Revoke an API key");
+      console.log("  info      Show key information");
+      console.log("  rotate    Rotate an API key");
+      console.log("\nExamples:");
+      console.log('  conductor keys generate --name "my-service" --permissions "ensemble:*:execute"');
+      console.log('  conductor keys generate --name "admin" --permissions "*" --expires never');
+      console.log("  conductor keys revoke key_abc123");
+      console.log("");
+  }
+}
+
 // src/cli/index.ts
-var version = "0.3.2";
+var version = "0.4.0";
 var program = new Command13();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",
@@ -10470,6 +11313,32 @@ program.addCommand(createReplayCommand());
 program.addCommand(createValidateCommand());
 program.addCommand(createBundleCommand());
 program.addCommand(createImportCommand());
+var keysCommand = new Command13("keys").description("Manage API keys for authentication").addHelpText(
+  "after",
+  `
+${chalk13.bold("Examples:")}
+  ${chalk13.cyan('conductor keys generate --name "my-service" --permissions "ensemble:*:execute"')}
+  ${chalk13.cyan('conductor keys generate --name "admin" --permissions "*" --expires never')}
+  ${chalk13.cyan("conductor keys list")}
+  ${chalk13.cyan("conductor keys revoke key_abc123")}
+`
+);
+keysCommand.command("generate").description("Generate a new API key").requiredOption("--name <name>", "Human-readable name for the key").option("--permissions <perms>", 'Comma-separated permissions (default: "*")').option("--expires <duration>", 'Expiration (e.g., "30d", "90d", "1y", "never")', "90d").option("--user-id <userId>", "User/service ID this key belongs to").option("--json", "Output as JSON").action(async (options) => {
+  await handleKeysCommand("generate", options);
+});
+keysCommand.command("list").description("List all API keys").option("--json", "Output as JSON").action(async (options) => {
+  await handleKeysCommand("list", options);
+});
+keysCommand.command("revoke <keyId>").description("Revoke an API key").option("--json", "Output as JSON").action(async (keyId, options) => {
+  await handleKeysCommand("revoke", { keyId, ...options });
+});
+keysCommand.command("info <keyId>").description("Show information about an API key").option("--json", "Output as JSON").action(async (keyId, options) => {
+  await handleKeysCommand("info", { keyId, ...options });
+});
+keysCommand.command("rotate <keyId>").description("Rotate an API key (generate new, keep metadata)").option("--json", "Output as JSON").action(async (keyId, options) => {
+  await handleKeysCommand("rotate", { keyId, ...options });
+});
+program.addCommand(keysCommand);
 program.command("health").description("Check API health").option("--api-url <url>", "API URL (default: from CONDUCTOR_API_URL env)").action(async (options) => {
   try {
     const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;

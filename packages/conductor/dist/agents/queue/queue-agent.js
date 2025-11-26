@@ -11,7 +11,8 @@ import { BaseAgent } from '../base-agent.js';
 export class QueueMember extends BaseAgent {
     constructor(config) {
         super(config);
-        this.queueConfig = config;
+        // Extract nested config (config.config contains the agent-specific settings)
+        this.queueConfig = (config.config || {});
         // Validate configuration
         this.validateConfig();
     }

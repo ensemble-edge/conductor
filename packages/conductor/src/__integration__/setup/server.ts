@@ -37,7 +37,8 @@ export class TestServer {
       console.log(`🚀 Starting dev server on port ${this.port}...`)
 
       // IMPORTANT: Must cd into directory first for wrangler to work properly in dev containers
-      const command = `cd "${this.projectDir}" && npx wrangler dev --port ${this.port} --inspector-port ${this.inspectorPort} --local-protocol http --ip 0.0.0.0`
+      // Use --local to skip remote bindings and --show-interactive-dev-session=false for CI environments
+      const command = `cd "${this.projectDir}" && npx wrangler dev --port ${this.port} --inspector-port ${this.inspectorPort} --local-protocol http --ip 0.0.0.0 --local --show-interactive-dev-session=false`
 
       this.process = spawn('sh', ['-c', command], {
         env: { ...process.env, NODE_ENV: 'test' },

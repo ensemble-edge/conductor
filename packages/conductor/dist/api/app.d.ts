@@ -6,9 +6,33 @@
 import { Hono } from 'hono';
 import { type ScheduledEvent } from '../runtime/schedule-manager.js';
 export interface APIConfig {
+    /**
+     * Authentication configuration
+     * SECURE BY DEFAULT: Auth is required on /api/* routes unless explicitly disabled
+     */
     auth?: {
+        /** List of valid API keys */
         apiKeys?: string[];
+        /**
+         * Allow anonymous access to API routes
+         * @default false - requires authentication
+         */
         allowAnonymous?: boolean;
+        /**
+         * Require authentication on /api/* routes
+         * Set to false only for development/testing
+         * @default true
+         */
+        requireAuth?: boolean;
+    };
+    /**
+     * Security configuration for execution
+     */
+    security?: {
+        /** Allow direct agent execution via /api/v1/execute/agent/:name */
+        allowDirectAgentExecution?: boolean;
+        /** Automatically require resource-specific permissions */
+        autoPermissions?: boolean;
     };
     cors?: {
         origin?: string | string[];

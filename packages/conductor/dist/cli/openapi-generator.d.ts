@@ -45,6 +45,7 @@ export interface Operation {
     description?: string;
     operationId?: string;
     tags?: string[];
+    security?: Array<Record<string, string[]>>;
     requestBody?: RequestBody;
     responses: Record<string, Response>;
     parameters?: Parameter[];
@@ -129,6 +130,10 @@ export declare class OpenAPIGenerator {
      * Enhance documentation with AI
      */
     private enhanceWithAI;
+    /**
+     * Apply template-based enhancements (deterministic, no AI)
+     */
+    private applyTemplateEnhancements;
     /**
      * Infer API tag from ensemble name/description
      */

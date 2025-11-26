@@ -14,6 +14,9 @@ export interface ConductorConfig {
   /** Project version */
   version?: string
 
+  /** Security configuration */
+  security?: SecurityConfigOptions
+
   /** Routing configuration */
   routing?: RoutingConfig
 
@@ -31,6 +34,31 @@ export interface ConductorConfig {
 
   /** Storage configuration for debugging */
   storage?: StorageConfig
+}
+
+/**
+ * Security configuration options
+ */
+export interface SecurityConfigOptions {
+  /**
+   * Require authentication on /api/* routes
+   * @default true
+   */
+  requireAuth?: boolean
+
+  /**
+   * Allow direct agent execution via API
+   * When true, agents can be called via /api/v1/execute/agent/:name
+   * @default true
+   */
+  allowDirectAgentExecution?: boolean
+
+  /**
+   * Automatically require resource-specific permissions
+   * When true, executing ensemble:foo requires permission "ensemble:foo:execute"
+   * @default false
+   */
+  autoPermissions?: boolean
 }
 
 /**
@@ -259,26 +287,173 @@ export interface TestingConfig {
 
 /**
  * Observability configuration
+ *
+ * Cloudflare-first observability with support for external providers.
+ * All features work out of the box with sensible defaults.
+ *
+ * @example
+ * ```typescript
+ * observability: {
+ *   logging: {
+ *     level: 'info',
+ *     redact: ['password', 'apiKey'],
+ *   },
+ *   metrics: {
+ *     enabled: true,
+ *     binding: 'ANALYTICS',
+ *   },
+ * }
+ * ```
  */
 export interface ObservabilityConfig {
-  /** Enable structured logging */
-  logging?: boolean
+  /**
+   * Logging configuration
+   * Set to `false` to disable all logging, `true` for defaults
+   */
+  logging?: boolean | LoggingConfig
 
-  /** Log level */
-  logLevel?: 'debug' | 'info' | 'warn' | 'error'
+  /**
+   * Metrics configuration (Cloudflare Analytics Engine)
+   * Set to `false` to disable metrics, `true` for defaults
+   */
+  metrics?: boolean | MetricsConfig
 
-  /** Enable Analytics Engine metrics */
-  metrics?: boolean
+  /**
+   * OpenTelemetry export configuration
+   * For external observability platforms (Datadog, Honeycomb, etc.)
+   */
+  opentelemetry?: OpenTelemetryConfig
 
-  /** OpenTelemetry configuration */
-  opentelemetry?: {
-    enabled?: boolean
-    endpoint?: string
-    headers?: Record<string, string>
-  }
-
-  /** Track token usage and costs */
+  /**
+   * Track AI token usage and costs
+   * @default true
+   */
   trackTokenUsage?: boolean
+}
+
+/**
+ * Logging configuration
+ */
+export interface LoggingConfig {
+  /**
+   * Enable logging
+   * @default true
+   */
+  enabled?: boolean
+
+  /**
+   * Minimum log level
+   * @default 'info' in production, 'debug' in development
+   */
+  level?: 'debug' | 'info' | 'warn' | 'error'
+
+  /**
+   * Output format
+   * @default 'json' (for Cloudflare Workers Logs indexing)
+   */
+  format?: 'json' | 'pretty'
+
+  /**
+   * Context fields to include in all logs
+   * @default ['requestId', 'executionId', 'ensembleName', 'agentName']
+   */
+  context?: string[]
+
+  /**
+   * Sensitive fields to redact (replaced with [REDACTED])
+   * Supports dot notation for nested fields (e.g., 'input.password')
+   * @default ['password', 'apiKey', 'token', 'authorization', 'secret']
+   */
+  redact?: string[]
+
+  /**
+   * Events to log automatically
+   * @default ['request', 'response', 'agent:start', 'agent:complete', 'agent:error']
+   */
+  events?: LogEventType[]
+}
+
+/**
+ * Log event types for automatic logging
+ */
+export type LogEventType =
+  | 'request' // Log incoming HTTP requests
+  | 'response' // Log outgoing HTTP responses
+  | 'agent:start' // Log agent execution start
+  | 'agent:complete' // Log agent completion with duration
+  | 'agent:error' // Log agent errors
+  | 'ensemble:start' // Log ensemble execution start
+  | 'ensemble:complete' // Log ensemble completion
+  | 'ensemble:error' // Log ensemble errors
+  | 'cache:hit' // Log cache hits
+  | 'cache:miss' // Log cache misses
+
+/**
+ * Metrics configuration (Cloudflare Analytics Engine)
+ */
+export interface MetricsConfig {
+  /**
+   * Enable metrics collection
+   * @default true
+   */
+  enabled?: boolean
+
+  /**
+   * Analytics Engine binding name in wrangler.toml
+   * @default 'ANALYTICS'
+   */
+  binding?: string
+
+  /**
+   * Metrics to track automatically
+   * @default ['ensemble:execution', 'agent:execution', 'http:request', 'error']
+   */
+  track?: MetricType[]
+
+  /**
+   * Custom dimensions to include in all metrics
+   * Values are resolved from environment (e.g., 'ENVIRONMENT' → env.ENVIRONMENT)
+   */
+  dimensions?: string[]
+}
+
+/**
+ * Metric types for automatic tracking
+ */
+export type MetricType =
+  | 'ensemble:execution' // Track ensemble execution duration and success/failure
+  | 'agent:execution' // Track agent execution per step
+  | 'http:request' // Track HTTP request counts and duration
+  | 'cache:performance' // Track cache hit/miss rates
+  | 'error' // Track error counts by type
+
+/**
+ * OpenTelemetry configuration for external providers
+ */
+export interface OpenTelemetryConfig {
+  /**
+   * Enable OpenTelemetry export
+   * @default false
+   */
+  enabled?: boolean
+
+  /**
+   * OTLP endpoint URL
+   * @example 'https://api.honeycomb.io'
+   */
+  endpoint?: string
+
+  /**
+   * Headers for authentication
+   * @example { 'x-honeycomb-team': '${HONEYCOMB_API_KEY}' }
+   */
+  headers?: Record<string, string>
+
+  /**
+   * Sampling rate (0.0 to 1.0)
+   * @default 1.0 (100%)
+   */
+  samplingRate?: number
 }
 
 /**
@@ -352,9 +527,19 @@ export const DEFAULT_CONFIG: ConductorConfig = {
     globals: true,
   },
   observability: {
-    logging: true,
-    logLevel: 'info',
-    metrics: true,
+    logging: {
+      enabled: true,
+      level: 'info',
+      format: 'json',
+      context: ['requestId', 'executionId', 'ensembleName', 'agentName'],
+      redact: ['password', 'apiKey', 'token', 'authorization', 'secret', 'creditCard'],
+      events: ['request', 'response', 'agent:start', 'agent:complete', 'agent:error'],
+    },
+    metrics: {
+      enabled: true,
+      binding: 'ANALYTICS',
+      track: ['ensemble:execution', 'agent:execution', 'http:request', 'error'],
+    },
     trackTokenUsage: true,
   },
   execution: {

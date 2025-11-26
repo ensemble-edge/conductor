@@ -110,7 +110,7 @@ operation: code`
     expect(code).toContain(`handler: () => Promise.resolve(handler_hello.default || handler_hello)`)
   })
 
-  it('should exclude examples directory by default', () => {
+  it('should include examples directory by default', () => {
     // Create agents directory with examples
     const agentsDir = path.join(tempDir, 'agents')
     const examplesDir = path.join(agentsDir, 'examples')
@@ -122,14 +122,40 @@ operation: code`
     fs.writeFileSync(path.join(examplesDir, 'agent.yaml'), 'name: example-agent\noperation: code')
     fs.writeFileSync(path.join(helloDir, 'agent.yaml'), 'name: hello\noperation: code')
 
-    // Create plugin and configure
+    // Create plugin and configure (includeExamples defaults to true)
     const plugin = agentDiscoveryPlugin()
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
     // Load virtual module
     const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
-    expect(code).not.toContain('examples')
+    // By default, examples ARE included (includeExamples: true is the default)
+    expect(code).toContain('examples')
+    expect(code).toContain('name: "hello"')
+    expect(code).toContain('config: atob(')
+  })
+
+  it('should exclude examples directory when includeExamples is false', () => {
+    // Create agents directory with examples
+    const agentsDir = path.join(tempDir, 'agents')
+    const examplesDir = path.join(agentsDir, 'examples')
+    const helloDir = path.join(agentsDir, 'hello')
+
+    fs.mkdirSync(examplesDir, { recursive: true })
+    fs.mkdirSync(helloDir, { recursive: true })
+
+    fs.writeFileSync(path.join(examplesDir, 'agent.yaml'), 'name: example-agent\noperation: code')
+    fs.writeFileSync(path.join(helloDir, 'agent.yaml'), 'name: hello\noperation: code')
+
+    // Create plugin with includeExamples: false
+    const plugin = agentDiscoveryPlugin({ includeExamples: false })
+    const config = { root: tempDir }
+    callHook(plugin.configResolved as any, config)
+
+    // Load virtual module
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+    // Examples should be excluded
+    expect(code).not.toContain('example-agent')
     expect(code).toContain('name: "hello"')
     expect(code).toContain('config: atob(')
   })

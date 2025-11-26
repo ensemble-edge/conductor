@@ -21,8 +21,10 @@
  * - html: HTML content generation
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
- * - docs: API documentation generation and serving
  * - autorag: Cloudflare AutoRAG for automatic retrieval-augmented generation
+ *
+ * Note: Documentation is now handled via the first-class `docs/` directory,
+ * not as an operation. See src/docs/ for the docs module.
  */
 export declare enum Operation {
     think = "think",
@@ -38,13 +40,12 @@ export declare enum Operation {
     html = "html",
     pdf = "pdf",
     queue = "queue",
-    docs = "docs",
     autorag = "autorag"
 }
 /**
  * String union type for operations
  */
-export type OperationType = 'think' | 'code' | 'storage' | 'data' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'html' | 'pdf' | 'queue' | 'docs' | 'autorag';
+export type OperationType = 'think' | 'code' | 'storage' | 'data' | 'http' | 'tools' | 'scoring' | 'email' | 'sms' | 'form' | 'html' | 'pdf' | 'queue' | 'autorag';
 /**
  * Type guard to check if a value is a valid Operation
  */

@@ -738,6 +738,101 @@ declare const EnsembleSchema: z.ZodObject<{
     flow: z.ZodOptional<z.ZodArray<z.ZodLazy<z.ZodType<FlowStepType, z.ZodTypeDef, FlowStepType>>, "many">>;
     inputs: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     output: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    /** Ensemble-level logging configuration */
+    logging: z.ZodOptional<z.ZodObject<{
+        /** Override log level for this ensemble */
+        level: z.ZodOptional<z.ZodEnum<["debug", "info", "warn", "error"]>>;
+        /** Execution trace logging */
+        trace: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            includeInputs: z.ZodOptional<z.ZodBoolean>;
+            includeOutputs: z.ZodOptional<z.ZodBoolean>;
+            redactInputs: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            redactOutputs: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        }, "strip", z.ZodTypeAny, {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        }, {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        }>>;
+        /** Per-step logging overrides (keyed by step agent name or ID) */
+        steps: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodRecord<z.ZodString, z.ZodUnknown>>>;
+    }, "strip", z.ZodTypeAny, {
+        steps?: Record<string, Record<string, unknown>> | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        trace?: {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        } | undefined;
+    }, {
+        steps?: Record<string, Record<string, unknown>> | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        trace?: {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        } | undefined;
+    }>>;
+    /** Ensemble-level metrics configuration */
+    metrics: z.ZodOptional<z.ZodObject<{
+        enabled: z.ZodOptional<z.ZodBoolean>;
+        /** Custom business metrics to track */
+        custom: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            condition: z.ZodOptional<z.ZodString>;
+            value: z.ZodOptional<z.ZodString>;
+            type: z.ZodOptional<z.ZodEnum<["counter", "histogram", "gauge"]>>;
+        }, "strip", z.ZodTypeAny, {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }, {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        custom?: {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    }, {
+        custom?: {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    }>>;
+    /** Ensemble-level tracing configuration */
+    tracing: z.ZodOptional<z.ZodObject<{
+        enabled: z.ZodOptional<z.ZodBoolean>;
+        samplingRate: z.ZodOptional<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        enabled?: boolean | undefined;
+        samplingRate?: number | undefined;
+    }, {
+        enabled?: boolean | undefined;
+        samplingRate?: number | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     scoring?: {
@@ -864,6 +959,30 @@ declare const EnsembleSchema: z.ZodObject<{
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
     output?: Record<string, unknown> | undefined;
+    logging?: {
+        steps?: Record<string, Record<string, unknown>> | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        trace?: {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        } | undefined;
+    } | undefined;
+    metrics?: {
+        custom?: {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    } | undefined;
+    tracing?: {
+        enabled?: boolean | undefined;
+        samplingRate?: number | undefined;
+    } | undefined;
 }, {
     name: string;
     scoring?: {
@@ -990,10 +1109,34 @@ declare const EnsembleSchema: z.ZodObject<{
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
     output?: Record<string, unknown> | undefined;
+    logging?: {
+        steps?: Record<string, Record<string, unknown>> | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        trace?: {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        } | undefined;
+    } | undefined;
+    metrics?: {
+        custom?: {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    } | undefined;
+    tracing?: {
+        enabled?: boolean | undefined;
+        samplingRate?: number | undefined;
+    } | undefined;
 }>;
 declare const AgentSchema: z.ZodObject<{
     name: z.ZodString;
-    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.data, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.html, Operation.pdf, Operation.queue, Operation.docs, Operation.autorag]>;
+    operation: z.ZodEnum<[Operation.think, Operation.code, Operation.storage, Operation.data, Operation.http, Operation.tools, Operation.scoring, Operation.email, Operation.sms, Operation.form, Operation.html, Operation.pdf, Operation.queue, Operation.autorag]>;
     description: z.ZodOptional<z.ZodString>;
     config: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     schema: z.ZodOptional<z.ZodObject<{
@@ -1006,6 +1149,85 @@ declare const AgentSchema: z.ZodObject<{
         input?: Record<string, unknown> | undefined;
         output?: Record<string, unknown> | undefined;
     }>>;
+    /** Agent-level logging configuration */
+    logging: z.ZodOptional<z.ZodObject<{
+        /** Override log level for this agent */
+        level: z.ZodOptional<z.ZodEnum<["debug", "info", "warn", "error"]>>;
+        /** Additional context fields to include in logs */
+        context: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        /** Fields to redact from logs (merged with global) */
+        redact: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        /** Events to log for this agent */
+        events: z.ZodOptional<z.ZodObject<{
+            onStart: z.ZodOptional<z.ZodBoolean>;
+            onComplete: z.ZodOptional<z.ZodBoolean>;
+            onError: z.ZodOptional<z.ZodBoolean>;
+            onCacheHit: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            onStart?: boolean | undefined;
+            onComplete?: boolean | undefined;
+            onError?: boolean | undefined;
+            onCacheHit?: boolean | undefined;
+        }, {
+            onStart?: boolean | undefined;
+            onComplete?: boolean | undefined;
+            onError?: boolean | undefined;
+            onCacheHit?: boolean | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        events?: {
+            onStart?: boolean | undefined;
+            onComplete?: boolean | undefined;
+            onError?: boolean | undefined;
+            onCacheHit?: boolean | undefined;
+        } | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
+    }, {
+        events?: {
+            onStart?: boolean | undefined;
+            onComplete?: boolean | undefined;
+            onError?: boolean | undefined;
+            onCacheHit?: boolean | undefined;
+        } | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
+    }>>;
+    /** Agent-level metrics configuration */
+    metrics: z.ZodOptional<z.ZodObject<{
+        /** Enable/disable metrics for this agent */
+        enabled: z.ZodOptional<z.ZodBoolean>;
+        /** Custom metrics to record */
+        custom: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            name: z.ZodString;
+            value: z.ZodString;
+            type: z.ZodOptional<z.ZodEnum<["counter", "histogram", "gauge"]>>;
+        }, "strip", z.ZodTypeAny, {
+            value: string;
+            name: string;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+        }, {
+            value: string;
+            name: string;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+        }>, "many">>;
+    }, "strip", z.ZodTypeAny, {
+        custom?: {
+            value: string;
+            name: string;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    }, {
+        custom?: {
+            value: string;
+            name: string;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     operation: Operation;
     name: string;
@@ -1015,6 +1237,25 @@ declare const AgentSchema: z.ZodObject<{
         output?: Record<string, unknown> | undefined;
     } | undefined;
     description?: string | undefined;
+    logging?: {
+        events?: {
+            onStart?: boolean | undefined;
+            onComplete?: boolean | undefined;
+            onError?: boolean | undefined;
+            onCacheHit?: boolean | undefined;
+        } | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
+    } | undefined;
+    metrics?: {
+        custom?: {
+            value: string;
+            name: string;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    } | undefined;
 }, {
     operation: Operation;
     name: string;
@@ -1024,6 +1265,25 @@ declare const AgentSchema: z.ZodObject<{
         output?: Record<string, unknown> | undefined;
     } | undefined;
     description?: string | undefined;
+    logging?: {
+        events?: {
+            onStart?: boolean | undefined;
+            onComplete?: boolean | undefined;
+            onError?: boolean | undefined;
+            onCacheHit?: boolean | undefined;
+        } | undefined;
+        level?: "error" | "debug" | "info" | "warn" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
+    } | undefined;
+    metrics?: {
+        custom?: {
+            value: string;
+            name: string;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    } | undefined;
 }>;
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>;
 export type AgentConfig = z.infer<typeof AgentSchema>;

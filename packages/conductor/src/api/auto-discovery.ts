@@ -274,7 +274,9 @@ async function initializeLoaders(
         markdownFiles.set(doc.name, doc.content)
       }
       await docsLoader.init(undefined, markdownFiles)
-      logger.info(`[Auto-Discovery] Docs pages loaded: ${config.docs.map((d) => d.name).join(', ')}`)
+      logger.info(
+        `[Auto-Discovery] Docs pages loaded: ${config.docs.map((d) => d.name).join(', ')}`
+      )
     }
 
     initialized = true

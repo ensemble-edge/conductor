@@ -11,6 +11,8 @@ export interface ConductorConfig {
     name?: string;
     /** Project version */
     version?: string;
+    /** Security configuration */
+    security?: SecurityConfigOptions;
     /** Routing configuration */
     routing?: RoutingConfig;
     /** Documentation generation settings */
@@ -23,6 +25,28 @@ export interface ConductorConfig {
     execution?: ExecutionConfig;
     /** Storage configuration for debugging */
     storage?: StorageConfig;
+}
+/**
+ * Security configuration options
+ */
+export interface SecurityConfigOptions {
+    /**
+     * Require authentication on /api/* routes
+     * @default true
+     */
+    requireAuth?: boolean;
+    /**
+     * Allow direct agent execution via API
+     * When true, agents can be called via /api/v1/execute/agent/:name
+     * @default true
+     */
+    allowDirectAgentExecution?: boolean;
+    /**
+     * Automatically require resource-specific permissions
+     * When true, executing ensemble:foo requires permission "ensemble:foo:execute"
+     * @default false
+     */
+    autoPermissions?: boolean;
 }
 /**
  * Routing configuration
@@ -90,26 +114,95 @@ export interface PathAuthRule {
     priority?: number;
 }
 /**
- * Documentation generation settings
+ * Documentation UI framework
+ */
+export type DocsUIFramework = 'stoplight' | 'redoc' | 'swagger' | 'scalar' | 'rapidoc';
+/**
+ * Documentation configuration
+ *
+ * Unified config for both CLI generation and runtime serving.
+ * Can be defined in conductor.config.ts OR as docs.yaml in project root.
+ *
+ * @example YAML format (docs.yaml):
+ * ```yaml
+ * title: My API
+ * description: My awesome API
+ * ui: scalar
+ * theme:
+ *   primaryColor: '#3B82F6'
+ * auth:
+ *   requirement: required
+ * ai:
+ *   enabled: true
+ *   model: '@cf/meta/llama-3.1-70b-instruct'
+ * ```
  */
 export interface DocsConfig {
-    /** Use AI to enhance documentation */
-    useAI?: boolean;
-    /** AI agent to use for documentation enhancement */
-    aiAgent?: string;
-    /** Output format */
-    format?: 'yaml' | 'json';
-    /** Include examples in generated documentation */
-    includeExamples?: boolean;
-    /** Include security schemes in documentation */
-    includeSecurity?: boolean;
-    /** Output directory for generated docs */
-    outputDir?: string;
-    /** Cache configuration (uses KV) */
-    cache?: {
+    /** Documentation title */
+    title?: string;
+    /** Documentation description */
+    description?: string;
+    /** Logo URL */
+    logo?: string;
+    /** Favicon URL */
+    favicon?: string;
+    /** UI framework to use for interactive docs */
+    ui?: DocsUIFramework;
+    /** Theme/styling options */
+    theme?: {
+        /** Primary brand color (hex) */
+        primaryColor?: string;
+        /** Custom CSS to inject */
+        customCss?: string;
+        /** Dark mode preference */
+        darkMode?: boolean;
+    };
+    /** Authentication configuration for docs pages */
+    auth?: {
+        /** Access requirement: 'public', 'optional', or 'required' */
+        requirement?: 'public' | 'optional' | 'required';
+        /** Redirect URL when auth required but not provided */
+        redirectTo?: string;
+    };
+    /** AI enhancement settings */
+    ai?: {
+        /** Enable AI-powered documentation enhancement */
         enabled?: boolean;
+        /** AI model to use (Workers AI model ID or provider model) */
+        model?: string;
+        /** AI provider: 'cloudflare' (default), 'openai', 'anthropic' */
+        provider?: 'cloudflare' | 'openai' | 'anthropic';
+        /** Temperature for generation (0-1, lower = more deterministic) */
+        temperature?: number;
+    };
+    /** Path patterns to include in docs (glob patterns) */
+    include?: string[];
+    /** Path patterns to exclude from docs (glob patterns) */
+    exclude?: string[];
+    /** Include usage examples in generated docs */
+    includeExamples?: boolean;
+    /** Include security schemes in OpenAPI spec */
+    includeSecurity?: boolean;
+    /** Cache configuration */
+    cache?: {
+        /** Enable caching of generated docs */
+        enabled?: boolean;
+        /** Cache TTL in seconds */
         ttl?: number;
     };
+    /** Output directory for CLI-generated docs */
+    outputDir?: string;
+    /** Output format for CLI */
+    format?: 'yaml' | 'json';
+    /** Server URLs to include in OpenAPI spec */
+    servers?: Array<{
+        url: string;
+        description?: string;
+    }>;
+    /** @deprecated Use ai.enabled instead */
+    useAI?: boolean;
+    /** @deprecated Use ai.model instead */
+    aiAgent?: string;
 }
 /**
  * Testing configuration
@@ -133,22 +226,139 @@ export interface TestingConfig {
 }
 /**
  * Observability configuration
+ *
+ * Cloudflare-first observability with support for external providers.
+ * All features work out of the box with sensible defaults.
+ *
+ * @example
+ * ```typescript
+ * observability: {
+ *   logging: {
+ *     level: 'info',
+ *     redact: ['password', 'apiKey'],
+ *   },
+ *   metrics: {
+ *     enabled: true,
+ *     binding: 'ANALYTICS',
+ *   },
+ * }
+ * ```
  */
 export interface ObservabilityConfig {
-    /** Enable structured logging */
-    logging?: boolean;
-    /** Log level */
-    logLevel?: 'debug' | 'info' | 'warn' | 'error';
-    /** Enable Analytics Engine metrics */
-    metrics?: boolean;
-    /** OpenTelemetry configuration */
-    opentelemetry?: {
-        enabled?: boolean;
-        endpoint?: string;
-        headers?: Record<string, string>;
-    };
-    /** Track token usage and costs */
+    /**
+     * Logging configuration
+     * Set to `false` to disable all logging, `true` for defaults
+     */
+    logging?: boolean | LoggingConfig;
+    /**
+     * Metrics configuration (Cloudflare Analytics Engine)
+     * Set to `false` to disable metrics, `true` for defaults
+     */
+    metrics?: boolean | MetricsConfig;
+    /**
+     * OpenTelemetry export configuration
+     * For external observability platforms (Datadog, Honeycomb, etc.)
+     */
+    opentelemetry?: OpenTelemetryConfig;
+    /**
+     * Track AI token usage and costs
+     * @default true
+     */
     trackTokenUsage?: boolean;
+}
+/**
+ * Logging configuration
+ */
+export interface LoggingConfig {
+    /**
+     * Enable logging
+     * @default true
+     */
+    enabled?: boolean;
+    /**
+     * Minimum log level
+     * @default 'info' in production, 'debug' in development
+     */
+    level?: 'debug' | 'info' | 'warn' | 'error';
+    /**
+     * Output format
+     * @default 'json' (for Cloudflare Workers Logs indexing)
+     */
+    format?: 'json' | 'pretty';
+    /**
+     * Context fields to include in all logs
+     * @default ['requestId', 'executionId', 'ensembleName', 'agentName']
+     */
+    context?: string[];
+    /**
+     * Sensitive fields to redact (replaced with [REDACTED])
+     * Supports dot notation for nested fields (e.g., 'input.password')
+     * @default ['password', 'apiKey', 'token', 'authorization', 'secret']
+     */
+    redact?: string[];
+    /**
+     * Events to log automatically
+     * @default ['request', 'response', 'agent:start', 'agent:complete', 'agent:error']
+     */
+    events?: LogEventType[];
+}
+/**
+ * Log event types for automatic logging
+ */
+export type LogEventType = 'request' | 'response' | 'agent:start' | 'agent:complete' | 'agent:error' | 'ensemble:start' | 'ensemble:complete' | 'ensemble:error' | 'cache:hit' | 'cache:miss';
+/**
+ * Metrics configuration (Cloudflare Analytics Engine)
+ */
+export interface MetricsConfig {
+    /**
+     * Enable metrics collection
+     * @default true
+     */
+    enabled?: boolean;
+    /**
+     * Analytics Engine binding name in wrangler.toml
+     * @default 'ANALYTICS'
+     */
+    binding?: string;
+    /**
+     * Metrics to track automatically
+     * @default ['ensemble:execution', 'agent:execution', 'http:request', 'error']
+     */
+    track?: MetricType[];
+    /**
+     * Custom dimensions to include in all metrics
+     * Values are resolved from environment (e.g., 'ENVIRONMENT' → env.ENVIRONMENT)
+     */
+    dimensions?: string[];
+}
+/**
+ * Metric types for automatic tracking
+ */
+export type MetricType = 'ensemble:execution' | 'agent:execution' | 'http:request' | 'cache:performance' | 'error';
+/**
+ * OpenTelemetry configuration for external providers
+ */
+export interface OpenTelemetryConfig {
+    /**
+     * Enable OpenTelemetry export
+     * @default false
+     */
+    enabled?: boolean;
+    /**
+     * OTLP endpoint URL
+     * @example 'https://api.honeycomb.io'
+     */
+    endpoint?: string;
+    /**
+     * Headers for authentication
+     * @example { 'x-honeycomb-team': '${HONEYCOMB_API_KEY}' }
+     */
+    headers?: Record<string, string>;
+    /**
+     * Sampling rate (0.0 to 1.0)
+     * @default 1.0 (100%)
+     */
+    samplingRate?: number;
 }
 /**
  * Execution configuration

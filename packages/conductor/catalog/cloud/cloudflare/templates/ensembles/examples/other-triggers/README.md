@@ -269,12 +269,12 @@ agents:
 
 ## Learn More
 
-- **Plugin Development Guide**: https://docs.ensemble.dev/conductor/plugins/creating-plugins
-- **Trigger System**: https://docs.ensemble.dev/conductor/core-concepts/triggers
-- **Available Plugins**: https://docs.ensemble.dev/conductor/plugins/catalog
+- **Plugin Development Guide**: https://docs.ensemble.ai/conductor/plugins/creating-plugins
+- **Trigger System**: https://docs.ensemble.ai/conductor/core-concepts/triggers
+- **Available Plugins**: https://docs.ensemble.ai/conductor/plugins/catalog
 
 ## Support
 
-- **Documentation**: https://docs.ensemble.dev
-- **GitHub Issues**: https://github.com/ensemble-edge/edgit/issues
-- **Plugin Marketplace**: https://docs.ensemble.dev/conductor/plugins
+- **Documentation**: https://docs.ensemble.ai
+- **GitHub Issues**: https://github.com/anthropics/conductor/issues
+- **Plugin Marketplace**: https://docs.ensemble.ai/conductor/plugins

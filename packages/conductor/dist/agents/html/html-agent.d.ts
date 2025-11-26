@@ -15,6 +15,19 @@ export declare class HtmlMember extends BaseAgent {
     private htmlConfig;
     constructor(config: AgentConfig);
     /**
+     * Normalize YAML config format to typed config
+     *
+     * Handles the common YAML pattern:
+     *   config:
+     *     templateEngine: liquid
+     *     template: |
+     *       <html>...
+     *
+     * Converts to:
+     *   template: { inline: "<html>...", engine: "liquid" }
+     */
+    private normalizeConfig;
+    /**
      * Validate agent configuration
      */
     private validateConfig;

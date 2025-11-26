@@ -381,14 +381,15 @@ function generateOpenAPISpec(data: {
   // Add execute endpoint for each ensemble
   for (const ensemble of data.ensembles) {
     const ensembleName = ensemble.name
-    paths[`/execute/${ensembleName}`] = {
+    paths[`/api/v1/execute/ensemble/${ensembleName}`] = {
       post: {
         summary: `Execute ${ensembleName}`,
         description: ensemble.description || `Execute the ${ensembleName} ensemble`,
-        operationId: `execute_${ensembleName.replace(/-/g, '_')}`,
-        tags: ['Ensembles'],
+        operationId: `execute_ensemble_${ensembleName.replace(/-/g, '_')}`,
+        tags: ['Execute'],
+        security: [{ bearerAuth: [] }, { apiKey: [] }],
         requestBody: {
-          required: true,
+          required: false,
           content: {
             'application/json': {
               schema: {
@@ -418,6 +419,7 @@ function generateOpenAPISpec(data: {
                       properties: {
                         executionId: { type: 'string' },
                         duration: { type: 'number' },
+                        timestamp: { type: 'number' },
                       },
                     },
                   },
@@ -426,6 +428,79 @@ function generateOpenAPISpec(data: {
             },
           },
           '400': { description: 'Invalid input' },
+          '401': { description: 'Unauthorized - authentication required' },
+          '403': { description: 'Forbidden - missing required permission' },
+          '404': { description: 'Ensemble not found' },
+          '500': { description: 'Execution error' },
+        },
+      },
+    }
+  }
+
+  // Add execute endpoint for each agent (built-in and custom)
+  const allAgents = [...data.builtInAgents, ...data.customAgents]
+  for (const agent of allAgents) {
+    const agentName = agent.name
+    const isBuiltIn = data.builtInAgents.some((a) => a.name === agentName)
+    paths[`/api/v1/execute/agent/${agentName}`] = {
+      post: {
+        summary: `Execute ${agentName} agent`,
+        description:
+          agent.description || `Execute the ${agentName} agent${isBuiltIn ? ' (built-in)' : ''}`,
+        operationId: `execute_agent_${agentName.replace(/-/g, '_')}`,
+        tags: ['Execute'],
+        security: [{ bearerAuth: [] }, { apiKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['input'],
+                properties: {
+                  input: {
+                    type: 'object',
+                    description: 'Input data for the agent',
+                  },
+                  config: {
+                    type: 'object',
+                    description: 'Optional configuration overrides',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Successful execution',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { type: 'object' },
+                    metadata: {
+                      type: 'object',
+                      properties: {
+                        executionId: { type: 'string' },
+                        duration: { type: 'number' },
+                        timestamp: { type: 'number' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': { description: 'Invalid input' },
+          '401': { description: 'Unauthorized - authentication required' },
+          '403': {
+            description:
+              'Forbidden - direct agent execution disabled or missing required permission',
+          },
+          '404': { description: 'Agent not found' },
           '500': { description: 'Execution error' },
         },
       },
@@ -600,12 +675,17 @@ function generateOpenAPISpec(data: {
     ],
     tags: [
       {
+        name: 'Execute',
+        description:
+          'Execute agents and ensembles. Requires authentication (Bearer token or API key).',
+      },
+      {
         name: 'Agents',
         description: 'Agent discovery and metadata',
       },
       {
         name: 'Ensembles',
-        description: 'Ensemble execution and metadata',
+        description: 'Ensemble discovery and metadata',
       },
     ],
     paths,

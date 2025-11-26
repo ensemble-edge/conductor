@@ -92,7 +92,10 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
       const authMiddleware = createTriggerAuthMiddleware(trigger.auth as TriggerAuthConfig, env)
       middlewareChain.push(authMiddleware)
     } catch (error) {
-      logger.error(`[HTTP] Failed to create auth middleware for ${path}:`, error instanceof Error ? error : undefined)
+      logger.error(
+        `[HTTP] Failed to create auth middleware for ${path}:`,
+        error instanceof Error ? error : undefined
+      )
       return
     }
   } else if (trigger.public !== true) {
@@ -171,7 +174,10 @@ async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
       const authMiddleware = createTriggerAuthMiddleware(trigger.auth as TriggerAuthConfig, env)
       middlewareChain.push(authMiddleware)
     } catch (error) {
-      logger.error(`[MCP] Failed to create auth middleware for ${toolName}:`, error instanceof Error ? error : undefined)
+      logger.error(
+        `[MCP] Failed to create auth middleware for ${toolName}:`,
+        error instanceof Error ? error : undefined
+      )
       return
     }
   } else if (trigger.public !== true) {
@@ -356,7 +362,10 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
       const authMiddleware = createTriggerAuthMiddleware(trigger.auth as TriggerAuthConfig, env)
       middlewareChain.push(authMiddleware)
     } catch (error) {
-      logger.error(`[Webhook] Failed to create auth middleware for ${path}:`, error instanceof Error ? error : undefined)
+      logger.error(
+        `[Webhook] Failed to create auth middleware for ${path}:`,
+        error instanceof Error ? error : undefined
+      )
       return
     }
   } else if (trigger.public !== true) {

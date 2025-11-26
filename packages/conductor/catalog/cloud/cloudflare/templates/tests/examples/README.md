@@ -89,4 +89,4 @@ Coming soon:
 
 ## Questions?
 
-Check the main [Conductor documentation](https://docs.conductor.ensemble.dev) or file an issue at https://github.com/ensemble-edge/conductor/issues
+Check the main [Conductor documentation](https://docs.ensemble.ai/conductor) or file an issue at https://github.com/anthropics/conductor/issues

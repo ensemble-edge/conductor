@@ -98,6 +98,30 @@ fallthrough = true
 # binding = "ANALYTICS_DB"
 # id = "your-hyperdrive-id-analytics"
 
+# ==================== Analytics Engine (for Observability) ====================
+# Provides SQL-queryable high-cardinality metrics for production monitoring.
+# Metrics include ensemble duration, agent success/failure, cache performance, etc.
+#
+# To enable:
+# 1. Go to Cloudflare Dashboard → Workers & Pages → Analytics Engine
+# 2. Create a new dataset (e.g., "conductor-metrics")
+# 3. Uncomment the binding below and add your dataset name
+#
+# [[analytics_engine_datasets]]
+# binding = "ANALYTICS"
+# dataset = "conductor-metrics"
+#
+# 📊 Example queries:
+#   -- Average ensemble execution time
+#   SELECT blob1 as ensemble, AVG(double1) as avg_duration_ms
+#   FROM conductor_metrics WHERE index1 = 'ensemble.execution'
+#   GROUP BY blob1 ORDER BY avg_duration_ms DESC
+#
+#   -- Agent error rate
+#   SELECT blob1 as agent, SUM(double2) as errors, COUNT(*) as total
+#   FROM conductor_metrics WHERE index1 = 'agent.execution'
+#   GROUP BY blob1
+
 # ==================== Workers AI (for Think Agents) ====================
 # Required for AI-powered agents using operation: think
 # The suggest-pages and ai-greeting examples require this binding
