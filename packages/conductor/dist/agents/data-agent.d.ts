@@ -13,6 +13,7 @@
 import { BaseAgent, type AgentExecutionContext } from './base-agent.js';
 import type { AgentConfig } from '../runtime/parser.js';
 import type { Repository } from '../storage/index.js';
+import { type DatabaseType as HyperdriveDatabaseType } from '../storage/index.js';
 import { DatabaseType } from '../types/constants.js';
 import { type ExportOptions, type ExportFormat } from './data/export-formats.js';
 export interface DataConfig {
@@ -20,6 +21,9 @@ export interface DataConfig {
     operation: 'get' | 'put' | 'delete' | 'list' | 'query' | 'export';
     binding?: string;
     tableName?: string;
+    databaseType?: HyperdriveDatabaseType;
+    schema?: string;
+    readOnly?: boolean;
     exportFormat?: ExportFormat;
     exportOptions?: ExportOptions;
 }
@@ -49,11 +53,20 @@ export interface DataInput {
 export declare class DataAgent extends BaseAgent {
     private readonly repository?;
     private dataConfig;
+    private hyperdriveRepo?;
     constructor(config: AgentConfig, repository?: Repository<unknown, string> | undefined);
     /**
      * Execute data operation via repository
      */
     protected run(context: AgentExecutionContext): Promise<unknown>;
+    /**
+     * Execute Hyperdrive operation (SQL-native)
+     */
+    private executeHyperdriveOperation;
+    /**
+     * Create Hyperdrive repository from environment bindings
+     */
+    private createHyperdriveRepository;
     /**
      * Execute GET operation
      */

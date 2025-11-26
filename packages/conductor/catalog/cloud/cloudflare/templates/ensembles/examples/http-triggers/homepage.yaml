@@ -12,31 +12,11 @@ trigger:
       json:
         enabled: true
 
+flow:
+  - agent: fetch-features
+  - agent: fetch-latest-posts
+
 agents:
-  # Fetch featured content from database
-  - name: fetch-features
-    operation: data
-    config:
-      database: d1
-      query: |
-        SELECT icon, title, description
-        FROM featured_items
-        WHERE active = true
-        ORDER BY sort_order
-        LIMIT 6
-
-  # Fetch latest blog posts
-  - name: fetch-latest-posts
-    operation: data
-    config:
-      database: d1
-      query: |
-        SELECT slug, title, excerpt, published_at
-        FROM blog_posts
-        WHERE published = true
-        ORDER BY published_at DESC
-        LIMIT 3
-
   # Render homepage
   - name: render-homepage
     operation: html
@@ -330,14 +310,17 @@ agents:
         - property: og:type
           content: website
     input:
-      siteName: $input.siteName
-      tagline: $input.tagline
-      features: $fetch-features.rows
-      latestPosts: $fetch-latest-posts.rows
+      siteName: ${input.siteName}
+      tagline: ${input.tagline}
+      features: ${fetch-features.output.rows}
+      latestPosts: ${fetch-latest-posts.output.rows}
 
 input:
   siteName: Conductor
   tagline: Edge-native orchestration for AI agents
 
 output:
-  html: ${render-homepage.output}
+  siteName: ${input.siteName}
+  tagline: ${input.tagline}
+  features: ${fetch-features.output.rows}
+  latestPosts: ${fetch-latest-posts.output.rows}

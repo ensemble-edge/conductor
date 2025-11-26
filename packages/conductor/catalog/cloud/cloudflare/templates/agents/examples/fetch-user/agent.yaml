@@ -1,0 +1,11 @@
+name: fetch-user
+operation: code
+description: Fetches user data (mock for demo purposes)
+
+schema:
+  input:
+    userId: string?
+  output:
+    id: string
+    name: string
+    email: string

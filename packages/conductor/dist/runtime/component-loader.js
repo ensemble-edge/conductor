@@ -179,7 +179,9 @@ export class ComponentLoader {
      */
     async loadCompiled(uri, options) {
         // Log deprecation warning
-        this.logger?.warn('loadCompiled() is deprecated and will not work in Cloudflare Workers', { uri });
+        this.logger?.warn('loadCompiled() is deprecated and will not work in Cloudflare Workers', {
+            uri,
+        });
         const content = await this.load(uri, options);
         try {
             // Compiled components are stored as ES module exports

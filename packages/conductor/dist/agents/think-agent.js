@@ -76,6 +76,26 @@ export class ThinkAgent extends BaseAgent {
     }
     /**
      * Execute AI reasoning via provider system
+     *
+     * Output Design Philosophy:
+     * ─────────────────────────
+     * Think agents return output that's intuitive to use in ensembles:
+     *
+     * 1. If schema defines output fields → AI response maps to those fields
+     *    Schema: { output: { greeting: string } }
+     *    Output: { greeting: "Hello!", _meta: { model, provider, tokens } }
+     *    Usage:  ${agent.output.greeting}
+     *
+     * 2. If no schema → AI response is the direct output value
+     *    Output: "Hello!"  (string, not wrapped in object)
+     *    Usage:  ${agent.output}
+     *
+     * 3. If AI returns JSON → parsed and spread as output fields
+     *    Output: { name: "John", age: 30, _meta: {...} }
+     *    Usage:  ${agent.output.name}, ${agent.output.age}
+     *
+     * The _meta field contains provider details (model, tokens, etc.)
+     * for debugging/logging, but user data is always top-level.
      */
     async run(context) {
         const { input, env } = context;
@@ -126,11 +146,82 @@ export class ThinkAgent extends BaseAgent {
         // Build messages from input
         const messages = this.buildMessages(input);
         // Execute via provider
-        return await provider.execute({
+        const response = await provider.execute({
             messages,
             config: providerConfig,
             env: env,
         });
+        // Transform to user-friendly output structure
+        return this.buildOutput(response);
+    }
+    /**
+     * Build user-friendly output from AI provider response
+     *
+     * Design Goals:
+     * 1. Schema-defined fields are top-level (not nested under 'content')
+     * 2. Metadata is accessible but doesn't pollute user data
+     * 3. Works intuitively with ${agent.output.fieldName} syntax
+     */
+    buildOutput(response) {
+        const outputSchema = this.config.schema?.output;
+        // Metadata available as _meta for debugging/logging
+        const meta = {
+            model: response.model,
+            provider: response.provider,
+            tokensUsed: response.tokensUsed,
+            ...(response.metadata || {}),
+        };
+        // Try to parse JSON from AI response (common for structured output)
+        let parsedContent = null;
+        try {
+            parsedContent = JSON.parse(response.content);
+        }
+        catch {
+            // Not JSON, use raw content
+        }
+        // Case 1: AI returned valid JSON object → spread as top-level fields
+        if (parsedContent && typeof parsedContent === 'object' && !Array.isArray(parsedContent)) {
+            return {
+                ...parsedContent,
+                _meta: meta,
+            };
+        }
+        // Case 2: Schema defines output fields → map content to schema field(s)
+        if (outputSchema && typeof outputSchema === 'object') {
+            const schemaFields = Object.keys(outputSchema);
+            if (schemaFields.length === 1) {
+                // Single field schema: map content directly to that field
+                // Schema: { message: string } → Output: { message: "Hello!", _meta: {...} }
+                const fieldName = schemaFields[0];
+                return {
+                    [fieldName]: parsedContent ?? response.content,
+                    _meta: meta,
+                };
+            }
+            else if (schemaFields.length > 1) {
+                // Multi-field schema but AI didn't return JSON - put in first field
+                // This is a fallback; ideally AI returns structured JSON
+                const fieldName = schemaFields[0];
+                return {
+                    [fieldName]: parsedContent ?? response.content,
+                    _meta: meta,
+                };
+            }
+        }
+        // Case 3: No schema, AI returned array → wrap with _meta
+        if (Array.isArray(parsedContent)) {
+            return {
+                items: parsedContent,
+                _meta: meta,
+            };
+        }
+        // Case 4: No schema, simple string response → return content directly
+        // This allows ${agent.output} to get the string value
+        // But also allows ${agent.output._meta.model} for metadata
+        return {
+            content: response.content,
+            _meta: meta,
+        };
     }
     /**
      * Resolve prompt from Edgit if needed

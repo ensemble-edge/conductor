@@ -15,7 +15,6 @@
 import { BaseAgent, type AgentExecutionContext } from './base-agent.js';
 import type { AgentConfig } from '../runtime/parser.js';
 import { type ProviderRegistry } from './think-providers/index.js';
-import type { AIProviderResponse } from './think-providers/index.js';
 import { AIProvider } from '../types/constants.js';
 export interface ThinkConfig {
     model?: string;
@@ -51,8 +50,37 @@ export declare class ThinkAgent extends BaseAgent {
     private detectProvider;
     /**
      * Execute AI reasoning via provider system
+     *
+     * Output Design Philosophy:
+     * ─────────────────────────
+     * Think agents return output that's intuitive to use in ensembles:
+     *
+     * 1. If schema defines output fields → AI response maps to those fields
+     *    Schema: { output: { greeting: string } }
+     *    Output: { greeting: "Hello!", _meta: { model, provider, tokens } }
+     *    Usage:  ${agent.output.greeting}
+     *
+     * 2. If no schema → AI response is the direct output value
+     *    Output: "Hello!"  (string, not wrapped in object)
+     *    Usage:  ${agent.output}
+     *
+     * 3. If AI returns JSON → parsed and spread as output fields
+     *    Output: { name: "John", age: 30, _meta: {...} }
+     *    Usage:  ${agent.output.name}, ${agent.output.age}
+     *
+     * The _meta field contains provider details (model, tokens, etc.)
+     * for debugging/logging, but user data is always top-level.
      */
-    protected run(context: AgentExecutionContext): Promise<AIProviderResponse>;
+    protected run(context: AgentExecutionContext): Promise<unknown>;
+    /**
+     * Build user-friendly output from AI provider response
+     *
+     * Design Goals:
+     * 1. Schema-defined fields are top-level (not nested under 'content')
+     * 2. Metadata is accessible but doesn't pollute user data
+     * 3. Works intuitively with ${agent.output.fieldName} syntax
+     */
+    private buildOutput;
     /**
      * Resolve prompt from Edgit if needed
      */

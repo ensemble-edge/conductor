@@ -1,7 +1,6 @@
 {
-  "name": "@conductor/twilio",
-  "version": "1.0.0",
-  "private": true,
+  "name": "@ensemble-edge/plugin-twilio",
+  "version": "0.0.1",
   "type": "module",
   "description": "Twilio plugin for Conductor - adds SMS and voice messaging capabilities",
   "main": "./dist/index.js",
@@ -40,6 +39,9 @@
     "type": "git",
     "url": "https://github.com/ensemble-edge/conductor",
     "directory": "packages/plugins/twilio"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "@ensemble-edge/conductor": "^0.3.3",

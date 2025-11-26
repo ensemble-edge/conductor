@@ -256,10 +256,10 @@ export function isSleepStep(step) {
     return typeof step === 'object' && step !== null && step.type === 'sleep';
 }
 export function isScheduleStep(step) {
-    return typeof step === 'object' && step !== null && step.type === 'schedule';
+    return (typeof step === 'object' && step !== null && step.type === 'schedule');
 }
 export function isApprovalStep(step) {
-    return typeof step === 'object' && step !== null && step.type === 'approval';
+    return (typeof step === 'object' && step !== null && step.type === 'approval');
 }
 export function isAsyncStep(step) {
     return isSuspendStep(step) || isSleepStep(step) || isScheduleStep(step) || isApprovalStep(step);

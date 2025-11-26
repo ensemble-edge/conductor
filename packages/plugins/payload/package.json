@@ -1,7 +1,6 @@
 {
-  "name": "@conductor/payload",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@ensemble-edge/plugin-payload",
+  "version": "0.0.1",
   "type": "module",
   "description": "Payload CMS plugin for Conductor",
   "main": "./dist/index.js",
@@ -38,7 +37,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/ensemble-edge/conductor",
-    "directory": "packages/plugin-payload"
+    "directory": "packages/plugins/payload"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "@ensemble-edge/conductor": "^0.3.3"

@@ -1,7 +1,6 @@
 {
-  "name": "@conductor/cloudflare",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@ensemble-edge/plugin-cloudflare",
+  "version": "0.0.1",
   "type": "module",
   "description": "Cloudflare API plugin for Conductor",
   "main": "./dist/index.js",
@@ -40,7 +39,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/ensemble-edge/conductor",
-    "directory": "packages/plugin-cloudflare"
+    "directory": "packages/plugins/cloudflare"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "@ensemble-edge/conductor": "^0.3.3"

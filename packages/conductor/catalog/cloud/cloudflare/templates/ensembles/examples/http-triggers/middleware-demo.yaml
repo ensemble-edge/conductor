@@ -1,31 +1,22 @@
 name: middleware-demo
-description: Demonstrates HTTP middleware usage with the HTTP trigger
+description: Demonstrates HTTP middleware usage
 
 trigger:
   - type: http
     path: /api/demo
     methods: [GET, POST]
     public: true
-
-    # Built-in middleware (registered by name)
     middleware:
-      - logger        # Logs requests to console
-      - compress      # Gzip/brotli compression
-      - timing        # Server-Timing header
-      - secure-headers # Security headers
-      - etag          # ETag generation
-
+      - logger
+      - timing
+      - secure-headers
+      - etag
     responses:
-      html:
-        enabled: true
       json:
         enabled: true
 
-agents:
-  - name: process-request
-    operation: code
-    config:
-      script: scripts/examples/http/process-middleware-request
+flow:
+  - agent: process-middleware-request
 
 output:
-  result: ${process-request.output}
+  result: ${process-middleware-request.output}

@@ -69,8 +69,7 @@ export function parseScriptURI(uri) {
  * @returns true if it's a script reference (script:// or scripts/)
  */
 export function isScriptReference(value) {
-    return (typeof value === 'string' &&
-        (value.startsWith('script://') || value.startsWith('scripts/')));
+    return (typeof value === 'string' && (value.startsWith('script://') || value.startsWith('scripts/')));
 }
 /**
  * Create a script loader from a Map of bundled scripts

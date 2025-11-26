@@ -65,6 +65,11 @@ export function isControlFlowStep(step) {
  * Check if a step is any flow control step
  */
 export function isFlowControlStep(step) {
-    return isParallelStep(step) || isBranchStep(step) || isForeachStep(step) ||
-        isTryStep(step) || isSwitchStep(step) || isWhileStep(step) || isMapReduceStep(step);
+    return (isParallelStep(step) ||
+        isBranchStep(step) ||
+        isForeachStep(step) ||
+        isTryStep(step) ||
+        isSwitchStep(step) ||
+        isWhileStep(step) ||
+        isMapReduceStep(step));
 }

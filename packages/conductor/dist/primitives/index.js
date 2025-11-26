@@ -114,3 +114,17 @@ schedule,
 approval, waitForWebhook, waitForInput, 
 // Type guards
 isSuspendStep, isSleepStep, isScheduleStep, isApprovalStep, isAsyncStep, } from './async.js';
+// ============================================================================
+// Version Primitives - Edgit integration for versioned components
+// ============================================================================
+export { 
+// Factory functions
+componentRef, versionedAgent, versionedEnsemble, deploymentRef, 
+// Batch creation
+versionedAgents, 
+// Classes
+ComponentRef, VersionedAgent, VersionedEnsemble, DeploymentRef, 
+// Type guards
+isComponentRef, isVersionedAgent, isVersionedEnsemble, isDeploymentRef, 
+// Utilities
+parseVersion, satisfiesVersion, } from './version.js';

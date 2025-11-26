@@ -12,37 +12,15 @@ trigger:
       json:
         enabled: true
 
+flow:
+  - agent: fetch-blog-post
+    input:
+      slug: ${input.params.slug}
+  - agent: fetch-related-posts
+    input:
+      excludeId: ${fetch-blog-post.output.post.id}
+
 agents:
-  # Fetch blog post from database
-  - name: fetch-post
-    operation: data
-    config:
-      database: d1
-      query: |
-        SELECT
-          id, slug, title, content, excerpt, author,
-          cover_image, published_at, reading_time, tags
-        FROM blog_posts
-        WHERE slug = ? AND published = true
-        LIMIT 1
-      params:
-        - $input.params.slug
-
-  # Fetch related posts
-  - name: fetch-related
-    operation: data
-    config:
-      database: d1
-      query: |
-        SELECT slug, title, excerpt
-        FROM blog_posts
-        WHERE id != ? AND published = true
-        ORDER BY published_at DESC
-        LIMIT 3
-      params:
-        - $fetch-post.rows[0].id
-    when: $fetch-post.rows.length > 0
-
   # Render the blog post
   - name: render-post
     operation: html
@@ -274,9 +252,12 @@ agents:
       scripts:
         - src: https://unpkg.com/htmx.org@1.9.10
     input:
-      post: $fetch-post.rows[0]
-      relatedPosts: $fetch-related.rows
-      slug: $input.params.slug
+      post: ${fetch-blog-post.output.post}
+      relatedPosts: ${fetch-related-posts.output.rows}
+      slug: ${input.params.slug}
 
 output:
-  html: ${render-post.output}
+  post: ${fetch-blog-post.output.post}
+  found: ${fetch-blog-post.output.found}
+  relatedPosts: ${fetch-related-posts.output.rows}
+  requestedSlug: ${input.params.slug}
