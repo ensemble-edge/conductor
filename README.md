@@ -65,11 +65,14 @@ my-project/
 │       └── helpers.ts           #    Reusable functions across members
 │
 ├── agents/                       # 👈 YOUR AGENTS - Business logic implementations
-│   ├── docs/                     #    Documentation infrastructure (keep!)
 │   ├── examples/                 #    Learning examples (delete when ready)
 │   └── (your agents here)        #    Each agent is a folder with:
 │                                 #    - agent.yaml (configuration)
 │                                 #    - index.ts (implementation code)
+│
+├── docs/                         # 📖 API DOCUMENTATION - First-class component
+│   ├── docs.yaml                 #    Configuration (route, UI, theme)
+│   └── *.md                      #    Markdown pages with Handlebars
 │
 ├── ensembles/                    # 👈 YOUR WORKFLOWS - Orchestration definitions
 │   └── hello-world.yaml          #    YAML files defining:

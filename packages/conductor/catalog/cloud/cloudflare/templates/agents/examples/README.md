@@ -63,29 +63,6 @@ Safe to delete once you're comfortable with the framework!
 
 ---
 
-### api-docs/
-
-**What**: Documentation configuration example
-
-**Demonstrates**:
-- Docs operation type
-- Auto-discovery patterns
-- Configuration options
-- Endpoint documentation
-
-**Key Concepts**:
-- Using `operation: docs`
-- Configuring documentation endpoints
-- Customizing doc output
-- Multiple documentation sets
-
-**Use for learning**:
-- How to document your APIs
-- Configuration patterns
-- Multiple doc sets for different audiences
-
----
-
 ## Using Examples
 
 ### Copy to Production
@@ -416,7 +393,7 @@ After learning from examples:
 
 1. **Delete examples** - Keep your codebase clean
 2. **Create production agents** - Build your business logic
-3. **Configure docs tools** - Use `agents/docs/` infrastructure
+3. **Configure docs** - Use the `docs/` directory for documentation
 4. **Write tests** - Comprehensive coverage
 5. **Deploy** - Share your work!
 

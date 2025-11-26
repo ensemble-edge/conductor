@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PdfMember } from '../../../src/agents/pdf/pdf-agent.js';
-import type { AgentConfig, AgentExecutionContext } from '../../../src/runtime/types.js';
+import type { AgentConfig } from '../../../src/runtime/types.js';
 import type { PdfMemberOutput } from '../../../src/agents/pdf/types/index.js';
 
 describe('PdfMember', () => {
@@ -38,8 +38,10 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Test</h1>'
+				config: {
+					html: {
+						inline: '<h1>Test</h1>'
+					}
 				}
 			};
 
@@ -51,8 +53,10 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					fromMember: 'render-html'
+				config: {
+					html: {
+						fromMember: 'render-html'
+					}
 				}
 			};
 
@@ -64,11 +68,13 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Test</h1>'
-				},
-				page: {
-					scale: 5.0  // Invalid: > 2.0
+				config: {
+					html: {
+						inline: '<h1>Test</h1>'
+					},
+					page: {
+						scale: 5.0  // Invalid: > 2.0
+					}
 				}
 			};
 
@@ -79,12 +85,14 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Test</h1>'
-				},
-				storage: {
-					saveToR2: true,
-					r2Key: '../../../etc/passwd'  // Invalid: contains ..
+				config: {
+					html: {
+						inline: '<h1>Test</h1>'
+					},
+					storage: {
+						saveToR2: true,
+						r2Key: '../../../etc/passwd'  // Invalid: contains ..
+					}
 				}
 			};
 
@@ -97,13 +105,15 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<html><body><h1>Test Document</h1></body></html>'
+				config: {
+					html: {
+						inline: '<html><body><h1>Test Document</h1></body></html>'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -123,13 +133,15 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					fromMember: 'render-html'
+				config: {
+					html: {
+						fromMember: 'render-html'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -154,13 +166,15 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					fromMember: 'render-html'
+				config: {
+					html: {
+						fromMember: 'render-html'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -176,11 +190,12 @@ describe('PdfMember', () => {
 		it('should fail when no HTML source is specified', async () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
-				operation: 'pdf'
+				operation: 'pdf',
+				config: {}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -199,23 +214,25 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>A4 Portrait</h1>'
-				},
-				page: {
-					size: 'A4',
-					orientation: 'portrait',
-					margins: {
-						top: 20,
-						right: 20,
-						bottom: 20,
-						left: 20
+				config: {
+					html: {
+						inline: '<h1>A4 Portrait</h1>'
+					},
+					page: {
+						size: 'A4',
+						orientation: 'portrait',
+						margins: {
+							top: 20,
+							right: 20,
+							bottom: 20,
+							left: 20
+						}
 					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -233,17 +250,19 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Letter Landscape</h1>'
-				},
-				page: {
-					size: 'Letter',
-					orientation: 'landscape'
+				config: {
+					html: {
+						inline: '<h1>Letter Landscape</h1>'
+					},
+					page: {
+						size: 'Letter',
+						orientation: 'landscape'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -261,18 +280,20 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Store Me</h1>'
-				},
-				storage: {
-					saveToR2: true,
-					r2Key: 'static/test.pdf',
-					publicUrl: true
+				config: {
+					html: {
+						inline: '<h1>Store Me</h1>'
+					},
+					storage: {
+						saveToR2: true,
+						r2Key: 'static/test.pdf',
+						publicUrl: true
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -300,13 +321,15 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>No Storage</h1>'
+				config: {
+					html: {
+						inline: '<h1>No Storage</h1>'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -326,16 +349,18 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Auto Key</h1>'
-				},
-				storage: {
-					saveToR2: true
+				config: {
+					html: {
+						inline: '<h1>Auto Key</h1>'
+					},
+					storage: {
+						saveToR2: true
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -355,15 +380,17 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Display Inline</h1>'
-				},
-				deliveryMode: 'inline',
-				filename: 'report.pdf'
+				config: {
+					html: {
+						inline: '<h1>Display Inline</h1>'
+					},
+					deliveryMode: 'inline',
+					filename: 'report.pdf'
+				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -382,15 +409,17 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Force Download</h1>'
-				},
-				deliveryMode: 'attachment',
-				filename: 'invoice.pdf'
+				config: {
+					html: {
+						inline: '<h1>Force Download</h1>'
+					},
+					deliveryMode: 'attachment',
+					filename: 'invoice.pdf'
+				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -409,13 +438,15 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Default Mode</h1>'
+				config: {
+					html: {
+						inline: '<h1>Default Mode</h1>'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -435,13 +466,15 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Test</h1>'
+				config: {
+					html: {
+						inline: '<h1>Test</h1>'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -461,19 +494,21 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Test Document</h1>'
-				},
-				metadata: {
-					title: 'Test Report',
-					author: 'Conductor',
-					subject: 'Testing',
-					keywords: 'test, pdf, generation'
+				config: {
+					html: {
+						inline: '<h1>Test Document</h1>'
+					},
+					metadata: {
+						title: 'Test Report',
+						author: 'Conductor',
+						subject: 'Testing',
+						keywords: 'test, pdf, generation'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {},
 				env: mockEnv,
 				ctx: mockCtx,
@@ -491,13 +526,15 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Default</h1>'
+				config: {
+					html: {
+						inline: '<h1>Default</h1>'
+					}
 				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {
 					html: {
 						inline: '<h1>Overridden</h1>'
@@ -517,14 +554,16 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Test</h1>'
-				},
-				deliveryMode: 'inline'
+				config: {
+					html: {
+						inline: '<h1>Test</h1>'
+					},
+					deliveryMode: 'inline'
+				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {
 					deliveryMode: 'attachment'
 				},
@@ -544,14 +583,16 @@ describe('PdfMember', () => {
 			const config: AgentConfig = {
 				name: 'test-pdf',
 				operation: 'pdf',
-				html: {
-					inline: '<h1>Test</h1>'
-				},
-				filename: 'default.pdf'
+				config: {
+					html: {
+						inline: '<h1>Test</h1>'
+					},
+					filename: 'default.pdf'
+				}
 			};
 
 			const agent = new PdfMember(config);
-			const context: AgentExecutionContext = {
+			const context = {
 				input: {
 					filename: 'custom.pdf'
 				},

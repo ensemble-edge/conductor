@@ -12,6 +12,8 @@ import { createAuthMiddleware, errorHandler, requestId, timing } from './middlew
 import {
   execute,
   agents,
+  ensembles,
+  docs,
   health,
   stream,
   async,
@@ -94,12 +96,16 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
   // Health checks (public, no auth)
   app.route('/health', health)
 
+  // Documentation (public, no auth)
+  app.route('/docs', docs)
+
   // OpenAPI documentation (public, no auth)
   app.route('/', openapi)
 
   // API routes (authenticated)
   app.route('/api/v1/execute', execute)
   app.route('/api/v1/agents', agents)
+  app.route('/api/v1/ensembles', ensembles)
   app.route('/api/v1/stream', stream)
   app.route('/api/v1/async', async)
   app.route('/api/v1/executions', executions)
@@ -120,11 +126,13 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
       name: 'Conductor API',
       version: '1.0.0',
       description: 'Agentic workflow orchestration framework for Cloudflare Workers',
-      documentation: 'https://conductor.dev/docs',
+      documentation: '/docs',
       endpoints: {
+        docs: '/docs',
         health: '/health',
         execute: '/api/v1/execute',
         agents: '/api/v1/agents',
+        ensembles: '/api/v1/ensembles',
       },
     })
   })

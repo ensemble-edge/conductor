@@ -110,16 +110,16 @@ operation: code`
     expect(code).toContain(`handler: () => Promise.resolve(handler_hello.default || handler_hello)`)
   })
 
-  it('should exclude generate-docs directory by default', () => {
-    // Create agents directory with generate-docs
+  it('should exclude examples directory by default', () => {
+    // Create agents directory with examples
     const agentsDir = path.join(tempDir, 'agents')
-    const docsDir = path.join(agentsDir, 'generate-docs')
+    const examplesDir = path.join(agentsDir, 'examples')
     const helloDir = path.join(agentsDir, 'hello')
 
-    fs.mkdirSync(docsDir, { recursive: true })
+    fs.mkdirSync(examplesDir, { recursive: true })
     fs.mkdirSync(helloDir, { recursive: true })
 
-    fs.writeFileSync(path.join(docsDir, 'docs.yaml'), 'name: docs\noperation: docs')
+    fs.writeFileSync(path.join(examplesDir, 'agent.yaml'), 'name: example-agent\noperation: code')
     fs.writeFileSync(path.join(helloDir, 'agent.yaml'), 'name: hello\noperation: code')
 
     // Create plugin and configure
@@ -129,7 +129,7 @@ operation: code`
 
     // Load virtual module
     const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
-    expect(code).not.toContain('generate-docs')
+    expect(code).not.toContain('examples')
     expect(code).toContain('name: "hello"')
     expect(code).toContain('config: atob(')
   })

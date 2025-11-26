@@ -26,7 +26,8 @@ export class QueueMember extends BaseAgent {
 
   constructor(config: AgentConfig) {
     super(config)
-    this.queueConfig = config as AgentConfig & QueueAgentConfig
+    // Extract nested config (config.config contains the agent-specific settings)
+    this.queueConfig = (config.config || {}) as unknown as QueueAgentConfig
 
     // Validate configuration
     this.validateConfig()

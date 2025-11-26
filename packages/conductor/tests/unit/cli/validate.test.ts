@@ -274,6 +274,109 @@ flow:
     })
   })
 
+  describe('Flat Config Detection', () => {
+    it('should detect flat config in inline HTML agent', async () => {
+      // This is the WRONG format (flat config)
+      const invalidEnsemble = `
+name: test-html-ensemble
+agents:
+  - name: render
+    operation: html
+    template:
+      inline: "<h1>{{title}}</h1>"
+flow:
+  - agent: render
+`
+      // The validator should detect 'template' is at root level, not under config:
+      expect(invalidEnsemble).toContain('operation: html')
+      expect(invalidEnsemble).toContain('template:')
+      // 'template' should be nested under 'config:'
+      expect(invalidEnsemble).not.toMatch(/config:\s*\n\s+template:/)
+    })
+
+    it('should accept correct nested config in inline HTML agent', async () => {
+      // This is the CORRECT format (nested config)
+      const validEnsemble = `
+name: test-html-ensemble
+agents:
+  - name: render
+    operation: html
+    config:
+      template:
+        inline: "<h1>{{title}}</h1>"
+flow:
+  - agent: render
+`
+      expect(validEnsemble).toContain('config:')
+      expect(validEnsemble).toMatch(/config:\s*\n\s+template:/)
+    })
+
+    it('should detect flat config in inline Queue agent', async () => {
+      // This is the WRONG format (flat config)
+      const invalidEnsemble = `
+name: test-queue-ensemble
+agents:
+  - name: sender
+    operation: queue
+    queue: MY_QUEUE
+    mode: send
+flow:
+  - agent: sender
+`
+      // The validator should detect 'queue' and 'mode' are at root level
+      expect(invalidEnsemble).toContain('queue: MY_QUEUE')
+      expect(invalidEnsemble).not.toMatch(/config:\s*\n\s+queue:/)
+    })
+
+    it('should accept correct nested config in inline Queue agent', async () => {
+      // This is the CORRECT format (nested config)
+      const validEnsemble = `
+name: test-queue-ensemble
+agents:
+  - name: sender
+    operation: queue
+    config:
+      queue: MY_QUEUE
+      mode: send
+flow:
+  - agent: sender
+`
+      expect(validEnsemble).toContain('config:')
+      expect(validEnsemble).toMatch(/config:\s*\n\s+queue:/)
+    })
+
+    it('should detect flat config in standalone agent file', async () => {
+      // This is the WRONG format (flat config)
+      const invalidAgent = `
+name: html-renderer
+operation: html
+template:
+  inline: "<h1>Hello</h1>"
+renderOptions:
+  minify: true
+`
+      expect(invalidAgent).toContain('operation: html')
+      expect(invalidAgent).toContain('template:')
+      expect(invalidAgent).toContain('renderOptions:')
+      expect(invalidAgent).not.toContain('config:')
+    })
+
+    it('should accept correct nested config in standalone agent file', async () => {
+      // This is the CORRECT format (nested config)
+      const validAgent = `
+name: html-renderer
+operation: html
+config:
+  template:
+    inline: "<h1>Hello</h1>"
+  renderOptions:
+    minify: true
+`
+      expect(validAgent).toContain('config:')
+      expect(validAgent).toMatch(/config:\s*\n\s+template:/)
+    })
+  })
+
   describe('Agent Step Options Validation', () => {
     it('should accept retry configuration', async () => {
       const ensemble = `

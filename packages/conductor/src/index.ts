@@ -48,8 +48,6 @@ export { FunctionAgent } from './agents/function-agent.js'
 export { ThinkAgent } from './agents/think-agent.js'
 export { DataAgent } from './agents/data-agent.js'
 export { APIAgent } from './agents/api-agent.js'
-export { DocsMember } from './agents/docs/docs-agent.js'
-
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js'
 export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js'
