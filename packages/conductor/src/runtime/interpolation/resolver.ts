@@ -6,6 +6,15 @@
  */
 
 /**
+ * Path segment representation for optional chaining support
+ */
+interface PathSegment {
+  name: string
+  optional: boolean
+  arrayIndex?: number
+}
+
+/**
  * Resolution context containing available values
  */
 export interface ResolutionContext {
@@ -43,6 +52,10 @@ import { applyFilters } from './filters.js'
  * - Full: '${input.name}' or '{{input.name}}' → returns value as-is (any type)
  * - Partial: 'Hello ${input.name}!' or 'Hello {{input.name}}!' → returns interpolated string
  *
+ * Supports optional chaining (?.):
+ * - ${input.user?.name} → returns undefined if user is null/undefined, else name
+ * - ${input.data?.items?.[0]} → safe navigation through nested optional paths
+ *
  * Supports nullish coalescing (??):
  * - ${input.name ?? "default"} → returns input.name if not null/undefined, else "default"
  * - ${input.query.name ?? input.body.name ?? "World"} → chain of fallbacks
@@ -60,6 +73,7 @@ import { applyFilters } from './filters.js'
  * Supports array indexing:
  * - ${input.items[0]} → returns first element
  * - ${input.items[2].name} → returns name property of third element
+ * - ${input.items?.[0]} → optional array access (returns undefined if items is null/undefined)
  *
  * Supports filter chains:
  * - ${input.text | uppercase}
@@ -138,7 +152,9 @@ export class StringResolver implements InterpolationResolver {
   private traversePath(path: string, context: ResolutionContext): unknown {
     // First, handle ternary conditional (? :)
     // Match: condition ? trueValue : falseValue
-    const ternaryMatch = path.match(/^(.+?)\s*\?\s*(.+?)\s*:\s*(.+)$/)
+    // Use negative lookbehind to NOT match ?. (optional chaining)
+    // The ? must be followed by a space or non-dot character to be a ternary operator
+    const ternaryMatch = path.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/)
     if (ternaryMatch) {
       const [, conditionPath, trueExpr, falseExpr] = ternaryMatch
       const condition = this.resolvePathWithFilters(conditionPath.trim(), context)
@@ -253,6 +269,7 @@ export class StringResolver implements InterpolationResolver {
    * Resolve a simple dot-separated property path with support for:
    * - Array indexing: items[0], items[2].name
    * - Boolean negation: !input.disabled
+   * - Optional chaining: input.user?.name, input.items?.[0]
    */
   private resolvePropertyPath(path: string, context: ResolutionContext): unknown {
     // Handle boolean negation prefix
@@ -263,37 +280,46 @@ export class StringResolver implements InterpolationResolver {
       actualPath = path.slice(1).trim()
     }
 
-    // Split by dots, but preserve array indexing
-    // "items[0].name" -> ["items[0]", "name"]
-    const parts = actualPath.split('.').map((p) => p.trim())
+    // Parse path into segments with optional chaining support
+    const segments = this.parsePathSegments(actualPath)
 
     let value: unknown = context
-    for (const part of parts) {
-      // Check for array indexing: "items[0]" or just "[0]"
-      const arrayMatch = part.match(/^(\w*)\[(\d+)\]$/)
-      if (arrayMatch) {
-        const [, propName, indexStr] = arrayMatch
-        const index = parseInt(indexStr, 10)
+    for (const segment of segments) {
+      // If value is null/undefined and this access is optional, return undefined
+      if (value === null || value === undefined) {
+        if (segment.optional) {
+          return negate ? true : undefined
+        }
+        // Non-optional access on null/undefined
+        return negate ? true : undefined
+      }
 
+      // Handle array indexing: segment has arrayIndex
+      if (segment.arrayIndex !== undefined) {
         // If there's a property name before the bracket, access it first
-        if (propName) {
-          if (value && typeof value === 'object' && propName in value) {
-            value = (value as Record<string, unknown>)[propName]
+        if (segment.name) {
+          if (typeof value === 'object' && segment.name in value) {
+            value = (value as Record<string, unknown>)[segment.name]
           } else {
+            return negate ? true : undefined
+          }
+
+          // Check if value became null/undefined after property access
+          if (value === null || value === undefined) {
             return negate ? true : undefined
           }
         }
 
         // Now access the array index
-        if (Array.isArray(value) && index >= 0 && index < value.length) {
-          value = value[index]
+        if (Array.isArray(value) && segment.arrayIndex >= 0 && segment.arrayIndex < value.length) {
+          value = value[segment.arrayIndex]
         } else {
           return negate ? true : undefined
         }
       } else {
         // Regular property access
-        if (value && typeof value === 'object' && part in value) {
-          value = (value as Record<string, unknown>)[part]
+        if (typeof value === 'object' && segment.name in value) {
+          value = (value as Record<string, unknown>)[segment.name]
         } else {
           return negate ? true : undefined
         }
@@ -301,6 +327,66 @@ export class StringResolver implements InterpolationResolver {
     }
 
     return negate ? !value : value
+  }
+
+  /**
+   * Parse a path string into segments, handling optional chaining (?.)
+   *
+   * Examples:
+   * - "input.name" → [{name: "input", optional: false}, {name: "name", optional: false}]
+   * - "input?.name" → [{name: "input", optional: false}, {name: "name", optional: true}]
+   * - "items[0]" → [{name: "items", optional: false, arrayIndex: 0}]
+   * - "items?.[0]" → [{name: "items", optional: false}, {name: "", optional: true, arrayIndex: 0}]
+   */
+  private parsePathSegments(path: string): PathSegment[] {
+    const segments: PathSegment[] = []
+
+    // Split by both . and ?. while preserving the optional marker
+    // We need to handle: a.b, a?.b, a[0], a?.[0]
+    let remaining = path.trim()
+
+    while (remaining.length > 0) {
+      let optional = false
+
+      // Check if this segment starts with ?. (optional chaining from previous)
+      if (remaining.startsWith('?.')) {
+        optional = true
+        remaining = remaining.slice(2)
+      } else if (remaining.startsWith('.') && segments.length > 0) {
+        // Regular dot separator (skip if first segment)
+        remaining = remaining.slice(1)
+      }
+
+      // Check for standalone array access: [0] or ?.[0]
+      const standaloneArrayMatch = remaining.match(/^\[(\d+)\]/)
+      if (standaloneArrayMatch) {
+        segments.push({
+          name: '',
+          optional,
+          arrayIndex: parseInt(standaloneArrayMatch[1], 10),
+        })
+        remaining = remaining.slice(standaloneArrayMatch[0].length)
+        continue
+      }
+
+      // Match property name with optional array index: "items[0]" or "items"
+      // Property names can include letters, digits, underscores, and hyphens (e.g., "scrape-primary")
+      const propMatch = remaining.match(/^([\w-]+)(?:\[(\d+)\])?/)
+      if (propMatch) {
+        const [fullMatch, propName, indexStr] = propMatch
+        segments.push({
+          name: propName,
+          optional,
+          arrayIndex: indexStr !== undefined ? parseInt(indexStr, 10) : undefined,
+        })
+        remaining = remaining.slice(fullMatch.length)
+      } else {
+        // Couldn't parse - break to avoid infinite loop
+        break
+      }
+    }
+
+    return segments
   }
 }
 

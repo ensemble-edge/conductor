@@ -1005,6 +1005,172 @@ describe('Interpolation System', () => {
 		});
 	});
 
+	describe('Optional Chaining (?.)', () => {
+		it('should safely access nested property when parent exists', () => {
+			const ctx = { input: { user: { name: 'Alice' } } };
+			const result = interpolator.resolve('${input.user?.name}', ctx);
+			expect(result).toBe('Alice');
+		});
+
+		it('should return undefined when parent is undefined', () => {
+			const ctx = { input: {} };
+			const result = interpolator.resolve('${input.user?.name}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should return undefined when parent is null', () => {
+			const ctx = { input: { user: null } };
+			const result = interpolator.resolve('${input.user?.name}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should handle deeply nested optional chaining', () => {
+			const ctx = { input: { data: { response: { body: { articles: ['one'] } } } } };
+			const result = interpolator.resolve('${input.data?.response?.body?.articles}', ctx);
+			expect(result).toEqual(['one']);
+		});
+
+		it('should short-circuit on first null/undefined', () => {
+			const ctx = { input: { data: null } };
+			const result = interpolator.resolve('${input.data?.response?.body?.articles}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should handle optional array access with ?.[n]', () => {
+			const ctx = { input: { items: ['first', 'second'] } };
+			const result = interpolator.resolve('${input.items?.[0]}', ctx);
+			expect(result).toBe('first');
+		});
+
+		it('should return undefined for optional array access when array is undefined', () => {
+			const ctx = { input: {} };
+			const result = interpolator.resolve('${input.items?.[0]}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should handle optional array access when array is null', () => {
+			const ctx = { input: { items: null } };
+			const result = interpolator.resolve('${input.items?.[0]}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should combine optional chaining with array indexing', () => {
+			const ctx = {
+				input: {
+					users: [
+						{ profile: { name: 'Alice' } },
+						{ profile: null }
+					]
+				}
+			};
+			// Access first user's profile name
+			const result1 = interpolator.resolve('${input.users[0].profile?.name}', ctx);
+			expect(result1).toBe('Alice');
+
+			// Access second user's profile name (null profile)
+			const result2 = interpolator.resolve('${input.users[1].profile?.name}', ctx);
+			expect(result2).toBeUndefined();
+		});
+
+		it('should work with optional chaining and nullish coalescing', () => {
+			const ctx = { input: { user: null } };
+			const result = interpolator.resolve('${input.user?.name ?? "Guest"}', ctx);
+			expect(result).toBe('Guest');
+		});
+
+		it('should work with optional chaining and falsy coalescing', () => {
+			const ctx = { input: { user: { name: '' } } };
+			const result = interpolator.resolve('${input.user?.name || "Anonymous"}', ctx);
+			expect(result).toBe('Anonymous');
+		});
+
+		it('should work with optional chaining in ternary condition', () => {
+			const ctx = { input: { settings: { darkMode: true } } };
+			const result = interpolator.resolve('${input.settings?.darkMode ? "dark" : "light"}', ctx);
+			expect(result).toBe('dark');
+		});
+
+		it('should handle missing settings with optional chaining in ternary', () => {
+			const ctx = { input: {} };
+			const result = interpolator.resolve('${input.settings?.darkMode ? "dark" : "light"}', ctx);
+			expect(result).toBe('light');
+		});
+
+		it('should work with negation and optional chaining', () => {
+			const ctx = { input: { user: null } };
+			const result = interpolator.resolve('${!input.user?.active}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should work with Handlebars syntax', () => {
+			const ctx = { input: { data: null } };
+			const result = interpolator.resolve('{{input.data?.value}}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should handle real-world scraping pattern', () => {
+			// Pattern from docs: ${scrape-primary.output?.body || ...}
+			const ctx = {
+				'scrape-primary': { output: { body: '<html>...</html>' } }
+			};
+			const result = interpolator.resolve('${scrape-primary.output?.body}', ctx);
+			expect(result).toBe('<html>...</html>');
+		});
+
+		it('should handle real-world API response pattern', () => {
+			// Pattern from docs: ${fetch-news.output?.body?.articles}
+			const ctx = {
+				'fetch-news': {
+					output: {
+						body: {
+							articles: [{ title: 'News 1' }, { title: 'News 2' }]
+						}
+					}
+				}
+			};
+			const result = interpolator.resolve('${fetch-news.output?.body?.articles}', ctx);
+			expect(result).toEqual([{ title: 'News 1' }, { title: 'News 2' }]);
+		});
+
+		it('should handle approval flow pattern with nested optional access', () => {
+			// Pattern from docs: ${pii-approval.output.approvals?.[0]?.approver}
+			const ctx = {
+				'pii-approval': {
+					output: {
+						approvals: [
+							{ approver: 'admin@example.com', approved: true }
+						]
+					}
+				}
+			};
+			const result = interpolator.resolve('${pii-approval.output.approvals?.[0]?.approver}', ctx);
+			expect(result).toBe('admin@example.com');
+		});
+
+		it('should return undefined when approvals array is empty', () => {
+			const ctx = {
+				'pii-approval': {
+					output: {
+						approvals: []
+					}
+				}
+			};
+			const result = interpolator.resolve('${pii-approval.output.approvals?.[0]?.approver}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should handle order creation pattern', () => {
+			// Pattern from docs: ${create-order.output[0]?.id}
+			const ctx = {
+				'create-order': {
+					output: [{ id: 'order-123', status: 'created' }]
+				}
+			};
+			const result = interpolator.resolve('${create-order.output[0]?.id}', ctx);
+			expect(result).toBe('order-123');
+		});
+	});
+
 	describe('Combined Operators', () => {
 		it('should combine ternary with array indexing', () => {
 			const ctx = {
