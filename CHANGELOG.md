@@ -1,5 +1,28 @@
 # @ensemble-edge/conductor
 
+## 0.4.4
+
+### Patch Changes
+
+- 56f57a8: ## Bug Fixes
+
+  Fix trigger authentication environment variable resolution:
+  - `$env.VAR_NAME` and `${env.VAR_NAME}` syntax now properly resolves to environment variable values
+  - Fixes bearer, signature, and basic auth when using environment-sourced secrets
+  - Previously, the literal string (e.g., "$env.API_SECRET") was compared instead of the resolved value
+
+  ## Features
+
+  Add optional chaining (`?.`) support to interpolation system:
+  - `${input.user?.name}` - safely access nested properties, returns undefined if parent is null/undefined
+  - `${input.data?.items?.[0]}` - optional array access
+  - Works with all existing operators (`??`, `||`, `?:`, `!`)
+
+  ## Other Changes
+  - Update release testing plan to clarify HTML vs JSON endpoint distinction:
+    - `/docs/*` routes return HTML documentation pages
+    - `/api/v1/*` routes return JSON for programmatic access
+
 ## 0.4.3
 
 ### Patch Changes
