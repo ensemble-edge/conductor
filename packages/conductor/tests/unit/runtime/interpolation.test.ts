@@ -718,6 +718,349 @@ describe('Interpolation System', () => {
 		});
 	});
 
+	describe('Falsy Coalescing (||)', () => {
+		it('should return first value when truthy', () => {
+			const result = interpolator.resolve('${input.name || "default"}', context);
+			expect(result).toBe('Alice');
+		});
+
+		it('should return fallback when value is undefined', () => {
+			const result = interpolator.resolve('${input.nonexistent || "fallback"}', context);
+			expect(result).toBe('fallback');
+		});
+
+		it('should return fallback when value is null', () => {
+			const ctx = { input: { value: null } };
+			const result = interpolator.resolve('${input.value || "fallback"}', ctx);
+			expect(result).toBe('fallback');
+		});
+
+		it('should return fallback when value is empty string (unlike ??)', () => {
+			const ctx = { input: { value: '' } };
+			const result = interpolator.resolve('${input.value || "default"}', ctx);
+			expect(result).toBe('default');
+		});
+
+		it('should return fallback when value is zero (unlike ??)', () => {
+			const ctx = { input: { value: 0 } };
+			const result = interpolator.resolve('${input.value || 42}', ctx);
+			expect(result).toBe(42);
+		});
+
+		it('should return fallback when value is false (unlike ??)', () => {
+			const ctx = { input: { value: false } };
+			const result = interpolator.resolve('${input.value || true}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should handle chained || operators', () => {
+			const ctx = { input: { a: '', b: 0, c: 'valid' } };
+			const result = interpolator.resolve('${input.a || input.b || input.c || "default"}', ctx);
+			expect(result).toBe('valid');
+		});
+
+		it('should return last value when all are falsy', () => {
+			const ctx = { input: { a: '', b: 0 } };
+			const result = interpolator.resolve('${input.a || input.b || "fallback"}', ctx);
+			expect(result).toBe('fallback');
+		});
+
+		it('should work with Handlebars syntax', () => {
+			const ctx = { input: { value: '' } };
+			const result = interpolator.resolve('{{input.value || "default"}}', ctx);
+			expect(result).toBe('default');
+		});
+	});
+
+	describe('Ternary Conditional (?:)', () => {
+		it('should return true branch when condition is truthy', () => {
+			const ctx = { input: { enabled: true } };
+			const result = interpolator.resolve('${input.enabled ? "yes" : "no"}', ctx);
+			expect(result).toBe('yes');
+		});
+
+		it('should return false branch when condition is falsy', () => {
+			const ctx = { input: { enabled: false } };
+			const result = interpolator.resolve('${input.enabled ? "yes" : "no"}', ctx);
+			expect(result).toBe('no');
+		});
+
+		it('should return false branch when condition is undefined', () => {
+			const result = interpolator.resolve('${input.nonexistent ? "yes" : "no"}', context);
+			expect(result).toBe('no');
+		});
+
+		it('should return false branch when condition is empty string', () => {
+			const ctx = { input: { value: '' } };
+			const result = interpolator.resolve('${input.value ? "yes" : "no"}', ctx);
+			expect(result).toBe('no');
+		});
+
+		it('should return true branch when condition is non-empty string', () => {
+			const ctx = { input: { value: 'something' } };
+			const result = interpolator.resolve('${input.value ? "yes" : "no"}', ctx);
+			expect(result).toBe('yes');
+		});
+
+		it('should handle numeric conditions', () => {
+			const ctx = { input: { count: 5 } };
+			const result = interpolator.resolve('${input.count ? "has items" : "empty"}', ctx);
+			expect(result).toBe('has items');
+		});
+
+		it('should handle zero as falsy', () => {
+			const ctx = { input: { count: 0 } };
+			const result = interpolator.resolve('${input.count ? "has items" : "empty"}', ctx);
+			expect(result).toBe('empty');
+		});
+
+		it('should support path expressions in branches', () => {
+			const ctx = {
+				input: { useCustom: true },
+				config: { customName: 'Custom', defaultName: 'Default' }
+			};
+			const result = interpolator.resolve('${input.useCustom ? config.customName : config.defaultName}', ctx);
+			expect(result).toBe('Custom');
+		});
+
+		it('should support numeric literals in branches', () => {
+			const ctx = { input: { premium: true } };
+			const result = interpolator.resolve('${input.premium ? 100 : 10}', ctx);
+			expect(result).toBe(100);
+		});
+
+		it('should work with Handlebars syntax', () => {
+			const ctx = { input: { active: true } };
+			const result = interpolator.resolve('{{input.active ? "active" : "inactive"}}', ctx);
+			expect(result).toBe('active');
+		});
+
+		it('should handle method selection pattern', () => {
+			const ctx = { input: { method: 'POST' } };
+			// Check if method is POST (truthy since it exists and is non-empty)
+			const result = interpolator.resolve('${input.method ? input.method : "GET"}', ctx);
+			expect(result).toBe('POST');
+		});
+	});
+
+	describe('Boolean Negation (!)', () => {
+		it('should negate true to false', () => {
+			const ctx = { input: { disabled: true } };
+			const result = interpolator.resolve('${!input.disabled}', ctx);
+			expect(result).toBe(false);
+		});
+
+		it('should negate false to true', () => {
+			const ctx = { input: { disabled: false } };
+			const result = interpolator.resolve('${!input.disabled}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should negate undefined to true', () => {
+			const result = interpolator.resolve('${!input.nonexistent}', context);
+			expect(result).toBe(true);
+		});
+
+		it('should negate null to true', () => {
+			const ctx = { input: { value: null } };
+			const result = interpolator.resolve('${!input.value}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should negate empty string to true', () => {
+			const ctx = { input: { value: '' } };
+			const result = interpolator.resolve('${!input.value}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should negate non-empty string to false', () => {
+			const ctx = { input: { value: 'hello' } };
+			const result = interpolator.resolve('${!input.value}', ctx);
+			expect(result).toBe(false);
+		});
+
+		it('should negate zero to true', () => {
+			const ctx = { input: { count: 0 } };
+			const result = interpolator.resolve('${!input.count}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should negate non-zero number to false', () => {
+			const ctx = { input: { count: 5 } };
+			const result = interpolator.resolve('${!input.count}', ctx);
+			expect(result).toBe(false);
+		});
+
+		it('should work with nested paths', () => {
+			const ctx = { input: { user: { isAdmin: false } } };
+			const result = interpolator.resolve('${!input.user.isAdmin}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should work with Handlebars syntax', () => {
+			const ctx = { input: { hidden: true } };
+			const result = interpolator.resolve('{{!input.hidden}}', ctx);
+			expect(result).toBe(false);
+		});
+	});
+
+	describe('Array Indexing ([n])', () => {
+		it('should access first element with [0]', () => {
+			const ctx = { input: { items: ['first', 'second', 'third'] } };
+			const result = interpolator.resolve('${input.items[0]}', ctx);
+			expect(result).toBe('first');
+		});
+
+		it('should access middle element', () => {
+			const ctx = { input: { items: ['a', 'b', 'c'] } };
+			const result = interpolator.resolve('${input.items[1]}', ctx);
+			expect(result).toBe('b');
+		});
+
+		it('should access last element by index', () => {
+			const ctx = { input: { items: ['a', 'b', 'c'] } };
+			const result = interpolator.resolve('${input.items[2]}', ctx);
+			expect(result).toBe('c');
+		});
+
+		it('should return undefined for out-of-bounds index', () => {
+			const ctx = { input: { items: ['a', 'b'] } };
+			const result = interpolator.resolve('${input.items[5]}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should access property of array element', () => {
+			const ctx = {
+				input: {
+					users: [
+						{ name: 'Alice', age: 30 },
+						{ name: 'Bob', age: 25 }
+					]
+				}
+			};
+			const result = interpolator.resolve('${input.users[0].name}', ctx);
+			expect(result).toBe('Alice');
+		});
+
+		it('should access nested property of array element', () => {
+			const ctx = {
+				input: {
+					data: [
+						{ meta: { id: 'abc' } },
+						{ meta: { id: 'xyz' } }
+					]
+				}
+			};
+			const result = interpolator.resolve('${input.data[1].meta.id}', ctx);
+			expect(result).toBe('xyz');
+		});
+
+		it('should handle array of numbers', () => {
+			const ctx = { input: { scores: [95, 87, 92] } };
+			const result = interpolator.resolve('${input.scores[0]}', ctx);
+			expect(result).toBe(95);
+		});
+
+		it('should work with fallback for missing index', () => {
+			const ctx = { input: { items: ['only'] } };
+			const result = interpolator.resolve('${input.items[5] ?? "default"}', ctx);
+			expect(result).toBe('default');
+		});
+
+		it('should work in ternary condition', () => {
+			const ctx = { input: { items: ['exists'] } };
+			const result = interpolator.resolve('${input.items[0] ? "found" : "not found"}', ctx);
+			expect(result).toBe('found');
+		});
+
+		it('should work with negation', () => {
+			const ctx = { input: { flags: [true, false] } };
+			const result = interpolator.resolve('${!input.flags[1]}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should work with Handlebars syntax', () => {
+			const ctx = { input: { list: ['one', 'two'] } };
+			const result = interpolator.resolve('{{input.list[0]}}', ctx);
+			expect(result).toBe('one');
+		});
+
+		it('should handle empty array', () => {
+			const ctx = { input: { items: [] } };
+			const result = interpolator.resolve('${input.items[0]}', ctx);
+			expect(result).toBeUndefined();
+		});
+
+		it('should handle HTTP trigger headers pattern', () => {
+			// Real-world: accessing first value of multi-value header
+			const ctx = {
+				input: {
+					headers: {
+						'accept': ['application/json', 'text/html']
+					}
+				}
+			};
+			const result = interpolator.resolve('${input.headers.accept[0]}', ctx);
+			expect(result).toBe('application/json');
+		});
+	});
+
+	describe('Combined Operators', () => {
+		it('should combine ternary with array indexing', () => {
+			const ctx = {
+				input: {
+					users: [{ name: 'Admin' }],
+					useFirst: true
+				}
+			};
+			const result = interpolator.resolve('${input.useFirst ? input.users[0].name : "Guest"}', ctx);
+			expect(result).toBe('Admin');
+		});
+
+		it('should combine negation with nullish coalescing', () => {
+			const ctx = { input: { disabled: undefined } };
+			// !undefined = true, so return true (first truthy value)
+			const result = interpolator.resolve('${!input.disabled ?? false}', ctx);
+			expect(result).toBe(true);
+		});
+
+		it('should handle complex feature flag pattern', () => {
+			const ctx = {
+				input: {
+					features: { darkMode: true },
+					user: { preferences: { theme: 'dark' } }
+				}
+			};
+			const result = interpolator.resolve(
+				'${input.features.darkMode ? input.user.preferences.theme : "light"}',
+				ctx
+			);
+			expect(result).toBe('dark');
+		});
+
+		it('should handle API response pattern', () => {
+			const ctx = {
+				response: {
+					data: {
+						results: [
+							{ id: 1, status: 'active' },
+							{ id: 2, status: 'pending' }
+						]
+					}
+				}
+			};
+			const template = {
+				firstResult: '${response.data.results[0].status}',
+				hasResults: '${response.data.results[0] ? true : false}'
+			};
+			const result = interpolator.resolve(template, ctx);
+			expect(result).toEqual({
+				firstResult: 'active',
+				hasResults: true
+			});
+		});
+	});
+
 	describe('Real-World Scenarios', () => {
 		it('should handle API request configuration', () => {
 			const template = {

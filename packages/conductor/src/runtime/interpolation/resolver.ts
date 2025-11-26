@@ -47,6 +47,20 @@ import { applyFilters } from './filters.js'
  * - ${input.name ?? "default"} → returns input.name if not null/undefined, else "default"
  * - ${input.query.name ?? input.body.name ?? "World"} → chain of fallbacks
  *
+ * Supports falsy coalescing (||):
+ * - ${input.name || "default"} → returns input.name if truthy, else "default"
+ * - Catches "", 0, false, null, undefined (unlike ?? which only catches null/undefined)
+ *
+ * Supports ternary conditionals:
+ * - ${input.enabled ? "yes" : "no"} → returns "yes" if truthy, "no" otherwise
+ *
+ * Supports boolean negation (!):
+ * - ${!input.disabled} → returns true if input.disabled is falsy
+ *
+ * Supports array indexing:
+ * - ${input.items[0]} → returns first element
+ * - ${input.items[2].name} → returns name property of third element
+ *
  * Supports filter chains:
  * - ${input.text | uppercase}
  * - ${input.text | split(" ") | length}
@@ -113,41 +127,33 @@ export class StringResolver implements InterpolationResolver {
   }
 
   /**
-   * Traverse context using dot-separated path with optional nullish coalescing and filter chain
-   * Supports:
+   * Traverse context using dot-separated path with optional operators and filter chain
+   * Supports (in order of precedence):
+   * - input.enabled ? "yes" : "no" (ternary conditional)
+   * - input.name ?? "default" (nullish coalescing - null/undefined only)
+   * - input.name || "default" (falsy coalescing - catches "", 0, false too)
    * - input.text | split(' ') | length (filters)
-   * - input.name ?? "default" (nullish coalescing)
-   * - input.query.name ?? input.body.name ?? "World" (chained nullish coalescing)
-   * Note: We check for single pipe (filter) vs double pipe (?? nullish coalescing)
+   * Note: We check for single pipe (filter) vs double pipe (|| logical OR)
    */
   private traversePath(path: string, context: ResolutionContext): unknown {
-    // First, handle nullish coalescing (??) - split and try each alternative
+    // First, handle ternary conditional (? :)
+    // Match: condition ? trueValue : falseValue
+    const ternaryMatch = path.match(/^(.+?)\s*\?\s*(.+?)\s*:\s*(.+)$/)
+    if (ternaryMatch) {
+      const [, conditionPath, trueExpr, falseExpr] = ternaryMatch
+      const condition = this.resolvePathWithFilters(conditionPath.trim(), context)
+
+      // Evaluate the appropriate branch
+      const selectedExpr = condition ? trueExpr.trim() : falseExpr.trim()
+      return this.resolveLiteralOrPath(selectedExpr, context)
+    }
+
+    // Handle nullish coalescing (??) - split and try each alternative
     if (path.includes('??')) {
       const alternatives = path.split('??').map((alt) => alt.trim())
 
       for (const alt of alternatives) {
-        // Check if this alternative is a string literal (quoted)
-        const stringLiteralMatch = alt.match(/^["'](.*)["']$/)
-        if (stringLiteralMatch) {
-          // Return the literal string value (without quotes)
-          return stringLiteralMatch[1]
-        }
-
-        // Check if this alternative is a numeric literal
-        const numericMatch = alt.match(/^-?\d+(\.\d+)?$/)
-        if (numericMatch) {
-          return parseFloat(alt)
-        }
-
-        // Check if this alternative is a boolean literal
-        if (alt === 'true') return true
-        if (alt === 'false') return false
-
-        // Check if this alternative is null literal
-        if (alt === 'null') return null
-
-        // Try to resolve as a path (may include filters)
-        const value = this.resolvePathWithFilters(alt, context)
+        const value = this.resolveLiteralOrPath(alt, context)
 
         // Return first non-null/undefined value (nullish coalescing behavior)
         if (value !== null && value !== undefined) {
@@ -159,8 +165,54 @@ export class StringResolver implements InterpolationResolver {
       return undefined
     }
 
-    // No nullish coalescing, check for filters
+    // Handle falsy coalescing (||) - similar to ?? but catches all falsy values
+    // Must check this AFTER ?? to avoid conflicts, and ensure we don't confuse with filter |
+    if (/\|\|/.test(path)) {
+      const alternatives = path.split('||').map((alt) => alt.trim())
+
+      for (const alt of alternatives) {
+        const value = this.resolveLiteralOrPath(alt, context)
+
+        // Return first truthy value (falsy coalescing behavior)
+        if (value) {
+          return value
+        }
+      }
+
+      // All alternatives were falsy, return last one
+      const lastAlt = alternatives[alternatives.length - 1]
+      return this.resolveLiteralOrPath(lastAlt, context)
+    }
+
+    // No coalescing operators, check for filters
     return this.resolvePathWithFilters(path, context)
+  }
+
+  /**
+   * Resolve a value that could be a literal or a path expression
+   */
+  private resolveLiteralOrPath(expr: string, context: ResolutionContext): unknown {
+    // Check if this is a string literal (quoted)
+    const stringLiteralMatch = expr.match(/^["'](.*)["']$/)
+    if (stringLiteralMatch) {
+      return stringLiteralMatch[1]
+    }
+
+    // Check if this is a numeric literal
+    const numericMatch = expr.match(/^-?\d+(\.\d+)?$/)
+    if (numericMatch) {
+      return parseFloat(expr)
+    }
+
+    // Check if this is a boolean literal
+    if (expr === 'true') return true
+    if (expr === 'false') return false
+
+    // Check if this is null literal
+    if (expr === 'null') return null
+
+    // Try to resolve as a path (may include filters)
+    return this.resolvePathWithFilters(expr, context)
   }
 
   /**
@@ -198,21 +250,57 @@ export class StringResolver implements InterpolationResolver {
   }
 
   /**
-   * Resolve a simple dot-separated property path
+   * Resolve a simple dot-separated property path with support for:
+   * - Array indexing: items[0], items[2].name
+   * - Boolean negation: !input.disabled
    */
   private resolvePropertyPath(path: string, context: ResolutionContext): unknown {
-    const parts = path.split('.').map((p) => p.trim())
+    // Handle boolean negation prefix
+    let negate = false
+    let actualPath = path
+    if (path.startsWith('!')) {
+      negate = true
+      actualPath = path.slice(1).trim()
+    }
+
+    // Split by dots, but preserve array indexing
+    // "items[0].name" -> ["items[0]", "name"]
+    const parts = actualPath.split('.').map((p) => p.trim())
 
     let value: unknown = context
     for (const part of parts) {
-      if (value && typeof value === 'object' && part in value) {
-        value = (value as Record<string, unknown>)[part]
+      // Check for array indexing: "items[0]" or just "[0]"
+      const arrayMatch = part.match(/^(\w*)\[(\d+)\]$/)
+      if (arrayMatch) {
+        const [, propName, indexStr] = arrayMatch
+        const index = parseInt(indexStr, 10)
+
+        // If there's a property name before the bracket, access it first
+        if (propName) {
+          if (value && typeof value === 'object' && propName in value) {
+            value = (value as Record<string, unknown>)[propName]
+          } else {
+            return negate ? true : undefined
+          }
+        }
+
+        // Now access the array index
+        if (Array.isArray(value) && index >= 0 && index < value.length) {
+          value = value[index]
+        } else {
+          return negate ? true : undefined
+        }
       } else {
-        return undefined
+        // Regular property access
+        if (value && typeof value === 'object' && part in value) {
+          value = (value as Record<string, unknown>)[part]
+        } else {
+          return negate ? true : undefined
+        }
       }
     }
 
-    return value
+    return negate ? !value : value
   }
 }
 
