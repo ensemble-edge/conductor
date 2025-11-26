@@ -34,7 +34,8 @@ const appLogger = createLogger({ serviceName: 'api-app' })
 export interface APIConfig {
   /**
    * Authentication configuration
-   * SECURE BY DEFAULT: Auth is required on /api/* routes unless explicitly disabled
+   * SECURE BY DEFAULT: Auth is required on /api/v1/* routes unless explicitly disabled
+   * Note: User-defined trigger routes (e.g., /api/protected) use their own auth config
    */
   auth?: {
     /** List of valid API keys */
@@ -45,8 +46,9 @@ export interface APIConfig {
      */
     allowAnonymous?: boolean
     /**
-     * Require authentication on /api/* routes
+     * Require authentication on /api/v1/* routes (built-in API endpoints)
      * Set to false only for development/testing
+     * Note: Does not affect user-defined trigger routes which have their own auth
      * @default true
      */
     requireAuth?: boolean
@@ -112,13 +114,14 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
   // Error handler (early in chain)
   app.use('*', errorHandler())
 
-  // SECURE BY DEFAULT: Always apply auth middleware to /api/* routes
-  // Auth will be enforced unless explicitly disabled with requireAuth: false
+  // SECURE BY DEFAULT: Apply auth middleware to built-in /api/v1/* routes only
+  // User-defined trigger routes (e.g., /api/protected) handle their own auth via trigger config
+  // This prevents the global auth from blocking trigger-specific auth
   const requireAuth = config.auth?.requireAuth ?? true
 
   if (requireAuth) {
     app.use(
-      '/api/*',
+      '/api/v1/*',
       createAuthMiddleware({
         apiKeys: config.auth?.apiKeys || [],
         allowAnonymous: config.auth?.allowAnonymous ?? false,
@@ -127,7 +130,7 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
   } else if (config.auth) {
     // Auth configured but not required - still apply middleware for optional auth
     app.use(
-      '/api/*',
+      '/api/v1/*',
       createAuthMiddleware({
         apiKeys: config.auth.apiKeys || [],
         allowAnonymous: true, // Allow anonymous when requireAuth is false
