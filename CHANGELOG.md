@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 0.4.2
+
+### Patch Changes
+
+- 44c1d81: Add authentication and security infrastructure including trigger-level auth, permissions system, signature-based authentication, and improved observability context propagation
+
 ## 0.4.1
 
 ### Patch Changes
