@@ -595,6 +595,129 @@ describe('Interpolation System', () => {
 		});
 	});
 
+	describe('Nullish Coalescing (??)', () => {
+		it('should return first value when not null/undefined', () => {
+			const result = interpolator.resolve('${input.name ?? "default"}', context);
+			expect(result).toBe('Alice');
+		});
+
+		it('should return fallback string when value is undefined', () => {
+			const result = interpolator.resolve('${input.nonexistent ?? "fallback"}', context);
+			expect(result).toBe('fallback');
+		});
+
+		it('should return fallback string when value is null', () => {
+			const ctx = { input: { value: null } };
+			const result = interpolator.resolve('${input.value ?? "fallback"}', ctx);
+			expect(result).toBe('fallback');
+		});
+
+		it('should handle chained nullish coalescing', () => {
+			const ctx = {
+				input: {
+					query: {},
+					body: { name: 'from-body' }
+				}
+			};
+			const result = interpolator.resolve('${input.query.name ?? input.body.name ?? "default"}', ctx);
+			expect(result).toBe('from-body');
+		});
+
+		it('should return last fallback when all are undefined', () => {
+			const ctx = { input: { query: {}, body: {} } };
+			const result = interpolator.resolve('${input.query.name ?? input.body.name ?? "World"}', ctx);
+			expect(result).toBe('World');
+		});
+
+		it('should handle double-quoted string literals', () => {
+			const result = interpolator.resolve('${input.nonexistent ?? "hello world"}', context);
+			expect(result).toBe('hello world');
+		});
+
+		it('should handle single-quoted string literals', () => {
+			const result = interpolator.resolve("${input.nonexistent ?? 'hello world'}", context);
+			expect(result).toBe('hello world');
+		});
+
+		it('should preserve empty string as valid value (not nullish)', () => {
+			const ctx = { input: { value: '' } };
+			const result = interpolator.resolve('${input.value ?? "default"}', ctx);
+			expect(result).toBe('');
+		});
+
+		it('should preserve zero as valid value (not nullish)', () => {
+			const ctx = { input: { value: 0 } };
+			const result = interpolator.resolve('${input.value ?? 42}', ctx);
+			expect(result).toBe(0);
+		});
+
+		it('should preserve false as valid value (not nullish)', () => {
+			const ctx = { input: { value: false } };
+			const result = interpolator.resolve('${input.value ?? true}', ctx);
+			expect(result).toBe(false);
+		});
+
+		it('should work with Handlebars syntax', () => {
+			const result = interpolator.resolve('{{input.nonexistent ?? "fallback"}}', context);
+			expect(result).toBe('fallback');
+		});
+
+		it('should work in object templates', () => {
+			const template = {
+				name: '${input.query.name ?? input.body.name ?? "Anonymous"}',
+				page: '${input.query.page ?? 1}'
+			};
+			const ctx = {
+				input: {
+					query: {},
+					body: { name: 'Bob' }
+				}
+			};
+			const result = interpolator.resolve(template, ctx);
+			expect(result).toEqual({
+				name: 'Bob',
+				page: 1
+			});
+		});
+
+		it('should handle HTTP trigger input pattern', () => {
+			// Real-world pattern from HTTP triggers
+			const ctx = {
+				input: {
+					query: { name: 'from-query' },
+					body: { name: 'from-body' },
+					params: { id: '123' }
+				}
+			};
+
+			// Prefer query over body over default
+			expect(interpolator.resolve('${input.query.name ?? input.body.name ?? "World"}', ctx))
+				.toBe('from-query');
+
+			// When query is empty, use body
+			const ctx2 = {
+				input: {
+					query: {},
+					body: { name: 'from-body' },
+					params: { id: '123' }
+				}
+			};
+			expect(interpolator.resolve('${input.query.name ?? input.body.name ?? "World"}', ctx2))
+				.toBe('from-body');
+
+			// When both empty, use default
+			const ctx3 = {
+				input: {
+					query: {},
+					body: {},
+					params: { id: '123' }
+				}
+			};
+			expect(interpolator.resolve('${input.query.name ?? input.body.name ?? "World"}', ctx3))
+				.toBe('World');
+		});
+	});
+
 	describe('Real-World Scenarios', () => {
 		it('should handle API request configuration', () => {
 			const template = {
