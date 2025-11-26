@@ -17,6 +17,107 @@ const execute = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-execute' })
 
 /**
+ * Helper function to execute an ensemble from body-based request
+ * Shared logic between POST / (with ensemble in body) and POST /:ensembleName
+ */
+async function executeEnsembleFromBody(
+  c: ConductorContext,
+  ensembleName: string,
+  input: any,
+  startTime: number,
+  requestId: string | undefined
+) {
+  try {
+    // Get ensemble loader
+    const ensembleLoader = getEnsembleLoader()
+
+    if (!ensembleLoader) {
+      return c.json(
+        {
+          error: 'NotInitialized',
+          message: 'Ensemble loader not initialized',
+          timestamp: Date.now(),
+          requestId,
+        },
+        503
+      )
+    }
+
+    // Check if ensemble exists
+    const ensemble = ensembleLoader.getEnsemble(ensembleName)
+    if (!ensemble) {
+      return c.json(
+        {
+          error: 'NotFound',
+          message: `Ensemble not found: ${ensembleName}`,
+          path: `/api/v1/execute`,
+          timestamp: Date.now(),
+          requestId,
+        },
+        404
+      )
+    }
+
+    // Create executor
+    const executor = new Executor({
+      env: c.env,
+      ctx: c.executionCtx,
+    })
+
+    // Register all agents from memberLoader
+    const memberLoader = getMemberLoader()
+    if (memberLoader) {
+      for (const agent of memberLoader.getAllMembers()) {
+        executor.registerAgent(agent)
+      }
+    }
+
+    // Execute ensemble
+    const result = await executor.executeEnsemble(ensemble, input)
+
+    // Handle Result type - unwrap or return error
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'ExecutionError',
+          message: result.error.message,
+          code: result.error.code,
+          timestamp: Date.now(),
+          requestId,
+        },
+        500
+      )
+    }
+
+    // Return response
+    return c.json({
+      success: true,
+      output: result.value.output,
+      metadata: {
+        executionId: requestId || 'unknown',
+        duration: Date.now() - startTime,
+        timestamp: Date.now(),
+      },
+    })
+  } catch (error) {
+    logger.error('Ensemble execution failed', error instanceof Error ? error : undefined, {
+      requestId,
+      ensembleName,
+    })
+
+    return c.json(
+      {
+        error: 'ExecutionError',
+        message: (error as Error).message || 'Execution failed',
+        timestamp: Date.now(),
+        requestId,
+      },
+      500
+    )
+  }
+}
+
+/**
  * POST /:ensembleName - Execute an ensemble synchronously
  */
 execute.post('/:ensembleName', async (c: ConductorContext) => {
@@ -118,28 +219,38 @@ execute.post('/:ensembleName', async (c: ConductorContext) => {
 })
 
 /**
- * POST / - Execute a agent synchronously (legacy, body-based routing)
+ * POST / - Execute an agent or ensemble synchronously (body-based routing)
+ *
+ * Supports two modes:
+ * - Agent execution: { agent: "agent-name", input: {...} }
+ * - Ensemble execution: { ensemble: "ensemble-name", input: {...} }
  */
 execute.post('/', async (c: ConductorContext) => {
   const startTime = Date.now()
   const auth = c.get('auth')
   const requestId = c.get('requestId')
 
-  // Parse request body
-  const body = await c.req.json<ExecuteRequest>()
+  // Parse request body - extend ExecuteRequest to support ensemble
+  const body = await c.req.json<ExecuteRequest & { ensemble?: string }>()
 
-  // Validate request
-  if (!body.agent) {
+  // Validate request - either agent or ensemble must be provided
+  if (!body.agent && !body.ensemble) {
     return c.json(
       {
         error: 'ValidationError',
-        message: 'Agent name is required',
+        message: 'Either agent or ensemble name is required',
         timestamp: Date.now(),
       },
       400
     )
   }
 
+  // If ensemble is provided, delegate to ensemble execution
+  if (body.ensemble) {
+    return executeEnsembleFromBody(c, body.ensemble, body.input || {}, startTime, requestId)
+  }
+
+  // Continue with agent execution
   if (!body.input) {
     return c.json(
       {

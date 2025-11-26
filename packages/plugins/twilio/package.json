@@ -1,6 +1,6 @@
 {
   "name": "@ensemble-edge/plugin-twilio",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "Twilio plugin for Conductor - adds SMS and voice messaging capabilities",
   "main": "./dist/index.js",

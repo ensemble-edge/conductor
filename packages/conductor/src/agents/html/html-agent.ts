@@ -36,10 +36,66 @@ export class HtmlMember extends BaseAgent {
   constructor(config: AgentConfig) {
     super(config)
     // Extract nested config (config.config contains the agent-specific settings)
-    this.htmlConfig = (config.config || {}) as unknown as HtmlMemberConfig
+    const rawConfig = (config.config || {}) as Record<string, unknown>
+
+    // Normalize the template configuration
+    // YAML configs use `template: "<content>"` with `templateEngine: "liquid"`
+    // But the type expects `template: { inline: "<content>", engine: "liquid" }`
+    this.htmlConfig = this.normalizeConfig(rawConfig)
 
     // Validate configuration
     this.validateConfig()
+  }
+
+  /**
+   * Normalize YAML config format to typed config
+   *
+   * Handles the common YAML pattern:
+   *   config:
+   *     templateEngine: liquid
+   *     template: |
+   *       <html>...
+   *
+   * Converts to:
+   *   template: { inline: "<html>...", engine: "liquid" }
+   */
+  private normalizeConfig(rawConfig: Record<string, unknown>): HtmlMemberConfig {
+    const { template, templateEngine, ...rest } = rawConfig
+
+    // If template is already a TemplateSource object, use it as-is
+    if (template && typeof template === 'object' && !Array.isArray(template)) {
+      const templateObj = template as Record<string, unknown>
+      // Check if it has TemplateSource properties (inline, kv, r2, file)
+      if (
+        'inline' in templateObj ||
+        'kv' in templateObj ||
+        'r2' in templateObj ||
+        'file' in templateObj
+      ) {
+        // Apply templateEngine if specified at top level but not in template object
+        if (templateEngine && !templateObj.engine) {
+          templateObj.engine = templateEngine
+        }
+        return {
+          ...rest,
+          template: templateObj,
+        } as HtmlMemberConfig
+      }
+    }
+
+    // If template is a string, convert to { inline: template }
+    if (typeof template === 'string') {
+      return {
+        ...rest,
+        template: {
+          inline: template,
+          engine: templateEngine as HtmlMemberConfig['template']['engine'],
+        },
+      } as HtmlMemberConfig
+    }
+
+    // Fallback: return as-is and let validation catch issues
+    return rawConfig as HtmlMemberConfig
   }
 
   /**

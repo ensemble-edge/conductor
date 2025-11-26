@@ -28,7 +28,7 @@ export interface AgentDiscoveryOptions {
 
   /**
    * Directories to exclude from discovery
-   * @default ['generate-docs']
+   * @default ['generate-docs', 'examples']
    */
   excludeDirs?: string[];
 }
@@ -38,7 +38,7 @@ export function agentDiscoveryPlugin(options: AgentDiscoveryOptions = {}): Plugi
   // Support both old single extension and new multiple extensions
   const fileExtensions = options.fileExtensions ||
     (options.fileExtension ? [options.fileExtension] : ['.yaml', '.yml']);
-  const excludeDirs = options.excludeDirs || ['generate-docs'];
+  const excludeDirs = options.excludeDirs || ['generate-docs', 'examples'];
 
   let root: string;
 

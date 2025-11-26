@@ -1,6 +1,6 @@
 {
   "name": "@ensemble-edge/plugin-cloudflare",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "Cloudflare API plugin for Conductor",
   "main": "./dist/index.js",

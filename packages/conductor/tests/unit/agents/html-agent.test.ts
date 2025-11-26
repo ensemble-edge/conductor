@@ -59,6 +59,25 @@ describe('HtmlMember', () => {
 			expect(agent).toBeDefined();
 		});
 
+		it('should create HTML agent with string template (YAML shorthand)', () => {
+			// This tests the YAML pattern used in catalog templates:
+			//   config:
+			//     templateEngine: liquid
+			//     template: |
+			//       <h1>Hello</h1>
+			const config: AgentConfig = {
+				name: 'test-html',
+				operation: 'html',
+				config: {
+					templateEngine: 'liquid',
+					template: '<h1>{{title}}</h1>'  // String, not { inline: ... }
+				}
+			};
+
+			const agent = new HtmlMember(config);
+			expect(agent).toBeDefined();
+		});
+
 		it('should throw error without template config', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
@@ -67,6 +86,70 @@ describe('HtmlMember', () => {
 			};
 
 			expect(() => new HtmlMember(config)).toThrow('HTML agent requires a template configuration');
+		});
+	});
+
+	describe('YAML Template Config Normalization', () => {
+		it('should render string template (YAML shorthand)', async () => {
+			// This is the exact pattern from the catalog templates
+			const config: AgentConfig = {
+				name: 'test-html',
+				operation: 'html',
+				config: {
+					templateEngine: 'simple',
+					template: '<div class="error-page"><h1>{{code}}</h1><p>{{message}}</p></div>'
+				}
+			};
+
+			const agent = new HtmlMember(config);
+			const context: AgentExecutionContext = {
+				input: {
+					data: {
+						code: '404',
+						message: 'Not Found'
+					}
+				},
+				env: mockEnv,
+				ctx: mockCtx,
+				previousOutputs: {}
+			};
+
+			const response = await agent.execute(context);
+
+			expect(response.success).toBe(true);
+			const output = response.data as HtmlMemberOutput;
+			expect(output.html).toContain('<h1>404</h1>');
+			expect(output.html).toContain('<p>Not Found</p>');
+		});
+
+		it('should apply templateEngine from config when using string template', async () => {
+			const config: AgentConfig = {
+				name: 'test-html',
+				operation: 'html',
+				config: {
+					templateEngine: 'liquid',
+					template: '<p>Hello {{ name }}</p>'  // Liquid uses {{ }} syntax
+				}
+			};
+
+			const agent = new HtmlMember(config);
+			const context: AgentExecutionContext = {
+				input: {
+					data: {
+						name: 'World'
+					}
+				},
+				env: mockEnv,
+				ctx: mockCtx,
+				previousOutputs: {}
+			};
+
+			const response = await agent.execute(context);
+
+			expect(response.success).toBe(true);
+			const output = response.data as HtmlMemberOutput;
+			expect(output.html).toContain('<p>Hello World</p>');
+			expect(output.engine).toBe('liquid');
 		});
 	});
 

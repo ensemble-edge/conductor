@@ -46,7 +46,11 @@ export class LiquidTemplateEngine extends BaseTemplateEngine {
         this.compiledTemplates.set(template, compiledTemplate)
       }
 
-      return await this.liquid.render(compiledTemplate, context)
+      // Handle both structured context {data: {...}} and flat context {...}
+      // This ensures compatibility with how the HTML agent passes context
+      const data = (context as any).data !== undefined ? (context as any).data : context
+
+      return await this.liquid.render(compiledTemplate, data)
     } catch (error) {
       throw new Error(
         `Liquid render error: ${error instanceof Error ? error.message : String(error)}`
