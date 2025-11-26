@@ -604,9 +604,25 @@ export class Parser {
       return validated
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new Error(
-          `Ensemble validation failed: ${error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ')}`
-        )
+        // Provide helpful error messages for common mistakes
+        const enhancedErrors = error.errors.map((e) => {
+          const path = e.path.join('.')
+          const baseMessage = `${path}: ${e.message}`
+
+          // Common mistake: output: $agent-name instead of output: { field: ${agent.output.field} }
+          if (path === 'output' && e.code === 'invalid_type' && e.expected === 'object') {
+            return `${baseMessage}\n    ↳ Hint: Use object syntax with field mappings:\n      output:\n        result: \${agent-name.output.fieldName}`
+          }
+
+          // Common mistake: using 'agents' with 'name' key instead of 'flow' with 'agent' key
+          if (path.startsWith('flow') && e.message.includes('agent')) {
+            return `${baseMessage}\n    ↳ Hint: Flow steps should use 'agent' key:\n      flow:\n        - agent: my-agent\n          input:\n            field: \${input.value}`
+          }
+
+          return baseMessage
+        })
+
+        throw new Error(`Ensemble validation failed:\n  ${enhancedErrors.join('\n  ')}`)
       }
       throw new Error(
         `Failed to parse ensemble YAML: ${error instanceof Error ? error.message : 'Unknown error'}`

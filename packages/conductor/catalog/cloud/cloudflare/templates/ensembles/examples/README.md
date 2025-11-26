@@ -273,16 +273,49 @@ scripts:
 
 ```yaml
 agents:
-  - name: classify-intent
+  - name: greet-user
     operation: think
     config:
-      model: gpt-4-mini
-      systemPrompt: "You are a helpful assistant..."
+      model: "@cf/meta/llama-3.1-8b-instruct"
+      systemPrompt: "Generate a friendly greeting for the user."
       temperature: 0.7
+    schema:
+      input:
+        name: string
+      output:
+        greeting: string   # Define the output field name you want
+
+flow:
+  - agent: greet-user
     input:
-      userPrompt: "Analyze this: {{text}}"
-      text: $input.message
+      name: ${input.userName}
+
+output:
+  message: ${greet-user.output.greeting}  # Use the schema-defined field name
 ```
+
+> **💡 Think Agent Output is Schema-Aware**
+>
+> When you define an output schema, the AI response maps to your field names:
+> ```yaml
+> # Your schema
+> schema:
+>   output:
+>     greeting: string
+>
+> # Your output mapping - uses the schema field name
+> output:
+>   result: ${agent.output.greeting}  # ✅ Works!
+> ```
+>
+> If the AI returns JSON (e.g., for structured output), all fields are available:
+> ```yaml
+> output:
+>   sentiment: ${analyzer.output.sentiment}
+>   confidence: ${analyzer.output.confidence}
+> ```
+>
+> Metadata (model, provider, tokens) is available via `${agent.output._meta}`.
 
 ## 🎓 Learning Path
 

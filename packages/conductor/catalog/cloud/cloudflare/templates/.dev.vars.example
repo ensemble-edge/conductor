@@ -9,17 +9,27 @@
 # This file (.dev.vars) is automatically loaded by `wrangler dev`
 # ============================================================
 
-# AI Provider API Keys
-# Uncomment and add your keys as needed
+# ==================== Workers AI (Recommended) ====================
+# For Think agents using Cloudflare's Workers AI
+#
+# 📋 Setup Steps:
+# 1. Go to: dash.cloudflare.com → My Profile → API Tokens
+# 2. Click "Create Token"
+# 3. Use "Edit Cloudflare Workers" template OR create custom with:
+#    - Account → Workers AI → Edit
+# 4. Copy the token below (starts with letters/numbers, not "Bearer")
+#
+# CLOUDFLARE_API_TOKEN=your-token-here
+#
+# Then run: CLOUDFLARE_API_TOKEN="your-token" wrangler dev
+# Or add to your shell: export CLOUDFLARE_API_TOKEN="your-token"
+
+# ==================== External AI Providers ====================
+# For Think agents using Anthropic or OpenAI directly
 # ANTHROPIC_API_KEY=sk-ant-...
 # OPENAI_API_KEY=sk-...
 
-# Cloudflare Account Settings
-# Get these from: https://dash.cloudflare.com/
-# CLOUDFLARE_ACCOUNT_ID=
-# CLOUDFLARE_API_TOKEN=
-
-# Custom API Keys
+# ==================== Other Secrets ====================
 # Add any other secrets your application needs
 # MY_API_KEY=
 # DATABASE_URL=
@@ -30,7 +40,7 @@
 # LOCAL DEVELOPMENT:
 #   1. Copy .dev.vars.example to .dev.vars
 #   2. Uncomment and add your values above
-#   3. Run: wrangler dev
+#   3. Run: wrangler dev (or with token: CLOUDFLARE_API_TOKEN="..." wrangler dev)
 #   4. Access in code: env.ANTHROPIC_API_KEY
 #
 # PRODUCTION DEPLOYMENT:
@@ -38,6 +48,11 @@
 #   2. Run: wrangler secret put ANTHROPIC_API_KEY
 #   3. Paste your key when prompted
 #   4. Repeat for each secret
+#
+# WORKERS AI TROUBLESHOOTING:
+#   - "Authentication error" → Token missing Workers AI permission
+#   - "AI remote" in logs → Normal for dev mode (AI uses remote API)
+#   - Empty {} response → Check ensemble output mapping syntax
 #
 # Learn more: https://developers.cloudflare.com/workers/configuration/secrets/
 # ============================================================

@@ -6,9 +6,12 @@ compatibility_flags = ["nodejs_compat"]
 # Build configuration for Vite
 [build]
 command = "pnpm run build"
-# watch_dirs = ["src", "pages", "members", "ensembles"]
-# Note: Commented out - not yet officially supported by Wrangler
-# Wrangler automatically watches relevant directories for changes
+# ⚠️ YAML Hot-Reload Limitation:
+# Wrangler dev watches src/ for TypeScript changes, but changes to
+# ensembles/*.yaml or agents/*/agent.yaml require a server restart.
+#
+# Workaround: Use `pnpm run dev:watch` (if available) or restart wrangler dev
+# after editing YAML files. See package.json for dev scripts.
 
 # Module rules for file imports (kept for backward compatibility)
 [[rules]]
@@ -95,10 +98,27 @@ fallthrough = true
 # binding = "ANALYTICS_DB"
 # id = "your-hyperdrive-id-analytics"
 
-# AI binding for Think members
-# Uncomment when you use Think-type members:
+# ==================== Workers AI (for Think Agents) ====================
+# Required for AI-powered agents using operation: think
+# Uncomment when you use Think-type agents with Workers AI:
 # [ai]
 # binding = "AI"
+#
+# 📋 Workers AI Setup:
+# 1. Uncomment the [ai] section above
+# 2. Create an API token with Workers AI permissions:
+#    - Go to: dash.cloudflare.com → My Profile → API Tokens
+#    - Create token with: Account → Workers AI → Edit
+# 3. Add token to .dev.vars: CLOUDFLARE_API_TOKEN=your-token
+# 4. Run: CLOUDFLARE_API_TOKEN="..." wrangler dev
+#
+# Example think agent (agents/my-agent/agent.yaml):
+#   name: my-agent
+#   operation: think
+#   config:
+#     provider: workers-ai
+#     model: "@cf/meta/llama-3.1-8b-instruct"
+#   prompt: "Your prompt here with {{input.field}} variables"
 
 # ==================== Environment Variables ====================
 [vars]
