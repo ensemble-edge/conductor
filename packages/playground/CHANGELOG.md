@@ -1,5 +1,13 @@
 # @conductor/playground
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [7959377]
+  - @ensemble-edge/conductor@0.4.0
+  - @ensemble-edge/plugin-unkey@1.0.0
+
 ## 0.0.2
 
 ### Patch Changes

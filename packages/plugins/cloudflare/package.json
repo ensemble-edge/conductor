@@ -1,6 +1,6 @@
 {
   "name": "@ensemble-edge/plugin-cloudflare",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "description": "Cloudflare API plugin for Conductor",
   "main": "./dist/index.js",
@@ -45,7 +45,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.3.4"
+    "@ensemble-edge/conductor": "^0.4.0"
   },
   "devDependencies": {
     "@ensemble-edge/conductor": "workspace:*",
