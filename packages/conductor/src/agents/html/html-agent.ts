@@ -95,7 +95,7 @@ export class HtmlMember extends BaseAgent {
     }
 
     // Fallback: return as-is and let validation catch issues
-    return rawConfig as HtmlMemberConfig
+    return rawConfig as unknown as HtmlMemberConfig
   }
 
   /**
