@@ -172,7 +172,8 @@ describe('Agent Operation', () => {
 
     expect(result).toBeDefined()
     expect(result.content).toBe('Mock AI response')
-    expect(result.model).toBe('@cf/meta/llama-3.1-8b-instruct')
+    // Model info is now in _meta for cleaner user-facing output
+    expect(result._meta.model).toBe('@cf/meta/llama-3.1-8b-instruct')
   })
 
   it('should pass input correctly to the agent', async () => {

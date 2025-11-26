@@ -4,8 +4,8 @@
 	"private": true,
 	"scripts": {
 		"build": "vite build",
-		"dev": "vite dev",
-		"dev:wrangler": "wrangler dev",
+		"dev": "wrangler dev",
+		"dev:vite": "vite dev",
 		"deploy": "pnpm run build && wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"test": "vitest",
