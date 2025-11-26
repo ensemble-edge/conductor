@@ -15,7 +15,11 @@
 
 import type { AuthValidator, AuthValidationResult, AuthContext } from './types.js'
 import { BearerValidator } from './providers/bearer.js'
-import { SignatureValidator, createSignatureValidator, signaturePresets } from './providers/signature.js'
+import {
+  SignatureValidator,
+  createSignatureValidator,
+  signaturePresets,
+} from './providers/signature.js'
 import { BasicAuthValidator, createBasicValidator } from './providers/basic.js'
 import { ApiKeyValidator } from './providers/apikey.js'
 

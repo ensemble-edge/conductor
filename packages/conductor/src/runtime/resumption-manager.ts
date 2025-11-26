@@ -41,6 +41,16 @@ export interface SuspendedExecutionState {
   token: string
 
   /**
+   * Execution ID for tracing and observability
+   */
+  executionId?: string
+
+  /**
+   * Request ID from original request
+   */
+  requestId?: string
+
+  /**
    * Ensemble configuration
    */
   ensemble: EnsembleConfig

@@ -137,14 +137,15 @@ export class OpenAPIGenerator {
         for (const [name, ensemble] of this.ensembles) {
             const tag = this.inferTag(ensemble);
             tags.add(tag);
-            spec.paths[`/execute/${name}`] = {
+            spec.paths[`/api/v1/execute/ensemble/${name}`] = {
                 post: {
                     summary: ensemble.description || `Execute ${name} workflow`,
                     description: this.generateDescription(ensemble),
-                    operationId: `execute_${name}`,
+                    operationId: `execute_ensemble_${name}`,
                     tags: [tag],
+                    security: [{ bearerAuth: [] }, { apiKey: [] }],
                     requestBody: {
-                        required: true,
+                        required: false,
                         content: {
                             'application/json': {
                                 schema: this.generateInputSchema(ensemble),
@@ -162,6 +163,15 @@ export class OpenAPIGenerator {
                         },
                         '400': {
                             description: 'Invalid input',
+                        },
+                        '401': {
+                            description: 'Unauthorized - authentication required',
+                        },
+                        '403': {
+                            description: 'Forbidden - missing required permission',
+                        },
+                        '404': {
+                            description: 'Ensemble not found',
                         },
                         '500': {
                             description: 'Execution error',
@@ -181,10 +191,136 @@ export class OpenAPIGenerator {
      * Enhance documentation with AI
      */
     async enhanceWithAI(spec, aiAgent) {
-        // TODO: Call AI agent to enhance descriptions, examples, etc.
-        // This will be implemented with the docs-writer agent
-        console.log('AI enhancement not yet implemented');
-        return spec;
+        // Import the AI enhancer dynamically to avoid bundling in non-AI contexts
+        try {
+            const { DocsAIEnhancer, createOpenAPIOperationPrompt } = await import('./docs-ai-enhancer.js');
+            console.log('  Enhancing documentation with AI...');
+            // Note: In CLI context, we don't have Workers AI binding directly.
+            // The AI enhancement is designed for runtime use in Workers.
+            // For CLI, we'll return the base spec with a note about runtime enhancement.
+            console.log('  Note: Full AI enhancement requires Workers AI binding (runtime only)');
+            console.log('  Generating enhanced descriptions from templates...');
+            // Apply template-based enhancements (no AI needed)
+            const enhanced = this.applyTemplateEnhancements(spec);
+            return enhanced;
+        }
+        catch (error) {
+            console.warn('  AI enhancement module not available:', error.message);
+            return spec;
+        }
+    }
+    /**
+     * Apply template-based enhancements (deterministic, no AI)
+     */
+    applyTemplateEnhancements(spec) {
+        const enhanced = { ...spec };
+        // Enhance info description
+        enhanced.info.description = `${spec.info.description}
+
+This API is powered by Ensemble Conductor, an agentic workflow orchestration framework for Cloudflare Workers.
+
+## Quick Start
+
+1. **Execute an ensemble**: POST to \`/api/v1/execute/ensemble/{name}\` with input data
+2. **Execute an agent**: POST to \`/api/v1/execute/agent/{name}\` (if enabled)
+3. **List agents**: GET \`/api/v1/agents\` to see available agents
+4. **List ensembles**: GET \`/api/v1/ensembles\` to see available workflows
+5. **Browse docs**: Visit \`/docs\` for interactive documentation
+
+## Authentication
+
+All \`/api/v1/*\` routes require authentication by default. Provide one of:
+- \`Authorization: Bearer <token>\` header (JWT)
+- \`X-API-Key: <key>\` header (API key)
+
+## Permissions
+
+API keys can be scoped with permissions like:
+- \`ensemble:invoice-pdf:execute\` - Execute specific ensemble
+- \`ensemble:*:execute\` - Execute any ensemble
+- \`agent:http:execute\` - Execute specific agent
+- \`*\` - Full access (admin)
+
+## Rate Limits
+
+Check response headers for rate limit information:
+- \`X-RateLimit-Limit\`: Maximum requests per window
+- \`X-RateLimit-Remaining\`: Requests remaining
+- \`X-RateLimit-Reset\`: When the window resets`;
+        // Enhance path descriptions with more detail
+        for (const [path, pathItem] of Object.entries(enhanced.paths)) {
+            for (const method of ['get', 'post', 'put', 'delete', 'patch']) {
+                const operation = pathItem[method];
+                if (!operation)
+                    continue;
+                // Add examples and better descriptions based on path patterns
+                if (path.includes('/api/v1/execute/ensemble/')) {
+                    const ensembleName = path.split('/api/v1/execute/ensemble/')[1];
+                    operation.description = `Execute the **${ensembleName}** ensemble workflow.
+
+This endpoint triggers the ensemble's flow, executing each agent in sequence (or parallel where configured).
+
+**Authentication**: Requires Bearer token or API key.
+**Permission**: \`ensemble:${ensembleName}:execute\` (if auto-permissions enabled)
+
+**Input**: Provide the ensemble's expected input in the request body.
+**Output**: Returns the final output after all steps complete.
+
+The ensemble may include:
+- AI/LLM operations (think)
+- External API calls (http)
+- Database operations (data)
+- And more...`;
+                }
+                if (path.includes('/api/v1/execute/agent/')) {
+                    const agentName = path.split('/api/v1/execute/agent/')[1];
+                    operation.description = `Execute the **${agentName}** agent directly.
+
+This endpoint bypasses the ensemble flow and executes an agent directly.
+
+**Authentication**: Requires Bearer token or API key.
+**Permission**: \`agent:${agentName}:execute\` (if auto-permissions enabled)
+**Note**: Direct agent execution can be disabled via \`allowDirectAgentExecution: false\`.
+
+**Input**: Provide the agent's expected input in the request body.
+**Output**: Returns the agent's output.`;
+                }
+                if (path === '/api/v1/agents') {
+                    operation.description = `List all available agents in this Conductor project.
+
+Returns both **built-in agents** (provided by Conductor) and **custom agents** (defined in your \`agents/\` directory).
+
+Use this to discover what agents are available for use in your ensembles.`;
+                }
+                if (path === '/api/v1/agents/{name}') {
+                    operation.description = `Get detailed information about a specific agent.
+
+Returns:
+- Agent configuration schema
+- Input/output schemas
+- Usage examples
+- Whether it's a built-in or custom agent`;
+                }
+                if (path === '/api/v1/ensembles') {
+                    operation.description = `List all available ensembles in this Conductor project.
+
+Returns ensembles defined in your \`ensembles/\` directory, including:
+- Name and description
+- Trigger configuration (HTTP, cron, webhook, etc.)
+- Number of flow steps`;
+                }
+                if (path === '/api/v1/ensembles/{name}') {
+                    operation.description = `Get detailed information about a specific ensemble.
+
+Returns:
+- Full flow definition (all steps)
+- Trigger configurations
+- Input/output schemas
+- Inline agent definitions`;
+                }
+            }
+        }
+        return enhanced;
     }
     /**
      * Infer API tag from ensemble name/description

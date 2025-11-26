@@ -21,8 +21,10 @@
  * - html: HTML content generation
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
- * - docs: API documentation generation and serving
  * - autorag: Cloudflare AutoRAG for automatic retrieval-augmented generation
+ *
+ * Note: Documentation is now handled via the first-class `docs/` directory,
+ * not as an operation. See src/docs/ for the docs module.
  */
 export var Operation;
 (function (Operation) {
@@ -39,7 +41,6 @@ export var Operation;
     Operation["html"] = "html";
     Operation["pdf"] = "pdf";
     Operation["queue"] = "queue";
-    Operation["docs"] = "docs";
     Operation["autorag"] = "autorag";
 })(Operation || (Operation = {}));
 /**
@@ -72,7 +73,6 @@ export const getOperationDisplayName = (operation) => {
         [Operation.html]: 'HTML Agent',
         [Operation.pdf]: 'PDF Agent',
         [Operation.queue]: 'Queue Agent',
-        [Operation.docs]: 'Docs Agent',
         [Operation.autorag]: 'AutoRAG Agent',
     };
     return names[operation];
@@ -95,7 +95,6 @@ export const getOperationDescription = (operation) => {
         [Operation.html]: 'HTML content generation',
         [Operation.pdf]: 'PDF document generation and processing',
         [Operation.queue]: 'Message queue processing and batch operations',
-        [Operation.docs]: 'API documentation generation and serving',
         [Operation.autorag]: 'Automatic retrieval-augmented generation with Cloudflare AutoRAG',
     };
     return descriptions[operation];
@@ -116,7 +115,7 @@ export const isExternalOperation = (operation) => {
  * Check if an operation generates content
  */
 export const isContentGenerationOperation = (operation) => {
-    return [Operation.think, Operation.html, Operation.pdf, Operation.form, Operation.docs].includes(operation);
+    return [Operation.think, Operation.html, Operation.pdf, Operation.form].includes(operation);
 };
 /**
  * Check if an operation involves data storage

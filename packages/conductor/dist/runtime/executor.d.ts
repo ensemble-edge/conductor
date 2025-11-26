@@ -13,10 +13,15 @@ import { type ConductorError } from '../errors/error-types.js';
 import { type ScoringState } from './scoring/index.js';
 import { type SuspendedExecutionState } from './resumption-manager.js';
 import { type Logger } from '../observability/index.js';
+import type { ObservabilityConfig } from '../config/types.js';
 export interface ExecutorConfig {
     env: ConductorEnv;
     ctx: ExecutionContext;
     logger?: Logger;
+    /** Observability configuration from conductor.config.ts */
+    observability?: ObservabilityConfig;
+    /** Request ID from incoming HTTP request (for tracing) */
+    requestId?: string;
 }
 /**
  * Successful execution output
@@ -59,6 +64,8 @@ export declare class Executor {
     private ctx;
     private agentRegistry;
     private logger;
+    private observabilityConfig?;
+    private requestId?;
     constructor(config: ExecutorConfig);
     /**
      * Register an agent for use in ensembles

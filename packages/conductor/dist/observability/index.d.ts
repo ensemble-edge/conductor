@@ -39,4 +39,6 @@ export type { Logger, LoggerConfig, LogContext, LogEntry, MetricDataPoint, Obser
 export { ConductorLogger, createLogger, setGlobalLogger, getGlobalLogger } from './logger.js';
 export type { OpenTelemetryConfig } from './opentelemetry.js';
 export { OpenTelemetryLogger, createOpenTelemetryLogger } from './opentelemetry.js';
+export { ObservabilityManager, createObservabilityManager, createScopedLogger, createMetricsRecorder, resolveObservabilityConfig, generateExecutionId, generateRequestId, redactSensitiveFields, DEFAULT_REDACT_PATTERNS, DEFAULT_LOG_EVENTS, DEFAULT_METRIC_TYPES, } from './context.js';
+export type { ExecutionObservabilityContext, MetricsRecorder, ResolvedObservabilityConfig, } from './context.js';
 //# sourceMappingURL=index.d.ts.map

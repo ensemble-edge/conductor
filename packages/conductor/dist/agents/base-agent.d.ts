@@ -7,14 +7,71 @@
 import type { AgentConfig } from '../runtime/parser.js';
 import type { ConductorEnv } from '../types/env.js';
 import type { Logger } from '../observability/types.js';
+import type { MetricsRecorder } from '../observability/context.js';
+/**
+ * Execution context passed to agents
+ *
+ * Contains everything an agent needs to execute:
+ * - Input data
+ * - State management
+ * - Environment bindings
+ * - Observability (logger + metrics)
+ */
 export interface AgentExecutionContext {
+    /** Input data for the agent */
     input: Record<string, any>;
+    /** Shared state (if ensemble has state config) */
     state?: Record<string, any>;
+    /** Function to update shared state */
     setState?: (updates: Record<string, any>) => void;
+    /** Cloudflare environment bindings */
     env: ConductorEnv;
+    /** Cloudflare execution context */
     ctx: ExecutionContext;
+    /** Outputs from previous agents in the flow */
     previousOutputs?: Record<string, any>;
+    /**
+     * Scoped logger for this agent
+     * Pre-configured with agent name, ensemble name, and execution IDs
+     *
+     * @example
+     * ```typescript
+     * export default async function(context: AgentExecutionContext) {
+     *   const { logger } = context
+     *   logger.info('Processing started', { itemCount: items.length })
+     *   // ... do work ...
+     *   logger.debug('Processing complete', { result })
+     *   return result
+     * }
+     * ```
+     */
     logger?: Logger;
+    /**
+     * Metrics recorder for Analytics Engine
+     * Pre-configured with agent context
+     *
+     * @example
+     * ```typescript
+     * export default async function(context: AgentExecutionContext) {
+     *   const { metrics } = context
+     *   const startTime = Date.now()
+     *   // ... do work ...
+     *   metrics.record('items.processed', items.length)
+     *   return result
+     * }
+     * ```
+     */
+    metrics?: MetricsRecorder;
+    /**
+     * Unique execution ID for tracing
+     * Same across all agents in an ensemble execution
+     */
+    executionId?: string;
+    /**
+     * Unique request ID
+     * Same across the entire HTTP request lifecycle
+     */
+    requestId?: string;
 }
 export interface AgentResponse {
     success: boolean;

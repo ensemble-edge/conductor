@@ -25,8 +25,10 @@ export function registerBuiltInMiddleware() {
         package: 'hono/logger',
     });
     // Compress - gzip/brotli compression
+    // NOTE: Cloudflare Workers automatically compress responses at the edge.
+    // Only use this middleware for non-Cloudflare deployments to avoid double compression.
     registry.register('compress', compress(), {
-        description: 'Response compression (gzip, brotli)',
+        description: 'Response compression (gzip, brotli) - skip on Cloudflare (auto-compressed)',
         package: 'hono/compress',
     });
     // Timing - adds Server-Timing header

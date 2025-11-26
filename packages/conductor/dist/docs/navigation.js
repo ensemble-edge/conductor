@@ -427,7 +427,7 @@ export function renderDocsPage(props) {
   </main>
 
   <footer style="text-align: center; padding: 32px; color: #64748b; font-size: 0.875rem;">
-    <p>Built with <a href="https://ensemble.dev/conductor">Ensemble Conductor</a></p>
+    <p>Built with <a href="https://github.com/ensemble-edge">Ensemble Edge</a></p>
   </footer>
 </body>
 </html>`;

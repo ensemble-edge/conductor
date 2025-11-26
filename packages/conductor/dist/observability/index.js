@@ -37,3 +37,5 @@
 export { LogLevel } from './types.js';
 export { ConductorLogger, createLogger, setGlobalLogger, getGlobalLogger } from './logger.js';
 export { OpenTelemetryLogger, createOpenTelemetryLogger } from './opentelemetry.js';
+// Context management
+export { ObservabilityManager, createObservabilityManager, createScopedLogger, createMetricsRecorder, resolveObservabilityConfig, generateExecutionId, generateRequestId, redactSensitiveFields, DEFAULT_REDACT_PATTERNS, DEFAULT_LOG_EVENTS, DEFAULT_METRIC_TYPES, } from './context.js';

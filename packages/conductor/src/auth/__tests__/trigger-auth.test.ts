@@ -29,7 +29,13 @@ async function computeHMAC(message: string, secret: string): Promise<string> {
   const keyData = encoder.encode(secret)
   const messageData = encoder.encode(message)
 
-  const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
 
   const signature = await crypto.subtle.sign('HMAC', key, messageData)
 
@@ -89,7 +95,9 @@ describe('getValidatorForTrigger', () => {
       const config: TriggerAuthConfig = {
         type: 'signature',
       }
-      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow('Signature auth requires a secret')
+      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow(
+        'Signature auth requires a secret'
+      )
     })
   })
 
@@ -117,7 +125,9 @@ describe('getValidatorForTrigger', () => {
       const config: TriggerAuthConfig = {
         type: 'basic',
       }
-      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow('Basic auth requires credentials')
+      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow(
+        'Basic auth requires credentials'
+      )
     })
   })
 
@@ -250,7 +260,10 @@ describe('createTriggerAuthMiddleware', () => {
       await middleware(mockContext, next)
 
       expect(next).not.toHaveBeenCalled()
-      expect(mockContext.header).toHaveBeenCalledWith('WWW-Authenticate', expect.stringContaining('Basic realm='))
+      expect(mockContext.header).toHaveBeenCalledWith(
+        'WWW-Authenticate',
+        expect.stringContaining('Basic realm=')
+      )
     })
   })
 

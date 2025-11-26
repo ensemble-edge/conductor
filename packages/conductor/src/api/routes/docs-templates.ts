@@ -199,7 +199,7 @@ function baseTemplate(
     </div>
   </main>
   <footer style="text-align: center; padding: 32px; color: #64748b; font-size: 0.875rem;">
-    <p>Built with <a href="https://ensemble.dev/conductor">Ensemble Conductor</a></p>
+    <p>Built with <a href="https://github.com/ensemble-edge">Ensemble Edge</a></p>
   </footer>
 </body>
 </html>`
@@ -417,12 +417,24 @@ export function renderAgentDetail(props: AgentDetailProps): string {
     }
 
     <div class="section">
-      <h3 class="section-title">Usage</h3>
+      <h3 class="section-title">Usage in Ensemble</h3>
       <pre><code># In an ensemble YAML file
 flow:
   - agent: ${props.name}
     input:
       # Your input here</code></pre>
+    </div>
+
+    <div class="section">
+      <h3 class="section-title">Execute via API</h3>
+      <pre><code>curl -X POST http://localhost:8787/api/v1/execute/agent/${props.name} \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
+  -d '{"input": {}}'</code></pre>
+      <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem;">
+        Direct agent execution may be disabled by security configuration.
+        Or use <code>-H "X-API-Key: YOUR_API_KEY"</code> instead of Bearer token.
+      </p>
     </div>
   `
 
@@ -638,9 +650,13 @@ export function renderEnsembleDetail(props: EnsembleDetailProps): string {
 
     <div class="section">
       <h3 class="section-title">Execute via API</h3>
-      <pre><code>curl -X POST http://localhost:8787/execute/${props.name} \\
+      <pre><code>curl -X POST http://localhost:8787/api/v1/execute/ensemble/${props.name} \\
   -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
   -d '{"input": {}}'</code></pre>
+      <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem;">
+        Or use <code>-H "X-API-Key: YOUR_API_KEY"</code> instead of Bearer token.
+      </p>
     </div>
   `
 

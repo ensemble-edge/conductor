@@ -119,12 +119,15 @@ export interface AuthConfig {
   }
 }
 
-export interface AuthContext {
-  authenticated: boolean
-  apiKey?: string
-  userId?: string
-  tier?: 'free' | 'pro' | 'enterprise'
-}
+// Import the canonical AuthContext from auth module
+import type { AuthContext as CanonicalAuthContext } from '../auth/types.js'
+
+// Re-export for external use
+export type { AuthContext as CanonicalAuthContext } from '../auth/types.js'
+
+// Use the canonical AuthContext in this module
+// This type alias ensures proper typing for Hono context
+export type AuthContext = CanonicalAuthContext
 
 /**
  * Rate Limiting Types

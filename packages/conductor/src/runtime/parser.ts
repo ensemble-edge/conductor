@@ -510,7 +510,94 @@ const EnsembleSchema = z.object({
   flow: z.array(z.lazy(() => FlowStepSchema)).optional(),
   inputs: z.record(z.unknown()).optional(), // Input schema definition
   output: z.record(z.unknown()).optional(),
+  /** Ensemble-level logging configuration */
+  logging: z
+    .object({
+      /** Override log level for this ensemble */
+      level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
+      /** Execution trace logging */
+      trace: z
+        .object({
+          enabled: z.boolean().optional(),
+          includeInputs: z.boolean().optional(),
+          includeOutputs: z.boolean().optional(),
+          redactInputs: z.array(z.string()).optional(),
+          redactOutputs: z.array(z.string()).optional(),
+        })
+        .optional(),
+      /** Per-step logging overrides (keyed by step agent name or ID) */
+      steps: z.record(z.record(z.unknown())).optional(),
+    })
+    .optional(),
+  /** Ensemble-level metrics configuration */
+  metrics: z
+    .object({
+      enabled: z.boolean().optional(),
+      /** Custom business metrics to track */
+      custom: z
+        .array(
+          z.object({
+            name: z.string(),
+            condition: z.string().optional(), // e.g., 'success' or expression
+            value: z.string().optional(), // Expression like '_executionTime'
+            type: z.enum(['counter', 'histogram', 'gauge']).optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
+  /** Ensemble-level tracing configuration */
+  tracing: z
+    .object({
+      enabled: z.boolean().optional(),
+      samplingRate: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
 })
+
+/**
+ * Agent-level logging configuration schema
+ * Can override global logging settings for specific agents
+ */
+const AgentLoggingSchema = z
+  .object({
+    /** Override log level for this agent */
+    level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
+    /** Additional context fields to include in logs */
+    context: z.array(z.string()).optional(),
+    /** Fields to redact from logs (merged with global) */
+    redact: z.array(z.string()).optional(),
+    /** Events to log for this agent */
+    events: z
+      .object({
+        onStart: z.boolean().optional(),
+        onComplete: z.boolean().optional(),
+        onError: z.boolean().optional(),
+        onCacheHit: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .optional()
+
+/**
+ * Agent-level metrics configuration schema
+ */
+const AgentMetricsSchema = z
+  .object({
+    /** Enable/disable metrics for this agent */
+    enabled: z.boolean().optional(),
+    /** Custom metrics to record */
+    custom: z
+      .array(
+        z.object({
+          name: z.string(),
+          value: z.string(), // Expression to extract value (e.g., 'output.count')
+          type: z.enum(['counter', 'histogram', 'gauge']).optional(),
+        })
+      )
+      .optional(),
+  })
+  .optional()
 
 const AgentSchema = z.object({
   name: z.string().min(1, 'Agent name is required'),
@@ -538,6 +625,10 @@ const AgentSchema = z.object({
       output: z.record(z.unknown()).optional(),
     })
     .optional(),
+  /** Agent-level logging configuration */
+  logging: AgentLoggingSchema,
+  /** Agent-level metrics configuration */
+  metrics: AgentMetricsSchema,
 })
 
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>

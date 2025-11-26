@@ -411,12 +411,12 @@ CREATE TABLE error_logs (
 
 ## Learn More
 
-- [HTTP Trigger Documentation](https://docs.ensemble.dev/conductor/core-concepts/triggers#http)
-- [Your First Website Guide](https://docs.ensemble.dev/conductor/getting-started/your-first-website)
-- [Building with Conductor](https://docs.ensemble.dev/conductor/building/creating-agents)
+- [HTTP Trigger Documentation](https://docs.ensemble.ai/conductor/core-concepts/triggers#http)
+- [Your First Website Guide](https://docs.ensemble.ai/conductor/getting-started/your-first-website)
+- [Building with Conductor](https://docs.ensemble.ai/conductor/building/creating-agents)
 
 ## Support
 
-- Documentation: https://docs.ensemble.dev
-- GitHub: https://github.com/ensemble-edge/edgit
-- Community: https://github.com/ensemble-edge/edgit/discussions
+- Documentation: https://docs.ensemble.ai
+- GitHub: https://github.com/anthropics/conductor
+- Community: https://github.com/anthropics/conductor/discussions

@@ -68,6 +68,7 @@ export interface Operation {
   description?: string
   operationId?: string
   tags?: string[]
+  security?: Array<Record<string, string[]>>
   requestBody?: RequestBody
   responses: Record<string, Response>
   parameters?: Parameter[]
@@ -270,14 +271,15 @@ export class OpenAPIGenerator {
       const tag = this.inferTag(ensemble)
       tags.add(tag)
 
-      spec.paths[`/execute/${name}`] = {
+      spec.paths[`/api/v1/execute/ensemble/${name}`] = {
         post: {
           summary: ensemble.description || `Execute ${name} workflow`,
           description: this.generateDescription(ensemble),
-          operationId: `execute_${name}`,
+          operationId: `execute_ensemble_${name}`,
           tags: [tag],
+          security: [{ bearerAuth: [] }, { apiKey: [] }],
           requestBody: {
-            required: true,
+            required: false,
             content: {
               'application/json': {
                 schema: this.generateInputSchema(ensemble),
@@ -295,6 +297,15 @@ export class OpenAPIGenerator {
             },
             '400': {
               description: 'Invalid input',
+            },
+            '401': {
+              description: 'Unauthorized - authentication required',
+            },
+            '403': {
+              description: 'Forbidden - missing required permission',
+            },
+            '404': {
+              description: 'Ensemble not found',
             },
             '500': {
               description: 'Execution error',
@@ -352,16 +363,25 @@ This API is powered by Ensemble Conductor, an agentic workflow orchestration fra
 
 ## Quick Start
 
-1. **Execute an ensemble**: POST to \`/execute/{ensemble-name}\` with input data
-2. **List agents**: GET \`/api/v1/agents\` to see available agents
-3. **List ensembles**: GET \`/api/v1/ensembles\` to see available workflows
-4. **Browse docs**: Visit \`/docs\` for interactive documentation
+1. **Execute an ensemble**: POST to \`/api/v1/execute/ensemble/{name}\` with input data
+2. **Execute an agent**: POST to \`/api/v1/execute/agent/{name}\` (if enabled)
+3. **List agents**: GET \`/api/v1/agents\` to see available agents
+4. **List ensembles**: GET \`/api/v1/ensembles\` to see available workflows
+5. **Browse docs**: Visit \`/docs\` for interactive documentation
 
 ## Authentication
 
-Depending on configuration, you may need to provide:
-- \`Authorization: Bearer <token>\` header
-- \`X-API-Key: <key>\` header
+All \`/api/v1/*\` routes require authentication by default. Provide one of:
+- \`Authorization: Bearer <token>\` header (JWT)
+- \`X-API-Key: <key>\` header (API key)
+
+## Permissions
+
+API keys can be scoped with permissions like:
+- \`ensemble:invoice-pdf:execute\` - Execute specific ensemble
+- \`ensemble:*:execute\` - Execute any ensemble
+- \`agent:http:execute\` - Execute specific agent
+- \`*\` - Full access (admin)
 
 ## Rate Limits
 
@@ -377,11 +397,14 @@ Check response headers for rate limit information:
         if (!operation) continue
 
         // Add examples and better descriptions based on path patterns
-        if (path.includes('/execute/')) {
-          const ensembleName = path.split('/execute/')[1]
+        if (path.includes('/api/v1/execute/ensemble/')) {
+          const ensembleName = path.split('/api/v1/execute/ensemble/')[1]
           operation.description = `Execute the **${ensembleName}** ensemble workflow.
 
 This endpoint triggers the ensemble's flow, executing each agent in sequence (or parallel where configured).
+
+**Authentication**: Requires Bearer token or API key.
+**Permission**: \`ensemble:${ensembleName}:execute\` (if auto-permissions enabled)
 
 **Input**: Provide the ensemble's expected input in the request body.
 **Output**: Returns the final output after all steps complete.
@@ -391,6 +414,20 @@ The ensemble may include:
 - External API calls (http)
 - Database operations (data)
 - And more...`
+        }
+
+        if (path.includes('/api/v1/execute/agent/')) {
+          const agentName = path.split('/api/v1/execute/agent/')[1]
+          operation.description = `Execute the **${agentName}** agent directly.
+
+This endpoint bypasses the ensemble flow and executes an agent directly.
+
+**Authentication**: Requires Bearer token or API key.
+**Permission**: \`agent:${agentName}:execute\` (if auto-permissions enabled)
+**Note**: Direct agent execution can be disabled via \`allowDirectAgentExecution: false\`.
+
+**Input**: Provide the agent's expected input in the request body.
+**Output**: Returns the agent's output.`
         }
 
         if (path === '/api/v1/agents') {

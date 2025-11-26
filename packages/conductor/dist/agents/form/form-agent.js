@@ -16,7 +16,8 @@ import { checkRateLimit } from './utils/rate-limit.js';
 export class FormAgent extends BaseAgent {
     constructor(config) {
         super(config);
-        this.formConfig = config;
+        // Extract nested config (config.config contains the agent-specific settings)
+        this.formConfig = (config.config || {});
         // Validate configuration
         this.validateConfig();
     }

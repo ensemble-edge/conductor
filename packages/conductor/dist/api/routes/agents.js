@@ -95,7 +95,33 @@ agents.get('/:name', async (c) => {
             };
             return c.json(response);
         }
-        // TODO: Check user-defined agents from database
+        // Check user-defined agents from auto-discovery
+        const memberLoader = getMemberLoader();
+        if (memberLoader) {
+            const config = memberLoader.getAgentConfig(name);
+            if (config) {
+                const response = {
+                    name: config.name,
+                    operation: config.operation,
+                    version: '1.0.0',
+                    description: config.description || '',
+                    builtIn: false,
+                    config: {
+                        schema: undefined, // Agent config schema not available via discovery
+                        defaults: config.config || {},
+                    },
+                    input: {
+                        schema: config.schema?.input,
+                        examples: [],
+                    },
+                    output: {
+                        schema: config.schema?.output,
+                    },
+                };
+                return c.json(response);
+            }
+        }
+        // Agent not found in either registry
         return c.json({
             error: 'NotFound',
             message: `Agent not found: ${name}`,

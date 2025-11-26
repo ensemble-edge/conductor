@@ -197,6 +197,10 @@ export type ReservedRoute = (typeof RESERVED_ROUTES)[number];
 export declare function isReservedRoute(slug: string): slug is ReservedRoute;
 /**
  * Default docs definition values
+ *
+ * SECURE BY DEFAULT: Auth requirement defaults to 'required'.
+ * When users run `conductor init`, the generated docs.yaml will have
+ * explicit `auth.requirement: public` for their convenience.
  */
 export declare const DEFAULT_DOCS_DEFINITION: DocsDefinition;
 /**

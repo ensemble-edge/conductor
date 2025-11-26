@@ -92,7 +92,9 @@ export class BasicAuthValidator implements AuthValidator {
       .filter((c): c is Credentials => c !== null)
 
     if (this.credentials.length === 0) {
-      throw new Error('BasicAuthValidator: No valid credentials provided. Format: "username:password"')
+      throw new Error(
+        'BasicAuthValidator: No valid credentials provided. Format: "username:password"'
+      )
     }
   }
 
@@ -211,7 +213,9 @@ export function createBasicValidator(
  * Looks for BASIC_AUTH_CREDENTIALS in the environment.
  * Can be a single credential or comma-separated list.
  */
-export function createBasicValidatorFromEnv(env: Record<string, string>): BasicAuthValidator | null {
+export function createBasicValidatorFromEnv(
+  env: Record<string, string>
+): BasicAuthValidator | null {
   const credentials = env.BASIC_AUTH_CREDENTIALS
   if (!credentials) {
     return null

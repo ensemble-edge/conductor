@@ -186,7 +186,7 @@ describe('Inline Code Validation', () => {
         `1. Create a file: scripts/${agentName}.ts\n` +
         '2. Export your function: export default async function(context) { ... }\n' +
         `3. Update your ensemble to use: config.script: "scripts/${agentName}"\n\n` +
-        'See: https://docs.ensemble.dev/conductor/guides/migrate-inline-code'
+        'See: https://docs.ensemble.ai/conductor/guides/migrate-inline-code'
       )
     }
 
@@ -211,7 +211,7 @@ describe('Inline Code Validation', () => {
 
     it('should include documentation link', () => {
       const error = getInlineCodeError('test')
-      expect(error).toContain('https://docs.ensemble.dev')
+      expect(error).toContain('https://docs.ensemble.ai')
     })
   })
 

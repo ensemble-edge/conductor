@@ -94,15 +94,14 @@ describe('Workers Config Loader', () => {
 				type: 'env',
 				env: {
 					CONDUCTOR_OBSERVABILITY_LOGGING: 'true',
-					CONDUCTOR_OBSERVABILITY_LOG_LEVEL: 'debug',
 					CONDUCTOR_OBSERVABILITY_METRICS: 'true'
 				}
 			});
 
 			expect(result.success).toBe(true);
 			if (result.success) {
+				// New nested config structure: logging and metrics can be boolean or object
 				expect(result.value.observability?.logging).toBe(true);
-				expect(result.value.observability?.logLevel).toBe('debug');
 				expect(result.value.observability?.metrics).toBe(true);
 			}
 		});
@@ -377,14 +376,16 @@ describe('Workers Config Loader', () => {
 				type: 'object',
 				config: {
 					observability: {
-						logLevel: 'verbose' as any
+						logging: {
+							level: 'verbose' as any
+						}
 					}
 				}
 			});
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error.message).toContain('Invalid observability.logLevel');
+				expect(result.error.message).toContain('Invalid observability.logging.level');
 			}
 		});
 

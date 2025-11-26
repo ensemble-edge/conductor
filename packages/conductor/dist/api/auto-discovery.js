@@ -14,6 +14,7 @@ import { createLogger } from '../observability/index.js';
 import { getTriggerRegistry } from '../runtime/trigger-registry.js';
 import { registerBuiltInTriggers } from '../runtime/built-in-triggers.js';
 import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js';
+import { getDocsLoader } from '../docs/index.js';
 const logger = createLogger({ serviceName: 'auto-discovery-api' });
 // Global loaders (initialized once per Worker instance)
 let memberLoader = null;
@@ -165,6 +166,18 @@ async function initializeLoaders(env, ctx, config) {
             logger.info(`[Auto-Discovery] Discovering ${config.ensembles.length} ensembles...`);
             await ensembleLoader.autoDiscover(config.ensembles);
             logger.info(`[Auto-Discovery] Ensembles loaded: ${ensembleLoader.getEnsembleNames().join(', ')}`);
+        }
+        // Auto-discover docs if enabled and available
+        if (config.autoDiscover !== false && config.docs && config.docs.length > 0) {
+            logger.info(`[Auto-Discovery] Discovering ${config.docs.length} docs pages...`);
+            const docsLoader = getDocsLoader();
+            // Convert array to Map format expected by DocsDirectoryLoader.init()
+            const markdownFiles = new Map();
+            for (const doc of config.docs) {
+                markdownFiles.set(doc.name, doc.content);
+            }
+            await docsLoader.init(undefined, markdownFiles);
+            logger.info(`[Auto-Discovery] Docs pages loaded: ${config.docs.map((d) => d.name).join(', ')}`);
         }
         initialized = true;
     }

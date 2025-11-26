@@ -105,12 +105,9 @@ export interface AuthConfig {
         };
     };
 }
-export interface AuthContext {
-    authenticated: boolean;
-    apiKey?: string;
-    userId?: string;
-    tier?: 'free' | 'pro' | 'enterprise';
-}
+import type { AuthContext as CanonicalAuthContext } from '../auth/types.js';
+export type { AuthContext as CanonicalAuthContext } from '../auth/types.js';
+export type AuthContext = CanonicalAuthContext;
 /**
  * Rate Limiting Types
  */

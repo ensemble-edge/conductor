@@ -119,7 +119,11 @@ function configFromEnv(env) {
     }
     if (env.CONDUCTOR_OBSERVABILITY_LOG_LEVEL) {
         config.observability = config.observability || {};
-        config.observability.logLevel = env.CONDUCTOR_OBSERVABILITY_LOG_LEVEL;
+        // Initialize logging as object if it's boolean or undefined
+        if (typeof config.observability.logging !== 'object') {
+            config.observability.logging = { enabled: config.observability.logging !== false };
+        }
+        config.observability.logging.level = env.CONDUCTOR_OBSERVABILITY_LOG_LEVEL;
     }
     if (env.CONDUCTOR_OBSERVABILITY_METRICS !== undefined) {
         config.observability = config.observability || {};
@@ -217,10 +221,13 @@ function validateConfig(config) {
         }
     }
     // Validate observability config
-    if (config.observability?.logLevel) {
-        const validLevels = ['debug', 'info', 'warn', 'error'];
-        if (!validLevels.includes(config.observability.logLevel)) {
-            errors.push(`Invalid observability.logLevel: ${config.observability.logLevel}. Must be one of: ${validLevels.join(', ')}`);
+    if (config.observability?.logging && typeof config.observability.logging === 'object') {
+        const logLevel = config.observability.logging.level;
+        if (logLevel) {
+            const validLevels = ['debug', 'info', 'warn', 'error'];
+            if (!validLevels.includes(logLevel)) {
+                errors.push(`Invalid observability.logging.level: ${logLevel}. Must be one of: ${validLevels.join(', ')}`);
+            }
         }
     }
     // Validate execution config

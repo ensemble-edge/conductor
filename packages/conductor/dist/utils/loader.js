@@ -15,7 +15,6 @@ import { FormAgent } from '../agents/form/form-agent.js';
 import { HtmlMember } from '../agents/html/html-agent.js';
 import { PdfMember } from '../agents/pdf/pdf-agent.js';
 import { QueueMember } from '../agents/queue/queue-agent.js';
-import { DocsMember } from '../agents/docs/docs-agent.js';
 import { ToolsMember } from '../agents/built-in/tools/tools-agent.js';
 import { ValidateMember } from '../agents/built-in/validate/validate-agent.js';
 import { AutoRAGMember } from '../agents/built-in/autorag/autorag-agent.js';
@@ -172,8 +171,6 @@ export class AgentLoader {
                 return new PdfMember(config);
             case 'queue':
                 return new QueueMember(config);
-            case 'docs':
-                return new DocsMember(config);
             case 'autorag':
                 return new AutoRAGMember(config);
             default:

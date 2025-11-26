@@ -5,12 +5,20 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { SignatureValidator, createSignatureValidator, signaturePresets } from '../providers/signature.js'
+import {
+  SignatureValidator,
+  createSignatureValidator,
+  signaturePresets,
+} from '../providers/signature.js'
 
 /**
  * Helper to compute HMAC signature for tests
  */
-async function computeHMAC(message: string, secret: string, algorithm: string = 'sha256'): Promise<string> {
+async function computeHMAC(
+  message: string,
+  secret: string,
+  algorithm: string = 'sha256'
+): Promise<string> {
   const encoder = new TextEncoder()
   const keyData = encoder.encode(secret)
   const messageData = encoder.encode(message)
@@ -24,7 +32,13 @@ async function computeHMAC(message: string, secret: string, algorithm: string = 
 
   const cryptoAlgorithm = algoMap[algorithm.toLowerCase()] || 'SHA-256'
 
-  const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: cryptoAlgorithm }, false, ['sign'])
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: cryptoAlgorithm },
+    false,
+    ['sign']
+  )
 
   const signature = await crypto.subtle.sign('HMAC', key, messageData)
 
