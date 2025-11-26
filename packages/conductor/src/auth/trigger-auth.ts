@@ -114,9 +114,53 @@ class SimpleBearerValidator implements AuthValidator {
 }
 
 /**
+ * Resolve environment variable references in a string
+ *
+ * Supports two syntaxes:
+ * - $env.VAR_NAME (shorthand)
+ * - ${env.VAR_NAME} (template syntax)
+ *
+ * @param value - The string potentially containing env var references
+ * @param env - The environment object containing variable values
+ * @returns The resolved string, or the original if no env var syntax found
+ */
+function resolveEnvSecret(value: string | undefined, env: any): string | undefined {
+  if (!value || typeof value !== 'string') {
+    return value
+  }
+
+  // Match $env.VAR_NAME (shorthand syntax)
+  const shorthandMatch = value.match(/^\$env\.(\w+)$/)
+  if (shorthandMatch) {
+    const varName = shorthandMatch[1]
+    const resolved = env?.[varName]
+    if (resolved === undefined) {
+      console.warn(`[TriggerAuth] Environment variable '${varName}' not found`)
+    }
+    return resolved ?? value
+  }
+
+  // Match ${env.VAR_NAME} (template syntax)
+  const templateMatch = value.match(/^\$\{env\.(\w+)\}$/)
+  if (templateMatch) {
+    const varName = templateMatch[1]
+    const resolved = env?.[varName]
+    if (resolved === undefined) {
+      console.warn(`[TriggerAuth] Environment variable '${varName}' not found`)
+    }
+    return resolved ?? value
+  }
+
+  return value
+}
+
+/**
  * Get the appropriate auth validator based on trigger config
  */
 export function getValidatorForTrigger(config: TriggerAuthConfig, env: any): AuthValidator {
+  // Resolve environment variable references in the secret
+  const resolvedSecret = resolveEnvSecret(config.secret, env)
+
   switch (config.type) {
     case 'bearer':
       // Use JWT validation if JWT_SECRET exists, otherwise simple token match
@@ -127,25 +171,25 @@ export function getValidatorForTrigger(config: TriggerAuthConfig, env: any): Aut
           audience: env.JWT_AUDIENCE,
         })
       }
-      if (!config.secret) {
+      if (!resolvedSecret) {
         throw new Error('Bearer auth requires a secret')
       }
-      return new SimpleBearerValidator(config.secret)
+      return new SimpleBearerValidator(resolvedSecret)
 
     case 'signature':
-      if (!config.secret) {
+      if (!resolvedSecret) {
         throw new Error('Signature auth requires a secret')
       }
 
       // Use preset if specified
       if (config.preset) {
-        const presetConfig = signaturePresets[config.preset](config.secret)
+        const presetConfig = signaturePresets[config.preset](resolvedSecret)
         return createSignatureValidator(presetConfig)
       }
 
       // Use custom config
       return createSignatureValidator({
-        secret: config.secret,
+        secret: resolvedSecret,
         algorithm: config.algorithm || 'sha256',
         signatureHeader: config.signatureHeader,
         timestampHeader: config.timestampHeader,
@@ -153,11 +197,11 @@ export function getValidatorForTrigger(config: TriggerAuthConfig, env: any): Aut
       })
 
     case 'basic':
-      if (!config.secret) {
+      if (!resolvedSecret) {
         throw new Error('Basic auth requires credentials (format: username:password)')
       }
       return createBasicValidator({
-        credentials: config.secret,
+        credentials: resolvedSecret,
         realm: config.realm,
       })
 

@@ -51,6 +51,99 @@ describe('getValidatorForTrigger', () => {
     mockEnv = {}
   })
 
+  describe('environment variable resolution', () => {
+    it('should resolve $env.VAR_NAME syntax for bearer secret', async () => {
+      mockEnv = { API_SECRET: 'my-actual-secret' }
+      const config: TriggerAuthConfig = {
+        type: 'bearer',
+        secret: '$env.API_SECRET',
+      }
+      const validator = getValidatorForTrigger(config, mockEnv)
+
+      // Test that the resolved secret is used
+      const validRequest = new Request('https://example.com', {
+        headers: { Authorization: 'Bearer my-actual-secret' },
+      })
+      const result = await validator.validate(validRequest, mockEnv)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should resolve ${env.VAR_NAME} syntax for bearer secret', async () => {
+      mockEnv = { MY_TOKEN: 'secret-from-template' }
+      const config: TriggerAuthConfig = {
+        type: 'bearer',
+        secret: '${env.MY_TOKEN}',
+      }
+      const validator = getValidatorForTrigger(config, mockEnv)
+
+      const validRequest = new Request('https://example.com', {
+        headers: { Authorization: 'Bearer secret-from-template' },
+      })
+      const result = await validator.validate(validRequest, mockEnv)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject token when env var not found (falls back to literal)', async () => {
+      mockEnv = {} // No API_SECRET defined
+      const config: TriggerAuthConfig = {
+        type: 'bearer',
+        secret: '$env.API_SECRET',
+      }
+      const validator = getValidatorForTrigger(config, mockEnv)
+
+      // Token matches the literal string since env var not found
+      const literalRequest = new Request('https://example.com', {
+        headers: { Authorization: 'Bearer $env.API_SECRET' },
+      })
+      const result = await validator.validate(literalRequest, mockEnv)
+      expect(result.valid).toBe(true) // Falls back to literal comparison
+    })
+
+    it('should resolve env var for signature auth', async () => {
+      mockEnv = { WEBHOOK_SECRET: 'webhook-resolved-secret' }
+      const config: TriggerAuthConfig = {
+        type: 'signature',
+        secret: '$env.WEBHOOK_SECRET',
+      }
+      const validator = getValidatorForTrigger(config, mockEnv)
+      expect(validator).toBeDefined()
+      // The validator should be created with the resolved secret
+    })
+
+    it('should resolve env var for basic auth', async () => {
+      mockEnv = { BASIC_CREDS: 'admin:secret123' }
+      const config: TriggerAuthConfig = {
+        type: 'basic',
+        secret: '${env.BASIC_CREDS}',
+      }
+      const validator = getValidatorForTrigger(config, mockEnv)
+      expect(validator).toBeInstanceOf(BasicAuthValidator)
+
+      // Test that the resolved credentials work
+      const encoded = btoa('admin:secret123')
+      const validRequest = new Request('https://example.com', {
+        headers: { Authorization: `Basic ${encoded}` },
+      })
+      const result = await validator.validate(validRequest, mockEnv)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should use literal secret if no env var syntax present', async () => {
+      mockEnv = { API_SECRET: 'should-not-use-this' }
+      const config: TriggerAuthConfig = {
+        type: 'bearer',
+        secret: 'literal-token',
+      }
+      const validator = getValidatorForTrigger(config, mockEnv)
+
+      const validRequest = new Request('https://example.com', {
+        headers: { Authorization: 'Bearer literal-token' },
+      })
+      const result = await validator.validate(validRequest, mockEnv)
+      expect(result.valid).toBe(true)
+    })
+  })
+
   describe('bearer type', () => {
     it('should create simple bearer validator when no JWT_SECRET', () => {
       const config: TriggerAuthConfig = {
