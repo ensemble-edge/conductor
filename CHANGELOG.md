@@ -1,5 +1,16 @@
 # @ensemble-edge/conductor
 
+## 0.4.5
+
+### Patch Changes
+
+- d4b22aa: ## Bug Fixes
+
+  Fix trigger authentication for user-defined routes:
+  - **Critical**: Global API auth middleware now only applies to built-in `/api/v1/*` routes
+  - User-defined trigger routes (e.g., `/api/protected`) now correctly use their own auth config
+  - Previously, global middleware blocked trigger-specific auth from running, causing all authenticated trigger endpoints to return 401
+
 ## 0.4.4
 
 ### Patch Changes
