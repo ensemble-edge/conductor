@@ -43,6 +43,10 @@ import { applyFilters } from './filters.js'
  * - Full: '${input.name}' or '{{input.name}}' → returns value as-is (any type)
  * - Partial: 'Hello ${input.name}!' or 'Hello {{input.name}}!' → returns interpolated string
  *
+ * Supports nullish coalescing (??):
+ * - ${input.name ?? "default"} → returns input.name if not null/undefined, else "default"
+ * - ${input.query.name ?? input.body.name ?? "World"} → chain of fallbacks
+ *
  * Supports filter chains:
  * - ${input.text | uppercase}
  * - ${input.text | split(" ") | length}
@@ -109,11 +113,60 @@ export class StringResolver implements InterpolationResolver {
   }
 
   /**
-   * Traverse context using dot-separated path with optional filter chain
-   * Supports: input.text | split(' ') | length
-   * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
+   * Traverse context using dot-separated path with optional nullish coalescing and filter chain
+   * Supports:
+   * - input.text | split(' ') | length (filters)
+   * - input.name ?? "default" (nullish coalescing)
+   * - input.query.name ?? input.body.name ?? "World" (chained nullish coalescing)
+   * Note: We check for single pipe (filter) vs double pipe (?? nullish coalescing)
    */
   private traversePath(path: string, context: ResolutionContext): unknown {
+    // First, handle nullish coalescing (??) - split and try each alternative
+    if (path.includes('??')) {
+      const alternatives = path.split('??').map((alt) => alt.trim())
+
+      for (const alt of alternatives) {
+        // Check if this alternative is a string literal (quoted)
+        const stringLiteralMatch = alt.match(/^["'](.*)["']$/)
+        if (stringLiteralMatch) {
+          // Return the literal string value (without quotes)
+          return stringLiteralMatch[1]
+        }
+
+        // Check if this alternative is a numeric literal
+        const numericMatch = alt.match(/^-?\d+(\.\d+)?$/)
+        if (numericMatch) {
+          return parseFloat(alt)
+        }
+
+        // Check if this alternative is a boolean literal
+        if (alt === 'true') return true
+        if (alt === 'false') return false
+
+        // Check if this alternative is null literal
+        if (alt === 'null') return null
+
+        // Try to resolve as a path (may include filters)
+        const value = this.resolvePathWithFilters(alt, context)
+
+        // Return first non-null/undefined value (nullish coalescing behavior)
+        if (value !== null && value !== undefined) {
+          return value
+        }
+      }
+
+      // All alternatives were null/undefined
+      return undefined
+    }
+
+    // No nullish coalescing, check for filters
+    return this.resolvePathWithFilters(path, context)
+  }
+
+  /**
+   * Resolve a path that may include filter chains
+   */
+  private resolvePathWithFilters(path: string, context: ResolutionContext): unknown {
     // Check if path contains filter syntax (single pipe character, not ||)
     // Use a regex to find single pipes that aren't part of ||
     const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path)
