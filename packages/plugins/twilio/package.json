@@ -44,7 +44,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.3.3",
+    "@ensemble-edge/conductor": "^0.3.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {

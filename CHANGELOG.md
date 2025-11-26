@@ -1,5 +1,16 @@
 # @ensemble-edge/conductor
 
+## 0.3.4
+
+### Patch Changes
+
+- ce670f8: Template improvements and release workflow updates
+  - Added 10 example agent folders (greet-user, authenticate, fetch-user, etc.) with proper agent.yaml + index.ts structure
+  - Fixed example ensemble YAML files to use correct `flow:` syntax with `agent:` key
+  - Enabled AI binding in template wrangler.toml
+  - Updated changeset config to include plugins in release workflow
+  - Added plugin changeset instructions to CLAUDE.md
+
 ## 0.3.3
 
 ### Patch Changes
