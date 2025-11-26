@@ -114,32 +114,122 @@ export interface PathAuthRule {
 }
 
 /**
- * Documentation generation settings
+ * Documentation UI framework
+ */
+export type DocsUIFramework = 'stoplight' | 'redoc' | 'swagger' | 'scalar' | 'rapidoc'
+
+/**
+ * Documentation configuration
+ *
+ * Unified config for both CLI generation and runtime serving.
+ * Can be defined in conductor.config.ts OR as docs.yaml in project root.
+ *
+ * @example YAML format (docs.yaml):
+ * ```yaml
+ * title: My API
+ * description: My awesome API
+ * ui: scalar
+ * theme:
+ *   primaryColor: '#3B82F6'
+ * auth:
+ *   requirement: required
+ * ai:
+ *   enabled: true
+ *   model: '@cf/meta/llama-3.1-70b-instruct'
+ * ```
  */
 export interface DocsConfig {
-  /** Use AI to enhance documentation */
-  useAI?: boolean
+  // === Branding ===
+  /** Documentation title */
+  title?: string
 
-  /** AI agent to use for documentation enhancement */
-  aiAgent?: string
+  /** Documentation description */
+  description?: string
 
-  /** Output format */
-  format?: 'yaml' | 'json'
+  /** Logo URL */
+  logo?: string
 
-  /** Include examples in generated documentation */
+  /** Favicon URL */
+  favicon?: string
+
+  // === UI Framework ===
+  /** UI framework to use for interactive docs */
+  ui?: DocsUIFramework
+
+  /** Theme/styling options */
+  theme?: {
+    /** Primary brand color (hex) */
+    primaryColor?: string
+    /** Custom CSS to inject */
+    customCss?: string
+    /** Dark mode preference */
+    darkMode?: boolean
+  }
+
+  // === Access Control ===
+  /** Authentication configuration for docs pages */
+  auth?: {
+    /** Access requirement: 'public', 'optional', or 'required' */
+    requirement?: 'public' | 'optional' | 'required'
+    /** Redirect URL when auth required but not provided */
+    redirectTo?: string
+  }
+
+  // === AI Enhancement ===
+  /** AI enhancement settings */
+  ai?: {
+    /** Enable AI-powered documentation enhancement */
+    enabled?: boolean
+    /** AI model to use (Workers AI model ID or provider model) */
+    model?: string
+    /** AI provider: 'cloudflare' (default), 'openai', 'anthropic' */
+    provider?: 'cloudflare' | 'openai' | 'anthropic'
+    /** Temperature for generation (0-1, lower = more deterministic) */
+    temperature?: number
+  }
+
+  // === Content Filtering ===
+  /** Path patterns to include in docs (glob patterns) */
+  include?: string[]
+
+  /** Path patterns to exclude from docs (glob patterns) */
+  exclude?: string[]
+
+  /** Include usage examples in generated docs */
   includeExamples?: boolean
 
-  /** Include security schemes in documentation */
+  /** Include security schemes in OpenAPI spec */
   includeSecurity?: boolean
 
-  /** Output directory for generated docs */
-  outputDir?: string
-
-  /** Cache configuration (uses KV) */
+  // === Caching ===
+  /** Cache configuration */
   cache?: {
+    /** Enable caching of generated docs */
     enabled?: boolean
+    /** Cache TTL in seconds */
     ttl?: number
   }
+
+  // === Output (CLI only) ===
+  /** Output directory for CLI-generated docs */
+  outputDir?: string
+
+  /** Output format for CLI */
+  format?: 'yaml' | 'json'
+
+  // === Server URLs ===
+  /** Server URLs to include in OpenAPI spec */
+  servers?: Array<{
+    url: string
+    description?: string
+  }>
+
+  // === Legacy (deprecated, use 'ai' instead) ===
+  /** @deprecated Use ai.enabled instead */
+  useAI?: boolean
+
+  /** @deprecated Use ai.model instead */
+  aiAgent?: string
 }
 
 /**
@@ -230,11 +320,24 @@ export interface StorageConfig {
  */
 export const DEFAULT_CONFIG: ConductorConfig = {
   docs: {
-    useAI: false,
-    aiAgent: 'docs-writer',
-    format: 'yaml',
+    title: 'API Documentation',
+    ui: 'stoplight',
+    auth: {
+      requirement: 'public',
+    },
+    ai: {
+      enabled: false,
+      model: '@cf/meta/llama-3.1-8b-instruct',
+      provider: 'cloudflare',
+      temperature: 0.3,
+    },
     includeExamples: true,
     includeSecurity: true,
+    cache: {
+      enabled: true,
+      ttl: 300,
+    },
+    format: 'yaml',
     outputDir: './docs',
   },
   testing: {

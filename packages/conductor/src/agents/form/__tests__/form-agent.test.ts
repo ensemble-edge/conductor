@@ -17,6 +17,7 @@ import type {
   FormMemberOutput,
   FormField,
 } from '../types/index.js'
+import type { AgentConfig } from '../../../runtime/parser.js'
 import type { AgentExecutionContext } from '../../../runtime/types.js'
 
 // Mock KV namespace
@@ -75,9 +76,10 @@ describe('FormAgent', () => {
 
   describe('Configuration Validation', () => {
     it('should throw error if no fields or steps provided', () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'test-form',
-        type: 'Form',
+        operation: 'form',
+        config: {},
       }
 
       expect(() => new FormAgent(config)).toThrow(
@@ -86,33 +88,39 @@ describe('FormAgent', () => {
     })
 
     it('should throw error if both fields and steps provided', () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'test-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        steps: [{ id: 'step1', title: 'Step 1', fields: [] }],
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          steps: [{ id: 'step1', title: 'Step 1', fields: [] }],
+        },
       }
 
       expect(() => new FormAgent(config)).toThrow('Form agent cannot have both fields and steps')
     })
 
     it('should throw error if CAPTCHA missing siteKey', () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'test-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        captcha: { type: 'turnstile', siteKey: '' },
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          captcha: { type: 'turnstile', siteKey: '' },
+        },
       }
 
       expect(() => new FormAgent(config)).toThrow('CAPTCHA configuration requires siteKey')
     })
 
     it('should throw error if CSRF enabled without secret', () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'test-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        csrf: { enabled: true },
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          csrf: { enabled: true },
+        },
       }
 
       expect(() => new FormAgent(config)).toThrow('CSRF protection requires a secret')
@@ -121,18 +129,20 @@ describe('FormAgent', () => {
 
   describe('Form Rendering (mode=render)', () => {
     it('should render simple form with text field', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'contact-form',
-        type: 'Form',
-        title: 'Contact Us',
-        fields: [
-          {
-            name: 'name',
-            type: 'text',
-            label: 'Name',
-            validation: { required: true },
-          },
-        ],
+        operation: 'form',
+        config: {
+          title: 'Contact Us',
+          fields: [
+            {
+              name: 'name',
+              type: 'text',
+              label: 'Name',
+              validation: { required: true },
+            },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -152,23 +162,25 @@ describe('FormAgent', () => {
     })
 
     it('should render form with multiple field types', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'signup-form',
-        type: 'Form',
-        fields: [
-          { name: 'username', type: 'text', label: 'Username' },
-          { name: 'email', type: 'email', label: 'Email' },
-          { name: 'password', type: 'password', label: 'Password' },
-          { name: 'age', type: 'number', label: 'Age' },
-          {
-            name: 'country',
-            type: 'select',
-            label: 'Country',
-            options: ['USA', 'Canada', 'UK'],
-          },
-          { name: 'subscribe', type: 'checkbox', label: 'Subscribe to newsletter' },
-          { name: 'bio', type: 'textarea', label: 'Bio', rows: 4 },
-        ],
+        operation: 'form',
+        config: {
+          fields: [
+            { name: 'username', type: 'text', label: 'Username' },
+            { name: 'email', type: 'email', label: 'Email' },
+            { name: 'password', type: 'password', label: 'Password' },
+            { name: 'age', type: 'number', label: 'Age' },
+            {
+              name: 'country',
+              type: 'select',
+              label: 'Country',
+              options: ['USA', 'Canada', 'UK'],
+            },
+            { name: 'subscribe', type: 'checkbox', label: 'Subscribe to newsletter' },
+            { name: 'bio', type: 'textarea', label: 'Bio', rows: 4 },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -189,11 +201,13 @@ describe('FormAgent', () => {
     })
 
     it('should include CSRF token when enabled', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'secure-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        csrf: { enabled: true, secret: 'test-secret-key' },
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          csrf: { enabled: true, secret: 'test-secret-key' },
+        },
       }
 
       const agent = new FormAgent(config)
@@ -210,11 +224,13 @@ describe('FormAgent', () => {
     })
 
     it('should include honeypot field when configured', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'protected-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        honeypot: '_website',
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          honeypot: '_website',
+        },
       }
 
       const agent = new FormAgent(config)
@@ -230,14 +246,16 @@ describe('FormAgent', () => {
     })
 
     it('should render CAPTCHA widget when configured', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'captcha-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        captcha: {
-          type: 'turnstile',
-          siteKey: 'test-site-key',
-          theme: 'light',
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          captcha: {
+            type: 'turnstile',
+            siteKey: 'test-site-key',
+            theme: 'light',
+          },
         },
       }
 
@@ -255,13 +273,15 @@ describe('FormAgent', () => {
     })
 
     it('should populate field values from data', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'edit-form',
-        type: 'Form',
-        fields: [
-          { name: 'name', type: 'text', label: 'Name' },
-          { name: 'email', type: 'email', label: 'Email' },
-        ],
+        operation: 'form',
+        config: {
+          fields: [
+            { name: 'name', type: 'text', label: 'Name' },
+            { name: 'email', type: 'email', label: 'Email' },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -282,13 +302,15 @@ describe('FormAgent', () => {
 
   describe('Form Validation (mode=validate)', () => {
     it('should validate required fields', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'required-form',
-        type: 'Form',
-        fields: [
-          { name: 'name', type: 'text', validation: { required: true } },
-          { name: 'email', type: 'email', validation: { required: true } },
-        ],
+        operation: 'form',
+        config: {
+          fields: [
+            { name: 'name', type: 'text', validation: { required: true } },
+            { name: 'email', type: 'email', validation: { required: true } },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -309,10 +331,12 @@ describe('FormAgent', () => {
     })
 
     it('should validate email format', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'email-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email', validation: { email: true } }],
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email', validation: { email: true } }],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -337,21 +361,23 @@ describe('FormAgent', () => {
     })
 
     it('should validate pattern (regex)', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'pattern-form',
-        type: 'Form',
-        fields: [
-          {
-            name: 'zipcode',
-            type: 'text',
-            validation: {
-              pattern: {
-                regex: '^\\d{5}$',
-                message: 'Zipcode must be 5 digits',
+        operation: 'form',
+        config: {
+          fields: [
+            {
+              name: 'zipcode',
+              type: 'text',
+              validation: {
+                pattern: {
+                  regex: '^\\d{5}$',
+                  message: 'Zipcode must be 5 digits',
+                },
               },
             },
-          },
-        ],
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -375,19 +401,21 @@ describe('FormAgent', () => {
     })
 
     it('should validate min/max for numbers', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'number-form',
-        type: 'Form',
-        fields: [
-          {
-            name: 'age',
-            type: 'number',
-            validation: {
-              min: { value: 18, message: 'Must be at least 18' },
-              max: { value: 100, message: 'Must be at most 100' },
+        operation: 'form',
+        config: {
+          fields: [
+            {
+              name: 'age',
+              type: 'number',
+              validation: {
+                min: { value: 18, message: 'Must be at least 18' },
+                max: { value: 100, message: 'Must be at most 100' },
+              },
             },
-          },
-        ],
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -420,19 +448,21 @@ describe('FormAgent', () => {
     })
 
     it('should validate minLength/maxLength for strings', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'string-form',
-        type: 'Form',
-        fields: [
-          {
-            name: 'username',
-            type: 'text',
-            validation: {
-              minLength: { value: 3, message: 'Username must be at least 3 characters' },
-              maxLength: { value: 20, message: 'Username must be at most 20 characters' },
+        operation: 'form',
+        config: {
+          fields: [
+            {
+              name: 'username',
+              type: 'text',
+              validation: {
+                minLength: { value: 3, message: 'Username must be at least 3 characters' },
+                maxLength: { value: 20, message: 'Username must be at most 20 characters' },
+              },
             },
-          },
-        ],
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -465,10 +495,12 @@ describe('FormAgent', () => {
     })
 
     it('should validate URL format', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'url-form',
-        type: 'Form',
-        fields: [{ name: 'website', type: 'url', validation: { url: true } }],
+        operation: 'form',
+        config: {
+          fields: [{ name: 'website', type: 'url', validation: { url: true } }],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -491,23 +523,25 @@ describe('FormAgent', () => {
     })
 
     it('should validate field matches (password confirmation)', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'password-form',
-        type: 'Form',
-        fields: [
-          { name: 'password', type: 'password', label: 'Password' },
-          {
-            name: 'confirmPassword',
-            type: 'password',
-            label: 'Confirm Password',
-            validation: {
-              matches: {
-                field: 'password',
-                message: 'Passwords must match',
+        operation: 'form',
+        config: {
+          fields: [
+            { name: 'password', type: 'password', label: 'Password' },
+            {
+              name: 'confirmPassword',
+              type: 'password',
+              label: 'Confirm Password',
+              validation: {
+                matches: {
+                  field: 'password',
+                  message: 'Passwords must match',
+                },
               },
             },
-          },
-        ],
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -537,14 +571,16 @@ describe('FormAgent', () => {
     })
 
     it('should sanitize data after validation', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'sanitize-form',
-        type: 'Form',
-        fields: [
-          { name: 'email', type: 'email' },
-          { name: 'age', type: 'number' },
-          { name: 'subscribe', type: 'checkbox' },
-        ],
+        operation: 'form',
+        config: {
+          fields: [
+            { name: 'email', type: 'email' },
+            { name: 'age', type: 'number' },
+            { name: 'subscribe', type: 'checkbox' },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -569,11 +605,13 @@ describe('FormAgent', () => {
 
   describe('Security Features', () => {
     it('should detect bot via honeypot field', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'honeypot-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        honeypot: '_website',
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          honeypot: '_website',
+        },
       }
 
       const agent = new FormAgent(config)
@@ -590,11 +628,13 @@ describe('FormAgent', () => {
     })
 
     it('should enforce rate limiting', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'rate-limited-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
-        rateLimit: { max: 3, window: 60 },
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+          rateLimit: { max: 3, window: 60 },
+        },
       }
 
       const agent = new FormAgent(config)
@@ -627,27 +667,29 @@ describe('FormAgent', () => {
 
   describe('Multi-Step Forms', () => {
     it('should render first step by default', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'wizard-form',
-        type: 'Form',
-        steps: [
-          {
-            id: 'personal',
-            title: 'Personal Info',
-            fields: [
-              { name: 'name', type: 'text', label: 'Name' },
-              { name: 'email', type: 'email', label: 'Email' },
-            ],
-          },
-          {
-            id: 'address',
-            title: 'Address',
-            fields: [
-              { name: 'street', type: 'text', label: 'Street' },
-              { name: 'city', type: 'text', label: 'City' },
-            ],
-          },
-        ],
+        operation: 'form',
+        config: {
+          steps: [
+            {
+              id: 'personal',
+              title: 'Personal Info',
+              fields: [
+                { name: 'name', type: 'text', label: 'Name' },
+                { name: 'email', type: 'email', label: 'Email' },
+              ],
+            },
+            {
+              id: 'address',
+              title: 'Address',
+              fields: [
+                { name: 'street', type: 'text', label: 'Street' },
+                { name: 'city', type: 'text', label: 'City' },
+              ],
+            },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -664,21 +706,23 @@ describe('FormAgent', () => {
     })
 
     it('should validate current step only', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'wizard-form',
-        type: 'Form',
-        steps: [
-          {
-            id: 'step1',
-            title: 'Step 1',
-            fields: [{ name: 'email', type: 'email', validation: { required: true } }],
-          },
-          {
-            id: 'step2',
-            title: 'Step 2',
-            fields: [{ name: 'phone', type: 'tel', validation: { required: true } }],
-          },
-        ],
+        operation: 'form',
+        config: {
+          steps: [
+            {
+              id: 'step1',
+              title: 'Step 1',
+              fields: [{ name: 'email', type: 'email', validation: { required: true } }],
+            },
+            {
+              id: 'step2',
+              title: 'Step 2',
+              fields: [{ name: 'phone', type: 'tel', validation: { required: true } }],
+            },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -698,21 +742,23 @@ describe('FormAgent', () => {
     })
 
     it('should advance to next step on submit', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'wizard-form',
-        type: 'Form',
-        steps: [
-          {
-            id: 'step1',
-            title: 'Step 1',
-            fields: [{ name: 'email', type: 'email' }],
-          },
-          {
-            id: 'step2',
-            title: 'Step 2',
-            fields: [{ name: 'phone', type: 'tel' }],
-          },
-        ],
+        operation: 'form',
+        config: {
+          steps: [
+            {
+              id: 'step1',
+              title: 'Step 1',
+              fields: [{ name: 'email', type: 'email' }],
+            },
+            {
+              id: 'step2',
+              title: 'Step 2',
+              fields: [{ name: 'phone', type: 'tel' }],
+            },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -732,21 +778,23 @@ describe('FormAgent', () => {
     })
 
     it('should indicate last step completion', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'wizard-form',
-        type: 'Form',
-        steps: [
-          {
-            id: 'step1',
-            title: 'Step 1',
-            fields: [{ name: 'email', type: 'email' }],
-          },
-          {
-            id: 'step2',
-            title: 'Step 2',
-            fields: [{ name: 'phone', type: 'tel' }],
-          },
-        ],
+        operation: 'form',
+        config: {
+          steps: [
+            {
+              id: 'step1',
+              title: 'Step 1',
+              fields: [{ name: 'email', type: 'email' }],
+            },
+            {
+              id: 'step2',
+              title: 'Step 2',
+              fields: [{ name: 'phone', type: 'tel' }],
+            },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -767,10 +815,12 @@ describe('FormAgent', () => {
 
   describe('Data Sanitization', () => {
     it('should trim and lowercase email addresses', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'sanitize-form',
-        type: 'Form',
-        fields: [{ name: 'email', type: 'email' }],
+        operation: 'form',
+        config: {
+          fields: [{ name: 'email', type: 'email' }],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -786,10 +836,12 @@ describe('FormAgent', () => {
     })
 
     it('should convert number strings to numbers', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'number-form',
-        type: 'Form',
-        fields: [{ name: 'age', type: 'number' }],
+        operation: 'form',
+        config: {
+          fields: [{ name: 'age', type: 'number' }],
+        },
       }
 
       const agent = new FormAgent(config)
@@ -806,17 +858,19 @@ describe('FormAgent', () => {
     })
 
     it('should handle multi-select values as arrays', async () => {
-      const config: FormAgentConfig = {
+      const config: AgentConfig = {
         name: 'multiselect-form',
-        type: 'Form',
-        fields: [
-          {
-            name: 'interests',
-            type: 'select',
-            multiple: true,
-            options: ['Sports', 'Music', 'Reading'],
-          },
-        ],
+        operation: 'form',
+        config: {
+          fields: [
+            {
+              name: 'interests',
+              type: 'select',
+              multiple: true,
+              options: ['Sports', 'Music', 'Reading'],
+            },
+          ],
+        },
       }
 
       const agent = new FormAgent(config)

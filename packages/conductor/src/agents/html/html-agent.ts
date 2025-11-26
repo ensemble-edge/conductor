@@ -35,7 +35,8 @@ export class HtmlMember extends BaseAgent {
 
   constructor(config: AgentConfig) {
     super(config)
-    this.htmlConfig = config as AgentConfig & HtmlMemberConfig
+    // Extract nested config (config.config contains the agent-specific settings)
+    this.htmlConfig = (config.config || {}) as unknown as HtmlMemberConfig
 
     // Validate configuration
     this.validateConfig()

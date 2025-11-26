@@ -48,8 +48,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<h1>{{title}}</h1>'
+				config: {
+					template: {
+						inline: '<h1>{{title}}</h1>'
+					}
 				}
 			};
 
@@ -60,7 +62,8 @@ describe('HtmlMember', () => {
 		it('should throw error without template config', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
-				operation: 'html'
+				operation: 'html',
+				config: {}
 			};
 
 			expect(() => new HtmlMember(config)).toThrow('HTML agent requires a template configuration');
@@ -72,8 +75,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<h1>{{title}}</h1><p>{{description}}</p>'
+				config: {
+					template: {
+						inline: '<h1>{{title}}</h1><p>{{description}}</p>'
+					}
 				}
 			};
 
@@ -102,8 +107,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '{{#if showMessage}}<p>{{message}}</p>{{/if}}'
+				config: {
+					template: {
+						inline: '{{#if showMessage}}<p>{{message}}</p>{{/if}}'
+					}
 				}
 			};
 
@@ -131,8 +138,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<ul>{{#each items}}<li>{{name}}</li>{{/each}}</ul>'
+				config: {
+					template: {
+						inline: '<ul>{{#each items}}<li>{{name}}</li>{{/each}}</ul>'
+					}
 				}
 			};
 
@@ -165,8 +174,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<h1>{{user.name}}</h1><p>{{user.email}}</p>'
+				config: {
+					template: {
+						inline: '<h1>{{user.name}}</h1><p>{{user.email}}</p>'
+					}
 				}
 			};
 
@@ -199,8 +210,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<p>Session: {{cookies.session}}</p>'
+				config: {
+					template: {
+						inline: '<p>Session: {{cookies.session}}</p>'
+					}
 				}
 			};
 
@@ -233,14 +246,16 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<h1>Login Success</h1>'
-				},
-				cookieSecret: 'test-secret-key',
-				defaultCookieOptions: {
-					httpOnly: true,
-					secure: true,
-					sameSite: 'lax'
+				config: {
+					template: {
+						inline: '<h1>Login Success</h1>'
+					},
+					cookieSecret: 'test-secret-key',
+					defaultCookieOptions: {
+						httpOnly: true,
+						secure: true,
+						sameSite: 'lax'
+					}
 				}
 			};
 
@@ -280,8 +295,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<h1>Logged Out</h1>'
+				config: {
+					template: {
+						inline: '<h1>Logged Out</h1>'
+					}
 				}
 			};
 
@@ -312,10 +329,12 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<h1>Secure Login</h1>'
-				},
-				cookieSecret: 'super-secret-key'
+				config: {
+					template: {
+						inline: '<h1>Secure Login</h1>'
+					},
+					cookieSecret: 'super-secret-key'
+				}
 			};
 
 			const agent = new HtmlMember(config);
@@ -355,8 +374,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					kv: 'templates/home'
+				config: {
+					template: {
+						kv: 'templates/home'
+					}
 				}
 			};
 
@@ -390,8 +411,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					r2: 'templates/home.html'
+				config: {
+					template: {
+						r2: 'templates/home.html'
+					}
 				}
 			};
 
@@ -421,8 +444,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					kv: 'templates/missing'
+				config: {
+					template: {
+						kv: 'templates/missing'
+					}
 				}
 			};
 
@@ -448,16 +473,18 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: `
-						<style>
-							.header { color: red; }
-						</style>
-						<div class="header">Title</div>
-					`
-				},
-				renderOptions: {
-					inlineCss: true
+				config: {
+					template: {
+						inline: `
+							<style>
+								.header { color: red; }
+							</style>
+							<div class="header">Title</div>
+						`
+					},
+					renderOptions: {
+						inlineCss: true
+					}
 				}
 			};
 
@@ -486,22 +513,24 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: `
-						<html>
-							<head>
-								<title>Test</title>
-							</head>
-							<body>
-								<h1>Title</h1>
-								<!-- Comment -->
-								<p>Content</p>
-							</body>
-						</html>
-					`
-				},
-				renderOptions: {
-					minify: true
+				config: {
+					template: {
+						inline: `
+							<html>
+								<head>
+									<title>Test</title>
+								</head>
+								<body>
+									<h1>Title</h1>
+									<!-- Comment -->
+									<p>Content</p>
+								</body>
+							</html>
+						`
+					},
+					renderOptions: {
+						minify: true
+					}
 				}
 			};
 
@@ -533,8 +562,10 @@ describe('HtmlMember', () => {
 			const config: AgentConfig = {
 				name: 'test-html',
 				operation: 'html',
-				template: {
-					inline: '<h1>{{title}}</h1>'
+				config: {
+					template: {
+						inline: '<h1>{{title}}</h1>'
+					}
 				}
 			};
 

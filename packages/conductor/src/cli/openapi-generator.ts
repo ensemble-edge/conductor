@@ -317,10 +317,122 @@ export class OpenAPIGenerator {
    * Enhance documentation with AI
    */
   private async enhanceWithAI(spec: OpenAPISpec, aiAgent?: string): Promise<OpenAPISpec> {
-    // TODO: Call AI agent to enhance descriptions, examples, etc.
-    // This will be implemented with the docs-writer agent
-    console.log('AI enhancement not yet implemented')
-    return spec
+    // Import the AI enhancer dynamically to avoid bundling in non-AI contexts
+    try {
+      const { DocsAIEnhancer, createOpenAPIOperationPrompt } = await import('./docs-ai-enhancer.js')
+
+      console.log('  Enhancing documentation with AI...')
+
+      // Note: In CLI context, we don't have Workers AI binding directly.
+      // The AI enhancement is designed for runtime use in Workers.
+      // For CLI, we'll return the base spec with a note about runtime enhancement.
+      console.log('  Note: Full AI enhancement requires Workers AI binding (runtime only)')
+      console.log('  Generating enhanced descriptions from templates...')
+
+      // Apply template-based enhancements (no AI needed)
+      const enhanced = this.applyTemplateEnhancements(spec)
+
+      return enhanced
+    } catch (error) {
+      console.warn('  AI enhancement module not available:', (error as Error).message)
+      return spec
+    }
+  }
+
+  /**
+   * Apply template-based enhancements (deterministic, no AI)
+   */
+  private applyTemplateEnhancements(spec: OpenAPISpec): OpenAPISpec {
+    const enhanced = { ...spec }
+
+    // Enhance info description
+    enhanced.info.description = `${spec.info.description}
+
+This API is powered by Ensemble Conductor, an agentic workflow orchestration framework for Cloudflare Workers.
+
+## Quick Start
+
+1. **Execute an ensemble**: POST to \`/execute/{ensemble-name}\` with input data
+2. **List agents**: GET \`/api/v1/agents\` to see available agents
+3. **List ensembles**: GET \`/api/v1/ensembles\` to see available workflows
+4. **Browse docs**: Visit \`/docs\` for interactive documentation
+
+## Authentication
+
+Depending on configuration, you may need to provide:
+- \`Authorization: Bearer <token>\` header
+- \`X-API-Key: <key>\` header
+
+## Rate Limits
+
+Check response headers for rate limit information:
+- \`X-RateLimit-Limit\`: Maximum requests per window
+- \`X-RateLimit-Remaining\`: Requests remaining
+- \`X-RateLimit-Reset\`: When the window resets`
+
+    // Enhance path descriptions with more detail
+    for (const [path, pathItem] of Object.entries(enhanced.paths)) {
+      for (const method of ['get', 'post', 'put', 'delete', 'patch'] as const) {
+        const operation = pathItem[method]
+        if (!operation) continue
+
+        // Add examples and better descriptions based on path patterns
+        if (path.includes('/execute/')) {
+          const ensembleName = path.split('/execute/')[1]
+          operation.description = `Execute the **${ensembleName}** ensemble workflow.
+
+This endpoint triggers the ensemble's flow, executing each agent in sequence (or parallel where configured).
+
+**Input**: Provide the ensemble's expected input in the request body.
+**Output**: Returns the final output after all steps complete.
+
+The ensemble may include:
+- AI/LLM operations (think)
+- External API calls (http)
+- Database operations (data)
+- And more...`
+        }
+
+        if (path === '/api/v1/agents') {
+          operation.description = `List all available agents in this Conductor project.
+
+Returns both **built-in agents** (provided by Conductor) and **custom agents** (defined in your \`agents/\` directory).
+
+Use this to discover what agents are available for use in your ensembles.`
+        }
+
+        if (path === '/api/v1/agents/{name}') {
+          operation.description = `Get detailed information about a specific agent.
+
+Returns:
+- Agent configuration schema
+- Input/output schemas
+- Usage examples
+- Whether it's a built-in or custom agent`
+        }
+
+        if (path === '/api/v1/ensembles') {
+          operation.description = `List all available ensembles in this Conductor project.
+
+Returns ensembles defined in your \`ensembles/\` directory, including:
+- Name and description
+- Trigger configuration (HTTP, cron, webhook, etc.)
+- Number of flow steps`
+        }
+
+        if (path === '/api/v1/ensembles/{name}') {
+          operation.description = `Get detailed information about a specific ensemble.
+
+Returns:
+- Full flow definition (all steps)
+- Trigger configurations
+- Input/output schemas
+- Inline agent definitions`
+        }
+      }
+    }
+
+    return enhanced
   }
 
   /**

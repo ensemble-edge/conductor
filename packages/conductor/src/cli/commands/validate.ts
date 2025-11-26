@@ -47,6 +47,51 @@ interface ValidateOptions {
 }
 
 /**
+ * Agent-specific config properties that should be nested under config:
+ * If these appear at root level of an agent definition, it's an error
+ */
+const AGENT_CONFIG_PROPERTIES: Record<string, string[]> = {
+  html: ['template', 'renderOptions', 'cookieSecret', 'defaultCookieOptions'],
+  queue: ['queue', 'mode', 'deliveryMode', 'consumer', 'retry', 'dlq', 'contentType'],
+  form: ['fields', 'submitUrl', 'method', 'validation', 'submitButton', 'resetButton'],
+  pdf: ['template', 'renderOptions', 'puppeteer', 'pageOptions'],
+  docs: ['source', 'format', 'outputPath', 'title', 'toc', 'theme'],
+  email: ['provider', 'rateLimit', 'retries', 'batchSize'],
+  sms: ['provider', 'rateLimit', 'retries'],
+  storage: ['backend', 'operation', 'binding', 'prefix'],
+  data: ['source', 'transform', 'output'],
+  scoring: ['criteria', 'weights', 'threshold'],
+}
+
+/**
+ * Check if an inline agent config has flat properties that should be nested
+ * Returns list of properties that are incorrectly at root level
+ */
+function detectFlatConfigProperties(agent: Record<string, unknown>, operation: string): string[] {
+  const configProps = AGENT_CONFIG_PROPERTIES[operation]
+  if (!configProps) return []
+
+  const flatProps: string[] = []
+  for (const prop of configProps) {
+    // If property exists at root level and agent doesn't have config: wrapper, it's wrong
+    if (prop in agent && !agent.config) {
+      flatProps.push(prop)
+    }
+    // Also check if property exists at root AND in config (duplicate)
+    if (
+      prop in agent &&
+      agent.config &&
+      typeof agent.config === 'object' &&
+      prop in (agent.config as Record<string, unknown>)
+    ) {
+      flatProps.push(`${prop} (duplicated in root and config)`)
+    }
+  }
+
+  return flatProps
+}
+
+/**
  * Auto-fix functions for common issues
  */
 const autoFixes = {
@@ -287,6 +332,21 @@ async function validateEnsemble(
   const parsed = YAML.parse(modifiedContent, { mapAsMap: false, logLevel: 'silent' })
   if (parsed.agents && Array.isArray(parsed.agents)) {
     for (const agent of parsed.agents) {
+      // Check for flat config pattern (agent-specific properties at root level instead of nested in config:)
+      if (agent.operation && typeof agent.operation === 'string') {
+        const flatProps = detectFlatConfigProperties(agent, agent.operation)
+        if (flatProps.length > 0) {
+          const propsStr = flatProps.join(', ')
+          errors.push({
+            file: filePath,
+            message: `Agent "${agent.name || 'unnamed'}": Found flat config properties at root level: ${propsStr}. These should be nested under "config:".`,
+            severity: 'error',
+            fixable: false,
+            suggestion: `Move operation-specific properties under "config:":\n\nagents:\n  - name: ${agent.name || 'my-agent'}\n    operation: ${agent.operation}\n    config:\n      ${flatProps[0]}: ... # Move properties here`,
+          })
+        }
+      }
+
       if (agent.operation === 'code' && agent.config) {
         // Check for inline code (not allowed)
         if (typeof agent.config.code === 'string') {
@@ -387,8 +447,9 @@ async function validateAgent(
   }
 
   // Check for YAML syntax errors
+  let parsed: Record<string, unknown>
   try {
-    YAML.parse(content, { mapAsMap: false, logLevel: 'silent' })
+    parsed = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' })
   } catch (error) {
     const yamlError = error as YAML.YAMLParseError
     return {
@@ -405,6 +466,21 @@ async function validateAgent(
         },
       ],
       fixed: false,
+    }
+  }
+
+  // Check for flat config pattern (agent-specific properties at root level instead of nested in config:)
+  if (parsed.operation && typeof parsed.operation === 'string') {
+    const flatProps = detectFlatConfigProperties(parsed, parsed.operation)
+    if (flatProps.length > 0) {
+      const propsStr = flatProps.join(', ')
+      errors.push({
+        file: filePath,
+        message: `Found flat config properties at root level: ${propsStr}. These should be nested under "config:".`,
+        severity: 'error',
+        fixable: false,
+        suggestion: `Move operation-specific properties under "config:":\n\nname: ${parsed.name || 'my-agent'}\noperation: ${parsed.operation}\nconfig:\n  ${flatProps[0]}: ... # Move properties here`,
+      })
     }
   }
 

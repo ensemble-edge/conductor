@@ -35,7 +35,8 @@ export class PdfMember extends BaseAgent {
 
   constructor(config: AgentConfig) {
     super(config)
-    this.pdfConfig = config as AgentConfig & PdfMemberConfig
+    // Extract nested config (config.config contains the agent-specific settings)
+    this.pdfConfig = (config.config || {}) as unknown as PdfMemberConfig
 
     // Initialize template engine (default to 'simple')
     const engine = this.pdfConfig.templateEngine || 'simple'

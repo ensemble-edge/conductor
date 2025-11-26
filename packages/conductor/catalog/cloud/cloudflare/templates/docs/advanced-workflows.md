@@ -1,3 +1,10 @@
+---
+title: Advanced Workflows
+description: Retry logic, timeouts, conditionals, loops, and more
+order: 4
+icon: ⚙️
+---
+
 # Advanced Workflow Features
 
 Conductor provides sophisticated workflow primitives for building resilient, production-ready systems.

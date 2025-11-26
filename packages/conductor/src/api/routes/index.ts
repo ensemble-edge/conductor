@@ -4,6 +4,8 @@
 
 export { default as execute } from './execute.js'
 export { default as agents } from './agents.js'
+export { default as ensembles } from './ensembles.js'
+export { default as docs } from './docs.js'
 export { default as health } from './health.js'
 export { default as stream } from './stream.js'
 export { default as async } from './async.js'

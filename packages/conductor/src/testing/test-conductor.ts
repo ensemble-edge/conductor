@@ -550,10 +550,6 @@ export class TestConductor {
           // For function agents, we'd need to load the actual function
           // For now, skip registration - function agents need special handling
           continue
-        } else if (normalizedType === Operation.docs) {
-          // Docs agents are configuration-only, skip registration in testing
-          // They work in full runtime but not in isolated agent testing
-          continue
         } else {
           // Skip unknown types - they might be built-in agents that don't need registration
           continue

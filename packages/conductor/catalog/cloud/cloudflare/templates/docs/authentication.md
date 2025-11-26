@@ -1,3 +1,10 @@
+---
+title: Authentication
+description: Learn how to authenticate your API requests
+order: 2
+icon: 🔐
+---
+
 # Authentication
 
 All API requests must be authenticated using an API key.

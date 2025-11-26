@@ -1,6 +1,13 @@
+---
+title: Getting Started
+description: Quick start guide to make your first API call
+order: 1
+icon: 🚀
+---
+
 # Getting Started
 
-Welcome to the {{PROJECT_NAME}} API! This guide will help you make your first API call.
+Welcome to the {{projectName}} API! This guide will help you make your first API call.
 
 ## Base URL
 
@@ -84,7 +91,6 @@ Common error codes:
 
 ## Next Steps
 
-- [Authentication →](./authentication.md) - Learn about API keys and security
-- [Rate Limits →](./rate-limits.md) - Understand usage limits
-- [API Reference →](../openapi.yaml) - Full endpoint documentation
-- [Examples →](./examples.md) - Real-world usage examples
+- [Authentication →](./authentication) - Learn about API keys and security
+- [Rate Limits →](./rate-limits) - Understand usage limits
+- [API Reference →](./api) - Full endpoint documentation

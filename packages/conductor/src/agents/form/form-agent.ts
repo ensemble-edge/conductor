@@ -29,7 +29,8 @@ export class FormAgent extends BaseAgent {
 
   constructor(config: AgentConfig) {
     super(config)
-    this.formConfig = config as AgentConfig & FormAgentConfig
+    // Extract nested config (config.config contains the agent-specific settings)
+    this.formConfig = (config.config || {}) as unknown as FormAgentConfig
 
     // Validate configuration
     this.validateConfig()

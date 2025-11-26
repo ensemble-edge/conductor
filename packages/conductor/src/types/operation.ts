@@ -22,8 +22,10 @@
  * - html: HTML content generation
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
- * - docs: API documentation generation and serving
  * - autorag: Cloudflare AutoRAG for automatic retrieval-augmented generation
+ *
+ * Note: Documentation is now handled via the first-class `docs/` directory,
+ * not as an operation. See src/docs/ for the docs module.
  */
 export enum Operation {
   think = 'think',
@@ -39,7 +41,6 @@ export enum Operation {
   html = 'html',
   pdf = 'pdf',
   queue = 'queue',
-  docs = 'docs',
   autorag = 'autorag',
 }
 
@@ -60,7 +61,6 @@ export type OperationType =
   | 'html'
   | 'pdf'
   | 'queue'
-  | 'docs'
   | 'autorag'
 
 /**
@@ -95,7 +95,6 @@ export const getOperationDisplayName = (operation: Operation): string => {
     [Operation.html]: 'HTML Agent',
     [Operation.pdf]: 'PDF Agent',
     [Operation.queue]: 'Queue Agent',
-    [Operation.docs]: 'Docs Agent',
     [Operation.autorag]: 'AutoRAG Agent',
   }
   return names[operation]
@@ -119,7 +118,6 @@ export const getOperationDescription = (operation: Operation): string => {
     [Operation.html]: 'HTML content generation',
     [Operation.pdf]: 'PDF document generation and processing',
     [Operation.queue]: 'Message queue processing and batch operations',
-    [Operation.docs]: 'API documentation generation and serving',
     [Operation.autorag]: 'Automatic retrieval-augmented generation with Cloudflare AutoRAG',
   }
   return descriptions[operation]
@@ -143,9 +141,7 @@ export const isExternalOperation = (operation: Operation): boolean => {
  * Check if an operation generates content
  */
 export const isContentGenerationOperation = (operation: Operation): boolean => {
-  return [Operation.think, Operation.html, Operation.pdf, Operation.form, Operation.docs].includes(
-    operation
-  )
+  return [Operation.think, Operation.html, Operation.pdf, Operation.form].includes(operation)
 }
 
 /**

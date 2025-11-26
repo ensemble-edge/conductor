@@ -1,3 +1,10 @@
+---
+title: Rate Limits
+description: Understand API rate limits and best practices
+order: 3
+icon: ⏱️
+---
+
 # Rate Limits
 
 Rate limits protect API availability and ensure fair usage.

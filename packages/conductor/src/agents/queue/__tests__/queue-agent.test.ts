@@ -84,7 +84,9 @@ describe('QueueMember', () => {
       const config = {
         name: 'test-queue',
         type: 'Queue',
-        mode: 'send',
+        config: {
+          mode: 'send',
+        },
       } as AgentConfig
 
       expect(() => new QueueMember(config)).toThrow('requires queue binding name')
@@ -94,9 +96,11 @@ describe('QueueMember', () => {
       const config = {
         name: 'test-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        retry: {
-          maxAttempts: 0,
+        config: {
+          queue: 'MY_QUEUE',
+          retry: {
+            maxAttempts: 0,
+          },
         },
       } as AgentConfig
 
@@ -107,10 +111,12 @@ describe('QueueMember', () => {
       const config = {
         name: 'test-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        dlq: {
-          queueName: '',
-          maxDeliveryAttempts: 3,
+        config: {
+          queue: 'MY_QUEUE',
+          dlq: {
+            queueName: '',
+            maxDeliveryAttempts: 3,
+          },
         },
       } as AgentConfig
 
@@ -121,10 +127,12 @@ describe('QueueMember', () => {
       const config = {
         name: 'test-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
-        retry: {
-          maxAttempts: 3,
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+          retry: {
+            maxAttempts: 3,
+          },
         },
       } as AgentConfig
 
@@ -139,8 +147,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'send-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -168,8 +178,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'send-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -195,8 +207,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'send-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -223,8 +237,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'send-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -247,8 +263,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'send-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -263,9 +281,11 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'send-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
-        contentType: 'application/xml',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+          contentType: 'application/xml',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -290,8 +310,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'batch-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send-batch',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send-batch',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -328,8 +350,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'batch-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send-batch',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send-batch',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -364,8 +388,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'batch-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send-batch',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send-batch',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -391,8 +417,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'batch-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send-batch',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send-batch',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -409,8 +437,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'batch-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send-batch',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send-batch',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -436,12 +466,14 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'consumer-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'consume',
-        consumer: {
-          maxConcurrency: 10,
-          maxBatchSize: 5,
-          maxRetries: 3,
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'consume',
+          consumer: {
+            maxConcurrency: 10,
+            maxBatchSize: 5,
+            maxRetries: 3,
+          },
         },
       }
 
@@ -463,8 +495,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'consumer-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'consume',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'consume',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -483,9 +517,11 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'retry-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        retry: {
-          maxAttempts: 3,
+        config: {
+          queue: 'MY_QUEUE',
+          retry: {
+            maxAttempts: 3,
+          },
         },
       }
 
@@ -497,13 +533,15 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'retry-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        retry: {
-          maxAttempts: 5,
-          initialDelay: 2000,
-          maxDelay: 120000,
-          backoffMultiplier: 3,
-          jitter: 0.2,
+        config: {
+          queue: 'MY_QUEUE',
+          retry: {
+            maxAttempts: 5,
+            initialDelay: 2000,
+            maxDelay: 120000,
+            backoffMultiplier: 3,
+            jitter: 0.2,
+          },
         },
       }
 
@@ -515,13 +553,15 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'retry-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        retry: {
-          maxAttempts: 5,
-          initialDelay: 1000,
-          maxDelay: 60000,
-          backoffMultiplier: 2,
-          jitter: 0.1,
+        config: {
+          queue: 'MY_QUEUE',
+          retry: {
+            maxAttempts: 5,
+            initialDelay: 1000,
+            maxDelay: 60000,
+            backoffMultiplier: 2,
+            jitter: 0.1,
+          },
         },
       }
 
@@ -548,13 +588,15 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'retry-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        retry: {
-          maxAttempts: 10,
-          initialDelay: 1000,
-          maxDelay: 5000,
-          backoffMultiplier: 2,
-          jitter: 0.1,
+        config: {
+          queue: 'MY_QUEUE',
+          retry: {
+            maxAttempts: 10,
+            initialDelay: 1000,
+            maxDelay: 5000,
+            backoffMultiplier: 2,
+            jitter: 0.1,
+          },
         },
       }
 
@@ -570,12 +612,14 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'retry-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        retry: {
-          maxAttempts: 3,
-          initialDelay: 1000,
-          backoffMultiplier: 2,
-          jitter: 0.1,
+        config: {
+          queue: 'MY_QUEUE',
+          retry: {
+            maxAttempts: 3,
+            initialDelay: 1000,
+            backoffMultiplier: 2,
+            jitter: 0.1,
+          },
         },
       }
 
@@ -601,10 +645,12 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'dlq-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        dlq: {
-          queueName: 'DLQ',
-          maxDeliveryAttempts: 3,
+        config: {
+          queue: 'MY_QUEUE',
+          dlq: {
+            queueName: 'DLQ',
+            maxDeliveryAttempts: 3,
+          },
         },
       }
 
@@ -616,10 +662,12 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'dlq-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        dlq: {
-          queueName: 'DLQ',
-          maxDeliveryAttempts: 0,
+        config: {
+          queue: 'MY_QUEUE',
+          dlq: {
+            queueName: 'DLQ',
+            maxDeliveryAttempts: 0,
+          },
         },
       }
 
@@ -632,8 +680,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'delivery-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        deliveryMode: 'at-least-once',
+        config: {
+          queue: 'MY_QUEUE',
+          deliveryMode: 'at-least-once',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -644,8 +694,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'delivery-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        deliveryMode: 'exactly-once',
+        config: {
+          queue: 'MY_QUEUE',
+          deliveryMode: 'exactly-once',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -658,8 +710,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'missing-queue',
         type: 'Queue',
-        queue: 'NONEXISTENT_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'NONEXISTENT_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -679,8 +733,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'second-queue',
         type: 'Queue',
-        queue: 'SECOND_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'SECOND_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -700,8 +756,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'id-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -727,8 +785,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'custom-id-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -754,7 +814,9 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'error-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
+        config: {
+          queue: 'MY_QUEUE',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -772,8 +834,10 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'error-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        mode: 'send',
+        config: {
+          queue: 'MY_QUEUE',
+          mode: 'send',
+        },
       }
 
       const agent = new QueueMember(config)
@@ -796,9 +860,11 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'concurrent-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        consumer: {
-          maxConcurrency: 50,
+        config: {
+          queue: 'MY_QUEUE',
+          consumer: {
+            maxConcurrency: 50,
+          },
         },
       }
 
@@ -810,10 +876,12 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'batch-consumer-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        consumer: {
-          maxBatchSize: 10,
-          maxWaitTime: 5,
+        config: {
+          queue: 'MY_QUEUE',
+          consumer: {
+            maxBatchSize: 10,
+            maxWaitTime: 5,
+          },
         },
       }
 
@@ -825,9 +893,11 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'timeout-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        consumer: {
-          visibilityTimeout: 300,
+        config: {
+          queue: 'MY_QUEUE',
+          consumer: {
+            visibilityTimeout: 300,
+          },
         },
       }
 
@@ -839,9 +909,11 @@ describe('QueueMember', () => {
       const config: AgentConfig = {
         name: 'handler-queue',
         type: 'Queue',
-        queue: 'MY_QUEUE',
-        consumer: {
-          handlerEnsemble: 'process-messages',
+        config: {
+          queue: 'MY_QUEUE',
+          consumer: {
+            handlerEnsemble: 'process-messages',
+          },
         },
       }
 
