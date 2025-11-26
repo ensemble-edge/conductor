@@ -7,7 +7,7 @@ flow:
 # Trigger via webhook for easy integration
 trigger:
   - type: webhook
-    path: /extract/invoice
+    path: /webhooks/extract/invoice  # Recommended: /webhooks/* prefix
     methods: [POST]
     public: false
     auth:

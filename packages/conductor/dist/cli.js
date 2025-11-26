@@ -1328,7 +1328,7 @@ var init_hitl_agent = __esm({
         if (this.hitlConfig.notificationChannel) {
           await this.sendNotification(executionId, input.approvalData);
         }
-        const approvalUrl = `https://your-app.com/approve/${executionId}`;
+        const approvalUrl = `https://your-worker.workers.dev/callbacks/approve/${executionId}`;
         return {
           status: "suspended",
           executionId,
@@ -1484,7 +1484,8 @@ var init_hitl_agent = __esm({
           body: JSON.stringify({
             executionId,
             approvalData,
-            approvalUrl: `https://your-app.com/approve/${executionId}`,
+            // Uses /callbacks/approve/:token endpoint for token-based auth
+            approvalUrl: `https://your-worker.workers.dev/callbacks/approve/${executionId}`,
             expiresAt: Date.now() + this.hitlConfig.timeout
           })
         });
@@ -7444,11 +7445,66 @@ var StringResolver = class {
     return result;
   }
   /**
-   * Traverse context using dot-separated path with optional filter chain
-   * Supports: input.text | split(' ') | length
-   * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
+   * Traverse context using dot-separated path with optional operators and filter chain
+   * Supports (in order of precedence):
+   * - input.enabled ? "yes" : "no" (ternary conditional)
+   * - input.name ?? "default" (nullish coalescing - null/undefined only)
+   * - input.name || "default" (falsy coalescing - catches "", 0, false too)
+   * - input.text | split(' ') | length (filters)
+   * Note: We check for single pipe (filter) vs double pipe (|| logical OR)
    */
   traversePath(path8, context) {
+    const ternaryMatch = path8.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/);
+    if (ternaryMatch) {
+      const [, conditionPath, trueExpr, falseExpr] = ternaryMatch;
+      const condition = this.resolvePathWithFilters(conditionPath.trim(), context);
+      const selectedExpr = condition ? trueExpr.trim() : falseExpr.trim();
+      return this.resolveLiteralOrPath(selectedExpr, context);
+    }
+    if (path8.includes("??")) {
+      const alternatives = path8.split("??").map((alt) => alt.trim());
+      for (const alt of alternatives) {
+        const value = this.resolveLiteralOrPath(alt, context);
+        if (value !== null && value !== void 0) {
+          return value;
+        }
+      }
+      return void 0;
+    }
+    if (/\|\|/.test(path8)) {
+      const alternatives = path8.split("||").map((alt) => alt.trim());
+      for (const alt of alternatives) {
+        const value = this.resolveLiteralOrPath(alt, context);
+        if (value) {
+          return value;
+        }
+      }
+      const lastAlt = alternatives[alternatives.length - 1];
+      return this.resolveLiteralOrPath(lastAlt, context);
+    }
+    return this.resolvePathWithFilters(path8, context);
+  }
+  /**
+   * Resolve a value that could be a literal or a path expression
+   */
+  resolveLiteralOrPath(expr, context) {
+    const stringLiteralMatch = expr.match(/^["'](.*)["']$/);
+    if (stringLiteralMatch) {
+      return stringLiteralMatch[1];
+    }
+    const numericMatch = expr.match(/^-?\d+(\.\d+)?$/);
+    if (numericMatch) {
+      return parseFloat(expr);
+    }
+    if (expr === "true") return true;
+    if (expr === "false") return false;
+    if (expr === "null") return null;
+    return this.resolvePathWithFilters(expr, context);
+  }
+  /**
+   * Resolve a path that may include filter chains
+   */
+  resolvePathWithFilters(path8, context) {
     const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path8);
     if (hasSinglePipe) {
       const parts = path8.split(/(?<!\|)\|(?!\|)/);
@@ -7465,19 +7521,97 @@ var StringResolver = class {
     return this.resolvePropertyPath(path8, context);
   }
   /**
-   * Resolve a simple dot-separated property path
+   * Resolve a simple dot-separated property path with support for:
+   * - Array indexing: items[0], items[2].name
+   * - Boolean negation: !input.disabled
+   * - Optional chaining: input.user?.name, input.items?.[0]
    */
   resolvePropertyPath(path8, context) {
-    const parts = path8.split(".").map((p) => p.trim());
+    let negate = false;
+    let actualPath = path8;
+    if (path8.startsWith("!")) {
+      negate = true;
+      actualPath = path8.slice(1).trim();
+    }
+    const segments = this.parsePathSegments(actualPath);
     let value = context;
-    for (const part of parts) {
-      if (value && typeof value === "object" && part in value) {
-        value = value[part];
+    for (const segment of segments) {
+      if (value === null || value === void 0) {
+        if (segment.optional) {
+          return negate ? true : void 0;
+        }
+        return negate ? true : void 0;
+      }
+      if (segment.arrayIndex !== void 0) {
+        if (segment.name) {
+          if (typeof value === "object" && segment.name in value) {
+            value = value[segment.name];
+          } else {
+            return negate ? true : void 0;
+          }
+          if (value === null || value === void 0) {
+            return negate ? true : void 0;
+          }
+        }
+        if (Array.isArray(value) && segment.arrayIndex >= 0 && segment.arrayIndex < value.length) {
+          value = value[segment.arrayIndex];
+        } else {
+          return negate ? true : void 0;
+        }
       } else {
-        return void 0;
+        if (typeof value === "object" && segment.name in value) {
+          value = value[segment.name];
+        } else {
+          return negate ? true : void 0;
+        }
       }
     }
-    return value;
+    return negate ? !value : value;
+  }
+  /**
+   * Parse a path string into segments, handling optional chaining (?.)
+   *
+   * Examples:
+   * - "input.name" → [{name: "input", optional: false}, {name: "name", optional: false}]
+   * - "input?.name" → [{name: "input", optional: false}, {name: "name", optional: true}]
+   * - "items[0]" → [{name: "items", optional: false, arrayIndex: 0}]
+   * - "items?.[0]" → [{name: "items", optional: false}, {name: "", optional: true, arrayIndex: 0}]
+   */
+  parsePathSegments(path8) {
+    const segments = [];
+    let remaining = path8.trim();
+    while (remaining.length > 0) {
+      let optional = false;
+      if (remaining.startsWith("?.")) {
+        optional = true;
+        remaining = remaining.slice(2);
+      } else if (remaining.startsWith(".") && segments.length > 0) {
+        remaining = remaining.slice(1);
+      }
+      const standaloneArrayMatch = remaining.match(/^\[(\d+)\]/);
+      if (standaloneArrayMatch) {
+        segments.push({
+          name: "",
+          optional,
+          arrayIndex: parseInt(standaloneArrayMatch[1], 10)
+        });
+        remaining = remaining.slice(standaloneArrayMatch[0].length);
+        continue;
+      }
+      const propMatch = remaining.match(/^([\w-]+)(?:\[(\d+)\])?/);
+      if (propMatch) {
+        const [fullMatch, propName, indexStr] = propMatch;
+        segments.push({
+          name: propName,
+          optional,
+          arrayIndex: indexStr !== void 0 ? parseInt(indexStr, 10) : void 0
+        });
+        remaining = remaining.slice(fullMatch.length);
+      } else {
+        break;
+      }
+    }
+    return segments;
   }
 };
 var ArrayResolver = class {
@@ -11102,7 +11236,9 @@ function parseExpiration(expires) {
   }
   const match = expires.match(/^(\d+)(d|w|m|y)$/);
   if (!match) {
-    throw new Error(`Invalid expiration format: ${expires}. Use format like "30d", "90d", "1y", or "never"`);
+    throw new Error(
+      `Invalid expiration format: ${expires}. Use format like "30d", "90d", "1y", or "never"`
+    );
   }
   const [, amount, unit] = match;
   const num = parseInt(amount, 10);
@@ -11172,7 +11308,9 @@ var keysCommands = {
       console.log(`Expires:     ${formatExpiration(record.expiresAt)}`);
       console.log("\n\u26A0\uFE0F  Save this key now - it won't be shown again!\n");
       console.log("To use this key, add it to your Cloudflare KV namespace:");
-      console.log(`  wrangler kv:key put --namespace-id=<your-namespace-id> "${key}" '${JSON.stringify(record)}'`);
+      console.log(
+        `  wrangler kv:key put --namespace-id=<your-namespace-id> "${key}" '${JSON.stringify(record)}'`
+      );
       console.log("");
     }
     return { key, keyId, record };
@@ -11274,7 +11412,9 @@ async function handleKeysCommand(subcommand, args) {
       console.log("  info      Show key information");
       console.log("  rotate    Rotate an API key");
       console.log("\nExamples:");
-      console.log('  conductor keys generate --name "my-service" --permissions "ensemble:*:execute"');
+      console.log(
+        '  conductor keys generate --name "my-service" --permissions "ensemble:*:execute"'
+      );
       console.log('  conductor keys generate --name "admin" --permissions "*" --expires never');
       console.log("  conductor keys revoke key_abc123");
       console.log("");
@@ -11282,7 +11422,7 @@ async function handleKeysCommand(subcommand, args) {
 }
 
 // src/cli/index.ts
-var version = "0.4.0";
+var version = "0.4.4";
 var program = new Command13();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

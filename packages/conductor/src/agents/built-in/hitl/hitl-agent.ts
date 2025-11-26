@@ -94,8 +94,10 @@ export class HITLMember extends BaseAgent {
       await this.sendNotification(executionId, input.approvalData)
     }
 
-    // Generate approval URL (placeholder)
-    const approvalUrl = `https://your-app.com/approve/${executionId}`
+    // Generate callback URL (placeholder - user should configure their base URL)
+    // Default endpoint: POST /callback/:token with { approved: true/false }
+    // Base path is configurable via APIConfig.hitl.resumeBasePath
+    const approvalUrl = `https://your-worker.workers.dev/callback/${executionId}`
 
     return {
       status: 'suspended',
@@ -236,7 +238,8 @@ export class HITLMember extends BaseAgent {
                 text: 'Approve',
               },
               style: 'primary',
-              url: `https://your-app.com/approve/${executionId}?action=approve`,
+              // POST /callback/:token with { approved: true }
+              url: `https://your-worker.workers.dev/callback/${executionId}`,
             },
             {
               type: 'button',
@@ -245,7 +248,8 @@ export class HITLMember extends BaseAgent {
                 text: 'Reject',
               },
               style: 'danger',
-              url: `https://your-app.com/approve/${executionId}?action=reject`,
+              // POST /callback/:token with { approved: false }
+              url: `https://your-worker.workers.dev/callback/${executionId}`,
             },
           ],
         },
@@ -293,7 +297,9 @@ export class HITLMember extends BaseAgent {
       body: JSON.stringify({
         executionId,
         approvalData,
-        approvalUrl: `https://your-app.com/approve/${executionId}`,
+        // POST /callback/:token with { approved: true/false }
+        // Base path configurable via APIConfig.hitl.resumeBasePath
+        callbackUrl: `https://your-worker.workers.dev/callback/${executionId}`,
         expiresAt: Date.now() + this.hitlConfig.timeout!,
       }),
     })

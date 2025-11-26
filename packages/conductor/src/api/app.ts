@@ -22,6 +22,7 @@ import {
   schedules,
   mcp,
   email,
+  callbacks,
 } from './routes/index.js'
 import { openapi } from './openapi/index.js'
 import { ScheduleManager, type ScheduledEvent } from '../runtime/schedule-manager.js'
@@ -61,6 +62,17 @@ export interface APIConfig {
     allowDirectAgentExecution?: boolean
     /** Automatically require resource-specific permissions */
     autoPermissions?: boolean
+  }
+  /**
+   * HITL and workflow resumption configuration
+   */
+  hitl?: {
+    /**
+     * Base path for HITL resumption endpoints
+     * Example: "/callback" results in POST /callback/:token and GET /callback/:token
+     * @default "/callback"
+     */
+    resumeBasePath?: string
   }
   cors?: {
     origin?: string | string[]
@@ -166,6 +178,11 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 
   // Email handler routes (Cloudflare Email Routing integration)
   app.route('/email', email)
+
+  // HITL resumption routes (token-based auth - the token IS the authentication)
+  // Configurable base path - defaults to /callback
+  const resumeBasePath = config.hitl?.resumeBasePath || '/callback'
+  app.route(resumeBasePath, callbacks)
 
   // Root endpoint
   app.get('/', (c) => {

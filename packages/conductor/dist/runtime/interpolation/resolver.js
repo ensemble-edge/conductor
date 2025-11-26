@@ -14,6 +14,29 @@ import { applyFilters } from './filters.js';
  * - Full: '${input.name}' or '{{input.name}}' → returns value as-is (any type)
  * - Partial: 'Hello ${input.name}!' or 'Hello {{input.name}}!' → returns interpolated string
  *
+ * Supports optional chaining (?.):
+ * - ${input.user?.name} → returns undefined if user is null/undefined, else name
+ * - ${input.data?.items?.[0]} → safe navigation through nested optional paths
+ *
+ * Supports nullish coalescing (??):
+ * - ${input.name ?? "default"} → returns input.name if not null/undefined, else "default"
+ * - ${input.query.name ?? input.body.name ?? "World"} → chain of fallbacks
+ *
+ * Supports falsy coalescing (||):
+ * - ${input.name || "default"} → returns input.name if truthy, else "default"
+ * - Catches "", 0, false, null, undefined (unlike ?? which only catches null/undefined)
+ *
+ * Supports ternary conditionals:
+ * - ${input.enabled ? "yes" : "no"} → returns "yes" if truthy, "no" otherwise
+ *
+ * Supports boolean negation (!):
+ * - ${!input.disabled} → returns true if input.disabled is falsy
+ *
+ * Supports array indexing:
+ * - ${input.items[0]} → returns first element
+ * - ${input.items[2].name} → returns name property of third element
+ * - ${input.items?.[0]} → optional array access (returns undefined if items is null/undefined)
+ *
  * Supports filter chains:
  * - ${input.text | uppercase}
  * - ${input.text | split(" ") | length}
@@ -63,11 +86,87 @@ export class StringResolver {
         return result;
     }
     /**
-     * Traverse context using dot-separated path with optional filter chain
-     * Supports: input.text | split(' ') | length
-     * Note: We check for single pipe (filter) vs double pipe (|| logical OR operator)
+     * Traverse context using dot-separated path with optional operators and filter chain
+     * Supports (in order of precedence):
+     * - input.enabled ? "yes" : "no" (ternary conditional)
+     * - input.name ?? "default" (nullish coalescing - null/undefined only)
+     * - input.name || "default" (falsy coalescing - catches "", 0, false too)
+     * - input.text | split(' ') | length (filters)
+     * Note: We check for single pipe (filter) vs double pipe (|| logical OR)
      */
     traversePath(path, context) {
+        // First, handle ternary conditional (? :)
+        // Match: condition ? trueValue : falseValue
+        // Use negative lookbehind to NOT match ?. (optional chaining)
+        // The ? must be followed by a space or non-dot character to be a ternary operator
+        const ternaryMatch = path.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/);
+        if (ternaryMatch) {
+            const [, conditionPath, trueExpr, falseExpr] = ternaryMatch;
+            const condition = this.resolvePathWithFilters(conditionPath.trim(), context);
+            // Evaluate the appropriate branch
+            const selectedExpr = condition ? trueExpr.trim() : falseExpr.trim();
+            return this.resolveLiteralOrPath(selectedExpr, context);
+        }
+        // Handle nullish coalescing (??) - split and try each alternative
+        if (path.includes('??')) {
+            const alternatives = path.split('??').map((alt) => alt.trim());
+            for (const alt of alternatives) {
+                const value = this.resolveLiteralOrPath(alt, context);
+                // Return first non-null/undefined value (nullish coalescing behavior)
+                if (value !== null && value !== undefined) {
+                    return value;
+                }
+            }
+            // All alternatives were null/undefined
+            return undefined;
+        }
+        // Handle falsy coalescing (||) - similar to ?? but catches all falsy values
+        // Must check this AFTER ?? to avoid conflicts, and ensure we don't confuse with filter |
+        if (/\|\|/.test(path)) {
+            const alternatives = path.split('||').map((alt) => alt.trim());
+            for (const alt of alternatives) {
+                const value = this.resolveLiteralOrPath(alt, context);
+                // Return first truthy value (falsy coalescing behavior)
+                if (value) {
+                    return value;
+                }
+            }
+            // All alternatives were falsy, return last one
+            const lastAlt = alternatives[alternatives.length - 1];
+            return this.resolveLiteralOrPath(lastAlt, context);
+        }
+        // No coalescing operators, check for filters
+        return this.resolvePathWithFilters(path, context);
+    }
+    /**
+     * Resolve a value that could be a literal or a path expression
+     */
+    resolveLiteralOrPath(expr, context) {
+        // Check if this is a string literal (quoted)
+        const stringLiteralMatch = expr.match(/^["'](.*)["']$/);
+        if (stringLiteralMatch) {
+            return stringLiteralMatch[1];
+        }
+        // Check if this is a numeric literal
+        const numericMatch = expr.match(/^-?\d+(\.\d+)?$/);
+        if (numericMatch) {
+            return parseFloat(expr);
+        }
+        // Check if this is a boolean literal
+        if (expr === 'true')
+            return true;
+        if (expr === 'false')
+            return false;
+        // Check if this is null literal
+        if (expr === 'null')
+            return null;
+        // Try to resolve as a path (may include filters)
+        return this.resolvePathWithFilters(expr, context);
+    }
+    /**
+     * Resolve a path that may include filter chains
+     */
+    resolvePathWithFilters(path, context) {
         // Check if path contains filter syntax (single pipe character, not ||)
         // Use a regex to find single pipes that aren't part of ||
         const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path);
@@ -93,20 +192,120 @@ export class StringResolver {
         return this.resolvePropertyPath(path, context);
     }
     /**
-     * Resolve a simple dot-separated property path
+     * Resolve a simple dot-separated property path with support for:
+     * - Array indexing: items[0], items[2].name
+     * - Boolean negation: !input.disabled
+     * - Optional chaining: input.user?.name, input.items?.[0]
      */
     resolvePropertyPath(path, context) {
-        const parts = path.split('.').map((p) => p.trim());
+        // Handle boolean negation prefix
+        let negate = false;
+        let actualPath = path;
+        if (path.startsWith('!')) {
+            negate = true;
+            actualPath = path.slice(1).trim();
+        }
+        // Parse path into segments with optional chaining support
+        const segments = this.parsePathSegments(actualPath);
         let value = context;
-        for (const part of parts) {
-            if (value && typeof value === 'object' && part in value) {
-                value = value[part];
+        for (const segment of segments) {
+            // If value is null/undefined and this access is optional, return undefined
+            if (value === null || value === undefined) {
+                if (segment.optional) {
+                    return negate ? true : undefined;
+                }
+                // Non-optional access on null/undefined
+                return negate ? true : undefined;
+            }
+            // Handle array indexing: segment has arrayIndex
+            if (segment.arrayIndex !== undefined) {
+                // If there's a property name before the bracket, access it first
+                if (segment.name) {
+                    if (typeof value === 'object' && segment.name in value) {
+                        value = value[segment.name];
+                    }
+                    else {
+                        return negate ? true : undefined;
+                    }
+                    // Check if value became null/undefined after property access
+                    if (value === null || value === undefined) {
+                        return negate ? true : undefined;
+                    }
+                }
+                // Now access the array index
+                if (Array.isArray(value) && segment.arrayIndex >= 0 && segment.arrayIndex < value.length) {
+                    value = value[segment.arrayIndex];
+                }
+                else {
+                    return negate ? true : undefined;
+                }
             }
             else {
-                return undefined;
+                // Regular property access
+                if (typeof value === 'object' && segment.name in value) {
+                    value = value[segment.name];
+                }
+                else {
+                    return negate ? true : undefined;
+                }
             }
         }
-        return value;
+        return negate ? !value : value;
+    }
+    /**
+     * Parse a path string into segments, handling optional chaining (?.)
+     *
+     * Examples:
+     * - "input.name" → [{name: "input", optional: false}, {name: "name", optional: false}]
+     * - "input?.name" → [{name: "input", optional: false}, {name: "name", optional: true}]
+     * - "items[0]" → [{name: "items", optional: false, arrayIndex: 0}]
+     * - "items?.[0]" → [{name: "items", optional: false}, {name: "", optional: true, arrayIndex: 0}]
+     */
+    parsePathSegments(path) {
+        const segments = [];
+        // Split by both . and ?. while preserving the optional marker
+        // We need to handle: a.b, a?.b, a[0], a?.[0]
+        let remaining = path.trim();
+        while (remaining.length > 0) {
+            let optional = false;
+            // Check if this segment starts with ?. (optional chaining from previous)
+            if (remaining.startsWith('?.')) {
+                optional = true;
+                remaining = remaining.slice(2);
+            }
+            else if (remaining.startsWith('.') && segments.length > 0) {
+                // Regular dot separator (skip if first segment)
+                remaining = remaining.slice(1);
+            }
+            // Check for standalone array access: [0] or ?.[0]
+            const standaloneArrayMatch = remaining.match(/^\[(\d+)\]/);
+            if (standaloneArrayMatch) {
+                segments.push({
+                    name: '',
+                    optional,
+                    arrayIndex: parseInt(standaloneArrayMatch[1], 10),
+                });
+                remaining = remaining.slice(standaloneArrayMatch[0].length);
+                continue;
+            }
+            // Match property name with optional array index: "items[0]" or "items"
+            // Property names can include letters, digits, underscores, and hyphens (e.g., "scrape-primary")
+            const propMatch = remaining.match(/^([\w-]+)(?:\[(\d+)\])?/);
+            if (propMatch) {
+                const [fullMatch, propName, indexStr] = propMatch;
+                segments.push({
+                    name: propName,
+                    optional,
+                    arrayIndex: indexStr !== undefined ? parseInt(indexStr, 10) : undefined,
+                });
+                remaining = remaining.slice(fullMatch.length);
+            }
+            else {
+                // Couldn't parse - break to avoid infinite loop
+                break;
+            }
+        }
+        return segments;
     }
 }
 /**

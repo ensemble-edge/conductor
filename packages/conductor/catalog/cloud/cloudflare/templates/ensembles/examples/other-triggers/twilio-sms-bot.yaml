@@ -7,7 +7,7 @@ description: AI-powered SMS support bot that responds to customer inquiries
 # Webhook trigger for Twilio SMS
 trigger:
   - type: webhook
-    path: /twilio/sms/support
+    path: /webhooks/twilio/sms/support  # Recommended: /webhooks/* prefix
     methods: [POST]
     auth:
       type: signature

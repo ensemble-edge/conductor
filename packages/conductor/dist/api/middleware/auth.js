@@ -29,7 +29,7 @@ export function createAuthMiddleware(config) {
         if (!isValid) {
             return c.json({
                 error: 'Unauthorized',
-                message: 'Invalid API key',
+                message: 'Invalid credentials',
                 timestamp: Date.now(),
             }, 401);
         }

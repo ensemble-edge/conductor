@@ -13,4 +13,5 @@ export { default as executions } from './executions.js';
 export { default as schedules } from './schedules.js';
 export { default as mcp } from './mcp.js';
 export { default as email } from './email.js';
+export { default as callbacks } from './callbacks.js';
 //# sourceMappingURL=index.d.ts.map
