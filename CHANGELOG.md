@@ -1,5 +1,18 @@
 # @ensemble-edge/conductor
 
+## 0.4.3
+
+### Patch Changes
+
+- b6a4877: Add expression operators to interpolation system:
+  - `??` (nullish coalescing): `${input.name ?? "default"}` - fallback for null/undefined
+  - `||` (falsy coalescing): `${input.name || "default"}` - fallback for all falsy values
+  - `?:` (ternary): `${input.enabled ? "yes" : "no"}` - conditional expressions
+  - `!` (negation): `${!input.disabled}` - boolean negation
+  - `[n]` (array indexing): `${input.items[0].name}` - access array elements by index
+
+  Fixes HTTP trigger query/body param interpolation where `??` expressions failed.
+
 ## 0.4.2
 
 ### Patch Changes
