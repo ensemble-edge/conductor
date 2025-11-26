@@ -28,9 +28,16 @@ export interface AgentDiscoveryOptions {
 
   /**
    * Directories to exclude from discovery
-   * @default ['generate-docs', 'examples']
+   * @default ['generate-docs']
    */
   excludeDirs?: string[];
+
+  /**
+   * Include agents in examples/ subdirectories
+   * Set to false to exclude example agents from discovery
+   * @default true
+   */
+  includeExamples?: boolean;
 }
 
 export function agentDiscoveryPlugin(options: AgentDiscoveryOptions = {}): Plugin {
@@ -38,7 +45,11 @@ export function agentDiscoveryPlugin(options: AgentDiscoveryOptions = {}): Plugi
   // Support both old single extension and new multiple extensions
   const fileExtensions = options.fileExtensions ||
     (options.fileExtension ? [options.fileExtension] : ['.yaml', '.yml']);
-  const excludeDirs = options.excludeDirs || ['generate-docs', 'examples'];
+
+  // Build exclude list - always exclude generate-docs, optionally exclude examples
+  const baseExcludes = ['generate-docs'];
+  const includeExamples = options.includeExamples !== false; // default true
+  const excludeDirs = options.excludeDirs || (includeExamples ? baseExcludes : [...baseExcludes, 'examples']);
 
   let root: string;
 

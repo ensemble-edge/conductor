@@ -16,6 +16,7 @@ import { createLogger } from '../observability/index.js'
 import { getTriggerRegistry } from '../runtime/trigger-registry.js'
 import { registerBuiltInTriggers } from '../runtime/built-in-triggers.js'
 import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js'
+import { getDocsLoader } from '../docs/index.js'
 
 const logger = createLogger({ serviceName: 'auto-discovery-api' })
 
@@ -43,6 +44,15 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
   ensembles?: Array<{
     name: string
     config: string
+  }>
+
+  /**
+   * Virtual docs module (injected by Vite plugin)
+   * If not provided, docs pages will not be available
+   */
+  docs?: Array<{
+    name: string
+    content: string
   }>
 
   /**
@@ -252,6 +262,19 @@ async function initializeLoaders(
       logger.info(
         `[Auto-Discovery] Ensembles loaded: ${ensembleLoader.getEnsembleNames().join(', ')}`
       )
+    }
+
+    // Auto-discover docs if enabled and available
+    if (config.autoDiscover !== false && config.docs && config.docs.length > 0) {
+      logger.info(`[Auto-Discovery] Discovering ${config.docs.length} docs pages...`)
+      const docsLoader = getDocsLoader()
+      // Convert array to Map format expected by DocsDirectoryLoader.init()
+      const markdownFiles = new Map<string, string>()
+      for (const doc of config.docs) {
+        markdownFiles.set(doc.name, doc.content)
+      }
+      await docsLoader.init(undefined, markdownFiles)
+      logger.info(`[Auto-Discovery] Docs pages loaded: ${config.docs.map((d) => d.name).join(', ')}`)
     }
 
     initialized = true
