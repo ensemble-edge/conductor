@@ -12,6 +12,7 @@ import { Executor } from './executor.js'
 import { createLogger } from '../observability/index.js'
 import { cors } from 'hono/cors'
 import { getHttpMiddlewareRegistry } from './http-middleware-registry.js'
+import { createTriggerAuthMiddleware, type TriggerAuthConfig } from '../auth/trigger-auth.js'
 
 const logger = createLogger({ serviceName: 'built-in-triggers' })
 
@@ -85,23 +86,15 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
     middlewareChain.push(...resolved)
   }
 
-  // Auth
+  // Auth - uses unified auth provider system
   if (trigger.auth) {
-    middlewareChain.push(async (c: any, next: any) => {
-      const authHeader = c.req.header('authorization')
-      if (!authHeader) {
-        return c.json({ error: 'Authorization required' }, 401)
-      }
-
-      if (trigger.auth!.type === 'bearer') {
-        const token = authHeader.replace(/^Bearer\s+/i, '')
-        if (token !== trigger.auth!.secret) {
-          return c.json({ error: 'Invalid token' }, 401)
-        }
-      }
-
-      await next()
-    })
+    try {
+      const authMiddleware = createTriggerAuthMiddleware(trigger.auth as TriggerAuthConfig, env)
+      middlewareChain.push(authMiddleware)
+    } catch (error) {
+      logger.error(`[HTTP] Failed to create auth middleware for ${path}:`, error instanceof Error ? error : undefined)
+      return
+    }
   } else if (trigger.public !== true) {
     logger.warn(`[HTTP] Skipping ${path}: no auth and not public`)
     return
@@ -170,25 +163,17 @@ async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
 
   logger.info(`[MCP] Registering tool: ${toolName} → ${ensemble.name}`)
 
-  // Build middleware chain for auth
+  // Build middleware chain for auth - uses unified auth provider system
   const middlewareChain: any[] = []
 
   if (trigger.auth) {
-    middlewareChain.push(async (c: any, next: any) => {
-      const authHeader = c.req.header('authorization')
-      if (!authHeader) {
-        return c.json({ error: 'Authorization required' }, 401)
-      }
-
-      if (trigger.auth!.type === 'bearer') {
-        const token = authHeader.replace(/^Bearer\s+/i, '')
-        if (token !== trigger.auth!.secret) {
-          return c.json({ error: 'Invalid token' }, 401)
-        }
-      }
-
-      await next()
-    })
+    try {
+      const authMiddleware = createTriggerAuthMiddleware(trigger.auth as TriggerAuthConfig, env)
+      middlewareChain.push(authMiddleware)
+    } catch (error) {
+      logger.error(`[MCP] Failed to create auth middleware for ${toolName}:`, error instanceof Error ? error : undefined)
+      return
+    }
   } else if (trigger.public !== true) {
     logger.warn(`[MCP] Skipping ${toolName}: no auth and not public`)
     return
@@ -363,25 +348,17 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
 
   logger.info(`[Webhook] Registering: ${methods.join(',')} ${path} → ${ensemble.name}`)
 
-  // Auth middleware
+  // Auth middleware - uses unified auth provider system
   const middlewareChain: any[] = []
 
   if (trigger.auth) {
-    middlewareChain.push(async (c: any, next: any) => {
-      const authHeader = c.req.header('authorization')
-      if (!authHeader) {
-        return c.json({ error: 'Authorization required' }, 401)
-      }
-
-      if (trigger.auth!.type === 'bearer') {
-        const token = authHeader.replace(/^Bearer\s+/i, '')
-        if (token !== trigger.auth!.secret) {
-          return c.json({ error: 'Invalid token' }, 401)
-        }
-      }
-
-      await next()
-    })
+    try {
+      const authMiddleware = createTriggerAuthMiddleware(trigger.auth as TriggerAuthConfig, env)
+      middlewareChain.push(authMiddleware)
+    } catch (error) {
+      logger.error(`[Webhook] Failed to create auth middleware for ${path}:`, error instanceof Error ? error : undefined)
+      return
+    }
   } else if (trigger.public !== true) {
     logger.warn(`[Webhook] Skipping ${path}: no auth and not public`)
     return
