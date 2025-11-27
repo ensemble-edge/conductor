@@ -1,4 +1,4 @@
-import { b as BaseAgent } from "./worker-entry-Dv4VcRDB.js";
+import { b as BaseAgent } from "./worker-entry-CyVZt1wP.js";
 class Chunker {
   /**
    * Chunk text based on strategy
@@ -224,4 +224,4 @@ export {
   Chunker,
   RAGMember
 };
-//# sourceMappingURL=index-N_uKq0Zc.js.map
+//# sourceMappingURL=index-tyaAgUYE.js.map

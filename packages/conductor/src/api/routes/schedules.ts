@@ -152,7 +152,8 @@ app.post('/:ensembleName/trigger', async (c) => {
       passThroughOnException: () => {},
     } as ExecutionContext
 
-    const executor = new Executor({ env: c.env, ctx })
+    const auth = (c as any).get('auth')
+    const executor = new Executor({ env: c.env, ctx, auth })
 
     // Prepare input with schedule metadata
     const input = {

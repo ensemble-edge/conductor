@@ -73,10 +73,12 @@ async function executeEnsemble(c, ensembleName, input, startTime, requestId, rou
                 requestId,
             }, 404);
         }
-        // Create executor
+        // Create executor with auth context
+        const auth = c.get('auth');
         const executor = new Executor({
             env: c.env,
             ctx: c.executionCtx,
+            auth,
         });
         // Register all agents from memberLoader
         const memberLoader = getMemberLoader();
@@ -189,11 +191,13 @@ async function executeAgent(c, agentName, input, config, startTime, requestId, r
                 }, 404);
             }
         }
-        // Create execution context
+        // Create execution context with auth
+        const auth = c.get('auth');
         const memberContext = {
             input,
             env: c.env,
             ctx: c.executionCtx,
+            auth,
         };
         // Execute agent
         const result = await agent.execute(memberContext);

@@ -85,9 +85,10 @@ export function createConductorAPI(config = {}) {
     app.route('/mcp', mcp);
     // Email handler routes (Cloudflare Email Routing integration)
     app.route('/email', email);
-    // Callback routes (HITL resumption, workflow callbacks)
-    // Token-based auth - the token itself IS the authentication
-    app.route('/callbacks', callbacks);
+    // HITL resumption routes (token-based auth - the token IS the authentication)
+    // Configurable base path - defaults to /callback
+    const resumeBasePath = config.hitl?.resumeBasePath || '/callback';
+    app.route(resumeBasePath, callbacks);
     // Root endpoint
     app.get('/', (c) => {
         return c.json({

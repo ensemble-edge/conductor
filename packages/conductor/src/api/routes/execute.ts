@@ -111,10 +111,12 @@ async function executeEnsemble(
       )
     }
 
-    // Create executor
+    // Create executor with auth context
+    const auth = c.get('auth')
     const executor = new Executor({
       env: c.env,
       ctx: c.executionCtx,
+      auth,
     })
 
     // Register all agents from memberLoader
@@ -142,16 +144,43 @@ async function executeEnsemble(
       )
     }
 
-    // Return response
-    return c.json({
-      success: true,
-      output: result.value.output,
-      metadata: {
-        executionId: requestId || 'unknown',
-        duration: Date.now() - startTime,
-        timestamp: Date.now(),
-      },
-    })
+    // Build response using response metadata (status, headers, redirect, rawBody)
+    const response = result.value.response
+    const status = response?.status || 200
+
+    // Handle redirect responses
+    if (response?.redirect) {
+      const redirectStatus = response.redirect.status || 302
+      const headers = new Headers(response.headers || {})
+      headers.set('Location', response.redirect.url)
+      return new Response(null, { status: redirectStatus, headers })
+    }
+
+    // Build headers
+    const headers = new Headers(response?.headers || {})
+
+    // Handle raw body responses (non-JSON)
+    if (response?.isRawBody) {
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'text/plain')
+      }
+      return new Response(String(result.value.output), { status, headers })
+    }
+
+    // Default: JSON response
+    headers.set('Content-Type', 'application/json')
+    return new Response(
+      JSON.stringify({
+        success: true,
+        output: result.value.output,
+        metadata: {
+          executionId: requestId || 'unknown',
+          duration: Date.now() - startTime,
+          timestamp: Date.now(),
+        },
+      }),
+      { status, headers }
+    )
   } catch (error) {
     logger.error('Ensemble execution failed', error instanceof Error ? error : undefined, {
       requestId,
@@ -265,11 +294,13 @@ async function executeAgent(
       }
     }
 
-    // Create execution context
+    // Create execution context with auth
+    const auth = c.get('auth')
     const memberContext: AgentExecutionContext = {
       input,
       env: c.env,
       ctx: c.executionCtx,
+      auth,
     }
 
     // Execute agent

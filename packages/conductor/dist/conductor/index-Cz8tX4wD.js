@@ -1,4 +1,4 @@
-import { b as BaseAgent, c as createLogger } from "./worker-entry-Dv4VcRDB.js";
+import { b as BaseAgent, c as createLogger } from "./worker-entry-CyVZt1wP.js";
 const logger = createLogger({ serviceName: "hitl-agent" });
 class HITLMember extends BaseAgent {
   constructor(config, env) {
@@ -45,7 +45,7 @@ class HITLMember extends BaseAgent {
     if (this.hitlConfig.notificationChannel) {
       await this.sendNotification(executionId, input.approvalData);
     }
-    const approvalUrl = `https://your-worker.workers.dev/callbacks/approve/${executionId}`;
+    const approvalUrl = `https://your-worker.workers.dev/callback/${executionId}`;
     return {
       status: "suspended",
       executionId,
@@ -156,7 +156,8 @@ class HITLMember extends BaseAgent {
                 text: "Approve"
               },
               style: "primary",
-              url: `https://your-app.com/approve/${executionId}?action=approve`
+              // POST /callback/:token with { approved: true }
+              url: `https://your-worker.workers.dev/callback/${executionId}`
             },
             {
               type: "button",
@@ -165,7 +166,8 @@ class HITLMember extends BaseAgent {
                 text: "Reject"
               },
               style: "danger",
-              url: `https://your-app.com/approve/${executionId}?action=reject`
+              // POST /callback/:token with { approved: false }
+              url: `https://your-worker.workers.dev/callback/${executionId}`
             }
           ]
         }
@@ -199,8 +201,9 @@ class HITLMember extends BaseAgent {
       body: JSON.stringify({
         executionId,
         approvalData,
-        // Uses /callbacks/approve/:token endpoint for token-based auth
-        approvalUrl: `https://your-worker.workers.dev/callbacks/approve/${executionId}`,
+        // POST /callback/:token with { approved: true/false }
+        // Base path configurable via APIConfig.hitl.resumeBasePath
+        callbackUrl: `https://your-worker.workers.dev/callback/${executionId}`,
         expiresAt: Date.now() + this.hitlConfig.timeout
       })
     });
@@ -221,4 +224,4 @@ class HITLMember extends BaseAgent {
 export {
   HITLMember
 };
-//# sourceMappingURL=index-DrgX7UZB.js.map
+//# sourceMappingURL=index-Cz8tX4wD.js.map

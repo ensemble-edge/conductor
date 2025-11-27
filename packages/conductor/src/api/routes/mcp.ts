@@ -118,7 +118,8 @@ app.post('/tools/:name', async (c) => {
       passThroughOnException: () => {},
     } as ExecutionContext
 
-    const executor = new Executor({ env, ctx })
+    const auth = (c as any).get('auth')
+    const executor = new Executor({ env, ctx, auth })
     const result = await executor.executeEnsemble(ensemble, toolArgs)
 
     if (!result.success) {

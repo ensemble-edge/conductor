@@ -23870,7 +23870,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-RjhnPQ26.js");
+        const { MemoryCache } = await import("./cache-BNaC_Gf0.js");
         cache = new MemoryCache({
           defaultTTL: 3600
         });
@@ -23956,7 +23956,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-RjhnPQ26.js");
+          const { MemoryCache } = await import("./cache-BNaC_Gf0.js");
           cache = new MemoryCache({
             defaultTTL: 3600
           });
@@ -24531,7 +24531,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/scrape"
     },
     async (config, env) => {
-      const { ScrapeMember } = await import("./index-o9hCAO1R.js");
+      const { ScrapeMember } = await import("./index-B6bGi-Nf.js");
       return new ScrapeMember(config, env);
     }
   );
@@ -24571,7 +24571,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/validate"
     },
     async (config, env) => {
-      const { ValidateMember: ValidateMember2 } = await import("./index-CybHaUpW.js");
+      const { ValidateMember: ValidateMember2 } = await import("./index-DPScnXzs.js");
       return new ValidateMember2(config, env);
     }
   );
@@ -24613,7 +24613,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-N_uKq0Zc.js");
+      const { RAGMember } = await import("./index-tyaAgUYE.js");
       return new RAGMember(config, env);
     }
   );
@@ -24649,7 +24649,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-DrgX7UZB.js");
+      const { HITLMember } = await import("./index-Cz8tX4wD.js");
       return new HITLMember(config, env);
     }
   );
@@ -24686,7 +24686,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/fetch"
     },
     async (config, env) => {
-      const { FetchMember } = await import("./index-B_xH6mnL.js");
+      const { FetchMember } = await import("./index-BxcHHIsc.js");
       return new FetchMember(config, env);
     }
   );
@@ -24734,7 +24734,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/tools"
     },
     async (config, env) => {
-      const { ToolsMember: ToolsMember2 } = await import("./index-D8FSkZTH.js");
+      const { ToolsMember: ToolsMember2 } = await import("./index-Cmv9BxYs.js");
       return new ToolsMember2(config, env);
     }
   );
@@ -24821,7 +24821,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/queries"
     },
     async (config, env) => {
-      const { QueriesMember } = await import("./index-CNxnqwVB.js");
+      const { QueriesMember } = await import("./index-B276XhED.js");
       return new QueriesMember(config, env);
     }
   );
@@ -25704,6 +25704,7 @@ class Executor {
     this.agentRegistry = /* @__PURE__ */ new Map();
     this.observabilityConfig = config.observability;
     this.requestId = config.requestId;
+    this.auth = config.auth;
     this.logger = config.logger || createLogger({ serviceName: "executor" }, this.env.ANALYTICS);
   }
   /**
@@ -25872,7 +25873,8 @@ class Executor {
       logger: agentLogger,
       metrics: agentMetrics,
       executionId: flowContext.executionId,
-      requestId: this.requestId
+      requestId: this.requestId,
+      auth: this.auth
     };
     let getPendingUpdates = null;
     if (stateManager && step2.state) {
@@ -31081,4 +31083,4 @@ export {
   scriptStep as y,
   httpStep as z
 };
-//# sourceMappingURL=worker-entry-Dv4VcRDB.js.map
+//# sourceMappingURL=worker-entry-CyVZt1wP.js.map

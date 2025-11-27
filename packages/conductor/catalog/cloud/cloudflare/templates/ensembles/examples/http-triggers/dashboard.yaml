@@ -8,6 +8,11 @@ trigger:
     auth:
       type: bearer
       secret: $env.AUTH_TOKEN
+    # Private cache - user-specific content, only browser can cache
+    httpCache:
+      private: true   # Browser only, not CDN
+      noStore: true   # Sensitive user data - don't store
+      vary: [Authorization]  # Different cache per user
     responses:
       html:
         enabled: true

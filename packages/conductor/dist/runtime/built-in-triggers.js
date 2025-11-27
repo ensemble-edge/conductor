@@ -86,7 +86,8 @@ async function handleHTTPTrigger(context) {
     const handler = async (c) => {
         try {
             const input = await extractInput(c);
-            const executor = new Executor({ env, ctx });
+            const auth = c.get('auth');
+            const executor = new Executor({ env, ctx, auth });
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }
@@ -176,7 +177,8 @@ async function handleMCPTrigger(context) {
         try {
             const body = await c.req.json().catch(() => ({}));
             const input = body.arguments || body.input || body;
-            const executor = new Executor({ env, ctx });
+            const auth = c.get('auth');
+            const executor = new Executor({ env, ctx, auth });
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }
@@ -310,7 +312,8 @@ async function handleWebhookTrigger(context) {
     const handler = async (c) => {
         try {
             const input = await c.req.json().catch(() => ({}));
-            const executor = new Executor({ env, ctx });
+            const auth = c.get('auth');
+            const executor = new Executor({ env, ctx, auth });
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }

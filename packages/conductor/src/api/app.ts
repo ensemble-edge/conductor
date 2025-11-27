@@ -8,7 +8,17 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import type { ConductorContext } from './types.js'
-import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js'
+import {
+  createAuthMiddleware,
+  errorHandler,
+  requestId,
+  timing,
+  securityHeaders,
+  conductorHeader,
+  debugHeaders,
+  apiSecurityPreset,
+  type SecurityHeadersConfig,
+} from './middleware/index.js'
 import {
   execute,
   agents,
@@ -80,6 +90,54 @@ export interface APIConfig {
     allowHeaders?: string[]
   }
   logging?: boolean
+
+  /**
+   * Response behavior configuration
+   * Controls headers, security settings, and stealth mode
+   */
+  response?: {
+    /**
+     * Stealth mode - return generic 404 for all auth failures
+     * Hides API structure from unauthenticated users
+     * @default false
+     */
+    stealthMode?: boolean
+
+    /**
+     * Minimum response time (ms) for stealth 404 responses
+     * Helps prevent timing attacks that could reveal protected endpoints
+     *
+     * Note: Uses scheduler.wait() which requires:
+     * - Cloudflare Workers: Paid plan (Workers Unbound or Workers Paid)
+     * - Netlify: Next plan or higher
+     *
+     * On free tiers, delay is gracefully skipped (no error, no timing protection)
+     * Set to 0 to disable timing protection entirely
+     *
+     * @default 50
+     */
+    stealthDelayMs?: number
+
+    /**
+     * Add X-Powered-By: Ensemble-Edge Conductor header to responses
+     * Useful for debugging, disable in production if you want to hide the stack
+     * @default true in development, false in production
+     */
+    conductorHeader?: boolean
+
+    /**
+     * Include security headers (HSTS, X-Frame-Options, etc.)
+     * @default true
+     */
+    securityHeaders?: boolean | SecurityHeadersConfig
+
+    /**
+     * Include debug headers in non-production environments
+     * (X-Conductor-Duration, X-Conductor-Cache, etc.)
+     * @default true in development/preview, false in production
+     */
+    debugHeaders?: boolean
+  }
 }
 
 /**
@@ -107,6 +165,28 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
   if (config.logging !== false) {
     app.use('*', logger())
   }
+
+  // Security headers (default: enabled with API preset)
+  if (config.response?.securityHeaders !== false) {
+    const securityConfig =
+      typeof config.response?.securityHeaders === 'object'
+        ? config.response.securityHeaders
+        : apiSecurityPreset
+    app.use('*', securityHeaders(securityConfig))
+  }
+
+  // Conductor header (default: enabled unless explicitly disabled)
+  if (config.response?.conductorHeader !== false) {
+    app.use('*', conductorHeader())
+  }
+
+  // Debug headers (auto-enabled in non-production environments)
+  app.use(
+    '*',
+    debugHeaders({
+      enabled: config.response?.debugHeaders,
+    })
+  )
 
   // CORS
   app.use(
@@ -137,6 +217,9 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
       createAuthMiddleware({
         apiKeys: config.auth?.apiKeys || [],
         allowAnonymous: config.auth?.allowAnonymous ?? false,
+        // Pass stealth mode settings
+        stealthMode: config.response?.stealthMode,
+        stealthDelayMs: config.response?.stealthDelayMs,
       })
     )
   } else if (config.auth) {
@@ -146,6 +229,8 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
       createAuthMiddleware({
         apiKeys: config.auth.apiKeys || [],
         allowAnonymous: true, // Allow anonymous when requireAuth is false
+        stealthMode: config.response?.stealthMode,
+        stealthDelayMs: config.response?.stealthDelayMs,
       })
     )
   }
@@ -201,14 +286,14 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
     })
   })
 
-  // 404 handler
+  // 404 handler - uses same format as stealth 404 for consistency
   app.notFound((c) => {
     return c.json(
       {
-        error: 'NotFound',
-        message: 'Endpoint not found',
-        path: c.req.path,
-        timestamp: Date.now(),
+        success: false,
+        error: 'Not Found',
+        message: 'The requested resource could not be found.',
+        timestamp: new Date().toISOString(),
       },
       404
     )

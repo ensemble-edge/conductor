@@ -89,7 +89,8 @@ app.post('/tools/:name', async (c) => {
             waitUntil: (promise) => { },
             passThroughOnException: () => { },
         };
-        const executor = new Executor({ env, ctx });
+        const auth = c.get('auth');
+        const executor = new Executor({ env, ctx, auth });
         const result = await executor.executeEnsemble(ensemble, toolArgs);
         if (!result.success) {
             return c.json({

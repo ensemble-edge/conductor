@@ -65,9 +65,10 @@ export class HITLMember extends BaseAgent {
         if (this.hitlConfig.notificationChannel) {
             await this.sendNotification(executionId, input.approvalData);
         }
-        // Generate approval URL (placeholder - user should configure their base URL)
-        // Uses /callbacks/approve/:token endpoint for token-based auth
-        const approvalUrl = `https://your-worker.workers.dev/callbacks/approve/${executionId}`;
+        // Generate callback URL (placeholder - user should configure their base URL)
+        // Default endpoint: POST /callback/:token with { approved: true/false }
+        // Base path is configurable via APIConfig.hitl.resumeBasePath
+        const approvalUrl = `https://your-worker.workers.dev/callback/${executionId}`;
         return {
             status: 'suspended',
             executionId,
@@ -186,7 +187,8 @@ export class HITLMember extends BaseAgent {
                                 text: 'Approve',
                             },
                             style: 'primary',
-                            url: `https://your-app.com/approve/${executionId}?action=approve`,
+                            // POST /callback/:token with { approved: true }
+                            url: `https://your-worker.workers.dev/callback/${executionId}`,
                         },
                         {
                             type: 'button',
@@ -195,7 +197,8 @@ export class HITLMember extends BaseAgent {
                                 text: 'Reject',
                             },
                             style: 'danger',
-                            url: `https://your-app.com/approve/${executionId}?action=reject`,
+                            // POST /callback/:token with { approved: false }
+                            url: `https://your-worker.workers.dev/callback/${executionId}`,
                         },
                     ],
                 },
@@ -230,8 +233,9 @@ export class HITLMember extends BaseAgent {
             body: JSON.stringify({
                 executionId,
                 approvalData,
-                // Uses /callbacks/approve/:token endpoint for token-based auth
-                approvalUrl: `https://your-worker.workers.dev/callbacks/approve/${executionId}`,
+                // POST /callback/:token with { approved: true/false }
+                // Base path configurable via APIConfig.hitl.resumeBasePath
+                callbackUrl: `https://your-worker.workers.dev/callback/${executionId}`,
                 expiresAt: Date.now() + this.hitlConfig.timeout,
             }),
         });

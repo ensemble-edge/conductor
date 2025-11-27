@@ -1328,7 +1328,7 @@ var init_hitl_agent = __esm({
         if (this.hitlConfig.notificationChannel) {
           await this.sendNotification(executionId, input.approvalData);
         }
-        const approvalUrl = `https://your-worker.workers.dev/callbacks/approve/${executionId}`;
+        const approvalUrl = `https://your-worker.workers.dev/callback/${executionId}`;
         return {
           status: "suspended",
           executionId,
@@ -1441,7 +1441,8 @@ var init_hitl_agent = __esm({
                     text: "Approve"
                   },
                   style: "primary",
-                  url: `https://your-app.com/approve/${executionId}?action=approve`
+                  // POST /callback/:token with { approved: true }
+                  url: `https://your-worker.workers.dev/callback/${executionId}`
                 },
                 {
                   type: "button",
@@ -1450,7 +1451,8 @@ var init_hitl_agent = __esm({
                     text: "Reject"
                   },
                   style: "danger",
-                  url: `https://your-app.com/approve/${executionId}?action=reject`
+                  // POST /callback/:token with { approved: false }
+                  url: `https://your-worker.workers.dev/callback/${executionId}`
                 }
               ]
             }
@@ -1484,8 +1486,9 @@ var init_hitl_agent = __esm({
           body: JSON.stringify({
             executionId,
             approvalData,
-            // Uses /callbacks/approve/:token endpoint for token-based auth
-            approvalUrl: `https://your-worker.workers.dev/callbacks/approve/${executionId}`,
+            // POST /callback/:token with { approved: true/false }
+            // Base path configurable via APIConfig.hitl.resumeBasePath
+            callbackUrl: `https://your-worker.workers.dev/callback/${executionId}`,
             expiresAt: Date.now() + this.hitlConfig.timeout
           })
         });
@@ -11422,7 +11425,7 @@ async function handleKeysCommand(subcommand, args) {
 }
 
 // src/cli/index.ts
-var version = "0.4.4";
+var version = "0.4.5";
 var program = new Command13();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

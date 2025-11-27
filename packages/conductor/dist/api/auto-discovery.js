@@ -45,7 +45,8 @@ async function registerErrorPages(app, config, env, ctx) {
                 return c.text(`Error ${errorStatus}: ${error.message}`, errorStatus);
             }
             try {
-                const executor = new Executor({ env, ctx });
+                const auth = c.get('auth');
+                const executor = new Executor({ env, ctx, auth });
                 const agents = memberLoader.getAllMembers();
                 for (const agent of agents) {
                     executor.registerAgent(agent);
@@ -92,7 +93,8 @@ async function registerErrorPages(app, config, env, ctx) {
                 return c.text('404 Not Found', 404);
             }
             try {
-                const executor = new Executor({ env, ctx });
+                const auth = c.get('auth');
+                const executor = new Executor({ env, ctx, auth });
                 const agents = memberLoader.getAllMembers();
                 for (const agent of agents) {
                     executor.registerAgent(agent);

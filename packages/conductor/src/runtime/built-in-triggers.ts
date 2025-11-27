@@ -45,15 +45,61 @@ class RateLimiter {
 }
 
 /**
+ * Path configuration for multi-path triggers
+ */
+interface PathConfig {
+  path: string
+  methods: string[]
+}
+
+/**
+ * Normalize trigger paths - supports both single path and paths array
+ *
+ * Single path format:
+ *   trigger:
+ *     - type: http
+ *       path: /api/users
+ *       methods: [GET, POST]
+ *
+ * Multi-path format:
+ *   trigger:
+ *     - type: http
+ *       paths:
+ *         - path: /api/users
+ *           methods: [GET, POST]
+ *         - path: /api/users/:id
+ *           methods: [GET, PUT, DELETE]
+ */
+function normalizePathConfigs(trigger: any, defaultPath: string): PathConfig[] {
+  // Multi-path format takes precedence
+  if (trigger.paths && Array.isArray(trigger.paths)) {
+    return trigger.paths.map((p: any) => ({
+      path: p.path,
+      methods: p.methods || trigger.methods || ['GET'],
+    }))
+  }
+
+  // Single path format (backwards compatible)
+  return [
+    {
+      path: trigger.path || defaultPath,
+      methods: trigger.methods || ['GET'],
+    },
+  ]
+}
+
+/**
  * HTTP Trigger Handler
  */
 async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> {
   const { app, ensemble, trigger, agents, env, ctx } = context
 
-  const path = trigger.path || `/${ensemble.name}`
-  const methods = trigger.methods || ['GET']
+  // Normalize to array of path configurations
+  const pathConfigs = normalizePathConfigs(trigger, `/${ensemble.name}`)
 
-  logger.info(`[HTTP] Registering: ${methods.join(',')} ${path} → ${ensemble.name}`)
+  logger.info(
+    `[HTTP] Registering ${pathConfigs.length} path(s) for ${ensemble.name}: ${pathConfigs.map((p) => `${p.methods.join(',')} ${p.path}`).join(', ')}`
+  )
 
   // Build middleware chain
   const middlewareChain: any[] = []
@@ -93,13 +139,13 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
       middlewareChain.push(authMiddleware)
     } catch (error) {
       logger.error(
-        `[HTTP] Failed to create auth middleware for ${path}:`,
+        `[HTTP] Failed to create auth middleware for ${ensemble.name}:`,
         error instanceof Error ? error : undefined
       )
       return
     }
   } else if (trigger.public !== true) {
-    logger.warn(`[HTTP] Skipping ${path}: no auth and not public`)
+    logger.warn(`[HTTP] Skipping ${ensemble.name}: no auth and not public`)
     return
   }
 
@@ -107,7 +153,8 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
   const handler = async (c: any) => {
     try {
       const input = await extractInput(c)
-      const executor = new Executor({ env, ctx })
+      const auth = c.get('auth')
+      const executor = new Executor({ env, ctx, auth })
 
       for (const agent of agents) {
         executor.registerAgent(agent)
@@ -138,13 +185,15 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
     }
   }
 
-  // Register routes
-  for (const method of methods) {
-    const m = method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options'
-    if (middlewareChain.length > 0) {
-      app[m](path, ...middlewareChain, handler)
-    } else {
-      app[m](path, handler)
+  // Register routes for all path configurations
+  for (const pathConfig of pathConfigs) {
+    for (const method of pathConfig.methods) {
+      const m = method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options'
+      if (middlewareChain.length > 0) {
+        app[m](pathConfig.path, ...middlewareChain, handler)
+      } else {
+        app[m](pathConfig.path, handler)
+      }
     }
   }
 }
@@ -220,7 +269,8 @@ async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
       const body = await c.req.json().catch(() => ({}))
       const input = body.arguments || body.input || body
 
-      const executor = new Executor({ env, ctx })
+      const auth = c.get('auth')
+      const executor = new Executor({ env, ctx, auth })
 
       for (const agent of agents) {
         executor.registerAgent(agent)
@@ -377,7 +427,8 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
   const handler = async (c: any) => {
     try {
       const input = await c.req.json().catch(() => ({}))
-      const executor = new Executor({ env, ctx })
+      const auth = c.get('auth')
+      const executor = new Executor({ env, ctx, auth })
 
       for (const agent of agents) {
         executor.registerAgent(agent)
@@ -502,6 +553,9 @@ function renderResponse(c: any, executionOutput: any, trigger: any): Response {
   const accept = c.req.header('accept') || ''
   const output = executionOutput.output as any
 
+  // Apply HTTP cache headers from trigger config
+  applyHttpCacheHeaders(c, trigger)
+
   // HTML rendering
   if (trigger.responses?.html?.enabled && accept.includes('text/html')) {
     // Check if output has HTML (from html agent)
@@ -531,6 +585,48 @@ function renderResponse(c: any, executionOutput: any, trigger: any): Response {
 
   // Default: return output as JSON
   return c.json(output)
+}
+
+/**
+ * Apply HTTP Cache-Control headers from trigger configuration
+ *
+ * Supports both new `httpCache` config and legacy `cache` config for backwards compatibility.
+ * httpCache controls HTTP response caching (CDN/browser), separate from agent internal caching.
+ */
+function applyHttpCacheHeaders(c: any, trigger: any): void {
+  // New httpCache config takes precedence
+  if (trigger.httpCache) {
+    const hc = trigger.httpCache
+    const directives: string[] = []
+
+    if (hc.public) directives.push('public')
+    if (hc.private) directives.push('private')
+    if (hc.noCache) directives.push('no-cache')
+    if (hc.noStore) directives.push('no-store')
+    if (hc.maxAge !== undefined) directives.push(`max-age=${hc.maxAge}`)
+    if (hc.staleWhileRevalidate) directives.push(`stale-while-revalidate=${hc.staleWhileRevalidate}`)
+    if (hc.staleIfError) directives.push(`stale-if-error=${hc.staleIfError}`)
+    if (hc.custom) directives.push(hc.custom)
+
+    if (directives.length > 0) {
+      c.header('Cache-Control', directives.join(', '))
+    }
+
+    // Merge Vary headers (trigger config + any added by auth middleware)
+    if (hc.vary?.length) {
+      const existingVary = c.res?.headers?.get('Vary')
+      const varySet = new Set(existingVary ? existingVary.split(',').map((v: string) => v.trim()) : [])
+      hc.vary.forEach((v: string) => varySet.add(v))
+      c.header('Vary', Array.from(varySet).join(', '))
+    }
+  }
+  // Backwards compatibility: map old cache: to HTTP cache headers
+  else if (trigger.cache?.enabled && trigger.cache.ttl) {
+    c.header('Cache-Control', `public, max-age=${trigger.cache.ttl}`)
+    if (trigger.cache.vary?.length) {
+      c.header('Vary', trigger.cache.vary.join(', '))
+    }
+  }
 }
 
 /**
