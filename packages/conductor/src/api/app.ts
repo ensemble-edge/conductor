@@ -23,7 +23,6 @@ import {
   execute,
   agents,
   ensembles,
-  docs,
   health,
   stream,
   async,
@@ -240,8 +239,9 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
   // Health checks (public, no auth)
   app.route('/health', health)
 
-  // Documentation (public, no auth)
-  app.route('/docs', docs)
+  // NOTE: Documentation routes (/docs/*) are now provided via the docs-serve ensemble
+  // Include ensembles/system/docs/serve.yaml in your project and use createAutoDiscoveryAPI
+  // Or manually add docs routes: import { docs } from '@ensemble-edge/conductor/api/routes'
 
   // OpenAPI documentation (public, no auth)
   app.route('/', openapi)
