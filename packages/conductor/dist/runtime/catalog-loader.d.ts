@@ -18,6 +18,14 @@ export declare class CatalogLoader {
      */
     static loadScheduledEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]>;
     /**
+     * Load all ensembles with build triggers from available storage
+     */
+    static loadBuildEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]>;
+    /**
+     * Load all ensembles with CLI triggers from available storage
+     */
+    static loadCLIEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]>;
+    /**
      * Load all ensembles from storage (scheduled and non-scheduled)
      */
     static loadAllEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]>;

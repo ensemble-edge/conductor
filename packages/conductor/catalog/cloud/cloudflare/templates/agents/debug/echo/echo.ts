@@ -5,7 +5,7 @@
  * what data reaches an agent after transformations.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 interface EchoInput {
   data?: unknown

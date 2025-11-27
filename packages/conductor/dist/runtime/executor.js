@@ -31,6 +31,8 @@ import { ScoringExecutor, EnsembleScorer, } from './scoring/index.js';
 import { createLogger, createObservabilityManager, generateExecutionId, } from '../observability/index.js';
 import { NotificationManager } from './notifications/index.js';
 import { hasGlobalScriptLoader, getGlobalScriptLoader, parseScriptURI, isScriptReference, } from '../utils/script-loader.js';
+import { createComponentRegistry, createAgentRegistry, createEnsembleRegistry, } from '../components/index.js';
+import { resolveOutput } from './output-resolver.js';
 /**
  * Core execution engine for ensembles with Result-based error handling
  */
@@ -199,7 +201,11 @@ export class Executor {
                 ensembleName: ensemble.name,
             });
         }
-        // Create agent execution context with observability
+        // Find agent config from ensemble definition (if any)
+        // Agents can be defined inline in the ensemble's agents array
+        const agentDef = ensemble.agents?.find((a) => a.name === step.agent);
+        const agentConfig = agentDef?.config || undefined;
+        // Create agent execution context with observability and component registries
         const agentContext = {
             input: resolvedInput,
             env: this.env,
@@ -210,6 +216,18 @@ export class Executor {
             executionId: flowContext.executionId,
             requestId: this.requestId,
             auth: this.auth,
+            // Component registries for TypeScript handlers
+            schemas: flowContext.componentRegistry.schemas,
+            prompts: flowContext.componentRegistry.prompts,
+            configs: flowContext.componentRegistry.configs,
+            queries: flowContext.componentRegistry.queries,
+            scripts: flowContext.componentRegistry.scripts,
+            templates: flowContext.componentRegistry.templates,
+            // Discovery registries for agents and ensembles
+            agentRegistry: flowContext.agentRegistry,
+            ensembleRegistry: flowContext.ensembleRegistry,
+            // Agent-specific config from ensemble definition
+            config: agentConfig,
         };
         // Add state context if available and track updates
         let getPendingUpdates = null;
@@ -413,13 +431,42 @@ export class Executor {
             scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
             scoringState.qualityMetrics = ensembleScorer.calculateQualityMetrics(scoringState.scoreHistory);
         }
-        // Resolve final output
+        // Resolve final output using the output resolver
+        // Supports conditional outputs, status codes, headers, redirects, and raw body
         let finalOutput;
+        let responseMetadata;
         if (ensemble.output) {
-            // User specified output interpolation
-            finalOutput = Parser.resolveInterpolation(ensemble.output, executionContext);
+            // Use the new output resolver for conditional outputs
+            const resolved = resolveOutput(ensemble.output, executionContext);
+            // Extract the body/rawBody as the output
+            if (resolved.redirect) {
+                // For redirects, output is empty but we set response metadata
+                finalOutput = {};
+                responseMetadata = {
+                    status: resolved.status,
+                    headers: resolved.headers,
+                    redirect: resolved.redirect,
+                };
+            }
+            else if (resolved.rawBody !== undefined) {
+                // Raw body - output is the string, mark as raw
+                finalOutput = resolved.rawBody;
+                responseMetadata = {
+                    status: resolved.status,
+                    headers: resolved.headers,
+                    isRawBody: true,
+                };
+            }
+            else {
+                // JSON body
+                finalOutput = resolved.body ?? {};
+                responseMetadata = {
+                    status: resolved.status,
+                    headers: resolved.headers,
+                };
+            }
         }
-        else if (ensemble.flow.length > 0) {
+        else if (ensemble.flow && ensemble.flow.length > 0) {
             // Default to last agent's output
             const lastStep = ensemble.flow[ensemble.flow.length - 1];
             const lastMemberName = isAgentStep(lastStep) ? lastStep.agent : undefined;
@@ -439,11 +486,12 @@ export class Executor {
         metrics.totalDuration = Date.now() - startTime;
         // Get state report if available
         const stateReport = flowContext.stateManager?.getAccessReport();
-        // Build execution output with scoring data
+        // Build execution output with scoring data and response metadata
         const executionOutput = {
             output: finalOutput,
             metrics,
             stateReport,
+            response: responseMetadata,
         };
         // Add scoring data if available
         if (scoringState) {
@@ -617,6 +665,12 @@ export class Executor {
             state: stateManager ? stateManager.getState() : {},
             scoring: scoringState || {},
         };
+        // Create component registry for this execution
+        const componentRegistry = createComponentRegistry(this.env);
+        // Create discovery registries for agents and ensembles
+        const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
+        // Create an empty ensemble registry (ensembles loaded via EnsembleLoader at API level)
+        const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map());
         // Create flow execution context with observability
         const flowContext = {
             ensemble,
@@ -629,6 +683,9 @@ export class Executor {
             startTime,
             observability,
             executionId,
+            componentRegistry,
+            agentRegistry: agentDiscoveryRegistry,
+            ensembleRegistry: ensembleDiscoveryRegistry,
         };
         // Execute flow from the beginning
         const result = await this.executeFlow(flowContext, 0);
@@ -769,6 +826,11 @@ export class Executor {
             ensembleName: ensemble.name,
             environment: this.env.ENVIRONMENT,
         }, this.env.ANALYTICS);
+        // Create component registry for resumed execution
+        const componentRegistry = createComponentRegistry(this.env);
+        // Create discovery registries for agents and ensembles
+        const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
+        const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map());
         // Create flow execution context
         const flowContext = {
             ensemble,
@@ -781,6 +843,9 @@ export class Executor {
             startTime,
             observability,
             executionId,
+            componentRegistry,
+            agentRegistry: agentDiscoveryRegistry,
+            ensembleRegistry: ensembleDiscoveryRegistry,
         };
         // Resume from the specified step
         const resumeFromStep = suspendedState.resumeFromStep;

@@ -1,31 +1,34 @@
 # @ensemble-edge/conductor
 
-> Edge-native orchestration for AI members. Built on Cloudflare Workers.
+> Edge-native orchestration for AI agents. Built on Cloudflare Workers.
 
 [![npm version](https://img.shields.io/npm/v/@ensemble-edge/conductor.svg)](https://www.npmjs.com/package/@ensemble-edge/conductor)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Overview
 
-**Conductor** is an orchestration runtime that executes YAML-defined workflows at the edge using Cloudflare Workers. Think of it as the runtime engine for your AI workflows - members are musicians, ensembles are sheet music, and Conductor performs the symphony.
+**Conductor** is an orchestration runtime that executes YAML-defined workflows at the edge using Cloudflare Workers. Think of it as the runtime engine for your AI workflows - agents are musicians, ensembles are sheet music, and Conductor performs the symphony.
 
 ### Key Features
 
 - 🚀 **Edge-Native** - Runs on Cloudflare Workers for sub-50ms latency globally
 - 📝 **YAML-Driven** - Define workflows as simple, readable YAML files
 - 🎯 **Type-Safe** - Full TypeScript support with strong typing
-- 🧪 **Built-in Testing** - 812 tests passing, comprehensive mocks, custom matchers
-- 🔄 **State Management** - Built-in state sharing across member executions
+- 🧪 **Built-in Testing** - 1500+ tests passing, comprehensive mocks, custom matchers
+- 🔄 **State Management** - Built-in state sharing across agent executions
 - 💾 **Integrated Caching** - KV-based caching for performance and cost optimization
-- 🧩 **Composable Operations** - Think (AI), Code (JS), Storage (KV/D1/R2), HTTP, Tools (MCP), Email, SMS, HTML, PDF, Page
-- 🛠️ **CLI Tools** - Project scaffolding, member generation, and upgrades
-- 📦 **SDK** - Client library, testing utilities, and member factories
+- 🧩 **Composable Operations** - 14 operation types: think, code, storage, data, http, tools, email, sms, html, pdf, page, form, queue, docs
+- 🛠️ **CLI Tools** - Project scaffolding, agent generation, and upgrades
+- 📦 **SDK** - Client library, testing utilities, and agent factories
 - 🔁 **Durable Objects** - Stateful workflows with strong consistency (ExecutionState, HITL)
 - ⏰ **Scheduled Execution** - Cron-based ensemble triggers for automated workflows
 - 🪝 **Webhooks** - HTTP triggers for ensemble execution
 - 🤝 **Human-in-the-Loop** - Approval workflows with resumption support
 - 📊 **Async Execution Tracking** - Real-time status tracking for long-running workflows
 - 🎯 **Scoring System** - Quality evaluation with automatic retry logic
+- 🏗️ **Build Triggers** - Static generation at build time
+- 🖥️ **CLI Triggers** - Custom developer commands
+- 🔀 **Multi-path HTTP** - Multiple routes per ensemble
 
 ## Getting Started
 
@@ -62,7 +65,7 @@ my-project/
 ├── src/
 │   ├── index.ts                 # 🔧 Worker entry point (Choose: Built-in API or custom)
 │   └── lib/                     # 👈 YOUR UTILITIES - Shared helpers, utilities
-│       └── helpers.ts           #    Reusable functions across members
+│       └── helpers.ts           #    Reusable functions across agents
 │
 ├── agents/                       # 👈 YOUR AGENTS - Business logic implementations
 │   ├── examples/                 #    Learning examples (delete when ready)
@@ -83,13 +86,13 @@ my-project/
 │
 ├── prompts/                      # 🔄 SHARED PROMPTS - Versioned with Edgit
 │   ├── extraction.md             #    Prompt templates that can be:
-│   └── company-analysis.md       #    - Referenced by multiple members
+│   └── company-analysis.md       #    - Referenced by multiple agents
 │                                 #    - Versioned independently (v1.0.0, v2.0.0)
 │                                 #    - Reused across ensembles
 │
 ├── queries/                      # 🔄 SHARED SQL - Versioned with Edgit
 │   ├── company-lookup.sql        #    SQL queries that can be:
-│   └── competitor-search.sql     #    - Referenced by multiple members
+│   └── competitor-search.sql     #    - Referenced by multiple agents
 │                                 #    - Versioned independently
 │                                 #    - Optimized over time
 │
@@ -117,7 +120,7 @@ my-project/
 |-----------|----------|--------------|---------|
 | **Agents** | `agents/<name>/` | Create folder manually | Business logic: AI, functions, API calls, data operations |
 | **Ensembles** | `ensembles/<name>.yaml` | Create YAML file manually | Workflow orchestration: define flow, schedules, webhooks |
-| **Prompts** | `prompts/<name>.md` | Create file, register with `edgit tag` | Shared prompt templates - reusable across members/ensembles |
+| **Prompts** | `prompts/<name>.md` | Create file, register with `edgit tag` | Shared prompt templates - reusable across agents/ensembles |
 | **Queries** | `queries/<name>.sql` | Create file, register with `edgit tag` | Shared SQL queries - reusable, versioned, optimized |
 | **Configs** | `configs/<name>.yaml` | Create file, register with `edgit tag` | Shared configuration - model settings, feature flags |
 | **Schemas** | `schemas/<name>.json` | Create file, register with `edgit tag` | JSON Schema for structured AI outputs - versioned, validated |
@@ -131,14 +134,14 @@ my-project/
 **Key Concepts:**
 
 1. **Two types of components**:
-   - **Built-in** (inside Conductor) - Scoring members, validators, etc. - updated when you upgrade Conductor
-   - **Your components** (your project) - Members, ensembles, prompts, queries - never touched by Conductor
+   - **Built-in** (inside Conductor) - Scoring agents, validators, etc. - updated when you upgrade Conductor
+   - **Your components** (your project) - Agents, ensembles, prompts, queries - never touched by Conductor
 
 2. **Shared, versioned components** (🔄):
    - `prompts/`, `queries/`, `configs/` are **Edgit components**
-   - Can be referenced by multiple members or ensembles
+   - Can be referenced by multiple agents or ensembles
    - Versioned independently (e.g., `extraction-prompt@v1.0.0`, `extraction-prompt@v2.0.0`)
-   - **Example**: 5 different members can all use `company-analysis-prompt@v2.1.0`
+   - **Example**: 5 different agents can all use `company-analysis-prompt@v2.1.0`
 
 3. **Agent implementations** (👈):
    - `agents/` contains your business logic code
@@ -146,14 +149,14 @@ my-project/
    - **Example**: `agent.yaml` can specify `prompt: company-analysis@v2.1.0`
 
 4. **Workflow orchestration**:
-   - `ensembles/` defines how members work together
+   - `ensembles/` defines how agents work together
    - Can reference components directly: `component: extraction-prompt@v0.1.0`
    - **Example**: Mix versions - use v0.1.0 of prompt (ancient but perfect) with v3.0.0 of agent (latest)
 
 5. **Multiple projects share Conductor**:
    - Install once: `npm install -g @ensemble-edge/conductor`
    - Use in many projects: `my-app-1/`, `my-app-2/`, `my-app-3/`
-   - Each project has its own members, ensembles, prompts, queries
+   - Each project has its own agents, ensembles, prompts, queries
 
 ### Add to Existing Project
 
@@ -164,10 +167,10 @@ Already have a Cloudflare Worker? Add Conductor to it:
 npm install @ensemble-edge/conductor
 
 # 2. Create directories
-mkdir -p members ensembles
+mkdir -p agents ensembles
 
-# 3. Add your first member
-conductor add member greet --type Function
+# 3. Add your first agent
+conductor add agent greet --operation code
 
 # 4. Create an ensemble
 # Create ensembles/hello-world.yaml manually or use conductor add ensemble
@@ -179,8 +182,8 @@ Then in your worker (`src/index.ts`):
 
 ```typescript
 import { Executor, MemberLoader } from '@ensemble-edge/conductor';
-import greetConfig from '../members/greet/member.yaml';
-import greetImpl from '../members/greet';
+import greetConfig from '../agents/greet/agent.yaml';
+import greetImpl from '../agents/greet';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -221,7 +224,7 @@ export default {
     // Create executor
     const executor = new Executor({ env, ctx });
 
-    // Register your members
+    // Register your agents
     const loader = new MemberLoader({ env, ctx });
     const greet = loader.registerMember(greetConfig, greetFunction);
     executor.registerMember(greet);
@@ -259,7 +262,7 @@ Conductor provides **first-class testing support** built into the core package. 
 
 ### Test Infrastructure
 
-**812 tests passing** covering:
+**1500+ tests passing** covering:
 - 🧪 **Unit Tests** - Core runtime, agents, state management, pages
 - 🔗 **Integration Tests** - End-to-end workflows, catalog loading, dynamic routing
 
@@ -368,10 +371,10 @@ describe('Think Member', () => {
 ```
 
 **Available Mocks:**
-- `MockAIProvider` - Mock AI/LLM responses (Think members)
-- `MockDatabase` - Mock KV/D1/R2 operations (Data members)
-- `MockHTTPClient` - Mock HTTP requests (API members)
-- `MockVectorize` - Mock vector search (RAG members)
+- `MockAIProvider` - Mock AI/LLM responses (Think agents)
+- `MockDatabase` - Mock KV/D1/R2 operations (Data agents)
+- `MockHTTPClient` - Mock HTTP requests (HTTP agents)
+- `MockVectorize` - Mock vector search (RAG agents)
 - `MockDurableObject` - Mock Durable Object state
 
 ### Test Configuration
@@ -503,8 +506,8 @@ Recommended project test structure:
 ```
 my-project/
 ├── tests/
-│   ├── unit/              # Unit tests for individual members
-│   │   ├── members/
+│   ├── unit/              # Unit tests for individual agents
+│   │   ├── agents/
 │   │   │   ├── greet.test.ts
 │   │   │   ├── analyze.test.ts
 │   │   │   └── fetch-data.test.ts
@@ -563,7 +566,7 @@ npx vitest --ui
 ### Best Practices
 
 1. **Test at the right level**
-   - Unit tests: Individual members, utilities, parsing
+   - Unit tests: Individual agents, utilities, parsing
    - Integration tests: Complete workflows, state flow
 
 2. **Use mocks for external dependencies**
@@ -572,7 +575,7 @@ npx vitest --ui
    - Mock HTTP to avoid network flakiness
 
 3. **Test critical paths first**
-   - Member execution
+   - Agent execution
    - State management
    - Error handling
    - Configuration parsing
@@ -589,12 +592,12 @@ npx vitest --ui
 
 ## SDK Usage
 
-### Member Development
+### Agent Development
 
 ```typescript
-import { createFunctionMember } from '@ensemble-edge/conductor/sdk';
+import { createFunctionAgent } from '@ensemble-edge/conductor/sdk';
 
-export default createFunctionMember({
+export default createFunctionAgent({
   async handler({ input }) {
     return {
       message: `Hello, ${input.name}!`
@@ -632,11 +635,11 @@ See the [Testing](#testing) section above for comprehensive testing examples usi
 ```typescript
 import { TestConductor } from '@ensemble-edge/conductor/testing';
 
-describe('greet member', () => {
+describe('greet agent', () => {
   it('should greet user', async () => {
     const conductor = await TestConductor.create({ projectPath: '.' });
 
-    const result = await conductor.executeMember('greet', {
+    const result = await conductor.executeAgent('greet', {
       name: 'World'
     });
 
@@ -648,12 +651,12 @@ describe('greet member', () => {
 
 ### Schema Validation
 
-Use JSON Schema in your member.yaml for input/output validation:
+Use JSON Schema in your agent.yaml for input/output validation:
 
 ```yaml
-# members/my-member/member.yaml
-name: my-member
-type: Function
+# agents/my-agent/agent.yaml
+name: my-agent
+operation: code
 schema:
   input:
     type: object
@@ -694,41 +697,41 @@ Creates a complete project with:
 - Example agents with implementations
 - Test suite with passing examples
 
-### `conductor add member <name>`
+### `conductor add agent <name>`
 
-Scaffold a new member (works in any project with Conductor installed)
+Scaffold a new agent (works in any project with Conductor installed)
 
 ```bash
-conductor add member analyze-company --type Think
-conductor add member fetch-data --type API
-conductor add member calculate --type Function
+conductor add agent analyze-company --operation think
+conductor add agent fetch-data --operation http
+conductor add agent calculate --operation code
 
-# Create Think member with Edgit-ready prompt
-conductor add member analyze-company --type Think --with-prompt
+# Create think agent with Edgit-ready prompt
+conductor add agent analyze-company --operation think --with-prompt
 ```
 
 **Options:**
-- `-t, --type <type>` - Member type (Function, Think, Data, API)
-- `-d, --description <desc>` - Member description
-- `--with-prompt` - Create prompt.md file for Think members (Edgit integration)
+- `-o, --operation <type>` - Agent operation type (code, think, http, data, storage, etc.)
+- `-d, --description <desc>` - Agent description
+- `--with-prompt` - Create prompt.md file for think agents (Edgit integration)
 
 Creates:
-- `members/<name>/member.yaml` - Configuration
-- `members/<name>/index.ts` - Implementation template
-- `members/<name>/prompt.md` - Prompt template (with --with-prompt)
+- `agents/<name>/agent.yaml` - Configuration
+- `agents/<name>/index.ts` - Implementation template
+- `agents/<name>/prompt.md` - Prompt template (with --with-prompt)
 
 ### `conductor validate`
 
-Validate YAML syntax and member references
+Validate YAML syntax and agent references
 
 ```bash
 conductor validate
 ```
 
 Checks:
-- ✅ All member.yaml files are valid YAML
-- ✅ Required fields present (name, type)
-- ✅ Ensemble member references exist
+- ✅ All agent.yaml files are valid YAML
+- ✅ Required fields present (name, operation)
+- ✅ Ensemble agent references exist
 - ✅ Schema compliance
 
 ### `conductor upgrade`
@@ -747,15 +750,16 @@ What it does:
 - 🔧 Runs migration scripts
 - ✅ Verifies configuration
 
-## Member Types
+## Agent Types
 
-### Function Member
+### Code Agent
 Execute JavaScript/TypeScript functions
 
 ```yaml
-# members/calculate/member.yaml
+# agents/user/calculate/agent.yaml
 name: calculate
-type: Function
+operation: code
+handler: ./index.ts
 description: Calculate score
 
 schema:
@@ -765,13 +769,14 @@ schema:
     score: number
 ```
 
-### Think Member
+### Think Agent
 AI reasoning with LLMs (OpenAI, Anthropic, Cloudflare AI)
 
 ```yaml
-# members/analyze/member.yaml
+# agents/user/analyze/agent.yaml
 name: analyze
-type: Think
+operation: think
+handler: ./index.ts
 description: Analyze data with AI
 
 config:
@@ -780,13 +785,14 @@ config:
   temperature: 0.7
 ```
 
-### Data Member
+### Storage Agent
 Storage operations with KV, D1, or R2
 
 ```yaml
-# members/cache-lookup/member.yaml
+# agents/user/cache-lookup/agent.yaml
 name: cache-lookup
-type: Data
+operation: storage
+handler: ./index.ts
 description: Look up cached data
 
 config:
@@ -795,13 +801,14 @@ config:
   binding: CACHE
 ```
 
-### API Member
+### HTTP Agent
 HTTP requests to external services
 
 ```yaml
-# members/fetch-data/member.yaml
+# agents/user/fetch-data/agent.yaml
 name: fetch-data
-type: API
+operation: http
+handler: ./index.ts
 description: Fetch external data
 
 config:
@@ -819,21 +826,24 @@ Define workflows as YAML:
 name: company-intelligence
 description: Analyze company data
 
-state:
-  schema:
-    companyData: object
+trigger:
+  - type: http
+    path: /api/intelligence
+    methods: [POST]
+    public: true
 
 flow:
-  - member: fetch-company-data
-    state:
-      set: [companyData]
+  - name: fetch-company-data
+    agent: fetch-company-data
     input:
       domain: ${input.domain}
+    cache:
+      ttl: 3600
 
-  - member: analyze-company
-    state:
-      use: [companyData]
+  - name: analyze-company
+    agent: analyze-company
     input:
+      companyData: ${fetch-company-data.output}
       instructions: Analyze this company
 
 output:
@@ -866,7 +876,8 @@ schedules:
       reportType: "hourly"
 
 flow:
-  - member: generate-report
+  - name: generate-report
+    agent: generate-report
     input:
       type: ${input.reportType}
 ```
@@ -976,7 +987,8 @@ webhooks:
     mode: trigger           # 'trigger' (default) or 'resume' (HITL)
 
 flow:
-  - member: validate-payment
+  - name: validate-payment
+    agent: validate-payment
     input:
       paymentData: ${input.data}
 ```
@@ -1175,12 +1187,14 @@ name: expense-approval
 description: Expense approval workflow with human review
 
 flow:
-  - member: validate-expense
+  - name: validate-expense
+    agent: validate-expense
     input:
       expense: ${input.expense}
 
-  - member: request-approval
-    type: HITL
+  - name: request-approval
+    agent: request-approval
+    operation: hitl
     input:
       requester: ${input.userId}
       amount: ${input.expense.amount}
@@ -1188,7 +1202,8 @@ flow:
       approvers: ["manager@example.com"]
       timeout: 86400000  # 24 hours
 
-  - member: process-approved-expense
+  - name: process-approved-expense
+    agent: process-approved-expense
     input:
       expense: ${input.expense}
 ```
@@ -1364,21 +1379,21 @@ curl https://your-worker.dev/api/v1/schedules/crons/list \
 
 ### Member API
 
-**GET /api/v1/members**
+**GET /api/v1/agents**
 
-List available members:
+List available agents:
 
 ```bash
-curl https://your-worker.dev/api/v1/members \
+curl https://your-worker.dev/api/v1/agents \
   -H "X-API-Key: your-api-key"
 ```
 
-**GET /api/v1/members/:name**
+**GET /api/v1/agents/:name**
 
-Get member details:
+Get agent details:
 
 ```bash
-curl https://your-worker.dev/api/v1/members/analyze-company \
+curl https://your-worker.dev/api/v1/agents/analyze-company \
   -H "X-API-Key: your-api-key"
 ```
 
@@ -1524,8 +1539,8 @@ Conductor supports **three routing modes** for accessing AI models:
 Direct access to Cloudflare's edge-hosted models via Workers AI binding.
 
 ```yaml
-# members/analyze/member.yaml
-type: Think
+# agents/user/analyze/agent.yaml
+operation: think
 config:
   provider: workers-ai
   model: "@cf/meta/llama-3.1-8b-instruct"
@@ -1538,8 +1553,8 @@ config:
 Route external provider requests through Cloudflare AI Gateway for caching, analytics, and cost controls.
 
 ```yaml
-# members/analyze/member.yaml
-type: Think
+# agents/user/analyze/agent.yaml
+operation: think
 config:
   provider: openai
   model: gpt-4o
@@ -1557,8 +1572,8 @@ config:
 Make direct API calls to the provider, bypassing the gateway.
 
 ```yaml
-# members/analyze/member.yaml
-type: Think
+# agents/user/analyze/agent.yaml
+operation: think
 config:
   provider: anthropic
   model: claude-3-5-sonnet-20241022
@@ -1578,7 +1593,7 @@ Conductor uses intelligent defaults based on provider and platform:
 | anthropic | `cloudflare-gateway` | Leverage caching & analytics |
 | groq | `cloudflare-gateway` | Leverage analytics |
 
-**You can override these defaults** by specifying `routing:` in your member config.
+**You can override these defaults** by specifying `routing:` in your agent config.
 
 ### Cloudflare AI Gateway
 
@@ -1615,7 +1630,7 @@ Conductor tracks model lifecycle and warns you about deprecated models:
 ```bash
 $ conductor check-config
 
-⚠ members/analyze/member.yaml
+⚠ agents/user/analyze/agent.yaml
   Model "gpt-4-turbo-preview" is deprecated
   Reason: Replaced by stable gpt-4-turbo release
   End of life: 2025-04-09 (120 days)
@@ -1639,20 +1654,23 @@ You can mix and match providers in a single ensemble:
 name: multi-provider-analysis
 flow:
   # Fast, cheap analysis with Workers AI
-  - member: quick-scan
+  - name: quick-scan
+    agent: quick-scan
     input:
       provider: workers-ai
       model: "@cf/meta/llama-3.1-8b-instruct"
 
   # Deep analysis with Claude
-  - member: deep-analysis
+  - name: deep-analysis
+    agent: deep-analysis
     input:
       provider: anthropic
       model: claude-3-5-sonnet-20241022
       routing: cloudflare-gateway
 
   # Reasoning with OpenAI o1
-  - member: strategic-thinking
+  - name: strategic-thinking
+    agent: strategic-thinking
     input:
       provider: openai
       model: o1-preview
@@ -1666,7 +1684,7 @@ While AI providers are universal, platforms can provide additional features:
 **Cloudflare Workers**:
 - Workers AI binding for edge models
 - AI Gateway for external providers
-- KV/D1/R2 for Data members
+- KV/D1/R2 for Data agents
 - Durable Objects for state
 - Automatic global distribution
 
@@ -1707,17 +1725,17 @@ Conductor works seamlessly with Edgit for versioning prompts, configs, and membe
 ### What Gets Versioned with Edgit?
 
 **Edgit Components** (versioned artifacts in shared folders):
-- ✅ **Prompts** (`prompts/*.md`) - Shared prompt templates, reusable across members/ensembles
+- ✅ **Prompts** (`prompts/*.md`) - Shared prompt templates, reusable across agents/ensembles
 - ✅ **Queries** (`queries/*.sql`) - Shared SQL queries, reusable and optimized
 - ✅ **Configs** (`configs/*.yaml`) - Shared configuration files, model settings
-- ✅ **Member configurations** (`members/*/member.yaml`) - Agent config files
+- ✅ **Agent configurations** (`agents/*/agent.yaml`) - Agent config files
 
 **NOT Edgit Components** (code in your repo):
-- ❌ **Member implementations** (`members/*/index.ts`) - Code is git-versioned and bundled with worker
+- ❌ **Agent implementations** (`agents/*/index.ts`) - Code is git-versioned and bundled with worker
 - ❌ **Ensembles** (`ensembles/*.yaml`) - Workflow definitions live in git
 - ❌ **Worker code** (`src/*`) - Application code lives in git
 
-**Key Insight:** Prompts, queries, and configs live in **their own folders** at the project root, not inside individual members. This enables **reuse** - multiple members can reference the same prompt at different versions.
+**Key Insight:** Prompts, queries, and configs live in **their own folders** at the project root, not inside individual agents. This enables **reuse** - multiple agents can reference the same prompt at different versions.
 
 **Example: Shared Prompt Reuse**
 
@@ -1725,25 +1743,25 @@ Conductor works seamlessly with Edgit for versioning prompts, configs, and membe
 my-project/
 ├── prompts/
 │   └── company-analysis.md        # Shared prompt, versioned v1.0.0, v2.0.0, v2.1.0
-├── members/
+├── agents/
 │   ├── analyze-tech-company/
-│   │   └── member.yaml            # Uses: company-analysis-prompt@v2.1.0
+│   │   └── agent.yaml             # Uses: company-analysis-prompt@v2.1.0
 │   ├── analyze-startup/
-│   │   └── member.yaml            # Uses: company-analysis-prompt@v2.0.0
+│   │   └── agent.yaml             # Uses: company-analysis-prompt@v2.0.0
 │   └── quick-company-check/
-│       └── member.yaml            # Uses: company-analysis-prompt@v1.0.0
+│       └── agent.yaml             # Uses: company-analysis-prompt@v1.0.0
 ```
 
-All three members share the same prompt source file, but reference different versions based on what works best for their use case.
+All three agents share the same prompt source file, but reference different versions based on what works best for their use case.
 
 ### The Versioning Chain
 
-Conductor supports a complete versioning chain from ensemble → member config → prompts:
+Conductor supports a complete versioning chain from ensemble → agent config → prompts:
 
 ```
 Ensemble (git-versioned)
   ↓ references
-Member Config@v1.0.0 (Edgit component)
+Agent Config@v1.0.0 (Edgit component)
   ↓ references
 Prompt@v2.1.0 (Edgit component)
 ```
@@ -1753,15 +1771,16 @@ Prompt@v2.1.0 (Edgit component)
 ```yaml
 # ensembles/company-intel.yaml (git)
 flow:
-  - member: analyze-company@production
+  - name: analyze-company-step
+    agent: analyze-company@production
     input:
       domain: ${input.domain}
 ```
 
 ```yaml
-# members/analyze-company/member.yaml (Edgit component)
+# agents/user/analyze-company/agent.yaml (Edgit component)
 name: analyze-company
-type: Think
+operation: think
 config:
   model: gpt-4
   temperature: 0.7
@@ -1776,8 +1795,8 @@ You are an expert at analyzing companies...
 **Runtime Resolution:**
 
 1. Executor reads ensemble: `analyze-company@production`
-2. Loads member.yaml from Edgit: `analyze-company@production` → v1.0.0
-3. Member.yaml references: `company-analysis-prompt@v2.1.0`
+2. Loads agent.yaml from Edgit: `analyze-company@production` → v1.0.0
+3. Agent.yaml references: `company-analysis-prompt@v2.1.0`
 4. Loads prompt from Edgit: `company-analysis-prompt@v2.1.0`
 5. Executes bundled code (index.ts) with resolved config + prompt
 
@@ -1785,12 +1804,12 @@ You are an expert at analyzing companies...
 
 #### Pattern 1: Inline (Simple)
 
-Config lives directly in member.yaml - no versioning needed.
+Config lives directly in agent.yaml - no versioning needed.
 
 ```yaml
-# members/simple-analysis/member.yaml
+# agents/user/simple-analysis/agent.yaml
 name: simple-analysis
-type: Think
+operation: think
 config:
   model: gpt-4
   temperature: 0.7
@@ -1802,14 +1821,14 @@ config:
 
 > **Note**: Edgit runtime integration is planned for a future release. The API below shows the intended interface.
 
-Member loads versioned prompt from Edgit:
+Agent loads versioned prompt from Edgit:
 
 ```typescript
-// members/company-analysis/index.ts
-import { createThinkMember } from '@ensemble-edge/conductor/sdk';
+// agents/user/company-analysis/index.ts
+import { createThinkAgent } from '@ensemble-edge/conductor/sdk';
 // import { loadComponent } from '@ensemble-edge/edgit'; // Future
 
-export default createThinkMember({
+export default createThinkAgent({
   async handler({ input, env }) {
     // Future: Load versioned prompt from Edgit
     // const prompt = await loadComponent('company-analysis-prompt@v1.2.0', env);
@@ -1828,40 +1847,40 @@ export default createThinkMember({
 
 #### Pattern 3: Co-located Development (Current Approach)
 
-During development, keep prompts with members or in shared prompts directory.
+During development, keep prompts with agents or in shared prompts directory.
 
 ```bash
-# 1. Create member with prompt file
-conductor add member analyze-company --type Think --with-prompt
+# 1. Create agent with prompt file
+conductor add agent analyze-company --operation think --with-prompt
 
 # 2. Develop and test locally
-# Edit members/analyze-company/prompt.md
-# Edit members/analyze-company/index.ts
+# Edit agents/user/analyze-company/prompt.md
+# Edit agents/user/analyze-company/index.ts
 
-# 3. Load prompt in your member implementation
-# Read prompt.md from filesystem or include inline in member config
+# 3. Load prompt in your agent implementation
+# Read prompt.md from filesystem or include inline in agent config
 
 # 4. Future: When Edgit integration is complete
 # Register prompt: edgit component publish prompts/analyze-company.md
 # Load at runtime: loadComponent('analyze-company-prompt@v1.0.0', env)
 ```
 
-**Use when**: Starting new Think members - currently the recommended approach until Edgit runtime integration is complete.
+**Use when**: Starting new think agents - currently the recommended approach until Edgit runtime integration is complete.
 
-### Example: Think Member with Edgit (Planned)
+### Example: Think Agent with Edgit (Planned)
 
 > **Note**: Full Edgit runtime integration coming soon. Currently use inline prompts or load from local files.
 
 ```typescript
-import { createThinkMember } from '@ensemble-edge/conductor/sdk';
+import { createThinkAgent } from '@ensemble-edge/conductor/sdk';
 // import { loadComponent } from '@ensemble-edge/edgit'; // Future
 
-export default createThinkMember({
+export default createThinkAgent({
   async handler({ input, state, env }) {
     // Future: Load versioned prompt from Edgit
     // const systemPrompt = await loadComponent('analysis-system-prompt@v2.1.0', env);
 
-    // Current: Inline prompt or load from member config
+    // Current: Inline prompt or load from agent config
     const systemPrompt = "You are an expert analyst...";
 
     // Combine with dynamic context
@@ -1888,10 +1907,10 @@ export default createThinkMember({
 #### Scenario 1: Deploy New Config Without Code Changes
 
 ```bash
-# Update member config with new model settings
+# Update agent config with new model settings
 edgit tag create analyze-company v2.0.0
 
-# member.yaml v2.0.0
+# agent.yaml v2.0.0
 config:
   model: gpt-4-turbo      # ← Changed
   temperature: 0.5        # ← Changed
@@ -1912,13 +1931,15 @@ edgit deploy promote analyze-company --from preview --to production
 # ensembles/company-intel.yaml
 flow:
   # 90% use stable config
-  - member: analyze-company@v1.0.0
+  - name: analyze-stable
+    agent: analyze-company@v1.0.0
     weight: 90
     input:
       domain: ${input.domain}
 
   # 10% test new config
-  - member: analyze-company@v2.0.0
+  - name: analyze-new
+    agent: analyze-company@v2.0.0
     weight: 10
     input:
       domain: ${input.domain}
@@ -1946,19 +1967,22 @@ edgit deploy set analyze-company v3.0.0-beta --to preview
 
 ```yaml
 flow:
-  - member: analyze-company@production  # Uses v1.0.0
-  - member: analyze-company@staging     # Uses v2.0.0
-  - member: analyze-company@preview     # Uses v3.0.0-beta
+  - name: analyze-prod
+    agent: analyze-company@production  # Uses v1.0.0
+  - name: analyze-staging
+    agent: analyze-company@staging     # Uses v2.0.0
+  - name: analyze-preview
+    agent: analyze-company@preview     # Uses v3.0.0-beta
 ```
 
 #### Scenario 4: Independent Rollbacks
 
 ```bash
-# Rollback just the prompt (keep member config)
+# Rollback just the prompt (keep agent config)
 edgit tag create company-analysis-prompt v2.0.1
-# member.yaml stays at v1.0.0, uses new prompt
+# agent.yaml stays at v1.0.0, uses new prompt
 
-# Rollback entire member config
+# Rollback entire agent config
 edgit deploy set analyze-company v0.9.0 --to production
 # Rolls back model, temperature, AND prompt reference
 
@@ -1971,32 +1995,33 @@ edgit deploy set company-analysis-prompt v1.0.0 --to production
 **Development to Production:**
 
 ```bash
-# 1. Create member locally
-conductor add member analyze-company --type Think --with-prompt
+# 1. Create agent locally
+conductor add agent analyze-company --operation think --with-prompt
 
 # 2. Develop and test with local files
-# Edit members/analyze-company/member.yaml
-# Edit members/analyze-company/prompt.md
+# Edit agents/user/analyze-company/agent.yaml
+# Edit agents/user/analyze-company/prompt.md
 
 # 3. Version the prompt
 edgit component publish prompts/company-analysis.md
 edgit tag create company-analysis-prompt v1.0.0
 
-# 4. Update member.yaml to reference versioned prompt
+# 4. Update agent.yaml to reference versioned prompt
 # config:
 #   prompt: company-analysis-prompt@v1.0.0
 
-# 5. Version the member config
-edgit component publish members/analyze-company/member.yaml
+# 5. Version the agent config
+edgit component publish agents/user/analyze-company/agent.yaml
 edgit tag create analyze-company v1.0.0
 
 # 6. Deploy to staging
 edgit deploy set analyze-company v1.0.0 --to staging
 edgit deploy set company-analysis-prompt v1.0.0 --to staging
 
-# 7. Update ensemble to use versioned member
+# 7. Update ensemble to use versioned agent
 # flow:
-#   - member: analyze-company@staging
+#   - name: analyze
+#     agent: analyze-company@staging
 
 # 8. Test, then promote to production
 edgit deploy promote analyze-company --from staging --to production
@@ -2013,7 +2038,7 @@ conductor init owner-internal
 conductor init customer-portal
 ```
 
-Each project is independent with its own members and ensembles. Conductor is just the engine.
+Each project is independent with its own agents and ensembles. Conductor is just the engine.
 
 ## Development
 
@@ -2034,7 +2059,7 @@ npm run cf-typegen
 ## Philosophy
 
 - **Conductor** = The runtime engine (this package)
-- **Members** = Your code (your repository)
+- **Agents** = Your code (your repository)
 - **Ensembles** = Your workflows (your YAML)
 - **CLI** = Your development workflow
 - **SDK** = Your development utilities
@@ -2045,7 +2070,7 @@ We provide the tools, you provide the creativity.
 
 See [examples/](./examples/) for:
 - Complete starter project
-- Member implementations (all types)
+- Agent implementations (all types)
 - Ensemble workflows
 - Testing examples
 
@@ -2065,12 +2090,12 @@ Apache 2.0 - see [LICENSE](LICENSE)
 ### Versioning Strategy
 
 **Code (Git):**
-- Member implementations (index.ts)
+- Agent implementations (index.ts)
 - Ensemble workflows (YAML)
 - Worker entry points
 
 **Configuration (Edgit):**
-- Member configs (member.yaml) - Version independently
+- Agent configs (agent.yaml) - Version independently
 - Prompts (prompt.md) - Version independently
 - SQL queries, templates - Version independently
 
@@ -2094,8 +2119,8 @@ v2.0.0 deployment
 ```
 Your deployment
 ├── Code (bundled with worker)
-├── Member config@v1.0.0 ✅ Independent
-├── Member config@v2.0.0 ✅ Independent
+├── Agent config@v1.0.0 ✅ Independent
+├── Agent config@v2.0.0 ✅ Independent
 ├── Prompt@v0.1.0 ✅ Ancient but perfect
 └── Prompt@v3.0.0 ✅ Latest
 ```

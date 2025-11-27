@@ -315,27 +315,33 @@ flow:
 ## File Structure
 
 project/
-├── ensembles/              # YAML or TS ensembles
-│   ├── examples/           # Example ensembles
-│   ├── system/             # Built-in functionality (docs, etc.)
-│   ├── debug/              # Debug/dev ensembles
-│   └── user/               # User-created ensembles
-├── agents/                 # Custom agents
-│   ├── examples/           # Example agents
-│   ├── system/             # Built-in agents (redirect, docs)
+├── agents/                 # Reusable agents
+│   ├── examples/           # Example agents (shipped with template)
+│   ├── system/             # Built-in system agents
 │   │   ├── redirect/       # URL redirect service
-│   │   │   ├── agent.yaml
-│   │   │   └── redirect.ts
-│   │   └── docs/           # Documentation agent
-│   │       ├── agent.yaml
-│   │       └── docs.ts
-│   ├── debug/              # Debug agents
+│   │   ├── docs/           # Documentation agent
+│   │   ├── fetch/          # HTTP fetching agent
+│   │   ├── validate/       # Validation agent
+│   │   ├── slug/           # Slug generation agent
+│   │   ├── tools/          # MCP tools agent
+│   │   ├── queries/        # SQL query agent
+│   │   └── scrape/         # Web scraping agent
+│   ├── debug/              # Debug/dev agents
+│   │   ├── delay/          # Add artificial delay
+│   │   ├── echo/           # Echo input back
+│   │   └── inspect-context/ # Inspect execution context
 │   └── user/               # User-created agents
-├── scripts/                # TS/JS for code operations
+├── ensembles/              # Workflow definitions
+│   ├── examples/           # Example ensembles
+│   ├── system/             # Built-in system ensembles
+│   ├── debug/              # Debug ensembles
+│   └── user/               # User-created ensembles
 ├── prompts/                # Prompt templates
 ├── schemas/                # JSON schemas
 ├── configs/                # Reusable configs
 ├── queries/                # SQL templates
+├── scripts/                # TS/JS for code operations
+├── templates/              # HTML templates
 ├── wrangler.toml           # Cloudflare config
 └── .dev.vars               # Local secrets (gitignored)
 

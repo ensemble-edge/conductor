@@ -24,6 +24,15 @@ prompt: |
 
 schema:
   input:
-    requestedPath: string
+    type: object
+    required: [requestedPath]
+    properties:
+      requestedPath:
+        type: string
+        description: The URL path that resulted in 404
   output:
-    response: string
+    type: object
+    properties:
+      response:
+        type: string
+        description: JSON array of suggested pages

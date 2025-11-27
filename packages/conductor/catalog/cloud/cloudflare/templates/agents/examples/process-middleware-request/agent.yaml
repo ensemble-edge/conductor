@@ -1,5 +1,6 @@
 name: process-middleware-request
 operation: code
+handler: ./index.ts
 description: Demonstrates middleware functionality by returning request metadata
 
 schema:

@@ -18,6 +18,8 @@ import { createValidateCommand } from './commands/validate.js';
 import { createBundleCommand } from './commands/bundle.js';
 import { createImportCommand } from './commands/import.js';
 import { handleKeysCommand } from './commands/keys.js';
+import { createBuildCommand } from './commands/build.js';
+import { createRunCommand } from './commands/run.js';
 const version = __CONDUCTOR_VERSION__;
 const program = new Command();
 program
@@ -53,6 +55,9 @@ program.addCommand(createReplayCommand());
 program.addCommand(createValidateCommand());
 program.addCommand(createBundleCommand());
 program.addCommand(createImportCommand());
+// Build & Run commands
+program.addCommand(createBuildCommand());
+program.addCommand(createRunCommand());
 // API Key management command
 const keysCommand = new Command('keys')
     .description('Manage API keys for authentication')

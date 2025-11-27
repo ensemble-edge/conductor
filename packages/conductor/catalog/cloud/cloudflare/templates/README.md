@@ -8,17 +8,18 @@ This is an example project showing how to use `@ensemble-edge/conductor` to buil
 my-conductor-project/
 ├── src/
 │   └── index.ts           # Worker entry point
-├── agents/               # Your AI agents (sacred user space)
-│   └── greet/
-│       ├── agent.yaml    # Agent configuration
-│       └── index.ts       # Agent implementation
-├── ensembles/             # Your workflows (sacred user space)
-│   └── hello-world.yaml   # Example ensemble
-├── templates/             # HTML/Email/PDF templates (sacred user space)
-│   ├── email/             # Email templates
-│   ├── html/              # HTML templates
-│   └── pdf/               # PDF templates
-├── wrangler.toml          # Cloudflare configuration
+├── agents/                # AI agents
+│   ├── examples/          # Example agents (shipped with template)
+│   ├── system/            # Built-in system agents
+│   ├── debug/             # Debug agents
+│   └── user/              # Your custom agents
+├── ensembles/             # Workflow definitions
+│   ├── examples/
+│   ├── system/
+│   ├── debug/
+│   └── user/
+├── templates/             # HTML/Email/PDF templates
+├── wrangler.toml
 ├── package.json
 └── tsconfig.json
 ```
@@ -107,14 +108,15 @@ npx wrangler vectorize create conductor-embeddings --dimensions=768 --metric=cos
 
 Then update the IDs in `wrangler.toml` with the values returned by these commands.
 
-## Creating New Members
+## Creating New Agents
 
-Create a new agent in `agents/your-agent/`:
+Create a new agent in `agents/user/your-agent/`:
 
 ```yaml
-# agents/your-agent/agent.yaml
+# agents/user/your-agent/agent.yaml
 name: your-agent
-type: Function  # or Think, Data, API
+operation: code
+handler: ./index.ts
 description: What your agent does
 
 schema:
@@ -125,11 +127,14 @@ schema:
 ```
 
 ```typescript
-// agents/your-agent/index.ts
-export default async function yourMember({ input }) {
+// agents/user/your-agent/index.ts
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
+
+export default async function handler(ctx: AgentExecutionContext) {
+  const { param } = ctx.input
   return {
-    result: `Processed: ${input.param}`
-  };
+    result: `Processed: ${param}`
+  }
 }
 ```
 
@@ -149,6 +154,17 @@ flow:
 output:
   result: ${your-agent.output.result}
 ```
+
+## Triggers
+
+Conductor supports multiple trigger types for different use cases:
+
+- **HTTP Triggers**: Web APIs with path parameters and multi-path support
+- **Build Triggers**: Static generation at build time (e.g., generating OpenAPI docs)
+- **CLI Triggers**: Developer commands for local workflows
+- **Webhook, Email, Queue, Cron**: Additional trigger types for advanced use cases
+
+See the [Conductor documentation](https://github.com/ensemble-edge/conductor) for details on configuring triggers.
 
 ## Learn More
 

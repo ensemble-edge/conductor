@@ -27,6 +27,22 @@ export interface ExecutorConfig {
     auth?: AuthContext;
 }
 /**
+ * Response metadata for HTTP responses
+ */
+export interface ResponseMetadata {
+    /** HTTP status code (default: 200) */
+    status: number;
+    /** Custom response headers */
+    headers?: Record<string, string>;
+    /** Redirect configuration */
+    redirect?: {
+        url: string;
+        status?: 301 | 302 | 307 | 308;
+    };
+    /** If true, output is raw string (not JSON) */
+    isRawBody?: boolean;
+}
+/**
  * Successful execution output
  */
 export interface ExecutionOutput {
@@ -34,6 +50,8 @@ export interface ExecutionOutput {
     metrics: ExecutionMetrics;
     stateReport?: AccessReport;
     scoring?: ScoringState;
+    /** Response metadata for HTTP responses (status, headers, redirect) */
+    response?: ResponseMetadata;
 }
 /**
  * Legacy execution result for backwards compatibility

@@ -1,5 +1,6 @@
 name: fetch-blog-post
 operation: code
+handler: ./index.ts
 description: Fetches a single blog post by slug from D1 database
 
 schema:

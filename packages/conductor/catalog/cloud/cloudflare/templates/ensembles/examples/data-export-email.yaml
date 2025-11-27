@@ -14,11 +14,11 @@ flow:
     config:
       script: scripts/examples/data/export-data
     input:
-      prefix: $input.dataPrefix
-      format: $input.format  # csv, json, xlsx, or ndjson
+      prefix: ${input.dataPrefix}
+      format: ${input.format}  # csv, json, xlsx, or ndjson
       exportOptions:
         headers: true
-        fields: $input.fields  # Optional: specify field order
+        fields: ${input.fields}  # Optional: specify field order
         pretty: true  # For JSON format
         sheetName: "Exported Data"  # For Excel format
       streaming: false  # Set to true for large datasets
@@ -30,9 +30,9 @@ flow:
     config:
       script: scripts/examples/data/prepare-attachment
     input:
-      exportResult: $export-data.exportResult
-      format: $input.format
-      filename: $input.filename
+      exportResult: ${export-data.exportResult}
+      format: ${input.format}
+      filename: ${input.filename}
     output: attachment
 
   # Step 3: Send email with attachment
@@ -41,11 +41,11 @@ flow:
     config:
       provider:
         operation: resend
-        apiKey: $env.RESEND_API_KEY
+        apiKey: ${env.RESEND_API_KEY}
         from: "reports@example.com"
     input:
-      to: $input.recipient
-      subject: $input.subject
+      to: ${input.recipient}
+      subject: ${input.subject}
       html: |
         <h2>Data Export Report</h2>
         <p>Your requested data export is attached.</p>
@@ -56,15 +56,15 @@ flow:
         </ul>
         <p>Generated at {{timestamp}}</p>
       data:
-        format: $input.format
-        count: $export-data.count
-        filename: $prepare-attachment.filename
-        timestamp: $now
+        format: ${input.format}
+        count: ${export-data.count}
+        filename: ${prepare-attachment.filename}
+        timestamp: ${now}
       attachments:
-        - filename: $prepare-attachment.filename
-          content: $prepare-attachment.content
-          contentType: $prepare-attachment.contentType
-          encoding: $prepare-attachment.encoding
+        - filename: ${prepare-attachment.filename}
+          content: ${prepare-attachment.content}
+          contentType: ${prepare-attachment.contentType}
+          encoding: ${prepare-attachment.encoding}
 
 # Input schema
 schema:

@@ -12,6 +12,30 @@ description: |
   Note: You must generate embeddings yourself.
   For automatic RAG, use AutoRAG agent instead.
 
+schema:
+  input:
+    type: object
+    properties:
+      vector:
+        type: array
+        items:
+          type: number
+        description: Query embedding vector
+      topK:
+        type: integer
+        description: Number of results to return (optional)
+      filter:
+        type: object
+        description: Metadata filters (optional)
+  output:
+    type: object
+    properties:
+      matches:
+        type: array
+        description: Search results
+      count:
+        type: integer
+
 config:
   # Database type (required for data agents)
   database: vectorize

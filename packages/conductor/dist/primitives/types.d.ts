@@ -347,8 +347,9 @@ export interface MemoryConfig {
 }
 /**
  * Component types that can be referenced
+ * Aligned with Edgit's component types for version primitives
  */
-export type ComponentType = 'agent' | 'ensemble' | 'tool' | 'prompt' | 'schema' | 'script';
+export type ComponentType = 'agent' | 'ensemble' | 'tool' | 'prompt' | 'schema' | 'script' | 'template' | 'query' | 'config';
 /**
  * Version reference structure
  */

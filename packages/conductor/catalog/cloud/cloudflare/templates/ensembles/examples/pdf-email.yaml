@@ -7,6 +7,12 @@ description: |
   - Binary data handling for attachments
   - Custom PDF styling and metadata
 
+trigger:
+  - type: http
+    path: /api/pdf-email
+    methods: [POST]
+    public: true
+
 flow:
   # Step 1: Generate PDF from HTML
   - agent: generate-pdf
@@ -97,12 +103,12 @@ flow:
         </body>
         </html>
       data:
-        title: $input.title
-        invoiceNumber: $input.invoiceNumber
-        date: $now
-        customer: $input.customer
-        items: $input.items
-        totalAmount: $input.totalAmount
+        title: ${input.title}
+        invoiceNumber: ${input.invoiceNumber}
+        date: ${now}
+        customer: ${input.customer}
+        items: ${input.items}
+        totalAmount: ${input.totalAmount}
       pdfOptions:
         format: "A4"
         printBackground: true
@@ -111,7 +117,7 @@ flow:
           bottom: "20mm"
           left: "15mm"
           right: "15mm"
-      filename: $input.filename
+      filename: ${input.filename}
     output: pdfResult
 
   # Step 2: Prepare PDF attachment
@@ -120,8 +126,8 @@ flow:
     config:
       script: scripts/examples/data/prepare-pdf-attachment
     input:
-      pdfResult: $generate-pdf
-      filename: $input.filename
+      pdfResult: ${generate-pdf}
+      filename: ${input.filename}
     output: attachment
 
   # Step 3: Send email with PDF attachment
@@ -130,11 +136,11 @@ flow:
     config:
       provider:
         operation: resend
-        apiKey: $env.RESEND_API_KEY
+        apiKey: ${env.RESEND_API_KEY}
         from: "invoices@example.com"
     input:
-      to: $input.recipient
-      subject: $input.emailSubject
+      to: ${input.recipient}
+      subject: ${input.emailSubject}
       html: |
         <h2>{{greeting}}</h2>
         <p>{{message}}</p>
@@ -145,21 +151,21 @@ flow:
         </ul>
         <p>Thank you for your business!</p>
       data:
-        greeting: $input.greeting
-        message: $input.emailMessage
-        documentType: $input.documentType
-        filename: $prepare-pdf-attachment.filename
-        fileSize: ${Math.round($generate-pdf.size / 1024)}
+        greeting: ${input.greeting}
+        message: ${input.emailMessage}
+        documentType: ${input.documentType}
+        filename: ${prepare-pdf-attachment.filename}
+        fileSize: ${Math.round(generate-pdf.size / 1024)}
       attachments:
-        - filename: $prepare-pdf-attachment.filename
-          content: $prepare-pdf-attachment.content
-          contentType: $prepare-pdf-attachment.contentType
-          encoding: $prepare-pdf-attachment.encoding
+        - filename: ${prepare-pdf-attachment.filename}
+          content: ${prepare-pdf-attachment.content}
+          contentType: ${prepare-pdf-attachment.contentType}
+          encoding: ${prepare-pdf-attachment.encoding}
 
 output:
-  emailSent: $send-email
-  pdfUrl: $generate-pdf.url
-  pdfSize: $generate-pdf.size
+  emailSent: ${send-email}
+  pdfUrl: ${generate-pdf.url}
+  pdfSize: ${generate-pdf.size}
 
 # Input schema
 schema:

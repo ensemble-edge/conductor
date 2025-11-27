@@ -2,9 +2,35 @@
  * Authentication Middleware
  *
  * Validates API keys and sets auth context.
+ * Supports stealth mode to hide API structure from unauthenticated users.
+ *
+ * @module api/middleware/auth
+ */
+/**
+ * Create authentication middleware
+ *
+ * @example
+ * ```ts
+ * // Standard auth
+ * app.use('/api/*', createAuthMiddleware({
+ *   apiKeys: ['key1', 'key2'],
+ * }))
+ *
+ * // With stealth mode
+ * app.use('/api/*', createAuthMiddleware({
+ *   apiKeys: ['key1', 'key2'],
+ *   stealthMode: true,
+ *   stealthDelayMs: 50,
+ * }))
+ * ```
  */
 export function createAuthMiddleware(config) {
     return async (c, next) => {
+        // Store stealth settings in context for use by other middleware
+        if (config.stealthMode) {
+            c.set('stealthMode', true);
+            c.set('stealthDelayMs', config.stealthDelayMs ?? 50);
+        }
         // Extract API key from header
         const apiKey = c.req.header('X-API-Key') || c.req.header('Authorization')?.replace('Bearer ', '');
         // Check if anonymous access is allowed
@@ -16,8 +42,11 @@ export function createAuthMiddleware(config) {
             await next();
             return;
         }
-        // Validate API key
+        // Validate API key - return stealth 404 if stealth mode enabled
         if (!apiKey) {
+            if (config.stealthMode) {
+                return stealthNotFound(c, config.stealthDelayMs);
+            }
             return c.json({
                 error: 'Unauthorized',
                 message: 'API key is required',
@@ -27,6 +56,9 @@ export function createAuthMiddleware(config) {
         // Check if API key is valid
         const isValid = config.apiKeys?.includes(apiKey);
         if (!isValid) {
+            if (config.stealthMode) {
+                return stealthNotFound(c, config.stealthDelayMs);
+            }
             return c.json({
                 error: 'Unauthorized',
                 message: 'Invalid credentials',
@@ -46,11 +78,17 @@ export function createAuthMiddleware(config) {
 }
 /**
  * Require authentication middleware
+ * Used after createAuthMiddleware to enforce authentication
  */
-export function requireAuth() {
+export function requireAuth(options) {
     return async (c, next) => {
         const auth = c.get('auth');
+        const stealthMode = options?.stealthMode ?? c.get('stealthMode');
         if (!auth?.authenticated) {
+            if (stealthMode) {
+                const stealthDelayMs = c.get('stealthDelayMs') ?? 50;
+                return stealthNotFound(c, stealthDelayMs);
+            }
             return c.json({
                 error: 'Unauthorized',
                 message: 'Authentication required',
@@ -59,4 +97,37 @@ export function requireAuth() {
         }
         await next();
     };
+}
+/**
+ * Return stealth 404 response with optional timing protection
+ *
+ * The response is identical to a real 404 to hide API structure.
+ * Optional delay prevents timing attacks that could reveal endpoint existence.
+ */
+async function stealthNotFound(c, delayMs) {
+    const delay = delayMs ?? 50;
+    if (delay > 0) {
+        const startTime = c.get('startTime');
+        if (startTime) {
+            const elapsed = Date.now() - startTime;
+            const remaining = Math.max(0, delay - elapsed);
+            if (remaining > 0) {
+                try {
+                    // scheduler.wait() requires paid Workers plan
+                    // @ts-ignore scheduler is globally available in Workers runtime
+                    await scheduler.wait(remaining);
+                }
+                catch {
+                    // scheduler.wait not available (free tier) - continue without delay
+                }
+            }
+        }
+    }
+    // Return response identical to real 404
+    return c.json({
+        success: false,
+        error: 'Not Found',
+        message: 'The requested resource could not be found.',
+        timestamp: new Date().toISOString(),
+    }, 404);
 }

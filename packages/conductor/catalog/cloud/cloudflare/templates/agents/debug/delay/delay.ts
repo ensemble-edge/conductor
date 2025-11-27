@@ -5,7 +5,7 @@
  * timeout handling, loading states, and concurrent behavior.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 interface DelayInput {
   ms?: number

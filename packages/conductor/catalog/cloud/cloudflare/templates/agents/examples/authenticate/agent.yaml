@@ -1,5 +1,6 @@
 name: authenticate
 operation: code
+handler: ./index.ts
 description: Handles user login authentication with session management
 
 schema:
