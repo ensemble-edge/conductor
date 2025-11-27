@@ -6,6 +6,10 @@ trigger:
     path: /health
     methods: [GET]
     public: true
+    # Health checks should not be cached - always return fresh status
+    httpCache:
+      noCache: true
+      noStore: true
     responses:
       html:
         enabled: false

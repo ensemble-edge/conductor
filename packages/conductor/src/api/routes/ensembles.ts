@@ -8,6 +8,7 @@ import { Hono } from 'hono'
 import type { ConductorContext } from '../types.js'
 import { getEnsembleLoader } from '../auto-discovery.js'
 import { createLogger } from '../../observability/index.js'
+import type { EnsembleOutput } from '../../runtime/output-types.js'
 
 const ensembles = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-ensembles' })
@@ -55,7 +56,7 @@ interface EnsembleDetailResponse {
     schema?: Record<string, unknown>
   }
   output?: {
-    schema?: Record<string, unknown>
+    schema?: EnsembleOutput
   }
   agents?: Array<{
     name: string

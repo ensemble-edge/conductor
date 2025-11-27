@@ -114,7 +114,8 @@ async function registerErrorPages(
       }
 
       try {
-        const executor = new Executor({ env, ctx })
+        const auth = (c as any).get('auth')
+        const executor = new Executor({ env, ctx, auth })
         const agents = memberLoader!.getAllMembers()
         for (const agent of agents) {
           executor.registerAgent(agent)
@@ -169,7 +170,8 @@ async function registerErrorPages(
       }
 
       try {
-        const executor = new Executor({ env, ctx })
+        const auth = (c as any).get('auth')
+        const executor = new Executor({ env, ctx, auth })
         const agents = memberLoader!.getAllMembers()
         for (const agent of agents) {
           executor.registerAgent(agent)

@@ -70,6 +70,17 @@ import {
   parseScriptURI,
   isScriptReference,
 } from '../utils/script-loader.js'
+import {
+  ComponentRegistry,
+  createComponentRegistry,
+  createAgentRegistry,
+  createEnsembleRegistry,
+  type AgentRegistry,
+  type EnsembleRegistry,
+} from '../components/index.js'
+import { resolveOutput, type EnsembleOutput } from './output-resolver.js'
+
+import type { AuthContext } from '../auth/types.js'
 
 export interface ExecutorConfig {
   env: ConductorEnv
@@ -79,6 +90,25 @@ export interface ExecutorConfig {
   observability?: ObservabilityConfig
   /** Request ID from incoming HTTP request (for tracing) */
   requestId?: string
+  /** Authentication context from the request */
+  auth?: AuthContext
+}
+
+/**
+ * Response metadata for HTTP responses
+ */
+export interface ResponseMetadata {
+  /** HTTP status code (default: 200) */
+  status: number
+  /** Custom response headers */
+  headers?: Record<string, string>
+  /** Redirect configuration */
+  redirect?: {
+    url: string
+    status?: 301 | 302 | 307 | 308
+  }
+  /** If true, output is raw string (not JSON) */
+  isRawBody?: boolean
 }
 
 /**
@@ -89,6 +119,8 @@ export interface ExecutionOutput {
   metrics: ExecutionMetrics
   stateReport?: AccessReport
   scoring?: ScoringState
+  /** Response metadata for HTTP responses (status, headers, redirect) */
+  response?: ResponseMetadata
 }
 
 /**
@@ -152,6 +184,12 @@ interface FlowExecutionContext {
   observability: ObservabilityManager
   /** Execution ID for tracing */
   executionId: string
+  /** Component registry for schemas, prompts, configs */
+  componentRegistry: ComponentRegistry
+  /** Agent registry for discovering available agents */
+  agentRegistry: AgentRegistry
+  /** Ensemble registry for discovering available ensembles */
+  ensembleRegistry: EnsembleRegistry
 }
 
 /**
@@ -164,6 +202,7 @@ export class Executor {
   private logger: Logger
   private observabilityConfig?: ObservabilityConfig
   private requestId?: string
+  private auth?: AuthContext
 
   constructor(config: ExecutorConfig) {
     this.env = config.env
@@ -171,6 +210,7 @@ export class Executor {
     this.agentRegistry = new Map()
     this.observabilityConfig = config.observability
     this.requestId = config.requestId
+    this.auth = config.auth
     this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS)
   }
 
@@ -383,7 +423,14 @@ export class Executor {
       })
     }
 
-    // Create agent execution context with observability
+    // Find agent config from ensemble definition (if any)
+    // Agents can be defined inline in the ensemble's agents array
+    const agentDef = ensemble.agents?.find(
+      (a) => (a as Record<string, unknown>).name === step.agent
+    ) as Record<string, unknown> | undefined
+    const agentConfig = (agentDef?.config as Record<string, any>) || undefined
+
+    // Create agent execution context with observability and component registries
     const agentContext: AgentExecutionContext = {
       input: resolvedInput as Record<string, any>,
       env: this.env,
@@ -393,6 +440,19 @@ export class Executor {
       metrics: agentMetrics,
       executionId: flowContext.executionId,
       requestId: this.requestId,
+      auth: this.auth,
+      // Component registries for TypeScript handlers
+      schemas: flowContext.componentRegistry.schemas,
+      prompts: flowContext.componentRegistry.prompts,
+      configs: flowContext.componentRegistry.configs,
+      queries: flowContext.componentRegistry.queries,
+      scripts: flowContext.componentRegistry.scripts,
+      templates: flowContext.componentRegistry.templates,
+      // Discovery registries for agents and ensembles
+      agentRegistry: flowContext.agentRegistry,
+      ensembleRegistry: flowContext.ensembleRegistry,
+      // Agent-specific config from ensemble definition
+      config: agentConfig,
     }
 
     // Add state context if available and track updates
@@ -667,12 +727,41 @@ export class Executor {
       )
     }
 
-    // Resolve final output
+    // Resolve final output using the output resolver
+    // Supports conditional outputs, status codes, headers, redirects, and raw body
     let finalOutput: unknown
+    let responseMetadata: ResponseMetadata | undefined
+
     if (ensemble.output) {
-      // User specified output interpolation
-      finalOutput = Parser.resolveInterpolation(ensemble.output, executionContext)
-    } else if (ensemble.flow.length > 0) {
+      // Use the new output resolver for conditional outputs
+      const resolved = resolveOutput(ensemble.output as EnsembleOutput, executionContext)
+
+      // Extract the body/rawBody as the output
+      if (resolved.redirect) {
+        // For redirects, output is empty but we set response metadata
+        finalOutput = {}
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          redirect: resolved.redirect,
+        }
+      } else if (resolved.rawBody !== undefined) {
+        // Raw body - output is the string, mark as raw
+        finalOutput = resolved.rawBody
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          isRawBody: true,
+        }
+      } else {
+        // JSON body
+        finalOutput = resolved.body ?? {}
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+        }
+      }
+    } else if (ensemble.flow && ensemble.flow.length > 0) {
       // Default to last agent's output
       const lastStep = ensemble.flow[ensemble.flow.length - 1]
       const lastMemberName = isAgentStep(lastStep) ? lastStep.agent : undefined
@@ -693,11 +782,12 @@ export class Executor {
     // Get state report if available
     const stateReport = flowContext.stateManager?.getAccessReport()
 
-    // Build execution output with scoring data
+    // Build execution output with scoring data and response metadata
     const executionOutput: ExecutionOutput = {
       output: finalOutput,
       metrics,
       stateReport,
+      response: responseMetadata,
     }
 
     // Add scoring data if available
@@ -921,6 +1011,14 @@ export class Executor {
       scoring: scoringState || {},
     }
 
+    // Create component registry for this execution
+    const componentRegistry = createComponentRegistry(this.env)
+
+    // Create discovery registries for agents and ensembles
+    const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry)
+    // Create an empty ensemble registry (ensembles loaded via EnsembleLoader at API level)
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map())
+
     // Create flow execution context with observability
     const flowContext: FlowExecutionContext = {
       ensemble,
@@ -933,6 +1031,9 @@ export class Executor {
       startTime,
       observability,
       executionId,
+      componentRegistry,
+      agentRegistry: agentDiscoveryRegistry,
+      ensembleRegistry: ensembleDiscoveryRegistry,
     }
 
     // Execute flow from the beginning
@@ -1122,6 +1223,13 @@ export class Executor {
       this.env.ANALYTICS
     )
 
+    // Create component registry for resumed execution
+    const componentRegistry = createComponentRegistry(this.env)
+
+    // Create discovery registries for agents and ensembles
+    const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry)
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map())
+
     // Create flow execution context
     const flowContext: FlowExecutionContext = {
       ensemble,
@@ -1134,6 +1242,9 @@ export class Executor {
       startTime,
       observability,
       executionId,
+      componentRegistry,
+      agentRegistry: agentDiscoveryRegistry,
+      ensembleRegistry: ensembleDiscoveryRegistry,
     }
 
     // Resume from the specified step

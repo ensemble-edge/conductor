@@ -10,6 +10,14 @@ import type { StateContext } from '../runtime/state-manager.js'
 import type { ConductorEnv } from '../types/env.js'
 import type { Logger } from '../observability/types.js'
 import type { MetricsRecorder } from '../observability/context.js'
+import type { AuthContext } from '../auth/types.js'
+import type { SchemaRegistry } from '../components/schemas.js'
+import type { PromptRegistry } from '../components/prompts.js'
+import type { ConfigRegistry } from '../components/configs.js'
+import type { QueryRegistry } from '../components/queries.js'
+import type { ScriptRegistry } from '../components/scripts.js'
+import type { TemplateRegistry } from '../components/templates.js'
+import type { AgentRegistry, EnsembleRegistry } from '../components/discovery.js'
 
 /**
  * Execution context passed to agents
@@ -84,6 +92,268 @@ export interface AgentExecutionContext {
    * Same across the entire HTTP request lifecycle
    */
   requestId?: string
+
+  /**
+   * Authentication context from the request
+   * Available when request was authenticated via trigger auth or API middleware
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { auth } = context
+   *   if (auth?.authenticated) {
+   *     logger.info('Request from user', { userId: auth.user?.id })
+   *   }
+   *   return { userAuthenticated: auth?.authenticated ?? false }
+   * }
+   * ```
+   */
+  auth?: AuthContext
+
+  /**
+   * Schema registry for validating data against JSON schemas
+   * Schemas are loaded from KV storage with versioning support
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { schemas, input } = context
+   *
+   *   // Validate input against a schema
+   *   const result = await schemas.validate('order@v1.0.0', input)
+   *   if (!result.valid) {
+   *     throw new Error(`Validation failed: ${result.errors[0].message}`)
+   *   }
+   *
+   *   // Quick boolean check
+   *   if (await schemas.isValid('order', input)) {
+   *     // process valid order
+   *   }
+   *
+   *   return { validated: true }
+   * }
+   * ```
+   */
+  schemas?: SchemaRegistry
+
+  /**
+   * Prompt registry for accessing and rendering prompt templates
+   * Prompts are loaded from KV storage with Handlebars rendering
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { prompts, input } = context
+   *
+   *   // Get raw prompt template
+   *   const template = await prompts.get('extraction@v1.0.0')
+   *
+   *   // Render with variables
+   *   const rendered = await prompts.render('docs-writer', {
+   *     page: input.page,
+   *     projectName: 'MyApp'
+   *   })
+   *
+   *   return { prompt: rendered }
+   * }
+   * ```
+   */
+  prompts?: PromptRegistry
+
+  /**
+   * Config registry for accessing shared configuration components
+   * Configs are loaded from KV storage with versioning and merging support
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { configs } = context
+   *
+   *   // Get full config
+   *   const settings = await configs.get('docs-settings')
+   *
+   *   // Get nested value with default
+   *   const theme = await configs.getValueOrDefault(
+   *     'docs-settings',
+   *     'theme.primaryColor',
+   *     '#3B82F6'
+   *   )
+   *
+   *   // Merge with overrides
+   *   const customSettings = await configs.merge('docs-settings', {
+   *     theme: { primaryColor: '#FF0000' }
+   *   })
+   *
+   *   return { theme }
+   * }
+   * ```
+   */
+  configs?: ConfigRegistry
+
+  /**
+   * Query registry for accessing SQL query templates
+   * Queries are loaded from KV storage with versioning support
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { queries, env } = context
+   *
+   *   // Get a query template
+   *   const sql = await queries.getSql('find-users@v1.0.0')
+   *
+   *   // Execute with D1
+   *   const stmt = env.DB.prepare(sql)
+   *   const results = await stmt.bind(userId).all()
+   *
+   *   return { users: results.results }
+   * }
+   * ```
+   */
+  queries?: QueryRegistry
+
+  /**
+   * Script registry for accessing JavaScript/TypeScript scripts
+   * Scripts are loaded from KV storage with versioning support
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { scripts } = context
+   *
+   *   // Get a script's source code
+   *   const script = await scripts.get('transform-data@v1.0.0')
+   *
+   *   // Check if a script exists
+   *   if (await scripts.exists('custom-validator')) {
+   *     const validator = await scripts.get('custom-validator')
+   *   }
+   *
+   *   return { processed: true }
+   * }
+   * ```
+   */
+  scripts?: ScriptRegistry
+
+  /**
+   * Template registry for accessing HTML/Handlebars templates
+   * Templates are loaded from KV storage with versioning and rendering support
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { templates } = context
+   *
+   *   // Get a template
+   *   const template = await templates.get('email-header@v1.0.0')
+   *
+   *   // Render with variables
+   *   const html = await templates.render('page-layout', {
+   *     title: 'Welcome',
+   *     content: 'Hello World',
+   *   })
+   *
+   *   return { html }
+   * }
+   * ```
+   */
+  templates?: TemplateRegistry
+
+  /**
+   * Agent-specific configuration from the ensemble definition
+   * This is the `config` block defined for this agent in the YAML
+   *
+   * @example
+   * ```yaml
+   * # In ensemble YAML:
+   * agents:
+   *   - name: my-agent
+   *     operation: code
+   *     config:
+   *       apiKey: ${env.API_KEY}
+   *       maxRetries: 3
+   *       options:
+   *         verbose: true
+   * ```
+   *
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { config } = context
+   *
+   *   const apiKey = config?.apiKey as string
+   *   const maxRetries = config?.maxRetries ?? 1
+   *   const verbose = config?.options?.verbose ?? false
+   *
+   *   return { configured: true }
+   * }
+   * ```
+   */
+  config?: Record<string, any>
+
+  /**
+   * Agent registry for discovering available agents
+   * Useful for introspection and dynamic orchestration
+   *
+   * @example
+   * ```typescript
+   * export default async function(ctx: AgentExecutionContext) {
+   *   const { agentRegistry } = ctx
+   *
+   *   // List all available agents
+   *   const agents = agentRegistry?.list() || []
+   *
+   *   // Find agents by type
+   *   const dataAgents = agents.filter(a => a.operation === 'data')
+   *
+   *   // Check if a specific agent exists
+   *   if (agentRegistry?.has('my-custom-agent')) {
+   *     const meta = agentRegistry.get('my-custom-agent')
+   *     // Use agent metadata...
+   *   }
+   *
+   *   return { availableAgents: agents.map(a => a.name) }
+   * }
+   * ```
+   */
+  agentRegistry?: AgentRegistry
+
+  /**
+   * Ensemble registry for discovering available ensembles
+   * Useful for generating API docs (OpenAPI) or building orchestration UIs
+   *
+   * @example
+   * ```typescript
+   * export default async function(ctx: AgentExecutionContext) {
+   *   const { ensembleRegistry } = ctx
+   *
+   *   // List all ensembles
+   *   const ensembles = ensembleRegistry?.list() || []
+   *
+   *   // Find HTTP-triggered ensembles for OpenAPI generation
+   *   const httpEnsembles = ensembles.filter(e =>
+   *     e.triggers.some(t => t.type === 'http')
+   *   )
+   *
+   *   // Generate paths for OpenAPI spec
+   *   const paths = {}
+   *   for (const ensemble of httpEnsembles) {
+   *     for (const trigger of ensemble.triggers) {
+   *       if (trigger.type === 'http' && trigger.path) {
+   *         paths[trigger.path] = {
+   *           [trigger.methods?.[0]?.toLowerCase() || 'get']: {
+   *             summary: ensemble.description,
+   *             operationId: ensemble.name,
+   *           }
+   *         }
+   *       }
+   *     }
+   *   }
+   *
+   *   return { openapi: { paths } }
+   * }
+   * ```
+   */
+  ensembleRegistry?: EnsembleRegistry
 }
 
 export interface AgentResponse {

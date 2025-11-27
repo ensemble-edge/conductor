@@ -1,4 +1,4 @@
-import { b as BaseAgent, c as createLogger } from "./worker-entry-Dv4VcRDB.js";
+import { b as BaseAgent, c as createLogger } from "./worker-entry-CyVZt1wP.js";
 const BOT_PROTECTION_KEYWORDS = [
   "cloudflare",
   "just a moment",
@@ -229,4 +229,4 @@ export {
   extractTitleFromHTML,
   isContentSuccessful
 };
-//# sourceMappingURL=index-o9hCAO1R.js.map
+//# sourceMappingURL=index-B6bGi-Nf.js.map

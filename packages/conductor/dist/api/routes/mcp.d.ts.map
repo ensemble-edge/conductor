@@ -1,1 +1,1 @@
-{"version":3,"file":"mcp.d.ts","sourceRoot":"","sources":["../../../src/api/routes/mcp.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAEH,OAAO,EAAE,IAAI,EAAE,MAAM,MAAM,CAAA;AAK3B,QAAA,MAAM,GAAG;cAAwB,GAAG;yCAAK,CAAA;AAgPzC,eAAe,GAAG,CAAA"}
+{"version":3,"file":"mcp.d.ts","sourceRoot":"","sources":["../../../src/api/routes/mcp.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAEH,OAAO,EAAE,IAAI,EAAE,MAAM,MAAM,CAAA;AAK3B,QAAA,MAAM,GAAG;cAAwB,GAAG;yCAAK,CAAA;AAiPzC,eAAe,GAAG,CAAA"}

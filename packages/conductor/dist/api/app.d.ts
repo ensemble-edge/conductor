@@ -36,6 +36,17 @@ export interface APIConfig {
         /** Automatically require resource-specific permissions */
         autoPermissions?: boolean;
     };
+    /**
+     * HITL and workflow resumption configuration
+     */
+    hitl?: {
+        /**
+         * Base path for HITL resumption endpoints
+         * Example: "/callback" results in POST /callback/:token and GET /callback/:token
+         * @default "/callback"
+         */
+        resumeBasePath?: string;
+    };
     cors?: {
         origin?: string | string[];
         allowMethods?: string[];

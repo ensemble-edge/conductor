@@ -6,6 +6,12 @@ trigger:
     path: /
     methods: [GET]
     public: true
+    # HTTP cache headers - homepage can be cached briefly
+    httpCache:
+      public: true
+      maxAge: 60  # 1 minute - balance freshness vs performance
+      staleWhileRevalidate: 300  # Serve stale for 5 mins while revalidating
+      vary: [Accept]  # Vary by Accept header (HTML vs JSON)
     responses:
       html:
         enabled: true

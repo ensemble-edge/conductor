@@ -8,6 +8,7 @@ import type { AgentConfig } from '../runtime/parser.js';
 import type { ConductorEnv } from '../types/env.js';
 import type { Logger } from '../observability/types.js';
 import type { MetricsRecorder } from '../observability/context.js';
+import type { AuthContext } from '../auth/types.js';
 /**
  * Execution context passed to agents
  *
@@ -72,6 +73,22 @@ export interface AgentExecutionContext {
      * Same across the entire HTTP request lifecycle
      */
     requestId?: string;
+    /**
+     * Authentication context from the request
+     * Available when request was authenticated via trigger auth or API middleware
+     *
+     * @example
+     * ```typescript
+     * export default async function(context: AgentExecutionContext) {
+     *   const { auth } = context
+     *   if (auth?.authenticated) {
+     *     logger.info('Request from user', { userId: auth.user?.id })
+     *   }
+     *   return { userAuthenticated: auth?.authenticated ?? false }
+     * }
+     * ```
+     */
+    auth?: AuthContext;
 }
 export interface AgentResponse {
     success: boolean;

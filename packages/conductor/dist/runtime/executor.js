@@ -41,6 +41,7 @@ export class Executor {
         this.agentRegistry = new Map();
         this.observabilityConfig = config.observability;
         this.requestId = config.requestId;
+        this.auth = config.auth;
         this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS);
     }
     /**
@@ -208,6 +209,7 @@ export class Executor {
             metrics: agentMetrics,
             executionId: flowContext.executionId,
             requestId: this.requestId,
+            auth: this.auth,
         };
         // Add state context if available and track updates
         let getPendingUpdates = null;

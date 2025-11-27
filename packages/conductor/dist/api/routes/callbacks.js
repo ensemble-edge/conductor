@@ -4,6 +4,12 @@
  * Handles callback URLs for workflow resumption (HITL, async continuations).
  * These endpoints use token-based authentication (the token IS the auth).
  *
+ * Simplified design (mounted at configurable base path, default "/callback"):
+ * - POST /callback/:token - Resume with body data { approved: true/false, ... }
+ * - GET  /callback/:token - Get token metadata
+ *
+ * Configure base path via APIConfig.hitl.resumeBasePath
+ *
  * @see https://docs.ensemble.ai/conductor/agents/hitl
  */
 import { Hono } from 'hono';
@@ -14,10 +20,16 @@ const app = new Hono();
 const logger = createLogger({ serviceName: 'api-callbacks' });
 /**
  * Resume suspended execution
- * POST /callbacks/resume/:token
+ * POST /callback/:token (base path is configurable)
  *
  * Resume a suspended workflow using a one-time resumption token.
  * The token itself serves as authentication (like a password reset link).
+ *
+ * Body:
+ * - approved: boolean (required) - Whether to approve or reject
+ * - feedback?: string - Optional feedback from approver
+ * - reason?: string - Optional reason (for rejections)
+ * - approver?: string - Optional approver identifier
  *
  * Security model:
  * - Token is cryptographically generated (crypto.randomUUID())
@@ -25,7 +37,7 @@ const logger = createLogger({ serviceName: 'api-callbacks' });
  * - Token has expiration (configured via HITL timeout)
  * - Token is delivered via secure channel (notification to authorized user)
  */
-app.post('/resume/:token', async (c) => {
+app.post('/:token', async (c) => {
     const token = c.req.param('token');
     const env = c.env;
     try {
@@ -58,7 +70,7 @@ app.post('/resume/:token', async (c) => {
         };
         // Create executor
         const executor = new Executor({ env, ctx });
-        // Resume execution
+        // Resume execution with the provided data
         const result = await executor.resumeExecution(suspendedState, resumeData);
         if (!result.success) {
             return c.json({
@@ -69,15 +81,17 @@ app.post('/resume/:token', async (c) => {
         }
         // Delete the resumption token (one-time use)
         await resumptionManager.cancel(token);
-        logger.info('Workflow resumed successfully', {
+        const status = resumeData.approved === false ? 'rejected' : 'approved';
+        logger.info(`Workflow ${status}`, {
             token: token.substring(0, 8) + '...',
             ensemble: suspendedState.ensemble?.name,
+            approved: resumeData.approved,
         });
         return c.json({
-            status: 'completed',
+            status,
             token,
             result: result.value,
-            message: 'Execution resumed and completed successfully',
+            message: `Execution ${status} and completed`,
         });
     }
     catch (error) {
@@ -93,12 +107,12 @@ app.post('/resume/:token', async (c) => {
 });
 /**
  * Get resumption token metadata
- * GET /callbacks/resume/:token
+ * GET /callback/:token (base path is configurable)
  *
  * Retrieve metadata about a resumption token without consuming it.
  * Useful for displaying approval context in a UI.
  */
-app.get('/resume/:token', async (c) => {
+app.get('/:token', async (c) => {
     const token = c.req.param('token');
     const env = c.env;
     try {
@@ -131,154 +145,6 @@ app.get('/resume/:token', async (c) => {
         return c.json({
             error: 'Failed to get token metadata',
             message: error instanceof Error ? error.message : 'Unknown error',
-        }, 500);
-    }
-});
-/**
- * Approve suspended execution (convenience endpoint)
- * POST /callbacks/approve/:token
- *
- * Shorthand for resuming with { approved: true }
- */
-app.post('/approve/:token', async (c) => {
-    const token = c.req.param('token');
-    const env = c.env;
-    try {
-        // Get optional feedback from body
-        const body = await c.req.json().catch(() => ({}));
-        // Get HITLState DO namespace
-        const namespace = env.HITL_STATE;
-        if (!namespace) {
-            return c.json({
-                error: 'HITLState Durable Object not configured',
-                message: 'Resumption requires HITL_STATE binding in wrangler.toml',
-            }, 500);
-        }
-        // Create resumption manager
-        const resumptionManager = new ResumptionManager(namespace);
-        // Load suspended state
-        const stateResult = await resumptionManager.resume(token);
-        if (!stateResult.success) {
-            return c.json({
-                error: 'Token not found or expired',
-                message: stateResult.error.message,
-                token,
-            }, 404);
-        }
-        const suspendedState = stateResult.value;
-        // Create execution context
-        const ctx = {
-            waitUntil: (_promise) => { },
-            passThroughOnException: () => { },
-        };
-        // Create executor
-        const executor = new Executor({ env, ctx });
-        // Resume with approval
-        const result = await executor.resumeExecution(suspendedState, {
-            approved: true,
-            feedback: body.feedback,
-            approver: body.approver,
-        });
-        if (!result.success) {
-            return c.json({
-                error: 'Execution failed after approval',
-                message: result.error.message,
-                token,
-            }, 500);
-        }
-        // Delete the resumption token (one-time use)
-        await resumptionManager.cancel(token);
-        logger.info('Workflow approved', {
-            token: token.substring(0, 8) + '...',
-            ensemble: suspendedState.ensemble?.name,
-        });
-        return c.json({
-            status: 'approved',
-            token,
-            result: result.value,
-            message: 'Execution approved and completed',
-        });
-    }
-    catch (error) {
-        return c.json({
-            error: 'Approval failed',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            token,
-        }, 500);
-    }
-});
-/**
- * Reject suspended execution (convenience endpoint)
- * POST /callbacks/reject/:token
- *
- * Shorthand for resuming with { approved: false }
- */
-app.post('/reject/:token', async (c) => {
-    const token = c.req.param('token');
-    const env = c.env;
-    try {
-        // Get optional reason from body
-        const body = await c.req.json().catch(() => ({}));
-        // Get HITLState DO namespace
-        const namespace = env.HITL_STATE;
-        if (!namespace) {
-            return c.json({
-                error: 'HITLState Durable Object not configured',
-                message: 'Resumption requires HITL_STATE binding in wrangler.toml',
-            }, 500);
-        }
-        // Create resumption manager
-        const resumptionManager = new ResumptionManager(namespace);
-        // Load suspended state
-        const stateResult = await resumptionManager.resume(token);
-        if (!stateResult.success) {
-            return c.json({
-                error: 'Token not found or expired',
-                message: stateResult.error.message,
-                token,
-            }, 404);
-        }
-        const suspendedState = stateResult.value;
-        // Create execution context
-        const ctx = {
-            waitUntil: (_promise) => { },
-            passThroughOnException: () => { },
-        };
-        // Create executor
-        const executor = new Executor({ env, ctx });
-        // Resume with rejection
-        const result = await executor.resumeExecution(suspendedState, {
-            approved: false,
-            reason: body.reason,
-            feedback: body.feedback,
-            rejector: body.rejector,
-        });
-        if (!result.success) {
-            return c.json({
-                error: 'Execution failed after rejection',
-                message: result.error.message,
-                token,
-            }, 500);
-        }
-        // Delete the resumption token (one-time use)
-        await resumptionManager.cancel(token);
-        logger.info('Workflow rejected', {
-            token: token.substring(0, 8) + '...',
-            ensemble: suspendedState.ensemble?.name,
-            reason: body.reason,
-        });
-        return c.json({
-            status: 'rejected',
-            token,
-            result: result.value,
-            message: 'Execution rejected',
-        });
-    }
-    catch (error) {
-        return c.json({
-            error: 'Rejection failed',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            token,
         }, 500);
     }
 });

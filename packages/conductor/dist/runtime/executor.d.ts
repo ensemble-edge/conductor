@@ -14,6 +14,7 @@ import { type ScoringState } from './scoring/index.js';
 import { type SuspendedExecutionState } from './resumption-manager.js';
 import { type Logger } from '../observability/index.js';
 import type { ObservabilityConfig } from '../config/types.js';
+import type { AuthContext } from '../auth/types.js';
 export interface ExecutorConfig {
     env: ConductorEnv;
     ctx: ExecutionContext;
@@ -22,6 +23,8 @@ export interface ExecutorConfig {
     observability?: ObservabilityConfig;
     /** Request ID from incoming HTTP request (for tracing) */
     requestId?: string;
+    /** Authentication context from the request */
+    auth?: AuthContext;
 }
 /**
  * Successful execution output
@@ -66,6 +69,7 @@ export declare class Executor {
     private logger;
     private observabilityConfig?;
     private requestId?;
+    private auth?;
     constructor(config: ExecutorConfig);
     /**
      * Register an agent for use in ensembles

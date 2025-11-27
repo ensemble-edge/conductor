@@ -1,4 +1,4 @@
-import { b as BaseAgent } from "./worker-entry-Dv4VcRDB.js";
+import { b as BaseAgent } from "./worker-entry-CyVZt1wP.js";
 class QueriesMember extends BaseAgent {
   constructor(config, env) {
     super(config);
@@ -145,4 +145,4 @@ class QueriesMember extends BaseAgent {
 export {
   QueriesMember
 };
-//# sourceMappingURL=index-CNxnqwVB.js.map
+//# sourceMappingURL=index-B276XhED.js.map

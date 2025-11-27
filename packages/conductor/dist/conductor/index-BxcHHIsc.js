@@ -1,4 +1,4 @@
-import { b as BaseAgent } from "./worker-entry-Dv4VcRDB.js";
+import { b as BaseAgent } from "./worker-entry-CyVZt1wP.js";
 class FetchMember extends BaseAgent {
   constructor(config, env) {
     super(config);
@@ -88,4 +88,4 @@ class FetchMember extends BaseAgent {
 export {
   FetchMember
 };
-//# sourceMappingURL=index-B_xH6mnL.js.map
+//# sourceMappingURL=index-BxcHHIsc.js.map

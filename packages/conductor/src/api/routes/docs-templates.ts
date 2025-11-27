@@ -7,6 +7,7 @@
  */
 
 import type { DocsConfig, DocsUIFramework } from '../../config/types.js'
+import type { EnsembleOutput } from '../../runtime/output-types.js'
 
 /**
  * Theme configuration derived from DocsConfig
@@ -516,7 +517,7 @@ export interface EnsembleDetailProps {
     operation: string
   }>
   inputSchema?: Record<string, unknown>
-  outputSchema?: Record<string, unknown>
+  outputSchema?: EnsembleOutput
   theme?: DocsTheme
 }
 

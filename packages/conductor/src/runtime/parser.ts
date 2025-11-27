@@ -18,6 +18,7 @@ import { z } from 'zod'
 import { getInterpolator } from './interpolation/index.js'
 import type { ResolutionContext } from './interpolation/index.js'
 import { Operation } from '../types/constants.js'
+import { EnsembleOutputSchema } from './output-types.js'
 
 // Import primitive types - the parser produces objects compatible with these
 import type {
@@ -365,10 +366,21 @@ const EnsembleSchema = z.object({
         // HTTP trigger (full web routing with Hono features)
         z.object({
           type: z.literal('http'),
-          // Core HTTP config (like webhook)
+          // Core HTTP config - single path (like webhook)
           path: z.string().min(1).optional(), // Defaults to /{ensemble-name}
           methods: z
             .array(z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']))
+            .optional(),
+          // Multi-path support - array of path/methods combinations
+          paths: z
+            .array(
+              z.object({
+                path: z.string().min(1),
+                methods: z
+                  .array(z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']))
+                  .optional(),
+              })
+            )
             .optional(),
           auth: z
             .object({
@@ -509,7 +521,7 @@ const EnsembleSchema = z.object({
   agents: z.array(z.record(z.unknown())).optional(), // Inline agent definitions (legacy/optional)
   flow: z.array(z.lazy(() => FlowStepSchema)).optional(),
   inputs: z.record(z.unknown()).optional(), // Input schema definition
-  output: z.record(z.unknown()).optional(),
+  output: EnsembleOutputSchema.optional(), // Conditional outputs with status, headers, redirect, rawBody
   /** Ensemble-level logging configuration */
   logging: z
     .object({

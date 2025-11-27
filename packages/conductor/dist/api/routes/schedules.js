@@ -112,7 +112,8 @@ app.post('/:ensembleName/trigger', async (c) => {
             waitUntil: (promise) => { },
             passThroughOnException: () => { },
         };
-        const executor = new Executor({ env: c.env, ctx });
+        const auth = c.get('auth');
+        const executor = new Executor({ env: c.env, ctx, auth });
         // Prepare input with schedule metadata
         const input = {
             ...(schedule.input || {}),

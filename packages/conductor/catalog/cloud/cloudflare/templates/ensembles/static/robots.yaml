@@ -6,6 +6,12 @@ trigger:
     path: /robots.txt
     methods: [GET]
     public: true
+    # HTTP cache headers for CDN/browser caching
+    # robots.txt rarely changes - cache for 24 hours
+    httpCache:
+      public: true
+      maxAge: 86400  # 24 hours
+      staleWhileRevalidate: 3600  # Serve stale for 1 hour while revalidating
     responses:
       html:
         enabled: false
