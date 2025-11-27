@@ -4,6 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) and other AI assista
 
 ---
 
+# 🎯 IMPORTANT: Building Agents or Ensembles
+
+**When you are asked to build, create, or modify an agent or ensemble, ALWAYS read the following file first:**
+
+```
+/workspace/ensemble/conductor/CLAUDE-CONDUCTOR.md
+```
+
+This file contains the machine-optimized reference for Conductor's:
+- YAML schema for agents and ensembles
+- Operations (14 types: think, code, storage, data, http, etc.)
+- Triggers (http, webhook, mcp, email, queue, cron)
+- Expression syntax (`${input.field}`, `${agent.output}`, etc.)
+- Common patterns (pipelines, cache-or-generate, fallback chains)
+- Design philosophy (YAML = contract, TypeScript = implementation)
+
+**Read it before writing any agent or ensemble code.**
+
+---
+
 # 🚨 CRITICAL: RELEASE WORKFLOW - READ THIS FIRST 🚨
 
 ## Standard Changesets Workflow (Official)

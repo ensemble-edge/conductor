@@ -215,4 +215,84 @@ operation: code`
     // Ensure no backslashes in import paths
     expect(code).not.toMatch(/import.*\\/)
   })
+
+  it('should discover agents in system folder', () => {
+    // Create system folder structure (e.g., agents/system/docs)
+    const agentsDir = path.join(tempDir, 'agents')
+    const systemDir = path.join(agentsDir, 'system', 'docs')
+    fs.mkdirSync(systemDir, { recursive: true })
+
+    fs.writeFileSync(
+      path.join(systemDir, 'agent.yaml'),
+      `name: docs
+operation: code
+description: Documentation agent`
+    )
+    fs.writeFileSync(path.join(systemDir, 'index.ts'), 'export default function() {}')
+
+    const plugin = agentDiscoveryPlugin()
+    const config = { root: tempDir }
+    callHook(plugin.configResolved as any, config)
+
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+    // Agent name includes the full relative path: system/docs
+    expect(code).toContain('name: "system/docs"')
+    expect(code).toContain('config: atob(')
+    expect(code).toContain('import * as handler_')
+  })
+
+  it('should discover agents in debug folder', () => {
+    // Create debug folder structure
+    const agentsDir = path.join(tempDir, 'agents')
+    const debugDir = path.join(agentsDir, 'debug', 'echo')
+    fs.mkdirSync(debugDir, { recursive: true })
+
+    fs.writeFileSync(
+      path.join(debugDir, 'agent.yaml'),
+      `name: echo
+operation: code
+description: Echo agent for debugging`
+    )
+
+    const plugin = agentDiscoveryPlugin()
+    const config = { root: tempDir }
+    callHook(plugin.configResolved as any, config)
+
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+    // Agent name includes the full relative path: debug/echo
+    expect(code).toContain('name: "debug/echo"')
+  })
+
+  it('should discover agents across all folder categories', () => {
+    // Create folder structure matching the template: examples, system, debug, user
+    const agentsDir = path.join(tempDir, 'agents')
+
+    const folders = [
+      { path: 'examples/hello', name: 'hello' },
+      { path: 'system/docs', name: 'docs' },
+      { path: 'debug/echo', name: 'echo' },
+      { path: 'user/custom', name: 'custom' },
+    ]
+
+    for (const folder of folders) {
+      const dir = path.join(agentsDir, folder.path)
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(
+        path.join(dir, 'agent.yaml'),
+        `name: ${folder.name}\noperation: code`
+      )
+    }
+
+    const plugin = agentDiscoveryPlugin()
+    const config = { root: tempDir }
+    callHook(plugin.configResolved as any, config)
+
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+
+    // All agents should be discovered (names include full relative paths)
+    expect(code).toContain('name: "examples/hello"')
+    expect(code).toContain('name: "system/docs"')
+    expect(code).toContain('name: "debug/echo"')
+    expect(code).toContain('name: "user/custom"')
+  })
 })

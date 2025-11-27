@@ -1,164 +1,3 @@
-# Conductor Project Context
-
-This document provides context for AI assistants (Claude, Copilot, etc.) working on this Conductor project.
-
----
-
-# 🎯 IMPORTANT: Building Agents or Ensembles
-
-**When building, creating, or modifying an agent or ensemble, read the Machine Context section below.**
-
----
-
-## Project Overview
-
-This is a Conductor orchestration system built on Cloudflare Workers. Conductor enables you to build AI-powered workflows by composing reusable "agents" (AI agents, functions, APIs) into "ensembles" (workflows).
-
-## Project Structure
-
-```
-.
-├── src/
-│   ├── index.ts              # Worker entry point (fetch/scheduled handlers)
-│   └── lib/                  # Shared utilities
-├── agents/                   # Reusable workflow components
-│   ├── examples/             # Example agents (hello)
-│   ├── system/               # Built-in agents (redirect, docs)
-│   ├── debug/                # Debug agents (delay, echo)
-│   └── user/                 # User-created agents
-├── ensembles/                # Workflow definitions
-│   ├── examples/             # Example ensembles (hello-world)
-│   ├── system/               # Built-in ensembles (docs)
-│   ├── debug/                # Debug ensembles
-│   └── user/                 # User-created ensembles
-├── prompts/                  # AI prompt templates
-├── configs/                  # Agent configurations
-├── schemas/                  # JSON schemas for validation
-├── queries/                  # SQL templates for D1
-├── scripts/                  # Standalone TypeScript scripts
-├── tests/                    # Test files
-├── wrangler.toml             # Cloudflare Workers config
-└── types.d.ts                # Global TypeScript declarations
-```
-
-## Key Concepts
-
-### Agents
-Individual components that do one thing well:
-- **Think**: AI-powered reasoning (uses prompts from `prompts/`)
-- **Code**: Custom JavaScript/TypeScript logic (handler: ./file.ts)
-- **HTTP**: HTTP requests to external services
-- **Storage**: KV/R2 operations
-- **Data**: D1/Vectorize operations
-- **Built-in**: Scraping, RAG, validation, HITL, etc.
-
-### Ensembles
-Workflows that compose agents together:
-- Define execution flow in YAML
-- Support sequential and parallel execution
-- Handle state management
-- Enable conditional logic
-- Triggered by HTTP, webhooks, cron, CLI, or build
-
-## Common Tasks
-
-### Adding a New Agent
-
-1. Create directory: `agents/user/my-agent/`
-2. Create config: `agents/user/my-agent/agent.yaml`
-   ```yaml
-   name: my-agent
-   operation: code
-   handler: ./my-handler.ts
-   description: What this agent does
-
-   schema:
-     input:
-       query: string
-     output:
-       result: string
-   ```
-3. Add handler: `agents/user/my-agent/my-handler.ts`
-   ```typescript
-   import type { AgentExecutionContext } from '@ensemble-edge/conductor'
-
-   export default async function handler(ctx: AgentExecutionContext) {
-     const { query } = ctx.input
-     return { result: `Processed: ${query}` }
-   }
-   ```
-
-### Creating an Ensemble
-
-1. Create YAML: `ensembles/user/my-workflow.yaml`
-   ```yaml
-   name: my-workflow
-   description: What this workflow does
-
-   trigger:
-     - type: http
-       path: /api/my-workflow
-       methods: [POST]
-       public: true
-
-   flow:
-     - name: step1
-       agent: my-agent
-       input:
-         query: ${input.query}
-
-   output:
-     result: ${step1.output.result}
-   ```
-
-### Testing
-
-```bash
-# Run all tests
-pnpm test
-
-# Run specific test
-pnpm test hello-world.test.ts
-
-# Watch mode
-pnpm run test:watch
-```
-
-### Deployment
-
-```bash
-# Deploy to Cloudflare
-pnpm run deploy
-
-# Set production secrets
-wrangler secret put ANTHROPIC_API_KEY
-```
-
-## Important Files
-
-- **[wrangler.toml](wrangler.toml)**: Cloudflare Workers configuration, bindings, triggers
-- **[types.d.ts](types.d.ts)**: Global types for YAML imports and Env interface
-- **[src/index.ts](src/index.ts)**: Main worker with fetch/scheduled handlers
-- **[.dev.vars](.dev.vars)**: Local development secrets (not committed)
-
-## AI Providers
-
-Supported providers (configured in agent.yaml):
-- **Anthropic**: Claude models
-- **OpenAI**: GPT models
-- **Cloudflare**: Workers AI (env.AI binding)
-- **Groq**: Fast inference
-
-## Development Tips
-
-1. **Local Testing**: Use `wrangler dev` for local development
-2. **Hot Reload**: Changes auto-reload in dev mode
-3. **Logging**: Use `console.log()` - visible in wrangler output
-4. **Type Safety**: Run `pnpm run cf-typegen` to generate Cloudflare types
-5. **Validation**: Run `conductor validate` before deploying
-
----
-
 # Ensemble Conductor — Machine Context
 
 BY MACHINE, FOR MACHINE.
@@ -229,6 +68,13 @@ Agents can introspect available components:
 - ctx.agentRegistry.list() / ctx.agentRegistry.get('name')
 - ctx.ensembleRegistry.list() / ctx.ensembleRegistry.get('name')
 
+### Eating Our Own Dog Food
+Built-in capabilities ship as catalog templates (real agents/ensembles):
+- catalog/agents/system/redirect/ → agents/system/redirect/
+- catalog/agents/system/docs/ → agents/system/docs/
+- catalog/ensembles/system/docs/ → ensembles/system/docs/
+No magic. Framework must support all use cases.
+
 ## Operations (14 types)
 
 | Operation | Purpose | Config Keys |
@@ -248,6 +94,40 @@ Agents can introspect available components:
 | queue | Queue messages | action: send|consume, queue, body |
 | docs | API docs | OpenAPI generation |
 
+## Flow Control (TypeScript)
+
+| Primitive | Signature | Purpose |
+|-----------|-----------|---------|
+| createEnsemble(name) | .addStep().build() | Ensemble container |
+| step(name) | .agent()|.operation().input().config() | Unit of work |
+| parallel(name) | .steps([...]) | Concurrent execution |
+| branch(name) | .condition().then().else() | If/else |
+| switchStep(name) | .value().case().default() | Multi-branch |
+| foreach(name) | .items().as().step() | Iterate array |
+| tryStep(name) | .try().catch() | Error handling |
+| whileStep(name) | .condition().maxIterations().step() | Loop |
+| mapReduce(name) | .items().map().reduce() | Map-reduce pattern |
+
+## Lifecycle Hooks
+
+| Hook | Trigger | Use Case |
+|------|---------|----------|
+| beforeExecute | Before agent runs | Logging, validation |
+| afterExecute | After agent completes | Metrics, cleanup |
+| onError | On agent failure | Error reporting, fallback |
+
+## Pre-built Agents (7 types)
+
+| Agent | Purpose | Key Inputs |
+|-------|---------|------------|
+| scraper | Web scraping with retries | url |
+| validator | Data validation | data, schema |
+| rag | Vector search + LLM | query, action: embed|search |
+| hitl | Human approval flow | prompt, context |
+| fetcher | HTTP with caching | url |
+| transformer | Data transformation | data, template |
+| scheduler | Cron execution | cron, task |
+
 ## Triggers (8 types)
 
 | Trigger | Config | Use Case |
@@ -261,8 +141,7 @@ Agents can introspect available components:
 | build | output, enabled, input, metadata | Static generation at build time |
 | cli | command, description, options[] | Developer commands |
 
-### Build Trigger
-```yaml
+### Build Trigger (NEW)
 trigger:
   - type: build
     enabled: true
@@ -270,10 +149,8 @@ trigger:
 flow:
   - agent: docs
     input: { action: generate-openapi }
-```
 
-### CLI Trigger
-```yaml
+### CLI Trigger (NEW)
 trigger:
   - type: cli
     command: generate-docs
@@ -282,13 +159,14 @@ trigger:
       - name: format
         type: string
         default: yaml
+      - name: output
+        type: string
+        required: true
 flow:
   - agent: docs
     input: { format: ${trigger.options.format} }
-```
 
 ### Multi-Path HTTP Trigger
-```yaml
 trigger:
   - type: http
     paths:
@@ -297,7 +175,6 @@ trigger:
       - path: /api/v1/users/:id
         methods: [GET, PUT, DELETE]
     public: true
-```
 
 ## Components (7 types)
 
@@ -314,36 +191,30 @@ trigger:
 ## Expression Syntax
 
 ### Variable Access
-```yaml
 ${input.field}                    # Ensemble/agent input
 ${agent-name.output}              # Agent output
 ${agent-name.output.nested.field} # Nested access
 ${state.field}                    # State variable
 ${env.VARIABLE}                   # Environment variable
+${component.name@v1.0.0}          # Component reference
 ${trigger.options.format}         # CLI trigger options
-```
 
 ### Execution Status
-```yaml
 ${agent.executed}                 # Boolean: ran
 ${agent.failed}                   # Boolean: errored
 ${agent.success}                  # Boolean: succeeded
 ${agent.cached}                   # Boolean: from cache
 ${agent.duration}                 # Number: ms
-```
 
 ### Conditions
-```yaml
 condition: ${input.value > 10}
 condition: ${agent.failed}
 condition: ${!agent.executed}
 condition: ${input.type === 'premium'}
 condition: ${input.age >= 18 && input.verified}
-```
 
-## YAML Agent Schema
+## YAML Agent Schema (with handler)
 
-```yaml
 name: my-agent
 operation: code
 handler: ./my-handler.ts          # TypeScript implementation
@@ -354,11 +225,9 @@ schema:
     field: type
   output:
     field: type
-```
 
 ## YAML Ensemble Schema
 
-```yaml
 name: string                       # Required (filename-derived)
 description: string                # Optional
 trigger:                           # Optional
@@ -376,13 +245,12 @@ flow:                              # Required
     cache: { ttl: number, key: string }
     retry: { maxAttempts: number, backoff: exponential|linear }
     timeout: number
+    state: { use: [fields], set: { field: value } }
 output:                            # Optional - supports conditional blocks
   key: value
-```
 
 ## Conditional Output Blocks
 
-```yaml
 output:
   # Success case
   - when: ${agent.output.found}
@@ -410,12 +278,10 @@ output:
   # Default fallback (no when = always matches)
   - status: 500
     body: { error: 'unknown' }
-```
 
 ## Common Patterns
 
 ### Linear Pipeline
-```yaml
 flow:
   - name: fetch
     operation: http
@@ -424,10 +290,8 @@ flow:
     operation: code
     config: { script: scripts/process }
     input: { data: ${fetch.output} }
-```
 
 ### Cache-or-Generate
-```yaml
 flow:
   - name: check-cache
     operation: storage
@@ -436,10 +300,8 @@ flow:
     condition: ${check-cache.output.value === null}
     operation: think
     config: { provider: openai, model: gpt-4o, prompt: "${input.query}" }
-```
 
 ### Fallback Chain
-```yaml
 flow:
   - name: try-primary
     operation: http
@@ -449,11 +311,36 @@ flow:
     condition: ${try-primary.failed}
     operation: http
     config: { url: "https://backup-api.com" }
-```
+
+## File Structure
+
+project/
+├── ensembles/              # YAML or TS ensembles
+│   ├── examples/           # Example ensembles
+│   ├── system/             # Built-in functionality (docs, etc.)
+│   ├── debug/              # Debug/dev ensembles
+│   └── user/               # User-created ensembles
+├── agents/                 # Custom agents
+│   ├── examples/           # Example agents
+│   ├── system/             # Built-in agents (redirect, docs)
+│   │   ├── redirect/       # URL redirect service
+│   │   │   ├── agent.yaml
+│   │   │   └── redirect.ts
+│   │   └── docs/           # Documentation agent
+│   │       ├── agent.yaml
+│   │       └── docs.ts
+│   ├── debug/              # Debug agents
+│   └── user/               # User-created agents
+├── scripts/                # TS/JS for code operations
+├── prompts/                # Prompt templates
+├── schemas/                # JSON schemas
+├── configs/                # Reusable configs
+├── queries/                # SQL templates
+├── wrangler.toml           # Cloudflare config
+└── .dev.vars               # Local secrets (gitignored)
 
 ## CLI Quick Reference
 
-```bash
 conductor init [name]             # Create project
 conductor dev                     # Local dev server
 conductor deploy                  # Deploy to CF Workers
@@ -462,7 +349,8 @@ conductor validate [path]         # Validate YAML/TS
 conductor validate --fix          # Auto-fix issues
 conductor build                   # Run build triggers
 conductor run <command>           # Run CLI triggers
-```
+conductor ensemble:run NAME INPUT
+conductor agent:run NAME INPUT
 
 ## Common Mistakes
 
@@ -470,7 +358,7 @@ conductor run <command>           # Run CLI triggers
 |-------|-----|
 | Inline JS in YAML | Use handler: ./file.ts or script: scripts/path |
 | Hardcode secrets | Use ${env.SECRET} |
-| Skip error handling | Use condition: ${x.failed} for fallbacks |
+| Skip error handling | Use tryStep() or condition: ${x.failed} |
 | Create mega-ensembles | Compose via agents |
 | Forget cache | Add cache: { ttl: 3600 } to expensive ops |
 | HTTP trigger without auth | Add public: true or auth config |
@@ -484,6 +372,4 @@ conductor run <command>           # Run CLI triggers
 | cloudflare | @cf/meta/llama-3-8b-instruct |
 | groq | llama3-70b-8192, mixtral-8x7b-32768 |
 
----
-
-*Machine context ends. The humans thank you for building their ensembles.*
+Machine context ends. The humans thank you for building their ensembles.
