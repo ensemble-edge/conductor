@@ -1,5 +1,6 @@
 name: track-404
 operation: code
+handler: ./index.ts
 description: Tracks 404 errors in D1 for analytics
 
 schema:

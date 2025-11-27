@@ -6,8 +6,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { createAuthMiddleware, errorHandler, requestId, timing } from './middleware/index.js';
-import { execute, agents, ensembles, docs, health, stream, async, webhooks, executions, schedules, mcp, email, callbacks, } from './routes/index.js';
+import { createAuthMiddleware, errorHandler, requestId, timing, securityHeaders, conductorHeader, debugHeaders, apiSecurityPreset, } from './middleware/index.js';
+import { execute, agents, ensembles, health, stream, async, webhooks, executions, schedules, mcp, email, callbacks, } from './routes/index.js';
 import { openapi } from './openapi/index.js';
 import { ScheduleManager } from '../runtime/schedule-manager.js';
 import { CatalogLoader } from '../runtime/catalog-loader.js';
@@ -34,6 +34,21 @@ export function createConductorAPI(config = {}) {
     if (config.logging !== false) {
         app.use('*', logger());
     }
+    // Security headers (default: enabled with API preset)
+    if (config.response?.securityHeaders !== false) {
+        const securityConfig = typeof config.response?.securityHeaders === 'object'
+            ? config.response.securityHeaders
+            : apiSecurityPreset;
+        app.use('*', securityHeaders(securityConfig));
+    }
+    // Conductor header (default: enabled unless explicitly disabled)
+    if (config.response?.conductorHeader !== false) {
+        app.use('*', conductorHeader());
+    }
+    // Debug headers (auto-enabled in non-production environments)
+    app.use('*', debugHeaders({
+        enabled: config.response?.debugHeaders,
+    }));
     // CORS
     app.use('*', cors({
         origin: config.cors?.origin || '*',
@@ -55,6 +70,9 @@ export function createConductorAPI(config = {}) {
         app.use('/api/v1/*', createAuthMiddleware({
             apiKeys: config.auth?.apiKeys || [],
             allowAnonymous: config.auth?.allowAnonymous ?? false,
+            // Pass stealth mode settings
+            stealthMode: config.response?.stealthMode,
+            stealthDelayMs: config.response?.stealthDelayMs,
         }));
     }
     else if (config.auth) {
@@ -62,13 +80,16 @@ export function createConductorAPI(config = {}) {
         app.use('/api/v1/*', createAuthMiddleware({
             apiKeys: config.auth.apiKeys || [],
             allowAnonymous: true, // Allow anonymous when requireAuth is false
+            stealthMode: config.response?.stealthMode,
+            stealthDelayMs: config.response?.stealthDelayMs,
         }));
     }
     // ==================== Routes ====================
     // Health checks (public, no auth)
     app.route('/health', health);
-    // Documentation (public, no auth)
-    app.route('/docs', docs);
+    // NOTE: Documentation routes (/docs/*) are now provided via the docs-serve ensemble
+    // Include ensembles/system/docs/serve.yaml in your project and use createAutoDiscoveryAPI
+    // Or manually add docs routes: import { docs } from '@ensemble-edge/conductor/api/routes'
     // OpenAPI documentation (public, no auth)
     app.route('/', openapi);
     // API routes (authenticated)
@@ -105,13 +126,13 @@ export function createConductorAPI(config = {}) {
             },
         });
     });
-    // 404 handler
+    // 404 handler - uses same format as stealth 404 for consistency
     app.notFound((c) => {
         return c.json({
-            error: 'NotFound',
-            message: 'Endpoint not found',
-            path: c.req.path,
-            timestamp: Date.now(),
+            success: false,
+            error: 'Not Found',
+            message: 'The requested resource could not be found.',
+            timestamp: new Date().toISOString(),
         }, 404);
     });
     // Error handler (catch-all)

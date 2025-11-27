@@ -1,0 +1,26 @@
+/**
+ * Components Module
+ *
+ * Provides typed access to all component types from KV storage:
+ * - schemas - JSON Schema definitions
+ * - prompts - AI prompt templates
+ * - configs - Configuration objects
+ * - queries - SQL query templates
+ * - scripts - JavaScript/TypeScript scripts
+ * - templates - HTML/Handlebars templates
+ *
+ * Used by TypeScript handlers via the execution context.
+ *
+ * @module components
+ */
+// Main registry
+export { ComponentRegistry, createComponentRegistry, parseNameWithVersion } from './registry.js';
+// Sub-registries
+export { SchemaRegistry, validateJsonSchema } from './schemas.js';
+export { PromptRegistry, renderHandlebars } from './prompts.js';
+export { ConfigRegistry } from './configs.js';
+export { QueryRegistry } from './queries.js';
+export { ScriptRegistry } from './scripts.js';
+export { TemplateRegistry } from './templates.js';
+// Discovery registries for agents and ensembles
+export { createAgentRegistry, createEnsembleRegistry } from './discovery.js';

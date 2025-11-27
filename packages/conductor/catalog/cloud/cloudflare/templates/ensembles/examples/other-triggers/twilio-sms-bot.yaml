@@ -30,8 +30,8 @@ agents:
         From: {{from}}
 
         What is the intent of this message?
-      message: $input.message
-      from: $input.from
+      message: ${input.message}
+      from: ${input.from}
 
   # Route to appropriate handler based on intent
   - name: handle-support-query
@@ -48,10 +48,10 @@ agents:
         Intent: {{intent}}
 
         Provide a helpful response.
-      intent: $classify-intent.intent
-      message: $input.message
-      customer: $input.from
-    when: $classify-intent.intent == 'support'
+      intent: ${classify-intent.intent}
+      message: ${input.message}
+      customer: ${input.from}
+    when: ${classify-intent.intent === 'support'}
 
   # Generate friendly SMS reply
   - name: format-sms-reply
@@ -59,8 +59,8 @@ agents:
     config:
       script: scripts/examples/sms/format-sms-reply
     input:
-      response: $handle-support-query.response
-      customerName: $handle-support-query.customerName
+      response: ${handle-support-query.response}
+      customerName: ${handle-support-query.customerName}
 
 input:
   message: null

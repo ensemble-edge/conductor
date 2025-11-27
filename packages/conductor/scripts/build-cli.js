@@ -35,6 +35,7 @@ async function build() {
 				'chalk',
 				'commander',
 				'glob',
+				'liquidjs', // Uses Node.js built-ins that can't be bundled in ESM
 				'tar',
 				'unzipper',
 				'yaml'

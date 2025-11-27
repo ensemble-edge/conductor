@@ -1,5 +1,6 @@
 name: hello
 operation: code
+handler: ./index.ts
 description: |
   Say hello to the user with a simple, deterministic greeting message.
   This is a basic function agent that demonstrates the core Conductor workflow

@@ -1,6 +1,12 @@
 name: data-export-report
 description: Export user activity data to CSV/JSON/Excel with filtering and streaming support
 
+trigger:
+  - type: http
+    path: /reports/export
+    methods: [GET]
+    public: true
+
 agents:
   # Query user activity data with filters
   - name: query-data
@@ -18,7 +24,7 @@ agents:
     config:
       script: scripts/examples/data/export-to-csv
     input:
-      data: $query-data.keys
+      data: ${query-data.keys}
 
   # Export to JSON format
   - name: export-json
@@ -26,8 +32,8 @@ agents:
     config:
       script: scripts/examples/data/export-to-json
     input:
-      data: $query-data.keys
-      pretty: $input.prettyJson
+      data: ${query-data.keys}
+      pretty: ${input.prettyJson}
 
   # Export to Excel format (simulated)
   - name: export-excel
@@ -35,7 +41,7 @@ agents:
     config:
       script: scripts/examples/data/export-to-excel
     input:
-      data: $query-data.keys
+      data: ${query-data.keys}
 
   # Generate HTML report with export links
   - name: generate-report
@@ -156,15 +162,15 @@ agents:
         </body>
         </html>
     input:
-      query-data: $query-data
-      export-csv: $export-csv
-      export-json: $export-json
-      export-excel: $export-excel
+      query-data: ${query-data}
+      export-csv: ${export-csv}
+      export-json: ${export-json}
+      export-excel: ${export-excel}
 
 output:
-  html: $generate-report.html
-  query: $query-data
+  html: ${generate-report.html}
+  query: ${query-data}
   exports:
-    csv: $export-csv
-    json: $export-json
-    excel: $export-excel
+    csv: ${export-csv}
+    json: ${export-json}
+    excel: ${export-excel}

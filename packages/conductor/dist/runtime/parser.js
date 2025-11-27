@@ -16,6 +16,7 @@ import * as YAML from 'yaml';
 import { z } from 'zod';
 import { getInterpolator } from './interpolation/index.js';
 import { Operation } from '../types/constants.js';
+import { EnsembleOutputSchema } from './output-types.js';
 // Import ensemble factory for creating Ensemble instances from parsed config
 import { ensembleFromConfig, Ensemble, isEnsemble } from '../primitives/ensemble.js';
 // Re-export for convenience
@@ -245,10 +246,19 @@ const EnsembleSchema = z.object({
         // HTTP trigger (full web routing with Hono features)
         z.object({
             type: z.literal('http'),
-            // Core HTTP config (like webhook)
+            // Core HTTP config - single path (like webhook)
             path: z.string().min(1).optional(), // Defaults to /{ensemble-name}
             methods: z
                 .array(z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']))
+                .optional(),
+            // Multi-path support - array of path/methods combinations
+            paths: z
+                .array(z.object({
+                path: z.string().min(1),
+                methods: z
+                    .array(z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']))
+                    .optional(),
+            }))
                 .optional(),
             auth: z
                 .object({
@@ -306,15 +316,39 @@ const EnsembleSchema = z.object({
                 .optional(),
             templateEngine: z.enum(['handlebars', 'liquid', 'simple']).optional(),
         }),
+        // Build trigger - run at build/deploy time
+        z.object({
+            type: z.literal('build'),
+            enabled: z.boolean().optional(),
+            output: z.string().optional(), // Output directory (e.g., './dist/docs')
+            input: z.record(z.unknown()).optional(), // Static input for build
+            metadata: z.record(z.unknown()).optional(),
+        }),
+        // CLI trigger - run from command line
+        z.object({
+            type: z.literal('cli'),
+            command: z.string().min(1), // Command name (e.g., 'docs-generate')
+            description: z.string().optional(), // Description for help text
+            options: z
+                .array(z.object({
+                name: z.string().min(1),
+                type: z.enum(['string', 'number', 'boolean']).optional(),
+                default: z.union([z.string(), z.number(), z.boolean()]).optional(),
+                description: z.string().optional(),
+                required: z.boolean().optional(),
+            }))
+                .optional(),
+            enabled: z.boolean().optional(),
+        }),
     ]))
         .optional()
         .refine((trigger) => {
         // Validate that all trigger entries have either auth or public: true
-        // (except queue and cron which are internally triggered)
+        // (except queue, cron, build, cli which are internally triggered)
         if (!trigger)
             return true;
         return trigger.every((t) => {
-            if (t.type === 'queue' || t.type === 'cron')
+            if (t.type === 'queue' || t.type === 'cron' || t.type === 'build' || t.type === 'cli')
                 return true;
             return t.auth || t.public === true;
         });
@@ -372,7 +406,7 @@ const EnsembleSchema = z.object({
     agents: z.array(z.record(z.unknown())).optional(), // Inline agent definitions (legacy/optional)
     flow: z.array(z.lazy(() => FlowStepSchema)).optional(),
     inputs: z.record(z.unknown()).optional(), // Input schema definition
-    output: z.record(z.unknown()).optional(),
+    output: EnsembleOutputSchema.optional(), // Conditional outputs with status, headers, redirect, rawBody
     /** Ensemble-level logging configuration */
     logging: z
         .object({

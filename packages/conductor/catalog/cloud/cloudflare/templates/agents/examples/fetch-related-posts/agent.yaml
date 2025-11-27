@@ -1,5 +1,6 @@
 name: fetch-related-posts
 operation: code
+handler: ./index.ts
 description: Fetches related blog posts excluding the current one
 
 schema:

@@ -7,7 +7,7 @@
  * ⚠️ WARNING: Security-sensitive - do not expose in production without auth.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 interface InspectInput {
   includeEnv?: boolean

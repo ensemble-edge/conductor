@@ -38,6 +38,9 @@ export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js
 export * from './auth/index.js';
 // Routing Module
 export { UnifiedRouter } from './routing/router.js';
+// Build and CLI Managers
+export { BuildManager, getBuildManager, resetBuildManager } from './runtime/build-manager.js';
+export { CLIManager, getCLIManager, resetCLIManager } from './runtime/cli-manager.js';
 export { isLifecyclePlugin, isFunctionalPlugin, buildPlugin } from './types/plugin.js';
 // Docs - First-class component support for markdown documentation
 export { DocsManager, getGlobalDocsManager } from './docs/index.js';

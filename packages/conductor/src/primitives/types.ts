@@ -425,8 +425,18 @@ export interface MemoryConfig {
 
 /**
  * Component types that can be referenced
+ * Aligned with Edgit's component types for version primitives
  */
-export type ComponentType = 'agent' | 'ensemble' | 'tool' | 'prompt' | 'schema' | 'script'
+export type ComponentType =
+  | 'agent' // Agent implementations (maps to Edgit's agent-definition)
+  | 'ensemble' // Workflow definitions
+  | 'tool' // MCP tools
+  | 'prompt' // Prompt templates
+  | 'schema' // JSON Schema definitions
+  | 'script' // JS/TS/Python scripts
+  | 'template' // HTML/Email/PDF templates
+  | 'query' // SQL queries
+  | 'config' // Configuration files
 
 /**
  * Version reference structure

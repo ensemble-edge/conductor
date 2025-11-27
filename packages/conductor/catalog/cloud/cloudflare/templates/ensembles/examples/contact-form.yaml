@@ -1,6 +1,12 @@
 name: contact-form
 description: Simple contact form with validation and email notification
 
+trigger:
+  - type: http
+    path: /contact
+    methods: [GET, POST]
+    public: true
+
 agents:
   # Render contact form
   - name: render-form
@@ -107,12 +113,12 @@ agents:
           Submitted at: {{timestamp}}
         </p>
     input:
-      name: $render-form.data.name
-      email: $render-form.data.email
-      subject: $render-form.data.subject
-      message: $render-form.data.message
-      subscribe: $render-form.data.subscribe
-      timestamp: $now
+      name: ${render-form.data.name}
+      email: ${render-form.data.email}
+      subject: ${render-form.data.subject}
+      message: ${render-form.data.message}
+      subscribe: ${render-form.data.subscribe}
+      timestamp: ${now}
 
   # Send confirmation email to user
   - name: send-confirmation
@@ -122,8 +128,8 @@ agents:
         email: noreply@example.com
         name: Example Company
       to:
-        - email: $render-form.data.email
-          name: $render-form.data.name
+        - email: ${render-form.data.email}
+          name: ${render-form.data.name}
       subject: "We received your message"
       template: |
         <h2>Thank You for Contacting Us!</h2>
@@ -143,13 +149,13 @@ agents:
         <p>Best regards,<br>
         The Example Company Team</p>
     input:
-      name: $render-form.data.name
-      message: $render-form.data.message
-    condition: $render-form.valid
+      name: ${render-form.data.name}
+      message: ${render-form.data.message}
+    condition: ${render-form.valid}
 
 output:
-  formHtml: $render-form.html
-  valid: $render-form.valid
-  errors: $render-form.errors
-  emailSent: $send-notification.success
-  confirmationSent: $send-confirmation.success
+  formHtml: ${render-form.html}
+  valid: ${render-form.valid}
+  errors: ${render-form.errors}
+  emailSent: ${send-notification.success}
+  confirmationSent: ${send-confirmation.success}

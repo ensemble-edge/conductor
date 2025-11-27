@@ -99,8 +99,28 @@ async function executeEnsemble(c, ensembleName, input, startTime, requestId, rou
                 requestId,
             }, 500);
         }
-        // Return response
-        return c.json({
+        // Build response using response metadata (status, headers, redirect, rawBody)
+        const response = result.value.response;
+        const status = response?.status || 200;
+        // Handle redirect responses
+        if (response?.redirect) {
+            const redirectStatus = response.redirect.status || 302;
+            const headers = new Headers(response.headers || {});
+            headers.set('Location', response.redirect.url);
+            return new Response(null, { status: redirectStatus, headers });
+        }
+        // Build headers
+        const headers = new Headers(response?.headers || {});
+        // Handle raw body responses (non-JSON)
+        if (response?.isRawBody) {
+            if (!headers.has('Content-Type')) {
+                headers.set('Content-Type', 'text/plain');
+            }
+            return new Response(String(result.value.output), { status, headers });
+        }
+        // Default: JSON response
+        headers.set('Content-Type', 'application/json');
+        return new Response(JSON.stringify({
             success: true,
             output: result.value.output,
             metadata: {
@@ -108,7 +128,7 @@ async function executeEnsemble(c, ensembleName, input, startTime, requestId, rou
                 duration: Date.now() - startTime,
                 timestamp: Date.now(),
             },
-        });
+        }), { status, headers });
     }
     catch (error) {
         logger.error('Ensemble execution failed', error instanceof Error ? error : undefined, {

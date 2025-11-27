@@ -20,6 +20,12 @@ description: |
      binding = "VECTORIZE"
      index_name = "my-index"
 
+trigger:
+  - type: http
+    path: /api/vectorize-qa
+    methods: [POST]
+    public: true
+
 flow:
   # Step 1: Search Vectorize index manually
   - agent: vectorize-search
@@ -47,9 +53,27 @@ flow:
         - Use a helpful, professional tone
 
 output:
-  answer: ${answer-generator.output.message}
-  sources: ${vectorize-search.output.results}
-  confidence: ${vectorize-search.output.results[0].score}
-  metadata:
-    retrievedDocs: ${vectorize-search.output.count}
-    query: ${vectorize-search.output.query}
+  # Success case - found relevant documents
+  - when: ${vectorize-search.output.results && vectorize-search.output.results.length > 0}
+    status: 200
+    body:
+      answer: ${answer-generator.output.message}
+      sources: ${vectorize-search.output.results}
+      confidence: ${vectorize-search.output.results[0].score}
+      metadata:
+        retrievedDocs: ${vectorize-search.output.count}
+        query: ${vectorize-search.output.query}
+
+  # Not found - no relevant documents
+  - when: ${vectorize-search.output.results.length === 0}
+    status: 404
+    body:
+      error: "No relevant documents found"
+      query: ${input.question}
+      suggestion: "Try rephrasing your question or check if documents have been indexed"
+
+  # Error fallback
+  - status: 500
+    body:
+      error: "Search or generation failed"
+      message: ${vectorize-search.output.error || answer-generator.output.error}

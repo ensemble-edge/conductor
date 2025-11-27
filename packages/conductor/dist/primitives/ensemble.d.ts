@@ -45,11 +45,49 @@ export interface HttpTrigger {
         exposeHeaders?: string[];
         credentials?: boolean;
     };
+    /**
+     * Internal agent cache configuration
+     * @deprecated Use agent-level cache config instead
+     */
     cache?: {
         enabled: boolean;
         ttl: number;
         vary?: string[];
         tags?: string[];
+    };
+    /**
+     * HTTP Cache-Control headers for CDN/browser caching
+     *
+     * NOTE: This is separate from agent `cache:` config which controls
+     * internal computation caching. This controls HTTP response headers.
+     *
+     * @example
+     * ```yaml
+     * httpCache:
+     *   public: true
+     *   maxAge: 300
+     *   staleWhileRevalidate: 60
+     * ```
+     */
+    httpCache?: {
+        /** Cache-Control: max-age=N (seconds) */
+        maxAge?: number;
+        /** Cache-Control: public (CDN can cache) */
+        public?: boolean;
+        /** Cache-Control: private (browser only, not CDN) */
+        private?: boolean;
+        /** Cache-Control: no-cache (must revalidate) */
+        noCache?: boolean;
+        /** Cache-Control: no-store (don't cache at all) */
+        noStore?: boolean;
+        /** stale-while-revalidate=N (seconds) */
+        staleWhileRevalidate?: number;
+        /** stale-if-error=N (seconds) */
+        staleIfError?: number;
+        /** Vary header values (merged with auth-added values) */
+        vary?: string[];
+        /** Custom Cache-Control directives */
+        custom?: string;
     };
     middleware?: string[];
     responses?: {

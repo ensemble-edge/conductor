@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
+var __create = Object.create;
 var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
 }) : x)(function(x) {
@@ -11,10 +15,29 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
+var __commonJS = (cb, mod) => function __require2() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 
 // src/agents/base-agent.ts
 var BaseAgent;
@@ -451,11 +474,322 @@ var init_opentelemetry = __esm({
 });
 
 // src/observability/context.ts
+function resolveObservabilityConfig(config) {
+  let loggingConfig;
+  if (config?.logging === false) {
+    loggingConfig = { enabled: false };
+  } else if (config?.logging === true || config?.logging === void 0) {
+    loggingConfig = { enabled: true };
+  } else {
+    loggingConfig = config.logging;
+  }
+  let metricsConfig;
+  if (config?.metrics === false) {
+    metricsConfig = { enabled: false };
+  } else if (config?.metrics === true || config?.metrics === void 0) {
+    metricsConfig = { enabled: true };
+  } else {
+    metricsConfig = config.metrics;
+  }
+  return {
+    logging: {
+      enabled: loggingConfig.enabled !== false,
+      level: stringToLogLevel(loggingConfig.level ?? "info"),
+      format: loggingConfig.format ?? "json",
+      context: loggingConfig.context ?? ["requestId", "executionId", "ensembleName", "agentName"],
+      redact: loggingConfig.redact ?? DEFAULT_REDACT_PATTERNS,
+      events: new Set(loggingConfig.events ?? DEFAULT_LOG_EVENTS)
+    },
+    metrics: {
+      enabled: metricsConfig.enabled !== false,
+      binding: metricsConfig.binding ?? "ANALYTICS",
+      track: new Set(metricsConfig.track ?? DEFAULT_METRIC_TYPES),
+      dimensions: metricsConfig.dimensions ?? []
+    },
+    opentelemetry: {
+      enabled: config?.opentelemetry?.enabled ?? false,
+      endpoint: config?.opentelemetry?.endpoint,
+      headers: config?.opentelemetry?.headers,
+      samplingRate: config?.opentelemetry?.samplingRate ?? 1
+    },
+    trackTokenUsage: config?.trackTokenUsage ?? true
+  };
+}
+function stringToLogLevel(level) {
+  switch (level.toLowerCase()) {
+    case "debug":
+      return "debug" /* DEBUG */;
+    case "info":
+      return "info" /* INFO */;
+    case "warn":
+      return "warn" /* WARN */;
+    case "error":
+      return "error" /* ERROR */;
+    default:
+      return "info" /* INFO */;
+  }
+}
+function generateExecutionId() {
+  return `exec_${crypto.randomUUID()}`;
+}
+function generateRequestId() {
+  return `req_${crypto.randomUUID()}`;
+}
+function createMetricsRecorder(analyticsEngine, config, baseContext) {
+  const shouldTrack = (type) => {
+    return config.metrics.enabled && config.metrics.track.has(type);
+  };
+  const writeMetric = (data) => {
+    if (!analyticsEngine || !config.metrics.enabled) return;
+    try {
+      analyticsEngine.writeDataPoint({
+        blobs: data.blobs ?? [],
+        doubles: data.doubles ?? [],
+        indexes: data.indexes ?? []
+      });
+    } catch {
+    }
+  };
+  return {
+    record(name, value, dimensions) {
+      writeMetric({
+        blobs: [name, ...dimensions ? Object.values(dimensions) : []],
+        doubles: [value],
+        indexes: [name]
+      });
+    },
+    recordEnsembleExecution(ensembleName, durationMs, success) {
+      if (!shouldTrack("ensemble:execution")) return;
+      writeMetric({
+        blobs: [
+          ensembleName,
+          success ? "success" : "failure",
+          baseContext.environment ?? "unknown"
+        ],
+        doubles: [durationMs, success ? 1 : 0],
+        indexes: ["ensemble.execution"]
+      });
+    },
+    recordAgentExecution(agentName, durationMs, success, cached = false) {
+      if (!shouldTrack("agent:execution")) return;
+      writeMetric({
+        blobs: [
+          agentName,
+          success ? "success" : "failure",
+          cached ? "cached" : "executed",
+          baseContext.ensembleName ?? "unknown"
+        ],
+        doubles: [durationMs, success ? 1 : 0, cached ? 1 : 0],
+        indexes: ["agent.execution"]
+      });
+    },
+    recordHttpRequest(method, path9, statusCode, durationMs) {
+      if (!shouldTrack("http:request")) return;
+      const statusCategory = statusCode < 400 ? "success" : statusCode < 500 ? "client_error" : "server_error";
+      writeMetric({
+        blobs: [method, path9, statusCategory, String(statusCode)],
+        doubles: [durationMs, 1],
+        indexes: ["http.request"]
+      });
+    },
+    recordError(errorType, errorCode) {
+      if (!shouldTrack("error")) return;
+      writeMetric({
+        blobs: [
+          errorType,
+          errorCode ?? "unknown",
+          baseContext.ensembleName ?? "unknown",
+          baseContext.agentName ?? "unknown"
+        ],
+        doubles: [1],
+        indexes: ["error"]
+      });
+    },
+    recordCachePerformance(hit, agentName) {
+      if (!shouldTrack("cache:performance")) return;
+      writeMetric({
+        blobs: [
+          hit ? "hit" : "miss",
+          agentName ?? "unknown",
+          baseContext.ensembleName ?? "unknown"
+        ],
+        doubles: [1],
+        indexes: ["cache.performance"]
+      });
+    }
+  };
+}
+function redactSensitiveFields(obj, patterns) {
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const shouldRedact = patterns.some((pattern) => {
+      const lowerKey = key.toLowerCase();
+      const lowerPattern = pattern.toLowerCase();
+      return lowerKey.includes(lowerPattern) || lowerKey === lowerPattern;
+    });
+    if (shouldRedact) {
+      result[key] = "[REDACTED]";
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      result[key] = redactSensitiveFields(value, patterns);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+function createScopedLogger(config, context, analyticsEngine) {
+  if (!config.logging.enabled) {
+    return {
+      debug: () => {
+      },
+      info: () => {
+      },
+      warn: () => {
+      },
+      error: () => {
+      },
+      child: () => createScopedLogger(config, context, analyticsEngine),
+      metric: () => {
+      }
+    };
+  }
+  const baseContext = {};
+  for (const field of config.logging.context) {
+    if (field in context && context[field] !== void 0) {
+      baseContext[field] = context[field];
+    }
+  }
+  return new ConductorLogger(
+    {
+      level: config.logging.level,
+      serviceName: "conductor",
+      enableAnalytics: config.metrics.enabled,
+      baseContext
+    },
+    analyticsEngine,
+    baseContext
+  );
+}
+function createObservabilityManager(config, initialContext, analyticsEngine) {
+  return new ObservabilityManager(config, initialContext ?? {}, analyticsEngine);
+}
+var DEFAULT_REDACT_PATTERNS, DEFAULT_LOG_EVENTS, DEFAULT_METRIC_TYPES, ObservabilityManager;
 var init_context = __esm({
   "src/observability/context.ts"() {
     "use strict";
     init_logger();
     init_types();
+    DEFAULT_REDACT_PATTERNS = [
+      "password",
+      "apiKey",
+      "api_key",
+      "token",
+      "authorization",
+      "secret",
+      "creditCard",
+      "credit_card",
+      "ssn",
+      "socialSecurityNumber"
+    ];
+    DEFAULT_LOG_EVENTS = [
+      "request",
+      "response",
+      "agent:start",
+      "agent:complete",
+      "agent:error"
+    ];
+    DEFAULT_METRIC_TYPES = [
+      "ensemble:execution",
+      "agent:execution",
+      "http:request",
+      "error"
+    ];
+    ObservabilityManager = class _ObservabilityManager {
+      constructor(config, initialContext, analyticsEngine) {
+        this.config = resolveObservabilityConfig(config);
+        this.analyticsEngine = analyticsEngine;
+        this.context = {
+          requestId: initialContext.requestId ?? generateRequestId(),
+          executionId: initialContext.executionId ?? generateExecutionId(),
+          ...initialContext
+        };
+        this.logger = createScopedLogger(this.config, this.context, analyticsEngine);
+        this.metrics = createMetricsRecorder(analyticsEngine, this.config, this.context);
+      }
+      /**
+       * Get the current logger
+       */
+      getLogger() {
+        return this.logger;
+      }
+      /**
+       * Get the metrics recorder
+       */
+      getMetrics() {
+        return this.metrics;
+      }
+      /**
+       * Get the current execution context
+       */
+      getContext() {
+        return { ...this.context };
+      }
+      /**
+       * Get the resolved config
+       */
+      getConfig() {
+        return this.config;
+      }
+      /**
+       * Check if a log event should be logged
+       */
+      shouldLogEvent(event) {
+        return this.config.logging.enabled && this.config.logging.events.has(event);
+      }
+      /**
+       * Check if a metric type should be tracked
+       */
+      shouldTrackMetric(type) {
+        return this.config.metrics.enabled && this.config.metrics.track.has(type);
+      }
+      /**
+       * Create a child manager with additional context (e.g., for an agent)
+       */
+      forAgent(agentName, stepIndex) {
+        const childContext = {
+          ...this.context,
+          agentName,
+          stepIndex
+        };
+        const manager = new _ObservabilityManager(
+          void 0,
+          // Will use resolved config
+          childContext,
+          this.analyticsEngine
+        );
+        manager.config = this.config;
+        return manager;
+      }
+      /**
+       * Create a child manager for an ensemble
+       */
+      forEnsemble(ensembleName, executionId) {
+        const childContext = {
+          ...this.context,
+          ensembleName,
+          executionId: executionId ?? generateExecutionId()
+        };
+        const manager = new _ObservabilityManager(void 0, childContext, this.analyticsEngine);
+        manager.config = this.config;
+        return manager;
+      }
+      /**
+       * Redact sensitive fields from data
+       */
+      redact(data) {
+        return redactSensitiveFields(data, this.config.logging.redact);
+      }
+    };
   }
 });
 
@@ -2266,12 +2600,12 @@ Output format: Return ONLY the enhanced text, no explanations or meta-commentary
        */
       async enhanceSpec(spec) {
         const enhanced = { ...spec };
-        for (const [path8, pathItem] of Object.entries(spec.paths)) {
+        for (const [path9, pathItem] of Object.entries(spec.paths)) {
           for (const method of ["get", "post", "put", "delete", "patch"]) {
             const operation = pathItem[method];
             if (!operation) continue;
             const prompt = createOpenAPIOperationPrompt({
-              path: path8,
+              path: path9,
               method,
               summary: operation.summary,
               description: operation.description,
@@ -2327,9 +2661,6595 @@ Output format: Return ONLY the enhanced text, no explanations or meta-commentary
   }
 });
 
+// src/types/result.ts
+var Result;
+var init_result = __esm({
+  "src/types/result.ts"() {
+    "use strict";
+    Result = {
+      /**
+       * Create a successful Result
+       */
+      ok(value) {
+        return { success: true, value };
+      },
+      /**
+       * Create a failed Result
+       */
+      err(error) {
+        return { success: false, error };
+      },
+      /**
+       * Wrap a Promise to catch errors and return a Result
+       * @example
+       * ```typescript
+       * const result = await Result.fromPromise(
+       *   fetch('https://api.example.com/data')
+       * );
+       * ```
+       */
+      async fromPromise(promise) {
+        try {
+          const value = await promise;
+          return Result.ok(value);
+        } catch (error) {
+          return Result.err(error instanceof Error ? error : new Error(String(error)));
+        }
+      },
+      /**
+       * Wrap a synchronous function to catch errors and return a Result
+       * @example
+       * ```typescript
+       * const result = Result.fromThrowable(() => JSON.parse(input));
+       * ```
+       */
+      fromThrowable(fn) {
+        try {
+          return Result.ok(fn());
+        } catch (error) {
+          return Result.err(error instanceof Error ? error : new Error(String(error)));
+        }
+      },
+      /**
+       * Transform the value inside a successful Result
+       * Leaves error Results unchanged
+       * @example
+       * ```typescript
+       * const result = Result.ok(5);
+       * const doubled = Result.map(result, x => x * 2);
+       * // doubled = { success: true, value: 10 }
+       * ```
+       */
+      map(result, fn) {
+        if (result.success) {
+          return Result.ok(fn(result.value));
+        }
+        return result;
+      },
+      /**
+       * Async version of map
+       */
+      async mapAsync(result, fn) {
+        if (result.success) {
+          return Result.ok(await fn(result.value));
+        }
+        return result;
+      },
+      /**
+       * Transform the error inside a failed Result
+       * Leaves success Results unchanged
+       * @example
+       * ```typescript
+       * const result = Result.err(new Error('failed'));
+       * const wrapped = Result.mapErr(result, e => new CustomError(e));
+       * ```
+       */
+      mapErr(result, fn) {
+        if (result.success) {
+          return result;
+        }
+        return Result.err(fn(result.error));
+      },
+      /**
+       * Chain Results together (flatMap/bind)
+       * If the first Result is an error, returns it without calling fn
+       * If the first Result is success, calls fn with the value
+       * @example
+       * ```typescript
+       * const result = Result.ok(5);
+       * const chained = Result.flatMap(result, x => {
+       *   if (x > 10) return Result.ok(x);
+       *   return Result.err(new Error('too small'));
+       * });
+       * ```
+       */
+      flatMap(result, fn) {
+        if (result.success) {
+          return fn(result.value);
+        }
+        return result;
+      },
+      /**
+       * Async version of flatMap
+       */
+      async flatMapAsync(result, fn) {
+        if (result.success) {
+          return await fn(result.value);
+        }
+        return result;
+      },
+      /**
+       * Unwrap a Result, throwing if it's an error
+       * Use sparingly - prefer explicit error handling
+       * @throws The error if Result is failed
+       * @example
+       * ```typescript
+       * const value = Result.unwrap(result); // Throws if error
+       * ```
+       */
+      unwrap(result) {
+        if (result.success) {
+          return result.value;
+        }
+        throw result.error;
+      },
+      /**
+       * Unwrap a Result, returning a default value if it's an error
+       * @example
+       * ```typescript
+       * const value = Result.unwrapOr(result, 'default');
+       * ```
+       */
+      unwrapOr(result, defaultValue) {
+        return result.success ? result.value : defaultValue;
+      },
+      /**
+       * Unwrap a Result, computing a default value from the error
+       * @example
+       * ```typescript
+       * const value = Result.unwrapOrElse(result, error => {
+       *   console.error('Failed:', error);
+       *   return 'fallback';
+       * });
+       * ```
+       */
+      unwrapOrElse(result, fn) {
+        return result.success ? result.value : fn(result.error);
+      },
+      /**
+       * Check if Result is success
+       */
+      isOk(result) {
+        return result.success === true;
+      },
+      /**
+       * Check if Result is error
+       */
+      isErr(result) {
+        return result.success === false;
+      },
+      /**
+       * Combine multiple Results into one
+       * Returns first error, or all values if all succeed
+       * @example
+       * ```typescript
+       * const results = [Result.ok(1), Result.ok(2), Result.ok(3)];
+       * const combined = Result.all(results);
+       * // combined = { success: true, value: [1, 2, 3] }
+       * ```
+       */
+      all(results) {
+        const values = [];
+        for (const result of results) {
+          if (!result.success) {
+            return result;
+          }
+          values.push(result.value);
+        }
+        return Result.ok(values);
+      },
+      /**
+       * Combine multiple Results, collecting all errors or all values
+       * Unlike `all`, this doesn't short-circuit on first error
+       * @example
+       * ```typescript
+       * const results = [
+       *   Result.ok(1),
+       *   Result.err(new Error('e1')),
+       *   Result.err(new Error('e2'))
+       * ];
+       * const combined = Result.partition(results);
+       * // combined = { success: false, error: [Error('e1'), Error('e2')] }
+       * ```
+       */
+      partition(results) {
+        const values = [];
+        const errors = [];
+        for (const result of results) {
+          if (result.success) {
+            values.push(result.value);
+          } else {
+            errors.push(result.error);
+          }
+        }
+        if (errors.length > 0) {
+          return Result.err(errors);
+        }
+        return Result.ok(values);
+      },
+      /**
+       * Sequence async operations, short-circuiting on first error
+       * @example
+       * ```typescript
+       * const result = await Result.sequence([
+       *   () => validateInput(data),
+       *   () => fetchUser(data.userId),
+       *   () => updateUser(user)
+       * ]);
+       * ```
+       */
+      async sequence(operations) {
+        const values = [];
+        for (const operation of operations) {
+          const result = await operation();
+          if (!result.success) {
+            return result;
+          }
+          values.push(result.value);
+        }
+        return Result.ok(values);
+      },
+      /**
+       * Match on a Result, providing handlers for both cases
+       * @example
+       * ```typescript
+       * const message = Result.match(result, {
+       *   ok: user => `Welcome ${user.name}`,
+       *   err: error => `Error: ${error.message}`
+       * });
+       * ```
+       */
+      match(result, handlers) {
+        if (result.success) {
+          return handlers.ok(result.value);
+        }
+        return handlers.err(result.error);
+      },
+      /**
+       * Perform a side effect on success, returning the original Result
+       * @example
+       * ```typescript
+       * const result = Result.ok(user)
+       *   .pipe(Result.tap(u => console.log('Found user:', u.name)));
+       * ```
+       */
+      tap(result, fn) {
+        if (result.success) {
+          fn(result.value);
+        }
+        return result;
+      },
+      /**
+       * Perform a side effect on error, returning the original Result
+       * @example
+       * ```typescript
+       * const result = operation()
+       *   .pipe(Result.tapErr(e => console.error('Operation failed:', e)));
+       * ```
+       */
+      tapErr(result, fn) {
+        if (!result.success) {
+          fn(result.error);
+        }
+        return result;
+      }
+    };
+  }
+});
+
+// src/errors/error-types.ts
+var ConductorError2, MemberNotFoundError, MemberConfigurationError, AgentExecutionError, ProviderNotFoundError, ProviderAuthError, ProviderAPIError, ProviderTimeoutError, PlatformBindingMissingError, ModelNotFoundError, ModelDeprecatedError, ModelEOLError, EnsembleNotFoundError, EnsembleParseError, EnsembleExecutionError, StorageKeyNotFoundError, ConfigurationError, InternalError, Errors;
+var init_error_types = __esm({
+  "src/errors/error-types.ts"() {
+    "use strict";
+    ConductorError2 = class extends Error {
+      constructor(message, details) {
+        super(message);
+        this.name = this.constructor.name;
+        this.details = details;
+        if (Error.captureStackTrace) {
+          ;
+          Error.captureStackTrace(this, this.constructor);
+        }
+      }
+      /**
+       * Convert error to JSON for logging/serialization
+       */
+      toJSON() {
+        return {
+          name: this.name,
+          code: this.code,
+          message: this.message,
+          isOperational: this.isOperational,
+          stack: this.stack
+        };
+      }
+    };
+    MemberNotFoundError = class extends ConductorError2 {
+      constructor(agentName) {
+        super(`Agent "${agentName}" not found in registry`);
+        this.agentName = agentName;
+        this.code = "MEMBER_NOT_FOUND" /* MEMBER_NOT_FOUND */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `The agent "${this.agentName}" does not exist. Check your ensemble configuration.`;
+      }
+    };
+    MemberConfigurationError = class extends ConductorError2 {
+      constructor(agentName, reason) {
+        super(`Invalid configuration for agent "${agentName}": ${reason}`);
+        this.agentName = agentName;
+        this.reason = reason;
+        this.code = "MEMBER_INVALID_CONFIG" /* MEMBER_INVALID_CONFIG */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Configuration error in agent "${this.agentName}": ${this.reason}`;
+      }
+    };
+    AgentExecutionError = class extends ConductorError2 {
+      constructor(agentName, reason, cause) {
+        super(`Agent "${agentName}" execution failed: ${reason}`);
+        this.agentName = agentName;
+        this.reason = reason;
+        this.cause = cause;
+        this.code = "MEMBER_EXECUTION_FAILED" /* MEMBER_EXECUTION_FAILED */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Execution failed for agent "${this.agentName}": ${this.reason}`;
+      }
+    };
+    ProviderNotFoundError = class extends ConductorError2 {
+      constructor(providerId) {
+        super(`AI provider "${providerId}" not found`);
+        this.providerId = providerId;
+        this.code = "PROVIDER_NOT_FOUND" /* PROVIDER_NOT_FOUND */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `The AI provider "${this.providerId}" is not available. Check your provider configuration.`;
+      }
+    };
+    ProviderAuthError = class extends ConductorError2 {
+      constructor(providerId, reason) {
+        super(`Authentication failed for provider "${providerId}": ${reason}`);
+        this.providerId = providerId;
+        this.reason = reason;
+        this.code = "PROVIDER_AUTH_FAILED" /* PROVIDER_AUTH_FAILED */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Authentication error with "${this.providerId}": ${this.reason}. Check your API keys.`;
+      }
+    };
+    ProviderAPIError = class extends ConductorError2 {
+      constructor(providerId, statusCode, response) {
+        super(`API error from provider "${providerId}": ${statusCode} - ${response}`);
+        this.providerId = providerId;
+        this.statusCode = statusCode;
+        this.response = response;
+        this.code = "PROVIDER_API_ERROR" /* PROVIDER_API_ERROR */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `API error from "${this.providerId}" (HTTP ${this.statusCode}): ${this.response}`;
+      }
+    };
+    ProviderTimeoutError = class extends ConductorError2 {
+      constructor(providerId, timeoutMs) {
+        super(`Request to provider "${providerId}" timed out after ${timeoutMs}ms`);
+        this.providerId = providerId;
+        this.timeoutMs = timeoutMs;
+        this.code = "PROVIDER_TIMEOUT" /* PROVIDER_TIMEOUT */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Request to "${this.providerId}" timed out. The service may be slow or unavailable.`;
+      }
+    };
+    PlatformBindingMissingError = class extends ConductorError2 {
+      constructor(bindingName, hint) {
+        super(`Binding "${bindingName}" not found` + (hint ? `: ${hint}` : ""));
+        this.bindingName = bindingName;
+        this.hint = hint;
+        this.code = "PLATFORM_BINDING_MISSING" /* PLATFORM_BINDING_MISSING */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Required binding "${this.bindingName}" is not configured. ${this.hint || "Add it to wrangler.toml"}`;
+      }
+    };
+    ModelNotFoundError = class extends ConductorError2 {
+      constructor(modelId) {
+        super(`Model "${modelId}" not found in platform data`);
+        this.modelId = modelId;
+        this.code = "MODEL_NOT_FOUND" /* MODEL_NOT_FOUND */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `The model "${this.modelId}" is not available. Check the model ID or use a different model.`;
+      }
+    };
+    ModelDeprecatedError = class extends ConductorError2 {
+      constructor(modelId, reason, replacement) {
+        super(
+          `Model "${modelId}" is deprecated` + (reason ? `: ${reason}` : "") + (replacement ? `. Use "${replacement}" instead` : "")
+        );
+        this.modelId = modelId;
+        this.reason = reason;
+        this.replacement = replacement;
+        this.code = "MODEL_DEPRECATED" /* MODEL_DEPRECATED */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        let msg = `The model "${this.modelId}" is deprecated`;
+        if (this.reason) msg += `: ${this.reason}`;
+        if (this.replacement) msg += `. Please migrate to "${this.replacement}"`;
+        return msg;
+      }
+    };
+    ModelEOLError = class extends ConductorError2 {
+      constructor(modelId, eolDate, replacement) {
+        super(
+          `Model "${modelId}" reached end of life on ${eolDate}` + (replacement ? `. Use "${replacement}" instead` : "")
+        );
+        this.modelId = modelId;
+        this.eolDate = eolDate;
+        this.replacement = replacement;
+        this.code = "MODEL_EOL" /* MODEL_EOL */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        let msg = `The model "${this.modelId}" is no longer available (EOL: ${this.eolDate})`;
+        if (this.replacement) msg += `. Please use "${this.replacement}" instead`;
+        return msg;
+      }
+    };
+    EnsembleNotFoundError = class extends ConductorError2 {
+      constructor(ensembleName) {
+        super(`Ensemble "${ensembleName}" not found`);
+        this.ensembleName = ensembleName;
+        this.code = "ENSEMBLE_NOT_FOUND" /* ENSEMBLE_NOT_FOUND */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `The ensemble "${this.ensembleName}" does not exist.`;
+      }
+    };
+    EnsembleParseError = class extends ConductorError2 {
+      constructor(ensembleName, reason) {
+        super(`Failed to parse ensemble "${ensembleName}": ${reason}`);
+        this.ensembleName = ensembleName;
+        this.reason = reason;
+        this.code = "ENSEMBLE_PARSE_FAILED" /* ENSEMBLE_PARSE_FAILED */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Syntax error in ensemble "${this.ensembleName}": ${this.reason}`;
+      }
+    };
+    EnsembleExecutionError = class extends ConductorError2 {
+      constructor(ensembleName, step, cause) {
+        super(`Ensemble "${ensembleName}" failed at step "${step}": ${cause.message}`);
+        this.ensembleName = ensembleName;
+        this.step = step;
+        this.cause = cause;
+        this.code = "ENSEMBLE_EXECUTION_FAILED" /* ENSEMBLE_EXECUTION_FAILED */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Execution failed in ensemble "${this.ensembleName}" at step "${this.step}": ${this.cause.message}`;
+      }
+    };
+    StorageKeyNotFoundError = class extends ConductorError2 {
+      constructor(key, storageType) {
+        super(`Key "${key}" not found in ${storageType}`);
+        this.key = key;
+        this.storageType = storageType;
+        this.code = "STORAGE_NOT_FOUND" /* STORAGE_NOT_FOUND */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `The key "${this.key}" does not exist in ${this.storageType} storage.`;
+      }
+    };
+    ConfigurationError = class extends ConductorError2 {
+      constructor(reason) {
+        super(`Configuration error: ${reason}`);
+        this.reason = reason;
+        this.code = "CONFIGURATION_ERROR" /* CONFIGURATION_ERROR */;
+        this.isOperational = true;
+      }
+      toUserMessage() {
+        return `Configuration error: ${this.reason}`;
+      }
+    };
+    InternalError = class extends ConductorError2 {
+      // Non-operational - indicates a bug
+      constructor(reason, cause) {
+        super(`Internal error: ${reason}`);
+        this.reason = reason;
+        this.cause = cause;
+        this.code = "INTERNAL_ERROR" /* INTERNAL_ERROR */;
+        this.isOperational = false;
+      }
+      toUserMessage() {
+        return `An unexpected error occurred. Please contact support.`;
+      }
+    };
+    Errors = {
+      /** @deprecated Use agentNotFound instead */
+      memberNotFound: (name) => new MemberNotFoundError(name),
+      agentNotFound: (name) => new MemberNotFoundError(name),
+      agentConfig: (name, reason) => new MemberConfigurationError(name, reason),
+      memberExecution: (name, reason, cause) => new AgentExecutionError(name, reason, cause),
+      providerNotFound: (id) => new ProviderNotFoundError(id),
+      providerAuth: (id, reason) => new ProviderAuthError(id, reason),
+      providerAPI: (id, status, response) => new ProviderAPIError(id, status, response),
+      providerTimeout: (id, timeout) => new ProviderTimeoutError(id, timeout),
+      modelNotFound: (id) => new ModelNotFoundError(id),
+      modelDeprecated: (id, reason, replacement) => new ModelDeprecatedError(id, reason, replacement),
+      modelEOL: (id, eolDate, replacement) => new ModelEOLError(id, eolDate, replacement),
+      ensembleNotFound: (name) => new EnsembleNotFoundError(name),
+      ensembleParse: (name, reason) => new EnsembleParseError(name, reason),
+      ensembleExecution: (name, step, cause) => new EnsembleExecutionError(name, step, cause),
+      bindingMissing: (name, hint) => new PlatformBindingMissingError(name, hint),
+      storageNotFound: (key, storageType) => new StorageKeyNotFoundError(key, storageType),
+      config: (reason) => new ConfigurationError(reason),
+      internal: (reason, cause) => new InternalError(reason, cause)
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/utils.js
+var require_utils = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/utils.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.extend = extend;
+    exports.indexOf = indexOf;
+    exports.escapeExpression = escapeExpression;
+    exports.isEmpty = isEmpty2;
+    exports.createFrame = createFrame;
+    exports.blockParams = blockParams;
+    exports.appendContextPath = appendContextPath;
+    var escape = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#x27;",
+      "`": "&#x60;",
+      "=": "&#x3D;"
+    };
+    var badChars = /[&<>"'`=]/g;
+    var possible = /[&<>"'`=]/;
+    function escapeChar(chr) {
+      return escape[chr];
+    }
+    function extend(obj) {
+      for (var i = 1; i < arguments.length; i++) {
+        for (var key in arguments[i]) {
+          if (Object.prototype.hasOwnProperty.call(arguments[i], key)) {
+            obj[key] = arguments[i][key];
+          }
+        }
+      }
+      return obj;
+    }
+    var toString = Object.prototype.toString;
+    exports.toString = toString;
+    var isFunction = function isFunction2(value) {
+      return typeof value === "function";
+    };
+    if (isFunction(/x/)) {
+      exports.isFunction = isFunction = function(value) {
+        return typeof value === "function" && toString.call(value) === "[object Function]";
+      };
+    }
+    exports.isFunction = isFunction;
+    var isArray = Array.isArray || function(value) {
+      return value && typeof value === "object" ? toString.call(value) === "[object Array]" : false;
+    };
+    exports.isArray = isArray;
+    function indexOf(array, value) {
+      for (var i = 0, len = array.length; i < len; i++) {
+        if (array[i] === value) {
+          return i;
+        }
+      }
+      return -1;
+    }
+    function escapeExpression(string) {
+      if (typeof string !== "string") {
+        if (string && string.toHTML) {
+          return string.toHTML();
+        } else if (string == null) {
+          return "";
+        } else if (!string) {
+          return string + "";
+        }
+        string = "" + string;
+      }
+      if (!possible.test(string)) {
+        return string;
+      }
+      return string.replace(badChars, escapeChar);
+    }
+    function isEmpty2(value) {
+      if (!value && value !== 0) {
+        return true;
+      } else if (isArray(value) && value.length === 0) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+    function createFrame(object) {
+      var frame = extend({}, object);
+      frame._parent = object;
+      return frame;
+    }
+    function blockParams(params, ids) {
+      params.path = ids;
+      return params;
+    }
+    function appendContextPath(contextPath, id) {
+      return (contextPath ? contextPath + "." : "") + id;
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/exception.js
+var require_exception = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/exception.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    var errorProps = ["description", "fileName", "lineNumber", "endLineNumber", "message", "name", "number", "stack"];
+    function Exception(message, node) {
+      var loc = node && node.loc, line = void 0, endLineNumber = void 0, column = void 0, endColumn = void 0;
+      if (loc) {
+        line = loc.start.line;
+        endLineNumber = loc.end.line;
+        column = loc.start.column;
+        endColumn = loc.end.column;
+        message += " - " + line + ":" + column;
+      }
+      var tmp = Error.prototype.constructor.call(this, message);
+      for (var idx = 0; idx < errorProps.length; idx++) {
+        this[errorProps[idx]] = tmp[errorProps[idx]];
+      }
+      if (Error.captureStackTrace) {
+        Error.captureStackTrace(this, Exception);
+      }
+      try {
+        if (loc) {
+          this.lineNumber = line;
+          this.endLineNumber = endLineNumber;
+          if (Object.defineProperty) {
+            Object.defineProperty(this, "column", {
+              value: column,
+              enumerable: true
+            });
+            Object.defineProperty(this, "endColumn", {
+              value: endColumn,
+              enumerable: true
+            });
+          } else {
+            this.column = column;
+            this.endColumn = endColumn;
+          }
+        }
+      } catch (nop) {
+      }
+    }
+    Exception.prototype = new Error();
+    exports["default"] = Exception;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/block-helper-missing.js
+var require_block_helper_missing = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/block-helper-missing.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    var _utils = require_utils();
+    exports["default"] = function(instance) {
+      instance.registerHelper("blockHelperMissing", function(context, options) {
+        var inverse = options.inverse, fn = options.fn;
+        if (context === true) {
+          return fn(this);
+        } else if (context === false || context == null) {
+          return inverse(this);
+        } else if (_utils.isArray(context)) {
+          if (context.length > 0) {
+            if (options.ids) {
+              options.ids = [options.name];
+            }
+            return instance.helpers.each(context, options);
+          } else {
+            return inverse(this);
+          }
+        } else {
+          if (options.data && options.ids) {
+            var data = _utils.createFrame(options.data);
+            data.contextPath = _utils.appendContextPath(options.data.contextPath, options.name);
+            options = { data };
+          }
+          return fn(context, options);
+        }
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/each.js
+var require_each = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/each.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _utils = require_utils();
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    exports["default"] = function(instance) {
+      instance.registerHelper("each", function(context, options) {
+        if (!options) {
+          throw new _exception2["default"]("Must pass iterator to #each");
+        }
+        var fn = options.fn, inverse = options.inverse, i = 0, ret = "", data = void 0, contextPath = void 0;
+        if (options.data && options.ids) {
+          contextPath = _utils.appendContextPath(options.data.contextPath, options.ids[0]) + ".";
+        }
+        if (_utils.isFunction(context)) {
+          context = context.call(this);
+        }
+        if (options.data) {
+          data = _utils.createFrame(options.data);
+        }
+        function execIteration(field, index, last) {
+          if (data) {
+            data.key = field;
+            data.index = index;
+            data.first = index === 0;
+            data.last = !!last;
+            if (contextPath) {
+              data.contextPath = contextPath + field;
+            }
+          }
+          ret = ret + fn(context[field], {
+            data,
+            blockParams: _utils.blockParams([context[field], field], [contextPath + field, null])
+          });
+        }
+        if (context && typeof context === "object") {
+          if (_utils.isArray(context)) {
+            for (var j = context.length; i < j; i++) {
+              if (i in context) {
+                execIteration(i, i, i === context.length - 1);
+              }
+            }
+          } else if (typeof Symbol === "function" && context[Symbol.iterator]) {
+            var newContext = [];
+            var iterator = context[Symbol.iterator]();
+            for (var it = iterator.next(); !it.done; it = iterator.next()) {
+              newContext.push(it.value);
+            }
+            context = newContext;
+            for (var j = context.length; i < j; i++) {
+              execIteration(i, i, i === context.length - 1);
+            }
+          } else {
+            (function() {
+              var priorKey = void 0;
+              Object.keys(context).forEach(function(key) {
+                if (priorKey !== void 0) {
+                  execIteration(priorKey, i - 1);
+                }
+                priorKey = key;
+                i++;
+              });
+              if (priorKey !== void 0) {
+                execIteration(priorKey, i - 1, true);
+              }
+            })();
+          }
+        }
+        if (i === 0) {
+          ret = inverse(this);
+        }
+        return ret;
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/helper-missing.js
+var require_helper_missing = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/helper-missing.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    exports["default"] = function(instance) {
+      instance.registerHelper("helperMissing", function() {
+        if (arguments.length === 1) {
+          return void 0;
+        } else {
+          throw new _exception2["default"]('Missing helper: "' + arguments[arguments.length - 1].name + '"');
+        }
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/if.js
+var require_if = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/if.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _utils = require_utils();
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    exports["default"] = function(instance) {
+      instance.registerHelper("if", function(conditional, options) {
+        if (arguments.length != 2) {
+          throw new _exception2["default"]("#if requires exactly one argument");
+        }
+        if (_utils.isFunction(conditional)) {
+          conditional = conditional.call(this);
+        }
+        if (!options.hash.includeZero && !conditional || _utils.isEmpty(conditional)) {
+          return options.inverse(this);
+        } else {
+          return options.fn(this);
+        }
+      });
+      instance.registerHelper("unless", function(conditional, options) {
+        if (arguments.length != 2) {
+          throw new _exception2["default"]("#unless requires exactly one argument");
+        }
+        return instance.helpers["if"].call(this, conditional, {
+          fn: options.inverse,
+          inverse: options.fn,
+          hash: options.hash
+        });
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/log.js
+var require_log = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/log.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    exports["default"] = function(instance) {
+      instance.registerHelper("log", function() {
+        var args = [void 0], options = arguments[arguments.length - 1];
+        for (var i = 0; i < arguments.length - 1; i++) {
+          args.push(arguments[i]);
+        }
+        var level = 1;
+        if (options.hash.level != null) {
+          level = options.hash.level;
+        } else if (options.data && options.data.level != null) {
+          level = options.data.level;
+        }
+        args[0] = level;
+        instance.log.apply(instance, args);
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/lookup.js
+var require_lookup = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/lookup.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    exports["default"] = function(instance) {
+      instance.registerHelper("lookup", function(obj, field, options) {
+        if (!obj) {
+          return obj;
+        }
+        return options.lookupProperty(obj, field);
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/with.js
+var require_with = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers/with.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _utils = require_utils();
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    exports["default"] = function(instance) {
+      instance.registerHelper("with", function(context, options) {
+        if (arguments.length != 2) {
+          throw new _exception2["default"]("#with requires exactly one argument");
+        }
+        if (_utils.isFunction(context)) {
+          context = context.call(this);
+        }
+        var fn = options.fn;
+        if (!_utils.isEmpty(context)) {
+          var data = options.data;
+          if (options.data && options.ids) {
+            data = _utils.createFrame(options.data);
+            data.contextPath = _utils.appendContextPath(options.data.contextPath, options.ids[0]);
+          }
+          return fn(context, {
+            data,
+            blockParams: _utils.blockParams([context], [data && data.contextPath])
+          });
+        } else {
+          return options.inverse(this);
+        }
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers.js
+var require_helpers = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/helpers.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.registerDefaultHelpers = registerDefaultHelpers;
+    exports.moveHelperToHooks = moveHelperToHooks;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _helpersBlockHelperMissing = require_block_helper_missing();
+    var _helpersBlockHelperMissing2 = _interopRequireDefault(_helpersBlockHelperMissing);
+    var _helpersEach = require_each();
+    var _helpersEach2 = _interopRequireDefault(_helpersEach);
+    var _helpersHelperMissing = require_helper_missing();
+    var _helpersHelperMissing2 = _interopRequireDefault(_helpersHelperMissing);
+    var _helpersIf = require_if();
+    var _helpersIf2 = _interopRequireDefault(_helpersIf);
+    var _helpersLog = require_log();
+    var _helpersLog2 = _interopRequireDefault(_helpersLog);
+    var _helpersLookup = require_lookup();
+    var _helpersLookup2 = _interopRequireDefault(_helpersLookup);
+    var _helpersWith = require_with();
+    var _helpersWith2 = _interopRequireDefault(_helpersWith);
+    function registerDefaultHelpers(instance) {
+      _helpersBlockHelperMissing2["default"](instance);
+      _helpersEach2["default"](instance);
+      _helpersHelperMissing2["default"](instance);
+      _helpersIf2["default"](instance);
+      _helpersLog2["default"](instance);
+      _helpersLookup2["default"](instance);
+      _helpersWith2["default"](instance);
+    }
+    function moveHelperToHooks(instance, helperName, keepHelper) {
+      if (instance.helpers[helperName]) {
+        instance.hooks[helperName] = instance.helpers[helperName];
+        if (!keepHelper) {
+          delete instance.helpers[helperName];
+        }
+      }
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/decorators/inline.js
+var require_inline = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/decorators/inline.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    var _utils = require_utils();
+    exports["default"] = function(instance) {
+      instance.registerDecorator("inline", function(fn, props, container, options) {
+        var ret = fn;
+        if (!props.partials) {
+          props.partials = {};
+          ret = function(context, options2) {
+            var original = container.partials;
+            container.partials = _utils.extend({}, original, props.partials);
+            var ret2 = fn(context, options2);
+            container.partials = original;
+            return ret2;
+          };
+        }
+        props.partials[options.args[0]] = options.fn;
+        return ret;
+      });
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/decorators.js
+var require_decorators = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/decorators.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.registerDefaultDecorators = registerDefaultDecorators;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _decoratorsInline = require_inline();
+    var _decoratorsInline2 = _interopRequireDefault(_decoratorsInline);
+    function registerDefaultDecorators(instance) {
+      _decoratorsInline2["default"](instance);
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/logger.js
+var require_logger = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/logger.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    var _utils = require_utils();
+    var logger7 = {
+      methodMap: ["debug", "info", "warn", "error"],
+      level: "info",
+      // Maps a given level value to the `methodMap` indexes above.
+      lookupLevel: function lookupLevel(level) {
+        if (typeof level === "string") {
+          var levelMap = _utils.indexOf(logger7.methodMap, level.toLowerCase());
+          if (levelMap >= 0) {
+            level = levelMap;
+          } else {
+            level = parseInt(level, 10);
+          }
+        }
+        return level;
+      },
+      // Can be overridden in the host environment
+      log: function log(level) {
+        level = logger7.lookupLevel(level);
+        if (typeof console !== "undefined" && logger7.lookupLevel(logger7.level) <= level) {
+          var method = logger7.methodMap[level];
+          if (!console[method]) {
+            method = "log";
+          }
+          for (var _len = arguments.length, message = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+            message[_key - 1] = arguments[_key];
+          }
+          console[method].apply(console, message);
+        }
+      }
+    };
+    exports["default"] = logger7;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/internal/create-new-lookup-object.js
+var require_create_new_lookup_object = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/internal/create-new-lookup-object.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.createNewLookupObject = createNewLookupObject;
+    var _utils = require_utils();
+    function createNewLookupObject() {
+      for (var _len = arguments.length, sources = Array(_len), _key = 0; _key < _len; _key++) {
+        sources[_key] = arguments[_key];
+      }
+      return _utils.extend.apply(void 0, [/* @__PURE__ */ Object.create(null)].concat(sources));
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/internal/proto-access.js
+var require_proto_access = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/internal/proto-access.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.createProtoAccessControl = createProtoAccessControl;
+    exports.resultIsAllowed = resultIsAllowed;
+    exports.resetLoggedProperties = resetLoggedProperties;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _createNewLookupObject = require_create_new_lookup_object();
+    var _logger = require_logger();
+    var _logger2 = _interopRequireDefault(_logger);
+    var loggedProperties = /* @__PURE__ */ Object.create(null);
+    function createProtoAccessControl(runtimeOptions) {
+      var defaultMethodWhiteList = /* @__PURE__ */ Object.create(null);
+      defaultMethodWhiteList["constructor"] = false;
+      defaultMethodWhiteList["__defineGetter__"] = false;
+      defaultMethodWhiteList["__defineSetter__"] = false;
+      defaultMethodWhiteList["__lookupGetter__"] = false;
+      var defaultPropertyWhiteList = /* @__PURE__ */ Object.create(null);
+      defaultPropertyWhiteList["__proto__"] = false;
+      return {
+        properties: {
+          whitelist: _createNewLookupObject.createNewLookupObject(defaultPropertyWhiteList, runtimeOptions.allowedProtoProperties),
+          defaultValue: runtimeOptions.allowProtoPropertiesByDefault
+        },
+        methods: {
+          whitelist: _createNewLookupObject.createNewLookupObject(defaultMethodWhiteList, runtimeOptions.allowedProtoMethods),
+          defaultValue: runtimeOptions.allowProtoMethodsByDefault
+        }
+      };
+    }
+    function resultIsAllowed(result, protoAccessControl, propertyName) {
+      if (typeof result === "function") {
+        return checkWhiteList(protoAccessControl.methods, propertyName);
+      } else {
+        return checkWhiteList(protoAccessControl.properties, propertyName);
+      }
+    }
+    function checkWhiteList(protoAccessControlForType, propertyName) {
+      if (protoAccessControlForType.whitelist[propertyName] !== void 0) {
+        return protoAccessControlForType.whitelist[propertyName] === true;
+      }
+      if (protoAccessControlForType.defaultValue !== void 0) {
+        return protoAccessControlForType.defaultValue;
+      }
+      logUnexpecedPropertyAccessOnce(propertyName);
+      return false;
+    }
+    function logUnexpecedPropertyAccessOnce(propertyName) {
+      if (loggedProperties[propertyName] !== true) {
+        loggedProperties[propertyName] = true;
+        _logger2["default"].log("error", 'Handlebars: Access has been denied to resolve the property "' + propertyName + '" because it is not an "own property" of its parent.\nYou can add a runtime option to disable the check or this warning:\nSee https://handlebarsjs.com/api-reference/runtime-options.html#options-to-control-prototype-access for details');
+      }
+    }
+    function resetLoggedProperties() {
+      Object.keys(loggedProperties).forEach(function(propertyName) {
+        delete loggedProperties[propertyName];
+      });
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/base.js
+var require_base = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/base.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.HandlebarsEnvironment = HandlebarsEnvironment;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _utils = require_utils();
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    var _helpers = require_helpers();
+    var _decorators = require_decorators();
+    var _logger = require_logger();
+    var _logger2 = _interopRequireDefault(_logger);
+    var _internalProtoAccess = require_proto_access();
+    var VERSION = "4.7.8";
+    exports.VERSION = VERSION;
+    var COMPILER_REVISION = 8;
+    exports.COMPILER_REVISION = COMPILER_REVISION;
+    var LAST_COMPATIBLE_COMPILER_REVISION = 7;
+    exports.LAST_COMPATIBLE_COMPILER_REVISION = LAST_COMPATIBLE_COMPILER_REVISION;
+    var REVISION_CHANGES = {
+      1: "<= 1.0.rc.2",
+      // 1.0.rc.2 is actually rev2 but doesn't report it
+      2: "== 1.0.0-rc.3",
+      3: "== 1.0.0-rc.4",
+      4: "== 1.x.x",
+      5: "== 2.0.0-alpha.x",
+      6: ">= 2.0.0-beta.1",
+      7: ">= 4.0.0 <4.3.0",
+      8: ">= 4.3.0"
+    };
+    exports.REVISION_CHANGES = REVISION_CHANGES;
+    var objectType2 = "[object Object]";
+    function HandlebarsEnvironment(helpers, partials, decorators) {
+      this.helpers = helpers || {};
+      this.partials = partials || {};
+      this.decorators = decorators || {};
+      _helpers.registerDefaultHelpers(this);
+      _decorators.registerDefaultDecorators(this);
+    }
+    HandlebarsEnvironment.prototype = {
+      constructor: HandlebarsEnvironment,
+      logger: _logger2["default"],
+      log: _logger2["default"].log,
+      registerHelper: function registerHelper(name, fn) {
+        if (_utils.toString.call(name) === objectType2) {
+          if (fn) {
+            throw new _exception2["default"]("Arg not supported with multiple helpers");
+          }
+          _utils.extend(this.helpers, name);
+        } else {
+          this.helpers[name] = fn;
+        }
+      },
+      unregisterHelper: function unregisterHelper(name) {
+        delete this.helpers[name];
+      },
+      registerPartial: function registerPartial(name, partial) {
+        if (_utils.toString.call(name) === objectType2) {
+          _utils.extend(this.partials, name);
+        } else {
+          if (typeof partial === "undefined") {
+            throw new _exception2["default"]('Attempting to register a partial called "' + name + '" as undefined');
+          }
+          this.partials[name] = partial;
+        }
+      },
+      unregisterPartial: function unregisterPartial(name) {
+        delete this.partials[name];
+      },
+      registerDecorator: function registerDecorator(name, fn) {
+        if (_utils.toString.call(name) === objectType2) {
+          if (fn) {
+            throw new _exception2["default"]("Arg not supported with multiple decorators");
+          }
+          _utils.extend(this.decorators, name);
+        } else {
+          this.decorators[name] = fn;
+        }
+      },
+      unregisterDecorator: function unregisterDecorator(name) {
+        delete this.decorators[name];
+      },
+      /**
+       * Reset the memory of illegal property accesses that have already been logged.
+       * @deprecated should only be used in handlebars test-cases
+       */
+      resetLoggedPropertyAccesses: function resetLoggedPropertyAccesses() {
+        _internalProtoAccess.resetLoggedProperties();
+      }
+    };
+    var log = _logger2["default"].log;
+    exports.log = log;
+    exports.createFrame = _utils.createFrame;
+    exports.logger = _logger2["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/safe-string.js
+var require_safe_string = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/safe-string.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function SafeString(string) {
+      this.string = string;
+    }
+    SafeString.prototype.toString = SafeString.prototype.toHTML = function() {
+      return "" + this.string;
+    };
+    exports["default"] = SafeString;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/internal/wrapHelper.js
+var require_wrapHelper = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/internal/wrapHelper.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.wrapHelper = wrapHelper;
+    function wrapHelper(helper, transformOptionsFn) {
+      if (typeof helper !== "function") {
+        return helper;
+      }
+      var wrapper = function wrapper2() {
+        var options = arguments[arguments.length - 1];
+        arguments[arguments.length - 1] = transformOptionsFn(options);
+        return helper.apply(this, arguments);
+      };
+      return wrapper;
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/runtime.js
+var require_runtime = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/runtime.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.checkRevision = checkRevision;
+    exports.template = template;
+    exports.wrapProgram = wrapProgram;
+    exports.resolvePartial = resolvePartial;
+    exports.invokePartial = invokePartial;
+    exports.noop = noop;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    function _interopRequireWildcard(obj) {
+      if (obj && obj.__esModule) {
+        return obj;
+      } else {
+        var newObj = {};
+        if (obj != null) {
+          for (var key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+          }
+        }
+        newObj["default"] = obj;
+        return newObj;
+      }
+    }
+    var _utils = require_utils();
+    var Utils = _interopRequireWildcard(_utils);
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    var _base = require_base();
+    var _helpers = require_helpers();
+    var _internalWrapHelper = require_wrapHelper();
+    var _internalProtoAccess = require_proto_access();
+    function checkRevision(compilerInfo) {
+      var compilerRevision = compilerInfo && compilerInfo[0] || 1, currentRevision = _base.COMPILER_REVISION;
+      if (compilerRevision >= _base.LAST_COMPATIBLE_COMPILER_REVISION && compilerRevision <= _base.COMPILER_REVISION) {
+        return;
+      }
+      if (compilerRevision < _base.LAST_COMPATIBLE_COMPILER_REVISION) {
+        var runtimeVersions = _base.REVISION_CHANGES[currentRevision], compilerVersions = _base.REVISION_CHANGES[compilerRevision];
+        throw new _exception2["default"]("Template was precompiled with an older version of Handlebars than the current runtime. Please update your precompiler to a newer version (" + runtimeVersions + ") or downgrade your runtime to an older version (" + compilerVersions + ").");
+      } else {
+        throw new _exception2["default"]("Template was precompiled with a newer version of Handlebars than the current runtime. Please update your runtime to a newer version (" + compilerInfo[1] + ").");
+      }
+    }
+    function template(templateSpec, env) {
+      if (!env) {
+        throw new _exception2["default"]("No environment passed to template");
+      }
+      if (!templateSpec || !templateSpec.main) {
+        throw new _exception2["default"]("Unknown template object: " + typeof templateSpec);
+      }
+      templateSpec.main.decorator = templateSpec.main_d;
+      env.VM.checkRevision(templateSpec.compiler);
+      var templateWasPrecompiledWithCompilerV7 = templateSpec.compiler && templateSpec.compiler[0] === 7;
+      function invokePartialWrapper(partial, context, options) {
+        if (options.hash) {
+          context = Utils.extend({}, context, options.hash);
+          if (options.ids) {
+            options.ids[0] = true;
+          }
+        }
+        partial = env.VM.resolvePartial.call(this, partial, context, options);
+        var extendedOptions = Utils.extend({}, options, {
+          hooks: this.hooks,
+          protoAccessControl: this.protoAccessControl
+        });
+        var result = env.VM.invokePartial.call(this, partial, context, extendedOptions);
+        if (result == null && env.compile) {
+          options.partials[options.name] = env.compile(partial, templateSpec.compilerOptions, env);
+          result = options.partials[options.name](context, extendedOptions);
+        }
+        if (result != null) {
+          if (options.indent) {
+            var lines = result.split("\n");
+            for (var i = 0, l = lines.length; i < l; i++) {
+              if (!lines[i] && i + 1 === l) {
+                break;
+              }
+              lines[i] = options.indent + lines[i];
+            }
+            result = lines.join("\n");
+          }
+          return result;
+        } else {
+          throw new _exception2["default"]("The partial " + options.name + " could not be compiled when running in runtime-only mode");
+        }
+      }
+      var container = {
+        strict: function strict(obj, name, loc) {
+          if (!obj || !(name in obj)) {
+            throw new _exception2["default"]('"' + name + '" not defined in ' + obj, {
+              loc
+            });
+          }
+          return container.lookupProperty(obj, name);
+        },
+        lookupProperty: function lookupProperty(parent, propertyName) {
+          var result = parent[propertyName];
+          if (result == null) {
+            return result;
+          }
+          if (Object.prototype.hasOwnProperty.call(parent, propertyName)) {
+            return result;
+          }
+          if (_internalProtoAccess.resultIsAllowed(result, container.protoAccessControl, propertyName)) {
+            return result;
+          }
+          return void 0;
+        },
+        lookup: function lookup(depths, name) {
+          var len = depths.length;
+          for (var i = 0; i < len; i++) {
+            var result = depths[i] && container.lookupProperty(depths[i], name);
+            if (result != null) {
+              return depths[i][name];
+            }
+          }
+        },
+        lambda: function lambda(current, context) {
+          return typeof current === "function" ? current.call(context) : current;
+        },
+        escapeExpression: Utils.escapeExpression,
+        invokePartial: invokePartialWrapper,
+        fn: function fn(i) {
+          var ret2 = templateSpec[i];
+          ret2.decorator = templateSpec[i + "_d"];
+          return ret2;
+        },
+        programs: [],
+        program: function program2(i, data, declaredBlockParams, blockParams, depths) {
+          var programWrapper = this.programs[i], fn = this.fn(i);
+          if (data || depths || blockParams || declaredBlockParams) {
+            programWrapper = wrapProgram(this, i, fn, data, declaredBlockParams, blockParams, depths);
+          } else if (!programWrapper) {
+            programWrapper = this.programs[i] = wrapProgram(this, i, fn);
+          }
+          return programWrapper;
+        },
+        data: function data(value, depth) {
+          while (value && depth--) {
+            value = value._parent;
+          }
+          return value;
+        },
+        mergeIfNeeded: function mergeIfNeeded(param, common) {
+          var obj = param || common;
+          if (param && common && param !== common) {
+            obj = Utils.extend({}, common, param);
+          }
+          return obj;
+        },
+        // An empty object to use as replacement for null-contexts
+        nullContext: Object.seal({}),
+        noop: env.VM.noop,
+        compilerInfo: templateSpec.compiler
+      };
+      function ret(context) {
+        var options = arguments.length <= 1 || arguments[1] === void 0 ? {} : arguments[1];
+        var data = options.data;
+        ret._setup(options);
+        if (!options.partial && templateSpec.useData) {
+          data = initData(context, data);
+        }
+        var depths = void 0, blockParams = templateSpec.useBlockParams ? [] : void 0;
+        if (templateSpec.useDepths) {
+          if (options.depths) {
+            depths = context != options.depths[0] ? [context].concat(options.depths) : options.depths;
+          } else {
+            depths = [context];
+          }
+        }
+        function main(context2) {
+          return "" + templateSpec.main(container, context2, container.helpers, container.partials, data, blockParams, depths);
+        }
+        main = executeDecorators(templateSpec.main, main, container, options.depths || [], data, blockParams);
+        return main(context, options);
+      }
+      ret.isTop = true;
+      ret._setup = function(options) {
+        if (!options.partial) {
+          var mergedHelpers = Utils.extend({}, env.helpers, options.helpers);
+          wrapHelpersToPassLookupProperty(mergedHelpers, container);
+          container.helpers = mergedHelpers;
+          if (templateSpec.usePartial) {
+            container.partials = container.mergeIfNeeded(options.partials, env.partials);
+          }
+          if (templateSpec.usePartial || templateSpec.useDecorators) {
+            container.decorators = Utils.extend({}, env.decorators, options.decorators);
+          }
+          container.hooks = {};
+          container.protoAccessControl = _internalProtoAccess.createProtoAccessControl(options);
+          var keepHelperInHelpers = options.allowCallsToHelperMissing || templateWasPrecompiledWithCompilerV7;
+          _helpers.moveHelperToHooks(container, "helperMissing", keepHelperInHelpers);
+          _helpers.moveHelperToHooks(container, "blockHelperMissing", keepHelperInHelpers);
+        } else {
+          container.protoAccessControl = options.protoAccessControl;
+          container.helpers = options.helpers;
+          container.partials = options.partials;
+          container.decorators = options.decorators;
+          container.hooks = options.hooks;
+        }
+      };
+      ret._child = function(i, data, blockParams, depths) {
+        if (templateSpec.useBlockParams && !blockParams) {
+          throw new _exception2["default"]("must pass block params");
+        }
+        if (templateSpec.useDepths && !depths) {
+          throw new _exception2["default"]("must pass parent depths");
+        }
+        return wrapProgram(container, i, templateSpec[i], data, 0, blockParams, depths);
+      };
+      return ret;
+    }
+    function wrapProgram(container, i, fn, data, declaredBlockParams, blockParams, depths) {
+      function prog(context) {
+        var options = arguments.length <= 1 || arguments[1] === void 0 ? {} : arguments[1];
+        var currentDepths = depths;
+        if (depths && context != depths[0] && !(context === container.nullContext && depths[0] === null)) {
+          currentDepths = [context].concat(depths);
+        }
+        return fn(container, context, container.helpers, container.partials, options.data || data, blockParams && [options.blockParams].concat(blockParams), currentDepths);
+      }
+      prog = executeDecorators(fn, prog, container, depths, data, blockParams);
+      prog.program = i;
+      prog.depth = depths ? depths.length : 0;
+      prog.blockParams = declaredBlockParams || 0;
+      return prog;
+    }
+    function resolvePartial(partial, context, options) {
+      if (!partial) {
+        if (options.name === "@partial-block") {
+          partial = options.data["partial-block"];
+        } else {
+          partial = options.partials[options.name];
+        }
+      } else if (!partial.call && !options.name) {
+        options.name = partial;
+        partial = options.partials[partial];
+      }
+      return partial;
+    }
+    function invokePartial(partial, context, options) {
+      var currentPartialBlock = options.data && options.data["partial-block"];
+      options.partial = true;
+      if (options.ids) {
+        options.data.contextPath = options.ids[0] || options.data.contextPath;
+      }
+      var partialBlock = void 0;
+      if (options.fn && options.fn !== noop) {
+        (function() {
+          options.data = _base.createFrame(options.data);
+          var fn = options.fn;
+          partialBlock = options.data["partial-block"] = function partialBlockWrapper(context2) {
+            var options2 = arguments.length <= 1 || arguments[1] === void 0 ? {} : arguments[1];
+            options2.data = _base.createFrame(options2.data);
+            options2.data["partial-block"] = currentPartialBlock;
+            return fn(context2, options2);
+          };
+          if (fn.partials) {
+            options.partials = Utils.extend({}, options.partials, fn.partials);
+          }
+        })();
+      }
+      if (partial === void 0 && partialBlock) {
+        partial = partialBlock;
+      }
+      if (partial === void 0) {
+        throw new _exception2["default"]("The partial " + options.name + " could not be found");
+      } else if (partial instanceof Function) {
+        return partial(context, options);
+      }
+    }
+    function noop() {
+      return "";
+    }
+    function initData(context, data) {
+      if (!data || !("root" in data)) {
+        data = data ? _base.createFrame(data) : {};
+        data.root = context;
+      }
+      return data;
+    }
+    function executeDecorators(fn, prog, container, depths, data, blockParams) {
+      if (fn.decorator) {
+        var props = {};
+        prog = fn.decorator(prog, props, container, depths && depths[0], data, blockParams, depths);
+        Utils.extend(prog, props);
+      }
+      return prog;
+    }
+    function wrapHelpersToPassLookupProperty(mergedHelpers, container) {
+      Object.keys(mergedHelpers).forEach(function(helperName) {
+        var helper = mergedHelpers[helperName];
+        mergedHelpers[helperName] = passLookupPropertyOption(helper, container);
+      });
+    }
+    function passLookupPropertyOption(helper, container) {
+      var lookupProperty = container.lookupProperty;
+      return _internalWrapHelper.wrapHelper(helper, function(options) {
+        return Utils.extend({ lookupProperty }, options);
+      });
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/no-conflict.js
+var require_no_conflict = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/no-conflict.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    exports["default"] = function(Handlebars2) {
+      (function() {
+        if (typeof globalThis === "object") return;
+        Object.prototype.__defineGetter__("__magic__", function() {
+          return this;
+        });
+        __magic__.globalThis = __magic__;
+        delete Object.prototype.__magic__;
+      })();
+      var $Handlebars = globalThis.Handlebars;
+      Handlebars2.noConflict = function() {
+        if (globalThis.Handlebars === Handlebars2) {
+          globalThis.Handlebars = $Handlebars;
+        }
+        return Handlebars2;
+      };
+    };
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars.runtime.js
+var require_handlebars_runtime = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars.runtime.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    function _interopRequireWildcard(obj) {
+      if (obj && obj.__esModule) {
+        return obj;
+      } else {
+        var newObj = {};
+        if (obj != null) {
+          for (var key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+          }
+        }
+        newObj["default"] = obj;
+        return newObj;
+      }
+    }
+    var _handlebarsBase = require_base();
+    var base = _interopRequireWildcard(_handlebarsBase);
+    var _handlebarsSafeString = require_safe_string();
+    var _handlebarsSafeString2 = _interopRequireDefault(_handlebarsSafeString);
+    var _handlebarsException = require_exception();
+    var _handlebarsException2 = _interopRequireDefault(_handlebarsException);
+    var _handlebarsUtils = require_utils();
+    var Utils = _interopRequireWildcard(_handlebarsUtils);
+    var _handlebarsRuntime = require_runtime();
+    var runtime = _interopRequireWildcard(_handlebarsRuntime);
+    var _handlebarsNoConflict = require_no_conflict();
+    var _handlebarsNoConflict2 = _interopRequireDefault(_handlebarsNoConflict);
+    function create2() {
+      var hb = new base.HandlebarsEnvironment();
+      Utils.extend(hb, base);
+      hb.SafeString = _handlebarsSafeString2["default"];
+      hb.Exception = _handlebarsException2["default"];
+      hb.Utils = Utils;
+      hb.escapeExpression = Utils.escapeExpression;
+      hb.VM = runtime;
+      hb.template = function(spec) {
+        return runtime.template(spec, hb);
+      };
+      return hb;
+    }
+    var inst = create2();
+    inst.create = create2;
+    _handlebarsNoConflict2["default"](inst);
+    inst["default"] = inst;
+    exports["default"] = inst;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/ast.js
+var require_ast = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/ast.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    var AST = {
+      // Public API used to evaluate derived attributes regarding AST nodes
+      helpers: {
+        // a mustache is definitely a helper if:
+        // * it is an eligible helper, and
+        // * it has at least one parameter or hash segment
+        helperExpression: function helperExpression(node) {
+          return node.type === "SubExpression" || (node.type === "MustacheStatement" || node.type === "BlockStatement") && !!(node.params && node.params.length || node.hash);
+        },
+        scopedId: function scopedId(path9) {
+          return /^\.|this\b/.test(path9.original);
+        },
+        // an ID is simple if it only has one part, and that part is not
+        // `..` or `this`.
+        simpleId: function simpleId(path9) {
+          return path9.parts.length === 1 && !AST.helpers.scopedId(path9) && !path9.depth;
+        }
+      }
+    };
+    exports["default"] = AST;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/parser.js
+var require_parser = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/parser.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    var handlebars = (function() {
+      var parser = {
+        trace: function trace() {
+        },
+        yy: {},
+        symbols_: { "error": 2, "root": 3, "program": 4, "EOF": 5, "program_repetition0": 6, "statement": 7, "mustache": 8, "block": 9, "rawBlock": 10, "partial": 11, "partialBlock": 12, "content": 13, "COMMENT": 14, "CONTENT": 15, "openRawBlock": 16, "rawBlock_repetition0": 17, "END_RAW_BLOCK": 18, "OPEN_RAW_BLOCK": 19, "helperName": 20, "openRawBlock_repetition0": 21, "openRawBlock_option0": 22, "CLOSE_RAW_BLOCK": 23, "openBlock": 24, "block_option0": 25, "closeBlock": 26, "openInverse": 27, "block_option1": 28, "OPEN_BLOCK": 29, "openBlock_repetition0": 30, "openBlock_option0": 31, "openBlock_option1": 32, "CLOSE": 33, "OPEN_INVERSE": 34, "openInverse_repetition0": 35, "openInverse_option0": 36, "openInverse_option1": 37, "openInverseChain": 38, "OPEN_INVERSE_CHAIN": 39, "openInverseChain_repetition0": 40, "openInverseChain_option0": 41, "openInverseChain_option1": 42, "inverseAndProgram": 43, "INVERSE": 44, "inverseChain": 45, "inverseChain_option0": 46, "OPEN_ENDBLOCK": 47, "OPEN": 48, "mustache_repetition0": 49, "mustache_option0": 50, "OPEN_UNESCAPED": 51, "mustache_repetition1": 52, "mustache_option1": 53, "CLOSE_UNESCAPED": 54, "OPEN_PARTIAL": 55, "partialName": 56, "partial_repetition0": 57, "partial_option0": 58, "openPartialBlock": 59, "OPEN_PARTIAL_BLOCK": 60, "openPartialBlock_repetition0": 61, "openPartialBlock_option0": 62, "param": 63, "sexpr": 64, "OPEN_SEXPR": 65, "sexpr_repetition0": 66, "sexpr_option0": 67, "CLOSE_SEXPR": 68, "hash": 69, "hash_repetition_plus0": 70, "hashSegment": 71, "ID": 72, "EQUALS": 73, "blockParams": 74, "OPEN_BLOCK_PARAMS": 75, "blockParams_repetition_plus0": 76, "CLOSE_BLOCK_PARAMS": 77, "path": 78, "dataName": 79, "STRING": 80, "NUMBER": 81, "BOOLEAN": 82, "UNDEFINED": 83, "NULL": 84, "DATA": 85, "pathSegments": 86, "SEP": 87, "$accept": 0, "$end": 1 },
+        terminals_: { 2: "error", 5: "EOF", 14: "COMMENT", 15: "CONTENT", 18: "END_RAW_BLOCK", 19: "OPEN_RAW_BLOCK", 23: "CLOSE_RAW_BLOCK", 29: "OPEN_BLOCK", 33: "CLOSE", 34: "OPEN_INVERSE", 39: "OPEN_INVERSE_CHAIN", 44: "INVERSE", 47: "OPEN_ENDBLOCK", 48: "OPEN", 51: "OPEN_UNESCAPED", 54: "CLOSE_UNESCAPED", 55: "OPEN_PARTIAL", 60: "OPEN_PARTIAL_BLOCK", 65: "OPEN_SEXPR", 68: "CLOSE_SEXPR", 72: "ID", 73: "EQUALS", 75: "OPEN_BLOCK_PARAMS", 77: "CLOSE_BLOCK_PARAMS", 80: "STRING", 81: "NUMBER", 82: "BOOLEAN", 83: "UNDEFINED", 84: "NULL", 85: "DATA", 87: "SEP" },
+        productions_: [0, [3, 2], [4, 1], [7, 1], [7, 1], [7, 1], [7, 1], [7, 1], [7, 1], [7, 1], [13, 1], [10, 3], [16, 5], [9, 4], [9, 4], [24, 6], [27, 6], [38, 6], [43, 2], [45, 3], [45, 1], [26, 3], [8, 5], [8, 5], [11, 5], [12, 3], [59, 5], [63, 1], [63, 1], [64, 5], [69, 1], [71, 3], [74, 3], [20, 1], [20, 1], [20, 1], [20, 1], [20, 1], [20, 1], [20, 1], [56, 1], [56, 1], [79, 2], [78, 1], [86, 3], [86, 1], [6, 0], [6, 2], [17, 0], [17, 2], [21, 0], [21, 2], [22, 0], [22, 1], [25, 0], [25, 1], [28, 0], [28, 1], [30, 0], [30, 2], [31, 0], [31, 1], [32, 0], [32, 1], [35, 0], [35, 2], [36, 0], [36, 1], [37, 0], [37, 1], [40, 0], [40, 2], [41, 0], [41, 1], [42, 0], [42, 1], [46, 0], [46, 1], [49, 0], [49, 2], [50, 0], [50, 1], [52, 0], [52, 2], [53, 0], [53, 1], [57, 0], [57, 2], [58, 0], [58, 1], [61, 0], [61, 2], [62, 0], [62, 1], [66, 0], [66, 2], [67, 0], [67, 1], [70, 1], [70, 2], [76, 1], [76, 2]],
+        performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate, $$, _$) {
+          var $0 = $$.length - 1;
+          switch (yystate) {
+            case 1:
+              return $$[$0 - 1];
+              break;
+            case 2:
+              this.$ = yy.prepareProgram($$[$0]);
+              break;
+            case 3:
+              this.$ = $$[$0];
+              break;
+            case 4:
+              this.$ = $$[$0];
+              break;
+            case 5:
+              this.$ = $$[$0];
+              break;
+            case 6:
+              this.$ = $$[$0];
+              break;
+            case 7:
+              this.$ = $$[$0];
+              break;
+            case 8:
+              this.$ = $$[$0];
+              break;
+            case 9:
+              this.$ = {
+                type: "CommentStatement",
+                value: yy.stripComment($$[$0]),
+                strip: yy.stripFlags($$[$0], $$[$0]),
+                loc: yy.locInfo(this._$)
+              };
+              break;
+            case 10:
+              this.$ = {
+                type: "ContentStatement",
+                original: $$[$0],
+                value: $$[$0],
+                loc: yy.locInfo(this._$)
+              };
+              break;
+            case 11:
+              this.$ = yy.prepareRawBlock($$[$0 - 2], $$[$0 - 1], $$[$0], this._$);
+              break;
+            case 12:
+              this.$ = { path: $$[$0 - 3], params: $$[$0 - 2], hash: $$[$0 - 1] };
+              break;
+            case 13:
+              this.$ = yy.prepareBlock($$[$0 - 3], $$[$0 - 2], $$[$0 - 1], $$[$0], false, this._$);
+              break;
+            case 14:
+              this.$ = yy.prepareBlock($$[$0 - 3], $$[$0 - 2], $$[$0 - 1], $$[$0], true, this._$);
+              break;
+            case 15:
+              this.$ = { open: $$[$0 - 5], path: $$[$0 - 4], params: $$[$0 - 3], hash: $$[$0 - 2], blockParams: $$[$0 - 1], strip: yy.stripFlags($$[$0 - 5], $$[$0]) };
+              break;
+            case 16:
+              this.$ = { path: $$[$0 - 4], params: $$[$0 - 3], hash: $$[$0 - 2], blockParams: $$[$0 - 1], strip: yy.stripFlags($$[$0 - 5], $$[$0]) };
+              break;
+            case 17:
+              this.$ = { path: $$[$0 - 4], params: $$[$0 - 3], hash: $$[$0 - 2], blockParams: $$[$0 - 1], strip: yy.stripFlags($$[$0 - 5], $$[$0]) };
+              break;
+            case 18:
+              this.$ = { strip: yy.stripFlags($$[$0 - 1], $$[$0 - 1]), program: $$[$0] };
+              break;
+            case 19:
+              var inverse = yy.prepareBlock($$[$0 - 2], $$[$0 - 1], $$[$0], $$[$0], false, this._$), program2 = yy.prepareProgram([inverse], $$[$0 - 1].loc);
+              program2.chained = true;
+              this.$ = { strip: $$[$0 - 2].strip, program: program2, chain: true };
+              break;
+            case 20:
+              this.$ = $$[$0];
+              break;
+            case 21:
+              this.$ = { path: $$[$0 - 1], strip: yy.stripFlags($$[$0 - 2], $$[$0]) };
+              break;
+            case 22:
+              this.$ = yy.prepareMustache($$[$0 - 3], $$[$0 - 2], $$[$0 - 1], $$[$0 - 4], yy.stripFlags($$[$0 - 4], $$[$0]), this._$);
+              break;
+            case 23:
+              this.$ = yy.prepareMustache($$[$0 - 3], $$[$0 - 2], $$[$0 - 1], $$[$0 - 4], yy.stripFlags($$[$0 - 4], $$[$0]), this._$);
+              break;
+            case 24:
+              this.$ = {
+                type: "PartialStatement",
+                name: $$[$0 - 3],
+                params: $$[$0 - 2],
+                hash: $$[$0 - 1],
+                indent: "",
+                strip: yy.stripFlags($$[$0 - 4], $$[$0]),
+                loc: yy.locInfo(this._$)
+              };
+              break;
+            case 25:
+              this.$ = yy.preparePartialBlock($$[$0 - 2], $$[$0 - 1], $$[$0], this._$);
+              break;
+            case 26:
+              this.$ = { path: $$[$0 - 3], params: $$[$0 - 2], hash: $$[$0 - 1], strip: yy.stripFlags($$[$0 - 4], $$[$0]) };
+              break;
+            case 27:
+              this.$ = $$[$0];
+              break;
+            case 28:
+              this.$ = $$[$0];
+              break;
+            case 29:
+              this.$ = {
+                type: "SubExpression",
+                path: $$[$0 - 3],
+                params: $$[$0 - 2],
+                hash: $$[$0 - 1],
+                loc: yy.locInfo(this._$)
+              };
+              break;
+            case 30:
+              this.$ = { type: "Hash", pairs: $$[$0], loc: yy.locInfo(this._$) };
+              break;
+            case 31:
+              this.$ = { type: "HashPair", key: yy.id($$[$0 - 2]), value: $$[$0], loc: yy.locInfo(this._$) };
+              break;
+            case 32:
+              this.$ = yy.id($$[$0 - 1]);
+              break;
+            case 33:
+              this.$ = $$[$0];
+              break;
+            case 34:
+              this.$ = $$[$0];
+              break;
+            case 35:
+              this.$ = { type: "StringLiteral", value: $$[$0], original: $$[$0], loc: yy.locInfo(this._$) };
+              break;
+            case 36:
+              this.$ = { type: "NumberLiteral", value: Number($$[$0]), original: Number($$[$0]), loc: yy.locInfo(this._$) };
+              break;
+            case 37:
+              this.$ = { type: "BooleanLiteral", value: $$[$0] === "true", original: $$[$0] === "true", loc: yy.locInfo(this._$) };
+              break;
+            case 38:
+              this.$ = { type: "UndefinedLiteral", original: void 0, value: void 0, loc: yy.locInfo(this._$) };
+              break;
+            case 39:
+              this.$ = { type: "NullLiteral", original: null, value: null, loc: yy.locInfo(this._$) };
+              break;
+            case 40:
+              this.$ = $$[$0];
+              break;
+            case 41:
+              this.$ = $$[$0];
+              break;
+            case 42:
+              this.$ = yy.preparePath(true, $$[$0], this._$);
+              break;
+            case 43:
+              this.$ = yy.preparePath(false, $$[$0], this._$);
+              break;
+            case 44:
+              $$[$0 - 2].push({ part: yy.id($$[$0]), original: $$[$0], separator: $$[$0 - 1] });
+              this.$ = $$[$0 - 2];
+              break;
+            case 45:
+              this.$ = [{ part: yy.id($$[$0]), original: $$[$0] }];
+              break;
+            case 46:
+              this.$ = [];
+              break;
+            case 47:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 48:
+              this.$ = [];
+              break;
+            case 49:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 50:
+              this.$ = [];
+              break;
+            case 51:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 58:
+              this.$ = [];
+              break;
+            case 59:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 64:
+              this.$ = [];
+              break;
+            case 65:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 70:
+              this.$ = [];
+              break;
+            case 71:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 78:
+              this.$ = [];
+              break;
+            case 79:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 82:
+              this.$ = [];
+              break;
+            case 83:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 86:
+              this.$ = [];
+              break;
+            case 87:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 90:
+              this.$ = [];
+              break;
+            case 91:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 94:
+              this.$ = [];
+              break;
+            case 95:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 98:
+              this.$ = [$$[$0]];
+              break;
+            case 99:
+              $$[$0 - 1].push($$[$0]);
+              break;
+            case 100:
+              this.$ = [$$[$0]];
+              break;
+            case 101:
+              $$[$0 - 1].push($$[$0]);
+              break;
+          }
+        },
+        table: [{ 3: 1, 4: 2, 5: [2, 46], 6: 3, 14: [2, 46], 15: [2, 46], 19: [2, 46], 29: [2, 46], 34: [2, 46], 48: [2, 46], 51: [2, 46], 55: [2, 46], 60: [2, 46] }, { 1: [3] }, { 5: [1, 4] }, { 5: [2, 2], 7: 5, 8: 6, 9: 7, 10: 8, 11: 9, 12: 10, 13: 11, 14: [1, 12], 15: [1, 20], 16: 17, 19: [1, 23], 24: 15, 27: 16, 29: [1, 21], 34: [1, 22], 39: [2, 2], 44: [2, 2], 47: [2, 2], 48: [1, 13], 51: [1, 14], 55: [1, 18], 59: 19, 60: [1, 24] }, { 1: [2, 1] }, { 5: [2, 47], 14: [2, 47], 15: [2, 47], 19: [2, 47], 29: [2, 47], 34: [2, 47], 39: [2, 47], 44: [2, 47], 47: [2, 47], 48: [2, 47], 51: [2, 47], 55: [2, 47], 60: [2, 47] }, { 5: [2, 3], 14: [2, 3], 15: [2, 3], 19: [2, 3], 29: [2, 3], 34: [2, 3], 39: [2, 3], 44: [2, 3], 47: [2, 3], 48: [2, 3], 51: [2, 3], 55: [2, 3], 60: [2, 3] }, { 5: [2, 4], 14: [2, 4], 15: [2, 4], 19: [2, 4], 29: [2, 4], 34: [2, 4], 39: [2, 4], 44: [2, 4], 47: [2, 4], 48: [2, 4], 51: [2, 4], 55: [2, 4], 60: [2, 4] }, { 5: [2, 5], 14: [2, 5], 15: [2, 5], 19: [2, 5], 29: [2, 5], 34: [2, 5], 39: [2, 5], 44: [2, 5], 47: [2, 5], 48: [2, 5], 51: [2, 5], 55: [2, 5], 60: [2, 5] }, { 5: [2, 6], 14: [2, 6], 15: [2, 6], 19: [2, 6], 29: [2, 6], 34: [2, 6], 39: [2, 6], 44: [2, 6], 47: [2, 6], 48: [2, 6], 51: [2, 6], 55: [2, 6], 60: [2, 6] }, { 5: [2, 7], 14: [2, 7], 15: [2, 7], 19: [2, 7], 29: [2, 7], 34: [2, 7], 39: [2, 7], 44: [2, 7], 47: [2, 7], 48: [2, 7], 51: [2, 7], 55: [2, 7], 60: [2, 7] }, { 5: [2, 8], 14: [2, 8], 15: [2, 8], 19: [2, 8], 29: [2, 8], 34: [2, 8], 39: [2, 8], 44: [2, 8], 47: [2, 8], 48: [2, 8], 51: [2, 8], 55: [2, 8], 60: [2, 8] }, { 5: [2, 9], 14: [2, 9], 15: [2, 9], 19: [2, 9], 29: [2, 9], 34: [2, 9], 39: [2, 9], 44: [2, 9], 47: [2, 9], 48: [2, 9], 51: [2, 9], 55: [2, 9], 60: [2, 9] }, { 20: 25, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 36, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 4: 37, 6: 3, 14: [2, 46], 15: [2, 46], 19: [2, 46], 29: [2, 46], 34: [2, 46], 39: [2, 46], 44: [2, 46], 47: [2, 46], 48: [2, 46], 51: [2, 46], 55: [2, 46], 60: [2, 46] }, { 4: 38, 6: 3, 14: [2, 46], 15: [2, 46], 19: [2, 46], 29: [2, 46], 34: [2, 46], 44: [2, 46], 47: [2, 46], 48: [2, 46], 51: [2, 46], 55: [2, 46], 60: [2, 46] }, { 15: [2, 48], 17: 39, 18: [2, 48] }, { 20: 41, 56: 40, 64: 42, 65: [1, 43], 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 4: 44, 6: 3, 14: [2, 46], 15: [2, 46], 19: [2, 46], 29: [2, 46], 34: [2, 46], 47: [2, 46], 48: [2, 46], 51: [2, 46], 55: [2, 46], 60: [2, 46] }, { 5: [2, 10], 14: [2, 10], 15: [2, 10], 18: [2, 10], 19: [2, 10], 29: [2, 10], 34: [2, 10], 39: [2, 10], 44: [2, 10], 47: [2, 10], 48: [2, 10], 51: [2, 10], 55: [2, 10], 60: [2, 10] }, { 20: 45, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 46, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 47, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 41, 56: 48, 64: 42, 65: [1, 43], 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 33: [2, 78], 49: 49, 65: [2, 78], 72: [2, 78], 80: [2, 78], 81: [2, 78], 82: [2, 78], 83: [2, 78], 84: [2, 78], 85: [2, 78] }, { 23: [2, 33], 33: [2, 33], 54: [2, 33], 65: [2, 33], 68: [2, 33], 72: [2, 33], 75: [2, 33], 80: [2, 33], 81: [2, 33], 82: [2, 33], 83: [2, 33], 84: [2, 33], 85: [2, 33] }, { 23: [2, 34], 33: [2, 34], 54: [2, 34], 65: [2, 34], 68: [2, 34], 72: [2, 34], 75: [2, 34], 80: [2, 34], 81: [2, 34], 82: [2, 34], 83: [2, 34], 84: [2, 34], 85: [2, 34] }, { 23: [2, 35], 33: [2, 35], 54: [2, 35], 65: [2, 35], 68: [2, 35], 72: [2, 35], 75: [2, 35], 80: [2, 35], 81: [2, 35], 82: [2, 35], 83: [2, 35], 84: [2, 35], 85: [2, 35] }, { 23: [2, 36], 33: [2, 36], 54: [2, 36], 65: [2, 36], 68: [2, 36], 72: [2, 36], 75: [2, 36], 80: [2, 36], 81: [2, 36], 82: [2, 36], 83: [2, 36], 84: [2, 36], 85: [2, 36] }, { 23: [2, 37], 33: [2, 37], 54: [2, 37], 65: [2, 37], 68: [2, 37], 72: [2, 37], 75: [2, 37], 80: [2, 37], 81: [2, 37], 82: [2, 37], 83: [2, 37], 84: [2, 37], 85: [2, 37] }, { 23: [2, 38], 33: [2, 38], 54: [2, 38], 65: [2, 38], 68: [2, 38], 72: [2, 38], 75: [2, 38], 80: [2, 38], 81: [2, 38], 82: [2, 38], 83: [2, 38], 84: [2, 38], 85: [2, 38] }, { 23: [2, 39], 33: [2, 39], 54: [2, 39], 65: [2, 39], 68: [2, 39], 72: [2, 39], 75: [2, 39], 80: [2, 39], 81: [2, 39], 82: [2, 39], 83: [2, 39], 84: [2, 39], 85: [2, 39] }, { 23: [2, 43], 33: [2, 43], 54: [2, 43], 65: [2, 43], 68: [2, 43], 72: [2, 43], 75: [2, 43], 80: [2, 43], 81: [2, 43], 82: [2, 43], 83: [2, 43], 84: [2, 43], 85: [2, 43], 87: [1, 50] }, { 72: [1, 35], 86: 51 }, { 23: [2, 45], 33: [2, 45], 54: [2, 45], 65: [2, 45], 68: [2, 45], 72: [2, 45], 75: [2, 45], 80: [2, 45], 81: [2, 45], 82: [2, 45], 83: [2, 45], 84: [2, 45], 85: [2, 45], 87: [2, 45] }, { 52: 52, 54: [2, 82], 65: [2, 82], 72: [2, 82], 80: [2, 82], 81: [2, 82], 82: [2, 82], 83: [2, 82], 84: [2, 82], 85: [2, 82] }, { 25: 53, 38: 55, 39: [1, 57], 43: 56, 44: [1, 58], 45: 54, 47: [2, 54] }, { 28: 59, 43: 60, 44: [1, 58], 47: [2, 56] }, { 13: 62, 15: [1, 20], 18: [1, 61] }, { 33: [2, 86], 57: 63, 65: [2, 86], 72: [2, 86], 80: [2, 86], 81: [2, 86], 82: [2, 86], 83: [2, 86], 84: [2, 86], 85: [2, 86] }, { 33: [2, 40], 65: [2, 40], 72: [2, 40], 80: [2, 40], 81: [2, 40], 82: [2, 40], 83: [2, 40], 84: [2, 40], 85: [2, 40] }, { 33: [2, 41], 65: [2, 41], 72: [2, 41], 80: [2, 41], 81: [2, 41], 82: [2, 41], 83: [2, 41], 84: [2, 41], 85: [2, 41] }, { 20: 64, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 26: 65, 47: [1, 66] }, { 30: 67, 33: [2, 58], 65: [2, 58], 72: [2, 58], 75: [2, 58], 80: [2, 58], 81: [2, 58], 82: [2, 58], 83: [2, 58], 84: [2, 58], 85: [2, 58] }, { 33: [2, 64], 35: 68, 65: [2, 64], 72: [2, 64], 75: [2, 64], 80: [2, 64], 81: [2, 64], 82: [2, 64], 83: [2, 64], 84: [2, 64], 85: [2, 64] }, { 21: 69, 23: [2, 50], 65: [2, 50], 72: [2, 50], 80: [2, 50], 81: [2, 50], 82: [2, 50], 83: [2, 50], 84: [2, 50], 85: [2, 50] }, { 33: [2, 90], 61: 70, 65: [2, 90], 72: [2, 90], 80: [2, 90], 81: [2, 90], 82: [2, 90], 83: [2, 90], 84: [2, 90], 85: [2, 90] }, { 20: 74, 33: [2, 80], 50: 71, 63: 72, 64: 75, 65: [1, 43], 69: 73, 70: 76, 71: 77, 72: [1, 78], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 72: [1, 79] }, { 23: [2, 42], 33: [2, 42], 54: [2, 42], 65: [2, 42], 68: [2, 42], 72: [2, 42], 75: [2, 42], 80: [2, 42], 81: [2, 42], 82: [2, 42], 83: [2, 42], 84: [2, 42], 85: [2, 42], 87: [1, 50] }, { 20: 74, 53: 80, 54: [2, 84], 63: 81, 64: 75, 65: [1, 43], 69: 82, 70: 76, 71: 77, 72: [1, 78], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 26: 83, 47: [1, 66] }, { 47: [2, 55] }, { 4: 84, 6: 3, 14: [2, 46], 15: [2, 46], 19: [2, 46], 29: [2, 46], 34: [2, 46], 39: [2, 46], 44: [2, 46], 47: [2, 46], 48: [2, 46], 51: [2, 46], 55: [2, 46], 60: [2, 46] }, { 47: [2, 20] }, { 20: 85, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 4: 86, 6: 3, 14: [2, 46], 15: [2, 46], 19: [2, 46], 29: [2, 46], 34: [2, 46], 47: [2, 46], 48: [2, 46], 51: [2, 46], 55: [2, 46], 60: [2, 46] }, { 26: 87, 47: [1, 66] }, { 47: [2, 57] }, { 5: [2, 11], 14: [2, 11], 15: [2, 11], 19: [2, 11], 29: [2, 11], 34: [2, 11], 39: [2, 11], 44: [2, 11], 47: [2, 11], 48: [2, 11], 51: [2, 11], 55: [2, 11], 60: [2, 11] }, { 15: [2, 49], 18: [2, 49] }, { 20: 74, 33: [2, 88], 58: 88, 63: 89, 64: 75, 65: [1, 43], 69: 90, 70: 76, 71: 77, 72: [1, 78], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 65: [2, 94], 66: 91, 68: [2, 94], 72: [2, 94], 80: [2, 94], 81: [2, 94], 82: [2, 94], 83: [2, 94], 84: [2, 94], 85: [2, 94] }, { 5: [2, 25], 14: [2, 25], 15: [2, 25], 19: [2, 25], 29: [2, 25], 34: [2, 25], 39: [2, 25], 44: [2, 25], 47: [2, 25], 48: [2, 25], 51: [2, 25], 55: [2, 25], 60: [2, 25] }, { 20: 92, 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 74, 31: 93, 33: [2, 60], 63: 94, 64: 75, 65: [1, 43], 69: 95, 70: 76, 71: 77, 72: [1, 78], 75: [2, 60], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 74, 33: [2, 66], 36: 96, 63: 97, 64: 75, 65: [1, 43], 69: 98, 70: 76, 71: 77, 72: [1, 78], 75: [2, 66], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 74, 22: 99, 23: [2, 52], 63: 100, 64: 75, 65: [1, 43], 69: 101, 70: 76, 71: 77, 72: [1, 78], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 20: 74, 33: [2, 92], 62: 102, 63: 103, 64: 75, 65: [1, 43], 69: 104, 70: 76, 71: 77, 72: [1, 78], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 33: [1, 105] }, { 33: [2, 79], 65: [2, 79], 72: [2, 79], 80: [2, 79], 81: [2, 79], 82: [2, 79], 83: [2, 79], 84: [2, 79], 85: [2, 79] }, { 33: [2, 81] }, { 23: [2, 27], 33: [2, 27], 54: [2, 27], 65: [2, 27], 68: [2, 27], 72: [2, 27], 75: [2, 27], 80: [2, 27], 81: [2, 27], 82: [2, 27], 83: [2, 27], 84: [2, 27], 85: [2, 27] }, { 23: [2, 28], 33: [2, 28], 54: [2, 28], 65: [2, 28], 68: [2, 28], 72: [2, 28], 75: [2, 28], 80: [2, 28], 81: [2, 28], 82: [2, 28], 83: [2, 28], 84: [2, 28], 85: [2, 28] }, { 23: [2, 30], 33: [2, 30], 54: [2, 30], 68: [2, 30], 71: 106, 72: [1, 107], 75: [2, 30] }, { 23: [2, 98], 33: [2, 98], 54: [2, 98], 68: [2, 98], 72: [2, 98], 75: [2, 98] }, { 23: [2, 45], 33: [2, 45], 54: [2, 45], 65: [2, 45], 68: [2, 45], 72: [2, 45], 73: [1, 108], 75: [2, 45], 80: [2, 45], 81: [2, 45], 82: [2, 45], 83: [2, 45], 84: [2, 45], 85: [2, 45], 87: [2, 45] }, { 23: [2, 44], 33: [2, 44], 54: [2, 44], 65: [2, 44], 68: [2, 44], 72: [2, 44], 75: [2, 44], 80: [2, 44], 81: [2, 44], 82: [2, 44], 83: [2, 44], 84: [2, 44], 85: [2, 44], 87: [2, 44] }, { 54: [1, 109] }, { 54: [2, 83], 65: [2, 83], 72: [2, 83], 80: [2, 83], 81: [2, 83], 82: [2, 83], 83: [2, 83], 84: [2, 83], 85: [2, 83] }, { 54: [2, 85] }, { 5: [2, 13], 14: [2, 13], 15: [2, 13], 19: [2, 13], 29: [2, 13], 34: [2, 13], 39: [2, 13], 44: [2, 13], 47: [2, 13], 48: [2, 13], 51: [2, 13], 55: [2, 13], 60: [2, 13] }, { 38: 55, 39: [1, 57], 43: 56, 44: [1, 58], 45: 111, 46: 110, 47: [2, 76] }, { 33: [2, 70], 40: 112, 65: [2, 70], 72: [2, 70], 75: [2, 70], 80: [2, 70], 81: [2, 70], 82: [2, 70], 83: [2, 70], 84: [2, 70], 85: [2, 70] }, { 47: [2, 18] }, { 5: [2, 14], 14: [2, 14], 15: [2, 14], 19: [2, 14], 29: [2, 14], 34: [2, 14], 39: [2, 14], 44: [2, 14], 47: [2, 14], 48: [2, 14], 51: [2, 14], 55: [2, 14], 60: [2, 14] }, { 33: [1, 113] }, { 33: [2, 87], 65: [2, 87], 72: [2, 87], 80: [2, 87], 81: [2, 87], 82: [2, 87], 83: [2, 87], 84: [2, 87], 85: [2, 87] }, { 33: [2, 89] }, { 20: 74, 63: 115, 64: 75, 65: [1, 43], 67: 114, 68: [2, 96], 69: 116, 70: 76, 71: 77, 72: [1, 78], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 33: [1, 117] }, { 32: 118, 33: [2, 62], 74: 119, 75: [1, 120] }, { 33: [2, 59], 65: [2, 59], 72: [2, 59], 75: [2, 59], 80: [2, 59], 81: [2, 59], 82: [2, 59], 83: [2, 59], 84: [2, 59], 85: [2, 59] }, { 33: [2, 61], 75: [2, 61] }, { 33: [2, 68], 37: 121, 74: 122, 75: [1, 120] }, { 33: [2, 65], 65: [2, 65], 72: [2, 65], 75: [2, 65], 80: [2, 65], 81: [2, 65], 82: [2, 65], 83: [2, 65], 84: [2, 65], 85: [2, 65] }, { 33: [2, 67], 75: [2, 67] }, { 23: [1, 123] }, { 23: [2, 51], 65: [2, 51], 72: [2, 51], 80: [2, 51], 81: [2, 51], 82: [2, 51], 83: [2, 51], 84: [2, 51], 85: [2, 51] }, { 23: [2, 53] }, { 33: [1, 124] }, { 33: [2, 91], 65: [2, 91], 72: [2, 91], 80: [2, 91], 81: [2, 91], 82: [2, 91], 83: [2, 91], 84: [2, 91], 85: [2, 91] }, { 33: [2, 93] }, { 5: [2, 22], 14: [2, 22], 15: [2, 22], 19: [2, 22], 29: [2, 22], 34: [2, 22], 39: [2, 22], 44: [2, 22], 47: [2, 22], 48: [2, 22], 51: [2, 22], 55: [2, 22], 60: [2, 22] }, { 23: [2, 99], 33: [2, 99], 54: [2, 99], 68: [2, 99], 72: [2, 99], 75: [2, 99] }, { 73: [1, 108] }, { 20: 74, 63: 125, 64: 75, 65: [1, 43], 72: [1, 35], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 5: [2, 23], 14: [2, 23], 15: [2, 23], 19: [2, 23], 29: [2, 23], 34: [2, 23], 39: [2, 23], 44: [2, 23], 47: [2, 23], 48: [2, 23], 51: [2, 23], 55: [2, 23], 60: [2, 23] }, { 47: [2, 19] }, { 47: [2, 77] }, { 20: 74, 33: [2, 72], 41: 126, 63: 127, 64: 75, 65: [1, 43], 69: 128, 70: 76, 71: 77, 72: [1, 78], 75: [2, 72], 78: 26, 79: 27, 80: [1, 28], 81: [1, 29], 82: [1, 30], 83: [1, 31], 84: [1, 32], 85: [1, 34], 86: 33 }, { 5: [2, 24], 14: [2, 24], 15: [2, 24], 19: [2, 24], 29: [2, 24], 34: [2, 24], 39: [2, 24], 44: [2, 24], 47: [2, 24], 48: [2, 24], 51: [2, 24], 55: [2, 24], 60: [2, 24] }, { 68: [1, 129] }, { 65: [2, 95], 68: [2, 95], 72: [2, 95], 80: [2, 95], 81: [2, 95], 82: [2, 95], 83: [2, 95], 84: [2, 95], 85: [2, 95] }, { 68: [2, 97] }, { 5: [2, 21], 14: [2, 21], 15: [2, 21], 19: [2, 21], 29: [2, 21], 34: [2, 21], 39: [2, 21], 44: [2, 21], 47: [2, 21], 48: [2, 21], 51: [2, 21], 55: [2, 21], 60: [2, 21] }, { 33: [1, 130] }, { 33: [2, 63] }, { 72: [1, 132], 76: 131 }, { 33: [1, 133] }, { 33: [2, 69] }, { 15: [2, 12], 18: [2, 12] }, { 14: [2, 26], 15: [2, 26], 19: [2, 26], 29: [2, 26], 34: [2, 26], 47: [2, 26], 48: [2, 26], 51: [2, 26], 55: [2, 26], 60: [2, 26] }, { 23: [2, 31], 33: [2, 31], 54: [2, 31], 68: [2, 31], 72: [2, 31], 75: [2, 31] }, { 33: [2, 74], 42: 134, 74: 135, 75: [1, 120] }, { 33: [2, 71], 65: [2, 71], 72: [2, 71], 75: [2, 71], 80: [2, 71], 81: [2, 71], 82: [2, 71], 83: [2, 71], 84: [2, 71], 85: [2, 71] }, { 33: [2, 73], 75: [2, 73] }, { 23: [2, 29], 33: [2, 29], 54: [2, 29], 65: [2, 29], 68: [2, 29], 72: [2, 29], 75: [2, 29], 80: [2, 29], 81: [2, 29], 82: [2, 29], 83: [2, 29], 84: [2, 29], 85: [2, 29] }, { 14: [2, 15], 15: [2, 15], 19: [2, 15], 29: [2, 15], 34: [2, 15], 39: [2, 15], 44: [2, 15], 47: [2, 15], 48: [2, 15], 51: [2, 15], 55: [2, 15], 60: [2, 15] }, { 72: [1, 137], 77: [1, 136] }, { 72: [2, 100], 77: [2, 100] }, { 14: [2, 16], 15: [2, 16], 19: [2, 16], 29: [2, 16], 34: [2, 16], 44: [2, 16], 47: [2, 16], 48: [2, 16], 51: [2, 16], 55: [2, 16], 60: [2, 16] }, { 33: [1, 138] }, { 33: [2, 75] }, { 33: [2, 32] }, { 72: [2, 101], 77: [2, 101] }, { 14: [2, 17], 15: [2, 17], 19: [2, 17], 29: [2, 17], 34: [2, 17], 39: [2, 17], 44: [2, 17], 47: [2, 17], 48: [2, 17], 51: [2, 17], 55: [2, 17], 60: [2, 17] }],
+        defaultActions: { 4: [2, 1], 54: [2, 55], 56: [2, 20], 60: [2, 57], 73: [2, 81], 82: [2, 85], 86: [2, 18], 90: [2, 89], 101: [2, 53], 104: [2, 93], 110: [2, 19], 111: [2, 77], 116: [2, 97], 119: [2, 63], 122: [2, 69], 135: [2, 75], 136: [2, 32] },
+        parseError: function parseError(str, hash) {
+          throw new Error(str);
+        },
+        parse: function parse4(input) {
+          var self = this, stack = [0], vstack = [null], lstack = [], table = this.table, yytext = "", yylineno = 0, yyleng = 0, recovering = 0, TERROR = 2, EOF = 1;
+          this.lexer.setInput(input);
+          this.lexer.yy = this.yy;
+          this.yy.lexer = this.lexer;
+          this.yy.parser = this;
+          if (typeof this.lexer.yylloc == "undefined") this.lexer.yylloc = {};
+          var yyloc = this.lexer.yylloc;
+          lstack.push(yyloc);
+          var ranges = this.lexer.options && this.lexer.options.ranges;
+          if (typeof this.yy.parseError === "function") this.parseError = this.yy.parseError;
+          function popStack(n) {
+            stack.length = stack.length - 2 * n;
+            vstack.length = vstack.length - n;
+            lstack.length = lstack.length - n;
+          }
+          function lex() {
+            var token;
+            token = self.lexer.lex() || 1;
+            if (typeof token !== "number") {
+              token = self.symbols_[token] || token;
+            }
+            return token;
+          }
+          var symbol, preErrorSymbol, state, action, a, r, yyval = {}, p, len, newState, expected;
+          while (true) {
+            state = stack[stack.length - 1];
+            if (this.defaultActions[state]) {
+              action = this.defaultActions[state];
+            } else {
+              if (symbol === null || typeof symbol == "undefined") {
+                symbol = lex();
+              }
+              action = table[state] && table[state][symbol];
+            }
+            if (typeof action === "undefined" || !action.length || !action[0]) {
+              var errStr = "";
+              if (!recovering) {
+                expected = [];
+                for (p in table[state]) if (this.terminals_[p] && p > 2) {
+                  expected.push("'" + this.terminals_[p] + "'");
+                }
+                if (this.lexer.showPosition) {
+                  errStr = "Parse error on line " + (yylineno + 1) + ":\n" + this.lexer.showPosition() + "\nExpecting " + expected.join(", ") + ", got '" + (this.terminals_[symbol] || symbol) + "'";
+                } else {
+                  errStr = "Parse error on line " + (yylineno + 1) + ": Unexpected " + (symbol == 1 ? "end of input" : "'" + (this.terminals_[symbol] || symbol) + "'");
+                }
+                this.parseError(errStr, { text: this.lexer.match, token: this.terminals_[symbol] || symbol, line: this.lexer.yylineno, loc: yyloc, expected });
+              }
+            }
+            if (action[0] instanceof Array && action.length > 1) {
+              throw new Error("Parse Error: multiple actions possible at state: " + state + ", token: " + symbol);
+            }
+            switch (action[0]) {
+              case 1:
+                stack.push(symbol);
+                vstack.push(this.lexer.yytext);
+                lstack.push(this.lexer.yylloc);
+                stack.push(action[1]);
+                symbol = null;
+                if (!preErrorSymbol) {
+                  yyleng = this.lexer.yyleng;
+                  yytext = this.lexer.yytext;
+                  yylineno = this.lexer.yylineno;
+                  yyloc = this.lexer.yylloc;
+                  if (recovering > 0) recovering--;
+                } else {
+                  symbol = preErrorSymbol;
+                  preErrorSymbol = null;
+                }
+                break;
+              case 2:
+                len = this.productions_[action[1]][1];
+                yyval.$ = vstack[vstack.length - len];
+                yyval._$ = { first_line: lstack[lstack.length - (len || 1)].first_line, last_line: lstack[lstack.length - 1].last_line, first_column: lstack[lstack.length - (len || 1)].first_column, last_column: lstack[lstack.length - 1].last_column };
+                if (ranges) {
+                  yyval._$.range = [lstack[lstack.length - (len || 1)].range[0], lstack[lstack.length - 1].range[1]];
+                }
+                r = this.performAction.call(yyval, yytext, yyleng, yylineno, this.yy, action[1], vstack, lstack);
+                if (typeof r !== "undefined") {
+                  return r;
+                }
+                if (len) {
+                  stack = stack.slice(0, -1 * len * 2);
+                  vstack = vstack.slice(0, -1 * len);
+                  lstack = lstack.slice(0, -1 * len);
+                }
+                stack.push(this.productions_[action[1]][0]);
+                vstack.push(yyval.$);
+                lstack.push(yyval._$);
+                newState = table[stack[stack.length - 2]][stack[stack.length - 1]];
+                stack.push(newState);
+                break;
+              case 3:
+                return true;
+            }
+          }
+          return true;
+        }
+      };
+      var lexer = (function() {
+        var lexer2 = {
+          EOF: 1,
+          parseError: function parseError(str, hash) {
+            if (this.yy.parser) {
+              this.yy.parser.parseError(str, hash);
+            } else {
+              throw new Error(str);
+            }
+          },
+          setInput: function setInput(input) {
+            this._input = input;
+            this._more = this._less = this.done = false;
+            this.yylineno = this.yyleng = 0;
+            this.yytext = this.matched = this.match = "";
+            this.conditionStack = ["INITIAL"];
+            this.yylloc = { first_line: 1, first_column: 0, last_line: 1, last_column: 0 };
+            if (this.options.ranges) this.yylloc.range = [0, 0];
+            this.offset = 0;
+            return this;
+          },
+          input: function input() {
+            var ch = this._input[0];
+            this.yytext += ch;
+            this.yyleng++;
+            this.offset++;
+            this.match += ch;
+            this.matched += ch;
+            var lines = ch.match(/(?:\r\n?|\n).*/g);
+            if (lines) {
+              this.yylineno++;
+              this.yylloc.last_line++;
+            } else {
+              this.yylloc.last_column++;
+            }
+            if (this.options.ranges) this.yylloc.range[1]++;
+            this._input = this._input.slice(1);
+            return ch;
+          },
+          unput: function unput(ch) {
+            var len = ch.length;
+            var lines = ch.split(/(?:\r\n?|\n)/g);
+            this._input = ch + this._input;
+            this.yytext = this.yytext.substr(0, this.yytext.length - len - 1);
+            this.offset -= len;
+            var oldLines = this.match.split(/(?:\r\n?|\n)/g);
+            this.match = this.match.substr(0, this.match.length - 1);
+            this.matched = this.matched.substr(0, this.matched.length - 1);
+            if (lines.length - 1) this.yylineno -= lines.length - 1;
+            var r = this.yylloc.range;
+            this.yylloc = {
+              first_line: this.yylloc.first_line,
+              last_line: this.yylineno + 1,
+              first_column: this.yylloc.first_column,
+              last_column: lines ? (lines.length === oldLines.length ? this.yylloc.first_column : 0) + oldLines[oldLines.length - lines.length].length - lines[0].length : this.yylloc.first_column - len
+            };
+            if (this.options.ranges) {
+              this.yylloc.range = [r[0], r[0] + this.yyleng - len];
+            }
+            return this;
+          },
+          more: function more() {
+            this._more = true;
+            return this;
+          },
+          less: function less(n) {
+            this.unput(this.match.slice(n));
+          },
+          pastInput: function pastInput() {
+            var past = this.matched.substr(0, this.matched.length - this.match.length);
+            return (past.length > 20 ? "..." : "") + past.substr(-20).replace(/\n/g, "");
+          },
+          upcomingInput: function upcomingInput() {
+            var next = this.match;
+            if (next.length < 20) {
+              next += this._input.substr(0, 20 - next.length);
+            }
+            return (next.substr(0, 20) + (next.length > 20 ? "..." : "")).replace(/\n/g, "");
+          },
+          showPosition: function showPosition() {
+            var pre = this.pastInput();
+            var c = new Array(pre.length + 1).join("-");
+            return pre + this.upcomingInput() + "\n" + c + "^";
+          },
+          next: function next() {
+            if (this.done) {
+              return this.EOF;
+            }
+            if (!this._input) this.done = true;
+            var token, match, tempMatch, index, col, lines;
+            if (!this._more) {
+              this.yytext = "";
+              this.match = "";
+            }
+            var rules = this._currentRules();
+            for (var i = 0; i < rules.length; i++) {
+              tempMatch = this._input.match(this.rules[rules[i]]);
+              if (tempMatch && (!match || tempMatch[0].length > match[0].length)) {
+                match = tempMatch;
+                index = i;
+                if (!this.options.flex) break;
+              }
+            }
+            if (match) {
+              lines = match[0].match(/(?:\r\n?|\n).*/g);
+              if (lines) this.yylineno += lines.length;
+              this.yylloc = {
+                first_line: this.yylloc.last_line,
+                last_line: this.yylineno + 1,
+                first_column: this.yylloc.last_column,
+                last_column: lines ? lines[lines.length - 1].length - lines[lines.length - 1].match(/\r?\n?/)[0].length : this.yylloc.last_column + match[0].length
+              };
+              this.yytext += match[0];
+              this.match += match[0];
+              this.matches = match;
+              this.yyleng = this.yytext.length;
+              if (this.options.ranges) {
+                this.yylloc.range = [this.offset, this.offset += this.yyleng];
+              }
+              this._more = false;
+              this._input = this._input.slice(match[0].length);
+              this.matched += match[0];
+              token = this.performAction.call(this, this.yy, this, rules[index], this.conditionStack[this.conditionStack.length - 1]);
+              if (this.done && this._input) this.done = false;
+              if (token) return token;
+              else return;
+            }
+            if (this._input === "") {
+              return this.EOF;
+            } else {
+              return this.parseError("Lexical error on line " + (this.yylineno + 1) + ". Unrecognized text.\n" + this.showPosition(), { text: "", token: null, line: this.yylineno });
+            }
+          },
+          lex: function lex() {
+            var r = this.next();
+            if (typeof r !== "undefined") {
+              return r;
+            } else {
+              return this.lex();
+            }
+          },
+          begin: function begin(condition) {
+            this.conditionStack.push(condition);
+          },
+          popState: function popState() {
+            return this.conditionStack.pop();
+          },
+          _currentRules: function _currentRules() {
+            return this.conditions[this.conditionStack[this.conditionStack.length - 1]].rules;
+          },
+          topState: function topState() {
+            return this.conditionStack[this.conditionStack.length - 2];
+          },
+          pushState: function begin(condition) {
+            this.begin(condition);
+          }
+        };
+        lexer2.options = {};
+        lexer2.performAction = function anonymous(yy, yy_, $avoiding_name_collisions, YY_START) {
+          function strip(start, end) {
+            return yy_.yytext = yy_.yytext.substring(start, yy_.yyleng - end + start);
+          }
+          var YYSTATE = YY_START;
+          switch ($avoiding_name_collisions) {
+            case 0:
+              if (yy_.yytext.slice(-2) === "\\\\") {
+                strip(0, 1);
+                this.begin("mu");
+              } else if (yy_.yytext.slice(-1) === "\\") {
+                strip(0, 1);
+                this.begin("emu");
+              } else {
+                this.begin("mu");
+              }
+              if (yy_.yytext) return 15;
+              break;
+            case 1:
+              return 15;
+              break;
+            case 2:
+              this.popState();
+              return 15;
+              break;
+            case 3:
+              this.begin("raw");
+              return 15;
+              break;
+            case 4:
+              this.popState();
+              if (this.conditionStack[this.conditionStack.length - 1] === "raw") {
+                return 15;
+              } else {
+                strip(5, 9);
+                return "END_RAW_BLOCK";
+              }
+              break;
+            case 5:
+              return 15;
+              break;
+            case 6:
+              this.popState();
+              return 14;
+              break;
+            case 7:
+              return 65;
+              break;
+            case 8:
+              return 68;
+              break;
+            case 9:
+              return 19;
+              break;
+            case 10:
+              this.popState();
+              this.begin("raw");
+              return 23;
+              break;
+            case 11:
+              return 55;
+              break;
+            case 12:
+              return 60;
+              break;
+            case 13:
+              return 29;
+              break;
+            case 14:
+              return 47;
+              break;
+            case 15:
+              this.popState();
+              return 44;
+              break;
+            case 16:
+              this.popState();
+              return 44;
+              break;
+            case 17:
+              return 34;
+              break;
+            case 18:
+              return 39;
+              break;
+            case 19:
+              return 51;
+              break;
+            case 20:
+              return 48;
+              break;
+            case 21:
+              this.unput(yy_.yytext);
+              this.popState();
+              this.begin("com");
+              break;
+            case 22:
+              this.popState();
+              return 14;
+              break;
+            case 23:
+              return 48;
+              break;
+            case 24:
+              return 73;
+              break;
+            case 25:
+              return 72;
+              break;
+            case 26:
+              return 72;
+              break;
+            case 27:
+              return 87;
+              break;
+            case 28:
+              break;
+            case 29:
+              this.popState();
+              return 54;
+              break;
+            case 30:
+              this.popState();
+              return 33;
+              break;
+            case 31:
+              yy_.yytext = strip(1, 2).replace(/\\"/g, '"');
+              return 80;
+              break;
+            case 32:
+              yy_.yytext = strip(1, 2).replace(/\\'/g, "'");
+              return 80;
+              break;
+            case 33:
+              return 85;
+              break;
+            case 34:
+              return 82;
+              break;
+            case 35:
+              return 82;
+              break;
+            case 36:
+              return 83;
+              break;
+            case 37:
+              return 84;
+              break;
+            case 38:
+              return 81;
+              break;
+            case 39:
+              return 75;
+              break;
+            case 40:
+              return 77;
+              break;
+            case 41:
+              return 72;
+              break;
+            case 42:
+              yy_.yytext = yy_.yytext.replace(/\\([\\\]])/g, "$1");
+              return 72;
+              break;
+            case 43:
+              return "INVALID";
+              break;
+            case 44:
+              return 5;
+              break;
+          }
+        };
+        lexer2.rules = [/^(?:[^\x00]*?(?=(\{\{)))/, /^(?:[^\x00]+)/, /^(?:[^\x00]{2,}?(?=(\{\{|\\\{\{|\\\\\{\{|$)))/, /^(?:\{\{\{\{(?=[^/]))/, /^(?:\{\{\{\{\/[^\s!"#%-,\.\/;->@\[-\^`\{-~]+(?=[=}\s\/.])\}\}\}\})/, /^(?:[^\x00]+?(?=(\{\{\{\{)))/, /^(?:[\s\S]*?--(~)?\}\})/, /^(?:\()/, /^(?:\))/, /^(?:\{\{\{\{)/, /^(?:\}\}\}\})/, /^(?:\{\{(~)?>)/, /^(?:\{\{(~)?#>)/, /^(?:\{\{(~)?#\*?)/, /^(?:\{\{(~)?\/)/, /^(?:\{\{(~)?\^\s*(~)?\}\})/, /^(?:\{\{(~)?\s*else\s*(~)?\}\})/, /^(?:\{\{(~)?\^)/, /^(?:\{\{(~)?\s*else\b)/, /^(?:\{\{(~)?\{)/, /^(?:\{\{(~)?&)/, /^(?:\{\{(~)?!--)/, /^(?:\{\{(~)?![\s\S]*?\}\})/, /^(?:\{\{(~)?\*?)/, /^(?:=)/, /^(?:\.\.)/, /^(?:\.(?=([=~}\s\/.)|])))/, /^(?:[\/.])/, /^(?:\s+)/, /^(?:\}(~)?\}\})/, /^(?:(~)?\}\})/, /^(?:"(\\["]|[^"])*")/, /^(?:'(\\[']|[^'])*')/, /^(?:@)/, /^(?:true(?=([~}\s)])))/, /^(?:false(?=([~}\s)])))/, /^(?:undefined(?=([~}\s)])))/, /^(?:null(?=([~}\s)])))/, /^(?:-?[0-9]+(?:\.[0-9]+)?(?=([~}\s)])))/, /^(?:as\s+\|)/, /^(?:\|)/, /^(?:([^\s!"#%-,\.\/;->@\[-\^`\{-~]+(?=([=~}\s\/.)|]))))/, /^(?:\[(\\\]|[^\]])*\])/, /^(?:.)/, /^(?:$)/];
+        lexer2.conditions = { "mu": { "rules": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44], "inclusive": false }, "emu": { "rules": [2], "inclusive": false }, "com": { "rules": [6], "inclusive": false }, "raw": { "rules": [3, 4, 5], "inclusive": false }, "INITIAL": { "rules": [0, 1, 44], "inclusive": true } };
+        return lexer2;
+      })();
+      parser.lexer = lexer;
+      function Parser2() {
+        this.yy = {};
+      }
+      Parser2.prototype = parser;
+      parser.Parser = Parser2;
+      return new Parser2();
+    })();
+    exports["default"] = handlebars;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/visitor.js
+var require_visitor = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/visitor.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    function Visitor() {
+      this.parents = [];
+    }
+    Visitor.prototype = {
+      constructor: Visitor,
+      mutating: false,
+      // Visits a given value. If mutating, will replace the value if necessary.
+      acceptKey: function acceptKey(node, name) {
+        var value = this.accept(node[name]);
+        if (this.mutating) {
+          if (value && !Visitor.prototype[value.type]) {
+            throw new _exception2["default"]('Unexpected node type "' + value.type + '" found when accepting ' + name + " on " + node.type);
+          }
+          node[name] = value;
+        }
+      },
+      // Performs an accept operation with added sanity check to ensure
+      // required keys are not removed.
+      acceptRequired: function acceptRequired(node, name) {
+        this.acceptKey(node, name);
+        if (!node[name]) {
+          throw new _exception2["default"](node.type + " requires " + name);
+        }
+      },
+      // Traverses a given array. If mutating, empty respnses will be removed
+      // for child elements.
+      acceptArray: function acceptArray(array) {
+        for (var i = 0, l = array.length; i < l; i++) {
+          this.acceptKey(array, i);
+          if (!array[i]) {
+            array.splice(i, 1);
+            i--;
+            l--;
+          }
+        }
+      },
+      accept: function accept(object) {
+        if (!object) {
+          return;
+        }
+        if (!this[object.type]) {
+          throw new _exception2["default"]("Unknown type: " + object.type, object);
+        }
+        if (this.current) {
+          this.parents.unshift(this.current);
+        }
+        this.current = object;
+        var ret = this[object.type](object);
+        this.current = this.parents.shift();
+        if (!this.mutating || ret) {
+          return ret;
+        } else if (ret !== false) {
+          return object;
+        }
+      },
+      Program: function Program(program2) {
+        this.acceptArray(program2.body);
+      },
+      MustacheStatement: visitSubExpression,
+      Decorator: visitSubExpression,
+      BlockStatement: visitBlock,
+      DecoratorBlock: visitBlock,
+      PartialStatement: visitPartial,
+      PartialBlockStatement: function PartialBlockStatement(partial) {
+        visitPartial.call(this, partial);
+        this.acceptKey(partial, "program");
+      },
+      ContentStatement: function ContentStatement() {
+      },
+      CommentStatement: function CommentStatement() {
+      },
+      SubExpression: visitSubExpression,
+      PathExpression: function PathExpression() {
+      },
+      StringLiteral: function StringLiteral() {
+      },
+      NumberLiteral: function NumberLiteral() {
+      },
+      BooleanLiteral: function BooleanLiteral() {
+      },
+      UndefinedLiteral: function UndefinedLiteral() {
+      },
+      NullLiteral: function NullLiteral() {
+      },
+      Hash: function Hash(hash) {
+        this.acceptArray(hash.pairs);
+      },
+      HashPair: function HashPair(pair) {
+        this.acceptRequired(pair, "value");
+      }
+    };
+    function visitSubExpression(mustache) {
+      this.acceptRequired(mustache, "path");
+      this.acceptArray(mustache.params);
+      this.acceptKey(mustache, "hash");
+    }
+    function visitBlock(block) {
+      visitSubExpression.call(this, block);
+      this.acceptKey(block, "program");
+      this.acceptKey(block, "inverse");
+    }
+    function visitPartial(partial) {
+      this.acceptRequired(partial, "name");
+      this.acceptArray(partial.params);
+      this.acceptKey(partial, "hash");
+    }
+    exports["default"] = Visitor;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/whitespace-control.js
+var require_whitespace_control = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/whitespace-control.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _visitor = require_visitor();
+    var _visitor2 = _interopRequireDefault(_visitor);
+    function WhitespaceControl() {
+      var options = arguments.length <= 0 || arguments[0] === void 0 ? {} : arguments[0];
+      this.options = options;
+    }
+    WhitespaceControl.prototype = new _visitor2["default"]();
+    WhitespaceControl.prototype.Program = function(program2) {
+      var doStandalone = !this.options.ignoreStandalone;
+      var isRoot = !this.isRootSeen;
+      this.isRootSeen = true;
+      var body = program2.body;
+      for (var i = 0, l = body.length; i < l; i++) {
+        var current = body[i], strip = this.accept(current);
+        if (!strip) {
+          continue;
+        }
+        var _isPrevWhitespace = isPrevWhitespace(body, i, isRoot), _isNextWhitespace = isNextWhitespace(body, i, isRoot), openStandalone = strip.openStandalone && _isPrevWhitespace, closeStandalone = strip.closeStandalone && _isNextWhitespace, inlineStandalone = strip.inlineStandalone && _isPrevWhitespace && _isNextWhitespace;
+        if (strip.close) {
+          omitRight(body, i, true);
+        }
+        if (strip.open) {
+          omitLeft(body, i, true);
+        }
+        if (doStandalone && inlineStandalone) {
+          omitRight(body, i);
+          if (omitLeft(body, i)) {
+            if (current.type === "PartialStatement") {
+              current.indent = /([ \t]+$)/.exec(body[i - 1].original)[1];
+            }
+          }
+        }
+        if (doStandalone && openStandalone) {
+          omitRight((current.program || current.inverse).body);
+          omitLeft(body, i);
+        }
+        if (doStandalone && closeStandalone) {
+          omitRight(body, i);
+          omitLeft((current.inverse || current.program).body);
+        }
+      }
+      return program2;
+    };
+    WhitespaceControl.prototype.BlockStatement = WhitespaceControl.prototype.DecoratorBlock = WhitespaceControl.prototype.PartialBlockStatement = function(block) {
+      this.accept(block.program);
+      this.accept(block.inverse);
+      var program2 = block.program || block.inverse, inverse = block.program && block.inverse, firstInverse = inverse, lastInverse = inverse;
+      if (inverse && inverse.chained) {
+        firstInverse = inverse.body[0].program;
+        while (lastInverse.chained) {
+          lastInverse = lastInverse.body[lastInverse.body.length - 1].program;
+        }
+      }
+      var strip = {
+        open: block.openStrip.open,
+        close: block.closeStrip.close,
+        // Determine the standalone candiacy. Basically flag our content as being possibly standalone
+        // so our parent can determine if we actually are standalone
+        openStandalone: isNextWhitespace(program2.body),
+        closeStandalone: isPrevWhitespace((firstInverse || program2).body)
+      };
+      if (block.openStrip.close) {
+        omitRight(program2.body, null, true);
+      }
+      if (inverse) {
+        var inverseStrip = block.inverseStrip;
+        if (inverseStrip.open) {
+          omitLeft(program2.body, null, true);
+        }
+        if (inverseStrip.close) {
+          omitRight(firstInverse.body, null, true);
+        }
+        if (block.closeStrip.open) {
+          omitLeft(lastInverse.body, null, true);
+        }
+        if (!this.options.ignoreStandalone && isPrevWhitespace(program2.body) && isNextWhitespace(firstInverse.body)) {
+          omitLeft(program2.body);
+          omitRight(firstInverse.body);
+        }
+      } else if (block.closeStrip.open) {
+        omitLeft(program2.body, null, true);
+      }
+      return strip;
+    };
+    WhitespaceControl.prototype.Decorator = WhitespaceControl.prototype.MustacheStatement = function(mustache) {
+      return mustache.strip;
+    };
+    WhitespaceControl.prototype.PartialStatement = WhitespaceControl.prototype.CommentStatement = function(node) {
+      var strip = node.strip || {};
+      return {
+        inlineStandalone: true,
+        open: strip.open,
+        close: strip.close
+      };
+    };
+    function isPrevWhitespace(body, i, isRoot) {
+      if (i === void 0) {
+        i = body.length;
+      }
+      var prev = body[i - 1], sibling = body[i - 2];
+      if (!prev) {
+        return isRoot;
+      }
+      if (prev.type === "ContentStatement") {
+        return (sibling || !isRoot ? /\r?\n\s*?$/ : /(^|\r?\n)\s*?$/).test(prev.original);
+      }
+    }
+    function isNextWhitespace(body, i, isRoot) {
+      if (i === void 0) {
+        i = -1;
+      }
+      var next = body[i + 1], sibling = body[i + 2];
+      if (!next) {
+        return isRoot;
+      }
+      if (next.type === "ContentStatement") {
+        return (sibling || !isRoot ? /^\s*?\r?\n/ : /^\s*?(\r?\n|$)/).test(next.original);
+      }
+    }
+    function omitRight(body, i, multiple) {
+      var current = body[i == null ? 0 : i + 1];
+      if (!current || current.type !== "ContentStatement" || !multiple && current.rightStripped) {
+        return;
+      }
+      var original = current.value;
+      current.value = current.value.replace(multiple ? /^\s+/ : /^[ \t]*\r?\n?/, "");
+      current.rightStripped = current.value !== original;
+    }
+    function omitLeft(body, i, multiple) {
+      var current = body[i == null ? body.length - 1 : i - 1];
+      if (!current || current.type !== "ContentStatement" || !multiple && current.leftStripped) {
+        return;
+      }
+      var original = current.value;
+      current.value = current.value.replace(multiple ? /\s+$/ : /[ \t]+$/, "");
+      current.leftStripped = current.value !== original;
+      return current.leftStripped;
+    }
+    exports["default"] = WhitespaceControl;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/helpers.js
+var require_helpers2 = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/helpers.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.SourceLocation = SourceLocation;
+    exports.id = id;
+    exports.stripFlags = stripFlags;
+    exports.stripComment = stripComment;
+    exports.preparePath = preparePath;
+    exports.prepareMustache = prepareMustache;
+    exports.prepareRawBlock = prepareRawBlock;
+    exports.prepareBlock = prepareBlock;
+    exports.prepareProgram = prepareProgram;
+    exports.preparePartialBlock = preparePartialBlock;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    function validateClose(open2, close) {
+      close = close.path ? close.path.original : close;
+      if (open2.path.original !== close) {
+        var errorNode = { loc: open2.path.loc };
+        throw new _exception2["default"](open2.path.original + " doesn't match " + close, errorNode);
+      }
+    }
+    function SourceLocation(source, locInfo) {
+      this.source = source;
+      this.start = {
+        line: locInfo.first_line,
+        column: locInfo.first_column
+      };
+      this.end = {
+        line: locInfo.last_line,
+        column: locInfo.last_column
+      };
+    }
+    function id(token) {
+      if (/^\[.*\]$/.test(token)) {
+        return token.substring(1, token.length - 1);
+      } else {
+        return token;
+      }
+    }
+    function stripFlags(open2, close) {
+      return {
+        open: open2.charAt(2) === "~",
+        close: close.charAt(close.length - 3) === "~"
+      };
+    }
+    function stripComment(comment) {
+      return comment.replace(/^\{\{~?!-?-?/, "").replace(/-?-?~?\}\}$/, "");
+    }
+    function preparePath(data, parts, loc) {
+      loc = this.locInfo(loc);
+      var original = data ? "@" : "", dig = [], depth = 0;
+      for (var i = 0, l = parts.length; i < l; i++) {
+        var part = parts[i].part, isLiteral = parts[i].original !== part;
+        original += (parts[i].separator || "") + part;
+        if (!isLiteral && (part === ".." || part === "." || part === "this")) {
+          if (dig.length > 0) {
+            throw new _exception2["default"]("Invalid path: " + original, { loc });
+          } else if (part === "..") {
+            depth++;
+          }
+        } else {
+          dig.push(part);
+        }
+      }
+      return {
+        type: "PathExpression",
+        data,
+        depth,
+        parts: dig,
+        original,
+        loc
+      };
+    }
+    function prepareMustache(path9, params, hash, open2, strip, locInfo) {
+      var escapeFlag = open2.charAt(3) || open2.charAt(2), escaped = escapeFlag !== "{" && escapeFlag !== "&";
+      var decorator = /\*/.test(open2);
+      return {
+        type: decorator ? "Decorator" : "MustacheStatement",
+        path: path9,
+        params,
+        hash,
+        escaped,
+        strip,
+        loc: this.locInfo(locInfo)
+      };
+    }
+    function prepareRawBlock(openRawBlock, contents, close, locInfo) {
+      validateClose(openRawBlock, close);
+      locInfo = this.locInfo(locInfo);
+      var program2 = {
+        type: "Program",
+        body: contents,
+        strip: {},
+        loc: locInfo
+      };
+      return {
+        type: "BlockStatement",
+        path: openRawBlock.path,
+        params: openRawBlock.params,
+        hash: openRawBlock.hash,
+        program: program2,
+        openStrip: {},
+        inverseStrip: {},
+        closeStrip: {},
+        loc: locInfo
+      };
+    }
+    function prepareBlock(openBlock, program2, inverseAndProgram, close, inverted, locInfo) {
+      if (close && close.path) {
+        validateClose(openBlock, close);
+      }
+      var decorator = /\*/.test(openBlock.open);
+      program2.blockParams = openBlock.blockParams;
+      var inverse = void 0, inverseStrip = void 0;
+      if (inverseAndProgram) {
+        if (decorator) {
+          throw new _exception2["default"]("Unexpected inverse block on decorator", inverseAndProgram);
+        }
+        if (inverseAndProgram.chain) {
+          inverseAndProgram.program.body[0].closeStrip = close.strip;
+        }
+        inverseStrip = inverseAndProgram.strip;
+        inverse = inverseAndProgram.program;
+      }
+      if (inverted) {
+        inverted = inverse;
+        inverse = program2;
+        program2 = inverted;
+      }
+      return {
+        type: decorator ? "DecoratorBlock" : "BlockStatement",
+        path: openBlock.path,
+        params: openBlock.params,
+        hash: openBlock.hash,
+        program: program2,
+        inverse,
+        openStrip: openBlock.strip,
+        inverseStrip,
+        closeStrip: close && close.strip,
+        loc: this.locInfo(locInfo)
+      };
+    }
+    function prepareProgram(statements, loc) {
+      if (!loc && statements.length) {
+        var firstLoc = statements[0].loc, lastLoc = statements[statements.length - 1].loc;
+        if (firstLoc && lastLoc) {
+          loc = {
+            source: firstLoc.source,
+            start: {
+              line: firstLoc.start.line,
+              column: firstLoc.start.column
+            },
+            end: {
+              line: lastLoc.end.line,
+              column: lastLoc.end.column
+            }
+          };
+        }
+      }
+      return {
+        type: "Program",
+        body: statements,
+        strip: {},
+        loc
+      };
+    }
+    function preparePartialBlock(open2, program2, close, locInfo) {
+      validateClose(open2, close);
+      return {
+        type: "PartialBlockStatement",
+        name: open2.path,
+        params: open2.params,
+        hash: open2.hash,
+        program: program2,
+        openStrip: open2.strip,
+        closeStrip: close && close.strip,
+        loc: this.locInfo(locInfo)
+      };
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/base.js
+var require_base2 = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/base.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.parseWithoutProcessing = parseWithoutProcessing;
+    exports.parse = parse4;
+    function _interopRequireWildcard(obj) {
+      if (obj && obj.__esModule) {
+        return obj;
+      } else {
+        var newObj = {};
+        if (obj != null) {
+          for (var key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+          }
+        }
+        newObj["default"] = obj;
+        return newObj;
+      }
+    }
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _parser = require_parser();
+    var _parser2 = _interopRequireDefault(_parser);
+    var _whitespaceControl = require_whitespace_control();
+    var _whitespaceControl2 = _interopRequireDefault(_whitespaceControl);
+    var _helpers = require_helpers2();
+    var Helpers = _interopRequireWildcard(_helpers);
+    var _utils = require_utils();
+    exports.parser = _parser2["default"];
+    var yy = {};
+    _utils.extend(yy, Helpers);
+    function parseWithoutProcessing(input, options) {
+      if (input.type === "Program") {
+        return input;
+      }
+      _parser2["default"].yy = yy;
+      yy.locInfo = function(locInfo) {
+        return new yy.SourceLocation(options && options.srcName, locInfo);
+      };
+      var ast = _parser2["default"].parse(input);
+      return ast;
+    }
+    function parse4(input, options) {
+      var ast = parseWithoutProcessing(input, options);
+      var strip = new _whitespaceControl2["default"](options);
+      return strip.accept(ast);
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/compiler.js
+var require_compiler = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/compiler.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.Compiler = Compiler;
+    exports.precompile = precompile;
+    exports.compile = compile;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    var _utils = require_utils();
+    var _ast = require_ast();
+    var _ast2 = _interopRequireDefault(_ast);
+    var slice = [].slice;
+    function Compiler() {
+    }
+    Compiler.prototype = {
+      compiler: Compiler,
+      equals: function equals(other) {
+        var len = this.opcodes.length;
+        if (other.opcodes.length !== len) {
+          return false;
+        }
+        for (var i = 0; i < len; i++) {
+          var opcode = this.opcodes[i], otherOpcode = other.opcodes[i];
+          if (opcode.opcode !== otherOpcode.opcode || !argEquals(opcode.args, otherOpcode.args)) {
+            return false;
+          }
+        }
+        len = this.children.length;
+        for (var i = 0; i < len; i++) {
+          if (!this.children[i].equals(other.children[i])) {
+            return false;
+          }
+        }
+        return true;
+      },
+      guid: 0,
+      compile: function compile2(program2, options) {
+        this.sourceNode = [];
+        this.opcodes = [];
+        this.children = [];
+        this.options = options;
+        this.stringParams = options.stringParams;
+        this.trackIds = options.trackIds;
+        options.blockParams = options.blockParams || [];
+        options.knownHelpers = _utils.extend(/* @__PURE__ */ Object.create(null), {
+          helperMissing: true,
+          blockHelperMissing: true,
+          each: true,
+          "if": true,
+          unless: true,
+          "with": true,
+          log: true,
+          lookup: true
+        }, options.knownHelpers);
+        return this.accept(program2);
+      },
+      compileProgram: function compileProgram(program2) {
+        var childCompiler = new this.compiler(), result = childCompiler.compile(program2, this.options), guid = this.guid++;
+        this.usePartial = this.usePartial || result.usePartial;
+        this.children[guid] = result;
+        this.useDepths = this.useDepths || result.useDepths;
+        return guid;
+      },
+      accept: function accept(node) {
+        if (!this[node.type]) {
+          throw new _exception2["default"]("Unknown type: " + node.type, node);
+        }
+        this.sourceNode.unshift(node);
+        var ret = this[node.type](node);
+        this.sourceNode.shift();
+        return ret;
+      },
+      Program: function Program(program2) {
+        this.options.blockParams.unshift(program2.blockParams);
+        var body = program2.body, bodyLength = body.length;
+        for (var i = 0; i < bodyLength; i++) {
+          this.accept(body[i]);
+        }
+        this.options.blockParams.shift();
+        this.isSimple = bodyLength === 1;
+        this.blockParams = program2.blockParams ? program2.blockParams.length : 0;
+        return this;
+      },
+      BlockStatement: function BlockStatement(block) {
+        transformLiteralToPath(block);
+        var program2 = block.program, inverse = block.inverse;
+        program2 = program2 && this.compileProgram(program2);
+        inverse = inverse && this.compileProgram(inverse);
+        var type = this.classifySexpr(block);
+        if (type === "helper") {
+          this.helperSexpr(block, program2, inverse);
+        } else if (type === "simple") {
+          this.simpleSexpr(block);
+          this.opcode("pushProgram", program2);
+          this.opcode("pushProgram", inverse);
+          this.opcode("emptyHash");
+          this.opcode("blockValue", block.path.original);
+        } else {
+          this.ambiguousSexpr(block, program2, inverse);
+          this.opcode("pushProgram", program2);
+          this.opcode("pushProgram", inverse);
+          this.opcode("emptyHash");
+          this.opcode("ambiguousBlockValue");
+        }
+        this.opcode("append");
+      },
+      DecoratorBlock: function DecoratorBlock(decorator) {
+        var program2 = decorator.program && this.compileProgram(decorator.program);
+        var params = this.setupFullMustacheParams(decorator, program2, void 0), path9 = decorator.path;
+        this.useDecorators = true;
+        this.opcode("registerDecorator", params.length, path9.original);
+      },
+      PartialStatement: function PartialStatement(partial) {
+        this.usePartial = true;
+        var program2 = partial.program;
+        if (program2) {
+          program2 = this.compileProgram(partial.program);
+        }
+        var params = partial.params;
+        if (params.length > 1) {
+          throw new _exception2["default"]("Unsupported number of partial arguments: " + params.length, partial);
+        } else if (!params.length) {
+          if (this.options.explicitPartialContext) {
+            this.opcode("pushLiteral", "undefined");
+          } else {
+            params.push({ type: "PathExpression", parts: [], depth: 0 });
+          }
+        }
+        var partialName = partial.name.original, isDynamic = partial.name.type === "SubExpression";
+        if (isDynamic) {
+          this.accept(partial.name);
+        }
+        this.setupFullMustacheParams(partial, program2, void 0, true);
+        var indent = partial.indent || "";
+        if (this.options.preventIndent && indent) {
+          this.opcode("appendContent", indent);
+          indent = "";
+        }
+        this.opcode("invokePartial", isDynamic, partialName, indent);
+        this.opcode("append");
+      },
+      PartialBlockStatement: function PartialBlockStatement(partialBlock) {
+        this.PartialStatement(partialBlock);
+      },
+      MustacheStatement: function MustacheStatement(mustache) {
+        this.SubExpression(mustache);
+        if (mustache.escaped && !this.options.noEscape) {
+          this.opcode("appendEscaped");
+        } else {
+          this.opcode("append");
+        }
+      },
+      Decorator: function Decorator(decorator) {
+        this.DecoratorBlock(decorator);
+      },
+      ContentStatement: function ContentStatement(content) {
+        if (content.value) {
+          this.opcode("appendContent", content.value);
+        }
+      },
+      CommentStatement: function CommentStatement() {
+      },
+      SubExpression: function SubExpression(sexpr) {
+        transformLiteralToPath(sexpr);
+        var type = this.classifySexpr(sexpr);
+        if (type === "simple") {
+          this.simpleSexpr(sexpr);
+        } else if (type === "helper") {
+          this.helperSexpr(sexpr);
+        } else {
+          this.ambiguousSexpr(sexpr);
+        }
+      },
+      ambiguousSexpr: function ambiguousSexpr(sexpr, program2, inverse) {
+        var path9 = sexpr.path, name = path9.parts[0], isBlock = program2 != null || inverse != null;
+        this.opcode("getContext", path9.depth);
+        this.opcode("pushProgram", program2);
+        this.opcode("pushProgram", inverse);
+        path9.strict = true;
+        this.accept(path9);
+        this.opcode("invokeAmbiguous", name, isBlock);
+      },
+      simpleSexpr: function simpleSexpr(sexpr) {
+        var path9 = sexpr.path;
+        path9.strict = true;
+        this.accept(path9);
+        this.opcode("resolvePossibleLambda");
+      },
+      helperSexpr: function helperSexpr(sexpr, program2, inverse) {
+        var params = this.setupFullMustacheParams(sexpr, program2, inverse), path9 = sexpr.path, name = path9.parts[0];
+        if (this.options.knownHelpers[name]) {
+          this.opcode("invokeKnownHelper", params.length, name);
+        } else if (this.options.knownHelpersOnly) {
+          throw new _exception2["default"]("You specified knownHelpersOnly, but used the unknown helper " + name, sexpr);
+        } else {
+          path9.strict = true;
+          path9.falsy = true;
+          this.accept(path9);
+          this.opcode("invokeHelper", params.length, path9.original, _ast2["default"].helpers.simpleId(path9));
+        }
+      },
+      PathExpression: function PathExpression(path9) {
+        this.addDepth(path9.depth);
+        this.opcode("getContext", path9.depth);
+        var name = path9.parts[0], scoped = _ast2["default"].helpers.scopedId(path9), blockParamId = !path9.depth && !scoped && this.blockParamIndex(name);
+        if (blockParamId) {
+          this.opcode("lookupBlockParam", blockParamId, path9.parts);
+        } else if (!name) {
+          this.opcode("pushContext");
+        } else if (path9.data) {
+          this.options.data = true;
+          this.opcode("lookupData", path9.depth, path9.parts, path9.strict);
+        } else {
+          this.opcode("lookupOnContext", path9.parts, path9.falsy, path9.strict, scoped);
+        }
+      },
+      StringLiteral: function StringLiteral(string) {
+        this.opcode("pushString", string.value);
+      },
+      NumberLiteral: function NumberLiteral(number) {
+        this.opcode("pushLiteral", number.value);
+      },
+      BooleanLiteral: function BooleanLiteral(bool) {
+        this.opcode("pushLiteral", bool.value);
+      },
+      UndefinedLiteral: function UndefinedLiteral() {
+        this.opcode("pushLiteral", "undefined");
+      },
+      NullLiteral: function NullLiteral() {
+        this.opcode("pushLiteral", "null");
+      },
+      Hash: function Hash(hash) {
+        var pairs = hash.pairs, i = 0, l = pairs.length;
+        this.opcode("pushHash");
+        for (; i < l; i++) {
+          this.pushParam(pairs[i].value);
+        }
+        while (i--) {
+          this.opcode("assignToHash", pairs[i].key);
+        }
+        this.opcode("popHash");
+      },
+      // HELPERS
+      opcode: function opcode(name) {
+        this.opcodes.push({
+          opcode: name,
+          args: slice.call(arguments, 1),
+          loc: this.sourceNode[0].loc
+        });
+      },
+      addDepth: function addDepth(depth) {
+        if (!depth) {
+          return;
+        }
+        this.useDepths = true;
+      },
+      classifySexpr: function classifySexpr(sexpr) {
+        var isSimple = _ast2["default"].helpers.simpleId(sexpr.path);
+        var isBlockParam = isSimple && !!this.blockParamIndex(sexpr.path.parts[0]);
+        var isHelper = !isBlockParam && _ast2["default"].helpers.helperExpression(sexpr);
+        var isEligible = !isBlockParam && (isHelper || isSimple);
+        if (isEligible && !isHelper) {
+          var _name = sexpr.path.parts[0], options = this.options;
+          if (options.knownHelpers[_name]) {
+            isHelper = true;
+          } else if (options.knownHelpersOnly) {
+            isEligible = false;
+          }
+        }
+        if (isHelper) {
+          return "helper";
+        } else if (isEligible) {
+          return "ambiguous";
+        } else {
+          return "simple";
+        }
+      },
+      pushParams: function pushParams(params) {
+        for (var i = 0, l = params.length; i < l; i++) {
+          this.pushParam(params[i]);
+        }
+      },
+      pushParam: function pushParam(val) {
+        var value = val.value != null ? val.value : val.original || "";
+        if (this.stringParams) {
+          if (value.replace) {
+            value = value.replace(/^(\.?\.\/)*/g, "").replace(/\//g, ".");
+          }
+          if (val.depth) {
+            this.addDepth(val.depth);
+          }
+          this.opcode("getContext", val.depth || 0);
+          this.opcode("pushStringParam", value, val.type);
+          if (val.type === "SubExpression") {
+            this.accept(val);
+          }
+        } else {
+          if (this.trackIds) {
+            var blockParamIndex = void 0;
+            if (val.parts && !_ast2["default"].helpers.scopedId(val) && !val.depth) {
+              blockParamIndex = this.blockParamIndex(val.parts[0]);
+            }
+            if (blockParamIndex) {
+              var blockParamChild = val.parts.slice(1).join(".");
+              this.opcode("pushId", "BlockParam", blockParamIndex, blockParamChild);
+            } else {
+              value = val.original || value;
+              if (value.replace) {
+                value = value.replace(/^this(?:\.|$)/, "").replace(/^\.\//, "").replace(/^\.$/, "");
+              }
+              this.opcode("pushId", val.type, value);
+            }
+          }
+          this.accept(val);
+        }
+      },
+      setupFullMustacheParams: function setupFullMustacheParams(sexpr, program2, inverse, omitEmpty) {
+        var params = sexpr.params;
+        this.pushParams(params);
+        this.opcode("pushProgram", program2);
+        this.opcode("pushProgram", inverse);
+        if (sexpr.hash) {
+          this.accept(sexpr.hash);
+        } else {
+          this.opcode("emptyHash", omitEmpty);
+        }
+        return params;
+      },
+      blockParamIndex: function blockParamIndex(name) {
+        for (var depth = 0, len = this.options.blockParams.length; depth < len; depth++) {
+          var blockParams = this.options.blockParams[depth], param = blockParams && _utils.indexOf(blockParams, name);
+          if (blockParams && param >= 0) {
+            return [depth, param];
+          }
+        }
+      }
+    };
+    function precompile(input, options, env) {
+      if (input == null || typeof input !== "string" && input.type !== "Program") {
+        throw new _exception2["default"]("You must pass a string or Handlebars AST to Handlebars.precompile. You passed " + input);
+      }
+      options = options || {};
+      if (!("data" in options)) {
+        options.data = true;
+      }
+      if (options.compat) {
+        options.useDepths = true;
+      }
+      var ast = env.parse(input, options), environment = new env.Compiler().compile(ast, options);
+      return new env.JavaScriptCompiler().compile(environment, options);
+    }
+    function compile(input, options, env) {
+      if (options === void 0) options = {};
+      if (input == null || typeof input !== "string" && input.type !== "Program") {
+        throw new _exception2["default"]("You must pass a string or Handlebars AST to Handlebars.compile. You passed " + input);
+      }
+      options = _utils.extend({}, options);
+      if (!("data" in options)) {
+        options.data = true;
+      }
+      if (options.compat) {
+        options.useDepths = true;
+      }
+      var compiled = void 0;
+      function compileInput() {
+        var ast = env.parse(input, options), environment = new env.Compiler().compile(ast, options), templateSpec = new env.JavaScriptCompiler().compile(environment, options, void 0, true);
+        return env.template(templateSpec);
+      }
+      function ret(context, execOptions) {
+        if (!compiled) {
+          compiled = compileInput();
+        }
+        return compiled.call(this, context, execOptions);
+      }
+      ret._setup = function(setupOptions) {
+        if (!compiled) {
+          compiled = compileInput();
+        }
+        return compiled._setup(setupOptions);
+      };
+      ret._child = function(i, data, blockParams, depths) {
+        if (!compiled) {
+          compiled = compileInput();
+        }
+        return compiled._child(i, data, blockParams, depths);
+      };
+      return ret;
+    }
+    function argEquals(a, b) {
+      if (a === b) {
+        return true;
+      }
+      if (_utils.isArray(a) && _utils.isArray(b) && a.length === b.length) {
+        for (var i = 0; i < a.length; i++) {
+          if (!argEquals(a[i], b[i])) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+    function transformLiteralToPath(sexpr) {
+      if (!sexpr.path.parts) {
+        var literal = sexpr.path;
+        sexpr.path = {
+          type: "PathExpression",
+          data: false,
+          depth: 0,
+          parts: [literal.original + ""],
+          original: literal.original + "",
+          loc: literal.loc
+        };
+      }
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/base64.js
+var require_base64 = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/base64.js"(exports) {
+    var intToCharMap = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".split("");
+    exports.encode = function(number) {
+      if (0 <= number && number < intToCharMap.length) {
+        return intToCharMap[number];
+      }
+      throw new TypeError("Must be between 0 and 63: " + number);
+    };
+    exports.decode = function(charCode) {
+      var bigA = 65;
+      var bigZ = 90;
+      var littleA = 97;
+      var littleZ = 122;
+      var zero = 48;
+      var nine = 57;
+      var plus = 43;
+      var slash = 47;
+      var littleOffset = 26;
+      var numberOffset = 52;
+      if (bigA <= charCode && charCode <= bigZ) {
+        return charCode - bigA;
+      }
+      if (littleA <= charCode && charCode <= littleZ) {
+        return charCode - littleA + littleOffset;
+      }
+      if (zero <= charCode && charCode <= nine) {
+        return charCode - zero + numberOffset;
+      }
+      if (charCode == plus) {
+        return 62;
+      }
+      if (charCode == slash) {
+        return 63;
+      }
+      return -1;
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/base64-vlq.js
+var require_base64_vlq = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/base64-vlq.js"(exports) {
+    var base64 = require_base64();
+    var VLQ_BASE_SHIFT = 5;
+    var VLQ_BASE = 1 << VLQ_BASE_SHIFT;
+    var VLQ_BASE_MASK = VLQ_BASE - 1;
+    var VLQ_CONTINUATION_BIT = VLQ_BASE;
+    function toVLQSigned(aValue) {
+      return aValue < 0 ? (-aValue << 1) + 1 : (aValue << 1) + 0;
+    }
+    function fromVLQSigned(aValue) {
+      var isNegative = (aValue & 1) === 1;
+      var shifted = aValue >> 1;
+      return isNegative ? -shifted : shifted;
+    }
+    exports.encode = function base64VLQ_encode(aValue) {
+      var encoded = "";
+      var digit;
+      var vlq = toVLQSigned(aValue);
+      do {
+        digit = vlq & VLQ_BASE_MASK;
+        vlq >>>= VLQ_BASE_SHIFT;
+        if (vlq > 0) {
+          digit |= VLQ_CONTINUATION_BIT;
+        }
+        encoded += base64.encode(digit);
+      } while (vlq > 0);
+      return encoded;
+    };
+    exports.decode = function base64VLQ_decode(aStr, aIndex, aOutParam) {
+      var strLen = aStr.length;
+      var result = 0;
+      var shift = 0;
+      var continuation, digit;
+      do {
+        if (aIndex >= strLen) {
+          throw new Error("Expected more digits in base 64 VLQ value.");
+        }
+        digit = base64.decode(aStr.charCodeAt(aIndex++));
+        if (digit === -1) {
+          throw new Error("Invalid base64 digit: " + aStr.charAt(aIndex - 1));
+        }
+        continuation = !!(digit & VLQ_CONTINUATION_BIT);
+        digit &= VLQ_BASE_MASK;
+        result = result + (digit << shift);
+        shift += VLQ_BASE_SHIFT;
+      } while (continuation);
+      aOutParam.value = fromVLQSigned(result);
+      aOutParam.rest = aIndex;
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/util.js
+var require_util = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/util.js"(exports) {
+    function getArg(aArgs, aName, aDefaultValue) {
+      if (aName in aArgs) {
+        return aArgs[aName];
+      } else if (arguments.length === 3) {
+        return aDefaultValue;
+      } else {
+        throw new Error('"' + aName + '" is a required argument.');
+      }
+    }
+    exports.getArg = getArg;
+    var urlRegexp = /^(?:([\w+\-.]+):)?\/\/(?:(\w+:\w+)@)?([\w.-]*)(?::(\d+))?(.*)$/;
+    var dataUrlRegexp = /^data:.+\,.+$/;
+    function urlParse(aUrl) {
+      var match = aUrl.match(urlRegexp);
+      if (!match) {
+        return null;
+      }
+      return {
+        scheme: match[1],
+        auth: match[2],
+        host: match[3],
+        port: match[4],
+        path: match[5]
+      };
+    }
+    exports.urlParse = urlParse;
+    function urlGenerate(aParsedUrl) {
+      var url = "";
+      if (aParsedUrl.scheme) {
+        url += aParsedUrl.scheme + ":";
+      }
+      url += "//";
+      if (aParsedUrl.auth) {
+        url += aParsedUrl.auth + "@";
+      }
+      if (aParsedUrl.host) {
+        url += aParsedUrl.host;
+      }
+      if (aParsedUrl.port) {
+        url += ":" + aParsedUrl.port;
+      }
+      if (aParsedUrl.path) {
+        url += aParsedUrl.path;
+      }
+      return url;
+    }
+    exports.urlGenerate = urlGenerate;
+    function normalize(aPath) {
+      var path9 = aPath;
+      var url = urlParse(aPath);
+      if (url) {
+        if (!url.path) {
+          return aPath;
+        }
+        path9 = url.path;
+      }
+      var isAbsolute2 = exports.isAbsolute(path9);
+      var parts = path9.split(/\/+/);
+      for (var part, up = 0, i = parts.length - 1; i >= 0; i--) {
+        part = parts[i];
+        if (part === ".") {
+          parts.splice(i, 1);
+        } else if (part === "..") {
+          up++;
+        } else if (up > 0) {
+          if (part === "") {
+            parts.splice(i + 1, up);
+            up = 0;
+          } else {
+            parts.splice(i, 2);
+            up--;
+          }
+        }
+      }
+      path9 = parts.join("/");
+      if (path9 === "") {
+        path9 = isAbsolute2 ? "/" : ".";
+      }
+      if (url) {
+        url.path = path9;
+        return urlGenerate(url);
+      }
+      return path9;
+    }
+    exports.normalize = normalize;
+    function join8(aRoot, aPath) {
+      if (aRoot === "") {
+        aRoot = ".";
+      }
+      if (aPath === "") {
+        aPath = ".";
+      }
+      var aPathUrl = urlParse(aPath);
+      var aRootUrl = urlParse(aRoot);
+      if (aRootUrl) {
+        aRoot = aRootUrl.path || "/";
+      }
+      if (aPathUrl && !aPathUrl.scheme) {
+        if (aRootUrl) {
+          aPathUrl.scheme = aRootUrl.scheme;
+        }
+        return urlGenerate(aPathUrl);
+      }
+      if (aPathUrl || aPath.match(dataUrlRegexp)) {
+        return aPath;
+      }
+      if (aRootUrl && !aRootUrl.host && !aRootUrl.path) {
+        aRootUrl.host = aPath;
+        return urlGenerate(aRootUrl);
+      }
+      var joined = aPath.charAt(0) === "/" ? aPath : normalize(aRoot.replace(/\/+$/, "") + "/" + aPath);
+      if (aRootUrl) {
+        aRootUrl.path = joined;
+        return urlGenerate(aRootUrl);
+      }
+      return joined;
+    }
+    exports.join = join8;
+    exports.isAbsolute = function(aPath) {
+      return aPath.charAt(0) === "/" || urlRegexp.test(aPath);
+    };
+    function relative5(aRoot, aPath) {
+      if (aRoot === "") {
+        aRoot = ".";
+      }
+      aRoot = aRoot.replace(/\/$/, "");
+      var level = 0;
+      while (aPath.indexOf(aRoot + "/") !== 0) {
+        var index = aRoot.lastIndexOf("/");
+        if (index < 0) {
+          return aPath;
+        }
+        aRoot = aRoot.slice(0, index);
+        if (aRoot.match(/^([^\/]+:\/)?\/*$/)) {
+          return aPath;
+        }
+        ++level;
+      }
+      return Array(level + 1).join("../") + aPath.substr(aRoot.length + 1);
+    }
+    exports.relative = relative5;
+    var supportsNullProto = (function() {
+      var obj = /* @__PURE__ */ Object.create(null);
+      return !("__proto__" in obj);
+    })();
+    function identity(s) {
+      return s;
+    }
+    function toSetString(aStr) {
+      if (isProtoString(aStr)) {
+        return "$" + aStr;
+      }
+      return aStr;
+    }
+    exports.toSetString = supportsNullProto ? identity : toSetString;
+    function fromSetString(aStr) {
+      if (isProtoString(aStr)) {
+        return aStr.slice(1);
+      }
+      return aStr;
+    }
+    exports.fromSetString = supportsNullProto ? identity : fromSetString;
+    function isProtoString(s) {
+      if (!s) {
+        return false;
+      }
+      var length = s.length;
+      if (length < 9) {
+        return false;
+      }
+      if (s.charCodeAt(length - 1) !== 95 || s.charCodeAt(length - 2) !== 95 || s.charCodeAt(length - 3) !== 111 || s.charCodeAt(length - 4) !== 116 || s.charCodeAt(length - 5) !== 111 || s.charCodeAt(length - 6) !== 114 || s.charCodeAt(length - 7) !== 112 || s.charCodeAt(length - 8) !== 95 || s.charCodeAt(length - 9) !== 95) {
+        return false;
+      }
+      for (var i = length - 10; i >= 0; i--) {
+        if (s.charCodeAt(i) !== 36) {
+          return false;
+        }
+      }
+      return true;
+    }
+    function compareByOriginalPositions(mappingA, mappingB, onlyCompareOriginal) {
+      var cmp = strcmp(mappingA.source, mappingB.source);
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.originalLine - mappingB.originalLine;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.originalColumn - mappingB.originalColumn;
+      if (cmp !== 0 || onlyCompareOriginal) {
+        return cmp;
+      }
+      cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.generatedLine - mappingB.generatedLine;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      return strcmp(mappingA.name, mappingB.name);
+    }
+    exports.compareByOriginalPositions = compareByOriginalPositions;
+    function compareByGeneratedPositionsDeflated(mappingA, mappingB, onlyCompareGenerated) {
+      var cmp = mappingA.generatedLine - mappingB.generatedLine;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+      if (cmp !== 0 || onlyCompareGenerated) {
+        return cmp;
+      }
+      cmp = strcmp(mappingA.source, mappingB.source);
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.originalLine - mappingB.originalLine;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.originalColumn - mappingB.originalColumn;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      return strcmp(mappingA.name, mappingB.name);
+    }
+    exports.compareByGeneratedPositionsDeflated = compareByGeneratedPositionsDeflated;
+    function strcmp(aStr1, aStr2) {
+      if (aStr1 === aStr2) {
+        return 0;
+      }
+      if (aStr1 === null) {
+        return 1;
+      }
+      if (aStr2 === null) {
+        return -1;
+      }
+      if (aStr1 > aStr2) {
+        return 1;
+      }
+      return -1;
+    }
+    function compareByGeneratedPositionsInflated(mappingA, mappingB) {
+      var cmp = mappingA.generatedLine - mappingB.generatedLine;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = strcmp(mappingA.source, mappingB.source);
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.originalLine - mappingB.originalLine;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      cmp = mappingA.originalColumn - mappingB.originalColumn;
+      if (cmp !== 0) {
+        return cmp;
+      }
+      return strcmp(mappingA.name, mappingB.name);
+    }
+    exports.compareByGeneratedPositionsInflated = compareByGeneratedPositionsInflated;
+    function parseSourceMapInput(str) {
+      return JSON.parse(str.replace(/^\)]}'[^\n]*\n/, ""));
+    }
+    exports.parseSourceMapInput = parseSourceMapInput;
+    function computeSourceURL(sourceRoot, sourceURL, sourceMapURL) {
+      sourceURL = sourceURL || "";
+      if (sourceRoot) {
+        if (sourceRoot[sourceRoot.length - 1] !== "/" && sourceURL[0] !== "/") {
+          sourceRoot += "/";
+        }
+        sourceURL = sourceRoot + sourceURL;
+      }
+      if (sourceMapURL) {
+        var parsed = urlParse(sourceMapURL);
+        if (!parsed) {
+          throw new Error("sourceMapURL could not be parsed");
+        }
+        if (parsed.path) {
+          var index = parsed.path.lastIndexOf("/");
+          if (index >= 0) {
+            parsed.path = parsed.path.substring(0, index + 1);
+          }
+        }
+        sourceURL = join8(urlGenerate(parsed), sourceURL);
+      }
+      return normalize(sourceURL);
+    }
+    exports.computeSourceURL = computeSourceURL;
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/array-set.js
+var require_array_set = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/array-set.js"(exports) {
+    var util2 = require_util();
+    var has = Object.prototype.hasOwnProperty;
+    var hasNativeMap = typeof Map !== "undefined";
+    function ArraySet() {
+      this._array = [];
+      this._set = hasNativeMap ? /* @__PURE__ */ new Map() : /* @__PURE__ */ Object.create(null);
+    }
+    ArraySet.fromArray = function ArraySet_fromArray(aArray, aAllowDuplicates) {
+      var set = new ArraySet();
+      for (var i = 0, len = aArray.length; i < len; i++) {
+        set.add(aArray[i], aAllowDuplicates);
+      }
+      return set;
+    };
+    ArraySet.prototype.size = function ArraySet_size() {
+      return hasNativeMap ? this._set.size : Object.getOwnPropertyNames(this._set).length;
+    };
+    ArraySet.prototype.add = function ArraySet_add(aStr, aAllowDuplicates) {
+      var sStr = hasNativeMap ? aStr : util2.toSetString(aStr);
+      var isDuplicate = hasNativeMap ? this.has(aStr) : has.call(this._set, sStr);
+      var idx = this._array.length;
+      if (!isDuplicate || aAllowDuplicates) {
+        this._array.push(aStr);
+      }
+      if (!isDuplicate) {
+        if (hasNativeMap) {
+          this._set.set(aStr, idx);
+        } else {
+          this._set[sStr] = idx;
+        }
+      }
+    };
+    ArraySet.prototype.has = function ArraySet_has(aStr) {
+      if (hasNativeMap) {
+        return this._set.has(aStr);
+      } else {
+        var sStr = util2.toSetString(aStr);
+        return has.call(this._set, sStr);
+      }
+    };
+    ArraySet.prototype.indexOf = function ArraySet_indexOf(aStr) {
+      if (hasNativeMap) {
+        var idx = this._set.get(aStr);
+        if (idx >= 0) {
+          return idx;
+        }
+      } else {
+        var sStr = util2.toSetString(aStr);
+        if (has.call(this._set, sStr)) {
+          return this._set[sStr];
+        }
+      }
+      throw new Error('"' + aStr + '" is not in the set.');
+    };
+    ArraySet.prototype.at = function ArraySet_at(aIdx) {
+      if (aIdx >= 0 && aIdx < this._array.length) {
+        return this._array[aIdx];
+      }
+      throw new Error("No element indexed by " + aIdx);
+    };
+    ArraySet.prototype.toArray = function ArraySet_toArray() {
+      return this._array.slice();
+    };
+    exports.ArraySet = ArraySet;
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/mapping-list.js
+var require_mapping_list = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/mapping-list.js"(exports) {
+    var util2 = require_util();
+    function generatedPositionAfter(mappingA, mappingB) {
+      var lineA = mappingA.generatedLine;
+      var lineB = mappingB.generatedLine;
+      var columnA = mappingA.generatedColumn;
+      var columnB = mappingB.generatedColumn;
+      return lineB > lineA || lineB == lineA && columnB >= columnA || util2.compareByGeneratedPositionsInflated(mappingA, mappingB) <= 0;
+    }
+    function MappingList() {
+      this._array = [];
+      this._sorted = true;
+      this._last = { generatedLine: -1, generatedColumn: 0 };
+    }
+    MappingList.prototype.unsortedForEach = function MappingList_forEach(aCallback, aThisArg) {
+      this._array.forEach(aCallback, aThisArg);
+    };
+    MappingList.prototype.add = function MappingList_add(aMapping) {
+      if (generatedPositionAfter(this._last, aMapping)) {
+        this._last = aMapping;
+        this._array.push(aMapping);
+      } else {
+        this._sorted = false;
+        this._array.push(aMapping);
+      }
+    };
+    MappingList.prototype.toArray = function MappingList_toArray() {
+      if (!this._sorted) {
+        this._array.sort(util2.compareByGeneratedPositionsInflated);
+        this._sorted = true;
+      }
+      return this._array;
+    };
+    exports.MappingList = MappingList;
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/source-map-generator.js
+var require_source_map_generator = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/source-map-generator.js"(exports) {
+    var base64VLQ = require_base64_vlq();
+    var util2 = require_util();
+    var ArraySet = require_array_set().ArraySet;
+    var MappingList = require_mapping_list().MappingList;
+    function SourceMapGenerator(aArgs) {
+      if (!aArgs) {
+        aArgs = {};
+      }
+      this._file = util2.getArg(aArgs, "file", null);
+      this._sourceRoot = util2.getArg(aArgs, "sourceRoot", null);
+      this._skipValidation = util2.getArg(aArgs, "skipValidation", false);
+      this._sources = new ArraySet();
+      this._names = new ArraySet();
+      this._mappings = new MappingList();
+      this._sourcesContents = null;
+    }
+    SourceMapGenerator.prototype._version = 3;
+    SourceMapGenerator.fromSourceMap = function SourceMapGenerator_fromSourceMap(aSourceMapConsumer) {
+      var sourceRoot = aSourceMapConsumer.sourceRoot;
+      var generator = new SourceMapGenerator({
+        file: aSourceMapConsumer.file,
+        sourceRoot
+      });
+      aSourceMapConsumer.eachMapping(function(mapping) {
+        var newMapping = {
+          generated: {
+            line: mapping.generatedLine,
+            column: mapping.generatedColumn
+          }
+        };
+        if (mapping.source != null) {
+          newMapping.source = mapping.source;
+          if (sourceRoot != null) {
+            newMapping.source = util2.relative(sourceRoot, newMapping.source);
+          }
+          newMapping.original = {
+            line: mapping.originalLine,
+            column: mapping.originalColumn
+          };
+          if (mapping.name != null) {
+            newMapping.name = mapping.name;
+          }
+        }
+        generator.addMapping(newMapping);
+      });
+      aSourceMapConsumer.sources.forEach(function(sourceFile) {
+        var sourceRelative = sourceFile;
+        if (sourceRoot !== null) {
+          sourceRelative = util2.relative(sourceRoot, sourceFile);
+        }
+        if (!generator._sources.has(sourceRelative)) {
+          generator._sources.add(sourceRelative);
+        }
+        var content = aSourceMapConsumer.sourceContentFor(sourceFile);
+        if (content != null) {
+          generator.setSourceContent(sourceFile, content);
+        }
+      });
+      return generator;
+    };
+    SourceMapGenerator.prototype.addMapping = function SourceMapGenerator_addMapping(aArgs) {
+      var generated = util2.getArg(aArgs, "generated");
+      var original = util2.getArg(aArgs, "original", null);
+      var source = util2.getArg(aArgs, "source", null);
+      var name = util2.getArg(aArgs, "name", null);
+      if (!this._skipValidation) {
+        this._validateMapping(generated, original, source, name);
+      }
+      if (source != null) {
+        source = String(source);
+        if (!this._sources.has(source)) {
+          this._sources.add(source);
+        }
+      }
+      if (name != null) {
+        name = String(name);
+        if (!this._names.has(name)) {
+          this._names.add(name);
+        }
+      }
+      this._mappings.add({
+        generatedLine: generated.line,
+        generatedColumn: generated.column,
+        originalLine: original != null && original.line,
+        originalColumn: original != null && original.column,
+        source,
+        name
+      });
+    };
+    SourceMapGenerator.prototype.setSourceContent = function SourceMapGenerator_setSourceContent(aSourceFile, aSourceContent) {
+      var source = aSourceFile;
+      if (this._sourceRoot != null) {
+        source = util2.relative(this._sourceRoot, source);
+      }
+      if (aSourceContent != null) {
+        if (!this._sourcesContents) {
+          this._sourcesContents = /* @__PURE__ */ Object.create(null);
+        }
+        this._sourcesContents[util2.toSetString(source)] = aSourceContent;
+      } else if (this._sourcesContents) {
+        delete this._sourcesContents[util2.toSetString(source)];
+        if (Object.keys(this._sourcesContents).length === 0) {
+          this._sourcesContents = null;
+        }
+      }
+    };
+    SourceMapGenerator.prototype.applySourceMap = function SourceMapGenerator_applySourceMap(aSourceMapConsumer, aSourceFile, aSourceMapPath) {
+      var sourceFile = aSourceFile;
+      if (aSourceFile == null) {
+        if (aSourceMapConsumer.file == null) {
+          throw new Error(
+            `SourceMapGenerator.prototype.applySourceMap requires either an explicit source file, or the source map's "file" property. Both were omitted.`
+          );
+        }
+        sourceFile = aSourceMapConsumer.file;
+      }
+      var sourceRoot = this._sourceRoot;
+      if (sourceRoot != null) {
+        sourceFile = util2.relative(sourceRoot, sourceFile);
+      }
+      var newSources = new ArraySet();
+      var newNames = new ArraySet();
+      this._mappings.unsortedForEach(function(mapping) {
+        if (mapping.source === sourceFile && mapping.originalLine != null) {
+          var original = aSourceMapConsumer.originalPositionFor({
+            line: mapping.originalLine,
+            column: mapping.originalColumn
+          });
+          if (original.source != null) {
+            mapping.source = original.source;
+            if (aSourceMapPath != null) {
+              mapping.source = util2.join(aSourceMapPath, mapping.source);
+            }
+            if (sourceRoot != null) {
+              mapping.source = util2.relative(sourceRoot, mapping.source);
+            }
+            mapping.originalLine = original.line;
+            mapping.originalColumn = original.column;
+            if (original.name != null) {
+              mapping.name = original.name;
+            }
+          }
+        }
+        var source = mapping.source;
+        if (source != null && !newSources.has(source)) {
+          newSources.add(source);
+        }
+        var name = mapping.name;
+        if (name != null && !newNames.has(name)) {
+          newNames.add(name);
+        }
+      }, this);
+      this._sources = newSources;
+      this._names = newNames;
+      aSourceMapConsumer.sources.forEach(function(sourceFile2) {
+        var content = aSourceMapConsumer.sourceContentFor(sourceFile2);
+        if (content != null) {
+          if (aSourceMapPath != null) {
+            sourceFile2 = util2.join(aSourceMapPath, sourceFile2);
+          }
+          if (sourceRoot != null) {
+            sourceFile2 = util2.relative(sourceRoot, sourceFile2);
+          }
+          this.setSourceContent(sourceFile2, content);
+        }
+      }, this);
+    };
+    SourceMapGenerator.prototype._validateMapping = function SourceMapGenerator_validateMapping(aGenerated, aOriginal, aSource, aName) {
+      if (aOriginal && typeof aOriginal.line !== "number" && typeof aOriginal.column !== "number") {
+        throw new Error(
+          "original.line and original.column are not numbers -- you probably meant to omit the original mapping entirely and only map the generated position. If so, pass null for the original mapping instead of an object with empty or null values."
+        );
+      }
+      if (aGenerated && "line" in aGenerated && "column" in aGenerated && aGenerated.line > 0 && aGenerated.column >= 0 && !aOriginal && !aSource && !aName) {
+        return;
+      } else if (aGenerated && "line" in aGenerated && "column" in aGenerated && aOriginal && "line" in aOriginal && "column" in aOriginal && aGenerated.line > 0 && aGenerated.column >= 0 && aOriginal.line > 0 && aOriginal.column >= 0 && aSource) {
+        return;
+      } else {
+        throw new Error("Invalid mapping: " + JSON.stringify({
+          generated: aGenerated,
+          source: aSource,
+          original: aOriginal,
+          name: aName
+        }));
+      }
+    };
+    SourceMapGenerator.prototype._serializeMappings = function SourceMapGenerator_serializeMappings() {
+      var previousGeneratedColumn = 0;
+      var previousGeneratedLine = 1;
+      var previousOriginalColumn = 0;
+      var previousOriginalLine = 0;
+      var previousName = 0;
+      var previousSource = 0;
+      var result = "";
+      var next;
+      var mapping;
+      var nameIdx;
+      var sourceIdx;
+      var mappings = this._mappings.toArray();
+      for (var i = 0, len = mappings.length; i < len; i++) {
+        mapping = mappings[i];
+        next = "";
+        if (mapping.generatedLine !== previousGeneratedLine) {
+          previousGeneratedColumn = 0;
+          while (mapping.generatedLine !== previousGeneratedLine) {
+            next += ";";
+            previousGeneratedLine++;
+          }
+        } else {
+          if (i > 0) {
+            if (!util2.compareByGeneratedPositionsInflated(mapping, mappings[i - 1])) {
+              continue;
+            }
+            next += ",";
+          }
+        }
+        next += base64VLQ.encode(mapping.generatedColumn - previousGeneratedColumn);
+        previousGeneratedColumn = mapping.generatedColumn;
+        if (mapping.source != null) {
+          sourceIdx = this._sources.indexOf(mapping.source);
+          next += base64VLQ.encode(sourceIdx - previousSource);
+          previousSource = sourceIdx;
+          next += base64VLQ.encode(mapping.originalLine - 1 - previousOriginalLine);
+          previousOriginalLine = mapping.originalLine - 1;
+          next += base64VLQ.encode(mapping.originalColumn - previousOriginalColumn);
+          previousOriginalColumn = mapping.originalColumn;
+          if (mapping.name != null) {
+            nameIdx = this._names.indexOf(mapping.name);
+            next += base64VLQ.encode(nameIdx - previousName);
+            previousName = nameIdx;
+          }
+        }
+        result += next;
+      }
+      return result;
+    };
+    SourceMapGenerator.prototype._generateSourcesContent = function SourceMapGenerator_generateSourcesContent(aSources, aSourceRoot) {
+      return aSources.map(function(source) {
+        if (!this._sourcesContents) {
+          return null;
+        }
+        if (aSourceRoot != null) {
+          source = util2.relative(aSourceRoot, source);
+        }
+        var key = util2.toSetString(source);
+        return Object.prototype.hasOwnProperty.call(this._sourcesContents, key) ? this._sourcesContents[key] : null;
+      }, this);
+    };
+    SourceMapGenerator.prototype.toJSON = function SourceMapGenerator_toJSON() {
+      var map = {
+        version: this._version,
+        sources: this._sources.toArray(),
+        names: this._names.toArray(),
+        mappings: this._serializeMappings()
+      };
+      if (this._file != null) {
+        map.file = this._file;
+      }
+      if (this._sourceRoot != null) {
+        map.sourceRoot = this._sourceRoot;
+      }
+      if (this._sourcesContents) {
+        map.sourcesContent = this._generateSourcesContent(map.sources, map.sourceRoot);
+      }
+      return map;
+    };
+    SourceMapGenerator.prototype.toString = function SourceMapGenerator_toString() {
+      return JSON.stringify(this.toJSON());
+    };
+    exports.SourceMapGenerator = SourceMapGenerator;
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/binary-search.js
+var require_binary_search = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/binary-search.js"(exports) {
+    exports.GREATEST_LOWER_BOUND = 1;
+    exports.LEAST_UPPER_BOUND = 2;
+    function recursiveSearch(aLow, aHigh, aNeedle, aHaystack, aCompare, aBias) {
+      var mid = Math.floor((aHigh - aLow) / 2) + aLow;
+      var cmp = aCompare(aNeedle, aHaystack[mid], true);
+      if (cmp === 0) {
+        return mid;
+      } else if (cmp > 0) {
+        if (aHigh - mid > 1) {
+          return recursiveSearch(mid, aHigh, aNeedle, aHaystack, aCompare, aBias);
+        }
+        if (aBias == exports.LEAST_UPPER_BOUND) {
+          return aHigh < aHaystack.length ? aHigh : -1;
+        } else {
+          return mid;
+        }
+      } else {
+        if (mid - aLow > 1) {
+          return recursiveSearch(aLow, mid, aNeedle, aHaystack, aCompare, aBias);
+        }
+        if (aBias == exports.LEAST_UPPER_BOUND) {
+          return mid;
+        } else {
+          return aLow < 0 ? -1 : aLow;
+        }
+      }
+    }
+    exports.search = function search(aNeedle, aHaystack, aCompare, aBias) {
+      if (aHaystack.length === 0) {
+        return -1;
+      }
+      var index = recursiveSearch(
+        -1,
+        aHaystack.length,
+        aNeedle,
+        aHaystack,
+        aCompare,
+        aBias || exports.GREATEST_LOWER_BOUND
+      );
+      if (index < 0) {
+        return -1;
+      }
+      while (index - 1 >= 0) {
+        if (aCompare(aHaystack[index], aHaystack[index - 1], true) !== 0) {
+          break;
+        }
+        --index;
+      }
+      return index;
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/quick-sort.js
+var require_quick_sort = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/quick-sort.js"(exports) {
+    function swap(ary, x, y) {
+      var temp = ary[x];
+      ary[x] = ary[y];
+      ary[y] = temp;
+    }
+    function randomIntInRange(low, high) {
+      return Math.round(low + Math.random() * (high - low));
+    }
+    function doQuickSort(ary, comparator, p, r) {
+      if (p < r) {
+        var pivotIndex = randomIntInRange(p, r);
+        var i = p - 1;
+        swap(ary, pivotIndex, r);
+        var pivot = ary[r];
+        for (var j = p; j < r; j++) {
+          if (comparator(ary[j], pivot) <= 0) {
+            i += 1;
+            swap(ary, i, j);
+          }
+        }
+        swap(ary, i + 1, j);
+        var q = i + 1;
+        doQuickSort(ary, comparator, p, q - 1);
+        doQuickSort(ary, comparator, q + 1, r);
+      }
+    }
+    exports.quickSort = function(ary, comparator) {
+      doQuickSort(ary, comparator, 0, ary.length - 1);
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/source-map-consumer.js
+var require_source_map_consumer = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/source-map-consumer.js"(exports) {
+    var util2 = require_util();
+    var binarySearch = require_binary_search();
+    var ArraySet = require_array_set().ArraySet;
+    var base64VLQ = require_base64_vlq();
+    var quickSort = require_quick_sort().quickSort;
+    function SourceMapConsumer(aSourceMap, aSourceMapURL) {
+      var sourceMap = aSourceMap;
+      if (typeof aSourceMap === "string") {
+        sourceMap = util2.parseSourceMapInput(aSourceMap);
+      }
+      return sourceMap.sections != null ? new IndexedSourceMapConsumer(sourceMap, aSourceMapURL) : new BasicSourceMapConsumer(sourceMap, aSourceMapURL);
+    }
+    SourceMapConsumer.fromSourceMap = function(aSourceMap, aSourceMapURL) {
+      return BasicSourceMapConsumer.fromSourceMap(aSourceMap, aSourceMapURL);
+    };
+    SourceMapConsumer.prototype._version = 3;
+    SourceMapConsumer.prototype.__generatedMappings = null;
+    Object.defineProperty(SourceMapConsumer.prototype, "_generatedMappings", {
+      configurable: true,
+      enumerable: true,
+      get: function() {
+        if (!this.__generatedMappings) {
+          this._parseMappings(this._mappings, this.sourceRoot);
+        }
+        return this.__generatedMappings;
+      }
+    });
+    SourceMapConsumer.prototype.__originalMappings = null;
+    Object.defineProperty(SourceMapConsumer.prototype, "_originalMappings", {
+      configurable: true,
+      enumerable: true,
+      get: function() {
+        if (!this.__originalMappings) {
+          this._parseMappings(this._mappings, this.sourceRoot);
+        }
+        return this.__originalMappings;
+      }
+    });
+    SourceMapConsumer.prototype._charIsMappingSeparator = function SourceMapConsumer_charIsMappingSeparator(aStr, index) {
+      var c = aStr.charAt(index);
+      return c === ";" || c === ",";
+    };
+    SourceMapConsumer.prototype._parseMappings = function SourceMapConsumer_parseMappings(aStr, aSourceRoot) {
+      throw new Error("Subclasses must implement _parseMappings");
+    };
+    SourceMapConsumer.GENERATED_ORDER = 1;
+    SourceMapConsumer.ORIGINAL_ORDER = 2;
+    SourceMapConsumer.GREATEST_LOWER_BOUND = 1;
+    SourceMapConsumer.LEAST_UPPER_BOUND = 2;
+    SourceMapConsumer.prototype.eachMapping = function SourceMapConsumer_eachMapping(aCallback, aContext, aOrder) {
+      var context = aContext || null;
+      var order = aOrder || SourceMapConsumer.GENERATED_ORDER;
+      var mappings;
+      switch (order) {
+        case SourceMapConsumer.GENERATED_ORDER:
+          mappings = this._generatedMappings;
+          break;
+        case SourceMapConsumer.ORIGINAL_ORDER:
+          mappings = this._originalMappings;
+          break;
+        default:
+          throw new Error("Unknown order of iteration.");
+      }
+      var sourceRoot = this.sourceRoot;
+      mappings.map(function(mapping) {
+        var source = mapping.source === null ? null : this._sources.at(mapping.source);
+        source = util2.computeSourceURL(sourceRoot, source, this._sourceMapURL);
+        return {
+          source,
+          generatedLine: mapping.generatedLine,
+          generatedColumn: mapping.generatedColumn,
+          originalLine: mapping.originalLine,
+          originalColumn: mapping.originalColumn,
+          name: mapping.name === null ? null : this._names.at(mapping.name)
+        };
+      }, this).forEach(aCallback, context);
+    };
+    SourceMapConsumer.prototype.allGeneratedPositionsFor = function SourceMapConsumer_allGeneratedPositionsFor(aArgs) {
+      var line = util2.getArg(aArgs, "line");
+      var needle = {
+        source: util2.getArg(aArgs, "source"),
+        originalLine: line,
+        originalColumn: util2.getArg(aArgs, "column", 0)
+      };
+      needle.source = this._findSourceIndex(needle.source);
+      if (needle.source < 0) {
+        return [];
+      }
+      var mappings = [];
+      var index = this._findMapping(
+        needle,
+        this._originalMappings,
+        "originalLine",
+        "originalColumn",
+        util2.compareByOriginalPositions,
+        binarySearch.LEAST_UPPER_BOUND
+      );
+      if (index >= 0) {
+        var mapping = this._originalMappings[index];
+        if (aArgs.column === void 0) {
+          var originalLine = mapping.originalLine;
+          while (mapping && mapping.originalLine === originalLine) {
+            mappings.push({
+              line: util2.getArg(mapping, "generatedLine", null),
+              column: util2.getArg(mapping, "generatedColumn", null),
+              lastColumn: util2.getArg(mapping, "lastGeneratedColumn", null)
+            });
+            mapping = this._originalMappings[++index];
+          }
+        } else {
+          var originalColumn = mapping.originalColumn;
+          while (mapping && mapping.originalLine === line && mapping.originalColumn == originalColumn) {
+            mappings.push({
+              line: util2.getArg(mapping, "generatedLine", null),
+              column: util2.getArg(mapping, "generatedColumn", null),
+              lastColumn: util2.getArg(mapping, "lastGeneratedColumn", null)
+            });
+            mapping = this._originalMappings[++index];
+          }
+        }
+      }
+      return mappings;
+    };
+    exports.SourceMapConsumer = SourceMapConsumer;
+    function BasicSourceMapConsumer(aSourceMap, aSourceMapURL) {
+      var sourceMap = aSourceMap;
+      if (typeof aSourceMap === "string") {
+        sourceMap = util2.parseSourceMapInput(aSourceMap);
+      }
+      var version2 = util2.getArg(sourceMap, "version");
+      var sources = util2.getArg(sourceMap, "sources");
+      var names = util2.getArg(sourceMap, "names", []);
+      var sourceRoot = util2.getArg(sourceMap, "sourceRoot", null);
+      var sourcesContent = util2.getArg(sourceMap, "sourcesContent", null);
+      var mappings = util2.getArg(sourceMap, "mappings");
+      var file = util2.getArg(sourceMap, "file", null);
+      if (version2 != this._version) {
+        throw new Error("Unsupported version: " + version2);
+      }
+      if (sourceRoot) {
+        sourceRoot = util2.normalize(sourceRoot);
+      }
+      sources = sources.map(String).map(util2.normalize).map(function(source) {
+        return sourceRoot && util2.isAbsolute(sourceRoot) && util2.isAbsolute(source) ? util2.relative(sourceRoot, source) : source;
+      });
+      this._names = ArraySet.fromArray(names.map(String), true);
+      this._sources = ArraySet.fromArray(sources, true);
+      this._absoluteSources = this._sources.toArray().map(function(s) {
+        return util2.computeSourceURL(sourceRoot, s, aSourceMapURL);
+      });
+      this.sourceRoot = sourceRoot;
+      this.sourcesContent = sourcesContent;
+      this._mappings = mappings;
+      this._sourceMapURL = aSourceMapURL;
+      this.file = file;
+    }
+    BasicSourceMapConsumer.prototype = Object.create(SourceMapConsumer.prototype);
+    BasicSourceMapConsumer.prototype.consumer = SourceMapConsumer;
+    BasicSourceMapConsumer.prototype._findSourceIndex = function(aSource) {
+      var relativeSource = aSource;
+      if (this.sourceRoot != null) {
+        relativeSource = util2.relative(this.sourceRoot, relativeSource);
+      }
+      if (this._sources.has(relativeSource)) {
+        return this._sources.indexOf(relativeSource);
+      }
+      var i;
+      for (i = 0; i < this._absoluteSources.length; ++i) {
+        if (this._absoluteSources[i] == aSource) {
+          return i;
+        }
+      }
+      return -1;
+    };
+    BasicSourceMapConsumer.fromSourceMap = function SourceMapConsumer_fromSourceMap(aSourceMap, aSourceMapURL) {
+      var smc = Object.create(BasicSourceMapConsumer.prototype);
+      var names = smc._names = ArraySet.fromArray(aSourceMap._names.toArray(), true);
+      var sources = smc._sources = ArraySet.fromArray(aSourceMap._sources.toArray(), true);
+      smc.sourceRoot = aSourceMap._sourceRoot;
+      smc.sourcesContent = aSourceMap._generateSourcesContent(
+        smc._sources.toArray(),
+        smc.sourceRoot
+      );
+      smc.file = aSourceMap._file;
+      smc._sourceMapURL = aSourceMapURL;
+      smc._absoluteSources = smc._sources.toArray().map(function(s) {
+        return util2.computeSourceURL(smc.sourceRoot, s, aSourceMapURL);
+      });
+      var generatedMappings = aSourceMap._mappings.toArray().slice();
+      var destGeneratedMappings = smc.__generatedMappings = [];
+      var destOriginalMappings = smc.__originalMappings = [];
+      for (var i = 0, length = generatedMappings.length; i < length; i++) {
+        var srcMapping = generatedMappings[i];
+        var destMapping = new Mapping();
+        destMapping.generatedLine = srcMapping.generatedLine;
+        destMapping.generatedColumn = srcMapping.generatedColumn;
+        if (srcMapping.source) {
+          destMapping.source = sources.indexOf(srcMapping.source);
+          destMapping.originalLine = srcMapping.originalLine;
+          destMapping.originalColumn = srcMapping.originalColumn;
+          if (srcMapping.name) {
+            destMapping.name = names.indexOf(srcMapping.name);
+          }
+          destOriginalMappings.push(destMapping);
+        }
+        destGeneratedMappings.push(destMapping);
+      }
+      quickSort(smc.__originalMappings, util2.compareByOriginalPositions);
+      return smc;
+    };
+    BasicSourceMapConsumer.prototype._version = 3;
+    Object.defineProperty(BasicSourceMapConsumer.prototype, "sources", {
+      get: function() {
+        return this._absoluteSources.slice();
+      }
+    });
+    function Mapping() {
+      this.generatedLine = 0;
+      this.generatedColumn = 0;
+      this.source = null;
+      this.originalLine = null;
+      this.originalColumn = null;
+      this.name = null;
+    }
+    BasicSourceMapConsumer.prototype._parseMappings = function SourceMapConsumer_parseMappings(aStr, aSourceRoot) {
+      var generatedLine = 1;
+      var previousGeneratedColumn = 0;
+      var previousOriginalLine = 0;
+      var previousOriginalColumn = 0;
+      var previousSource = 0;
+      var previousName = 0;
+      var length = aStr.length;
+      var index = 0;
+      var cachedSegments = {};
+      var temp = {};
+      var originalMappings = [];
+      var generatedMappings = [];
+      var mapping, str, segment, end, value;
+      while (index < length) {
+        if (aStr.charAt(index) === ";") {
+          generatedLine++;
+          index++;
+          previousGeneratedColumn = 0;
+        } else if (aStr.charAt(index) === ",") {
+          index++;
+        } else {
+          mapping = new Mapping();
+          mapping.generatedLine = generatedLine;
+          for (end = index; end < length; end++) {
+            if (this._charIsMappingSeparator(aStr, end)) {
+              break;
+            }
+          }
+          str = aStr.slice(index, end);
+          segment = cachedSegments[str];
+          if (segment) {
+            index += str.length;
+          } else {
+            segment = [];
+            while (index < end) {
+              base64VLQ.decode(aStr, index, temp);
+              value = temp.value;
+              index = temp.rest;
+              segment.push(value);
+            }
+            if (segment.length === 2) {
+              throw new Error("Found a source, but no line and column");
+            }
+            if (segment.length === 3) {
+              throw new Error("Found a source and line, but no column");
+            }
+            cachedSegments[str] = segment;
+          }
+          mapping.generatedColumn = previousGeneratedColumn + segment[0];
+          previousGeneratedColumn = mapping.generatedColumn;
+          if (segment.length > 1) {
+            mapping.source = previousSource + segment[1];
+            previousSource += segment[1];
+            mapping.originalLine = previousOriginalLine + segment[2];
+            previousOriginalLine = mapping.originalLine;
+            mapping.originalLine += 1;
+            mapping.originalColumn = previousOriginalColumn + segment[3];
+            previousOriginalColumn = mapping.originalColumn;
+            if (segment.length > 4) {
+              mapping.name = previousName + segment[4];
+              previousName += segment[4];
+            }
+          }
+          generatedMappings.push(mapping);
+          if (typeof mapping.originalLine === "number") {
+            originalMappings.push(mapping);
+          }
+        }
+      }
+      quickSort(generatedMappings, util2.compareByGeneratedPositionsDeflated);
+      this.__generatedMappings = generatedMappings;
+      quickSort(originalMappings, util2.compareByOriginalPositions);
+      this.__originalMappings = originalMappings;
+    };
+    BasicSourceMapConsumer.prototype._findMapping = function SourceMapConsumer_findMapping(aNeedle, aMappings, aLineName, aColumnName, aComparator, aBias) {
+      if (aNeedle[aLineName] <= 0) {
+        throw new TypeError("Line must be greater than or equal to 1, got " + aNeedle[aLineName]);
+      }
+      if (aNeedle[aColumnName] < 0) {
+        throw new TypeError("Column must be greater than or equal to 0, got " + aNeedle[aColumnName]);
+      }
+      return binarySearch.search(aNeedle, aMappings, aComparator, aBias);
+    };
+    BasicSourceMapConsumer.prototype.computeColumnSpans = function SourceMapConsumer_computeColumnSpans() {
+      for (var index = 0; index < this._generatedMappings.length; ++index) {
+        var mapping = this._generatedMappings[index];
+        if (index + 1 < this._generatedMappings.length) {
+          var nextMapping = this._generatedMappings[index + 1];
+          if (mapping.generatedLine === nextMapping.generatedLine) {
+            mapping.lastGeneratedColumn = nextMapping.generatedColumn - 1;
+            continue;
+          }
+        }
+        mapping.lastGeneratedColumn = Infinity;
+      }
+    };
+    BasicSourceMapConsumer.prototype.originalPositionFor = function SourceMapConsumer_originalPositionFor(aArgs) {
+      var needle = {
+        generatedLine: util2.getArg(aArgs, "line"),
+        generatedColumn: util2.getArg(aArgs, "column")
+      };
+      var index = this._findMapping(
+        needle,
+        this._generatedMappings,
+        "generatedLine",
+        "generatedColumn",
+        util2.compareByGeneratedPositionsDeflated,
+        util2.getArg(aArgs, "bias", SourceMapConsumer.GREATEST_LOWER_BOUND)
+      );
+      if (index >= 0) {
+        var mapping = this._generatedMappings[index];
+        if (mapping.generatedLine === needle.generatedLine) {
+          var source = util2.getArg(mapping, "source", null);
+          if (source !== null) {
+            source = this._sources.at(source);
+            source = util2.computeSourceURL(this.sourceRoot, source, this._sourceMapURL);
+          }
+          var name = util2.getArg(mapping, "name", null);
+          if (name !== null) {
+            name = this._names.at(name);
+          }
+          return {
+            source,
+            line: util2.getArg(mapping, "originalLine", null),
+            column: util2.getArg(mapping, "originalColumn", null),
+            name
+          };
+        }
+      }
+      return {
+        source: null,
+        line: null,
+        column: null,
+        name: null
+      };
+    };
+    BasicSourceMapConsumer.prototype.hasContentsOfAllSources = function BasicSourceMapConsumer_hasContentsOfAllSources() {
+      if (!this.sourcesContent) {
+        return false;
+      }
+      return this.sourcesContent.length >= this._sources.size() && !this.sourcesContent.some(function(sc) {
+        return sc == null;
+      });
+    };
+    BasicSourceMapConsumer.prototype.sourceContentFor = function SourceMapConsumer_sourceContentFor(aSource, nullOnMissing) {
+      if (!this.sourcesContent) {
+        return null;
+      }
+      var index = this._findSourceIndex(aSource);
+      if (index >= 0) {
+        return this.sourcesContent[index];
+      }
+      var relativeSource = aSource;
+      if (this.sourceRoot != null) {
+        relativeSource = util2.relative(this.sourceRoot, relativeSource);
+      }
+      var url;
+      if (this.sourceRoot != null && (url = util2.urlParse(this.sourceRoot))) {
+        var fileUriAbsPath = relativeSource.replace(/^file:\/\//, "");
+        if (url.scheme == "file" && this._sources.has(fileUriAbsPath)) {
+          return this.sourcesContent[this._sources.indexOf(fileUriAbsPath)];
+        }
+        if ((!url.path || url.path == "/") && this._sources.has("/" + relativeSource)) {
+          return this.sourcesContent[this._sources.indexOf("/" + relativeSource)];
+        }
+      }
+      if (nullOnMissing) {
+        return null;
+      } else {
+        throw new Error('"' + relativeSource + '" is not in the SourceMap.');
+      }
+    };
+    BasicSourceMapConsumer.prototype.generatedPositionFor = function SourceMapConsumer_generatedPositionFor(aArgs) {
+      var source = util2.getArg(aArgs, "source");
+      source = this._findSourceIndex(source);
+      if (source < 0) {
+        return {
+          line: null,
+          column: null,
+          lastColumn: null
+        };
+      }
+      var needle = {
+        source,
+        originalLine: util2.getArg(aArgs, "line"),
+        originalColumn: util2.getArg(aArgs, "column")
+      };
+      var index = this._findMapping(
+        needle,
+        this._originalMappings,
+        "originalLine",
+        "originalColumn",
+        util2.compareByOriginalPositions,
+        util2.getArg(aArgs, "bias", SourceMapConsumer.GREATEST_LOWER_BOUND)
+      );
+      if (index >= 0) {
+        var mapping = this._originalMappings[index];
+        if (mapping.source === needle.source) {
+          return {
+            line: util2.getArg(mapping, "generatedLine", null),
+            column: util2.getArg(mapping, "generatedColumn", null),
+            lastColumn: util2.getArg(mapping, "lastGeneratedColumn", null)
+          };
+        }
+      }
+      return {
+        line: null,
+        column: null,
+        lastColumn: null
+      };
+    };
+    exports.BasicSourceMapConsumer = BasicSourceMapConsumer;
+    function IndexedSourceMapConsumer(aSourceMap, aSourceMapURL) {
+      var sourceMap = aSourceMap;
+      if (typeof aSourceMap === "string") {
+        sourceMap = util2.parseSourceMapInput(aSourceMap);
+      }
+      var version2 = util2.getArg(sourceMap, "version");
+      var sections = util2.getArg(sourceMap, "sections");
+      if (version2 != this._version) {
+        throw new Error("Unsupported version: " + version2);
+      }
+      this._sources = new ArraySet();
+      this._names = new ArraySet();
+      var lastOffset = {
+        line: -1,
+        column: 0
+      };
+      this._sections = sections.map(function(s) {
+        if (s.url) {
+          throw new Error("Support for url field in sections not implemented.");
+        }
+        var offset = util2.getArg(s, "offset");
+        var offsetLine = util2.getArg(offset, "line");
+        var offsetColumn = util2.getArg(offset, "column");
+        if (offsetLine < lastOffset.line || offsetLine === lastOffset.line && offsetColumn < lastOffset.column) {
+          throw new Error("Section offsets must be ordered and non-overlapping.");
+        }
+        lastOffset = offset;
+        return {
+          generatedOffset: {
+            // The offset fields are 0-based, but we use 1-based indices when
+            // encoding/decoding from VLQ.
+            generatedLine: offsetLine + 1,
+            generatedColumn: offsetColumn + 1
+          },
+          consumer: new SourceMapConsumer(util2.getArg(s, "map"), aSourceMapURL)
+        };
+      });
+    }
+    IndexedSourceMapConsumer.prototype = Object.create(SourceMapConsumer.prototype);
+    IndexedSourceMapConsumer.prototype.constructor = SourceMapConsumer;
+    IndexedSourceMapConsumer.prototype._version = 3;
+    Object.defineProperty(IndexedSourceMapConsumer.prototype, "sources", {
+      get: function() {
+        var sources = [];
+        for (var i = 0; i < this._sections.length; i++) {
+          for (var j = 0; j < this._sections[i].consumer.sources.length; j++) {
+            sources.push(this._sections[i].consumer.sources[j]);
+          }
+        }
+        return sources;
+      }
+    });
+    IndexedSourceMapConsumer.prototype.originalPositionFor = function IndexedSourceMapConsumer_originalPositionFor(aArgs) {
+      var needle = {
+        generatedLine: util2.getArg(aArgs, "line"),
+        generatedColumn: util2.getArg(aArgs, "column")
+      };
+      var sectionIndex = binarySearch.search(
+        needle,
+        this._sections,
+        function(needle2, section2) {
+          var cmp = needle2.generatedLine - section2.generatedOffset.generatedLine;
+          if (cmp) {
+            return cmp;
+          }
+          return needle2.generatedColumn - section2.generatedOffset.generatedColumn;
+        }
+      );
+      var section = this._sections[sectionIndex];
+      if (!section) {
+        return {
+          source: null,
+          line: null,
+          column: null,
+          name: null
+        };
+      }
+      return section.consumer.originalPositionFor({
+        line: needle.generatedLine - (section.generatedOffset.generatedLine - 1),
+        column: needle.generatedColumn - (section.generatedOffset.generatedLine === needle.generatedLine ? section.generatedOffset.generatedColumn - 1 : 0),
+        bias: aArgs.bias
+      });
+    };
+    IndexedSourceMapConsumer.prototype.hasContentsOfAllSources = function IndexedSourceMapConsumer_hasContentsOfAllSources() {
+      return this._sections.every(function(s) {
+        return s.consumer.hasContentsOfAllSources();
+      });
+    };
+    IndexedSourceMapConsumer.prototype.sourceContentFor = function IndexedSourceMapConsumer_sourceContentFor(aSource, nullOnMissing) {
+      for (var i = 0; i < this._sections.length; i++) {
+        var section = this._sections[i];
+        var content = section.consumer.sourceContentFor(aSource, true);
+        if (content) {
+          return content;
+        }
+      }
+      if (nullOnMissing) {
+        return null;
+      } else {
+        throw new Error('"' + aSource + '" is not in the SourceMap.');
+      }
+    };
+    IndexedSourceMapConsumer.prototype.generatedPositionFor = function IndexedSourceMapConsumer_generatedPositionFor(aArgs) {
+      for (var i = 0; i < this._sections.length; i++) {
+        var section = this._sections[i];
+        if (section.consumer._findSourceIndex(util2.getArg(aArgs, "source")) === -1) {
+          continue;
+        }
+        var generatedPosition = section.consumer.generatedPositionFor(aArgs);
+        if (generatedPosition) {
+          var ret = {
+            line: generatedPosition.line + (section.generatedOffset.generatedLine - 1),
+            column: generatedPosition.column + (section.generatedOffset.generatedLine === generatedPosition.line ? section.generatedOffset.generatedColumn - 1 : 0)
+          };
+          return ret;
+        }
+      }
+      return {
+        line: null,
+        column: null
+      };
+    };
+    IndexedSourceMapConsumer.prototype._parseMappings = function IndexedSourceMapConsumer_parseMappings(aStr, aSourceRoot) {
+      this.__generatedMappings = [];
+      this.__originalMappings = [];
+      for (var i = 0; i < this._sections.length; i++) {
+        var section = this._sections[i];
+        var sectionMappings = section.consumer._generatedMappings;
+        for (var j = 0; j < sectionMappings.length; j++) {
+          var mapping = sectionMappings[j];
+          var source = section.consumer._sources.at(mapping.source);
+          source = util2.computeSourceURL(section.consumer.sourceRoot, source, this._sourceMapURL);
+          this._sources.add(source);
+          source = this._sources.indexOf(source);
+          var name = null;
+          if (mapping.name) {
+            name = section.consumer._names.at(mapping.name);
+            this._names.add(name);
+            name = this._names.indexOf(name);
+          }
+          var adjustedMapping = {
+            source,
+            generatedLine: mapping.generatedLine + (section.generatedOffset.generatedLine - 1),
+            generatedColumn: mapping.generatedColumn + (section.generatedOffset.generatedLine === mapping.generatedLine ? section.generatedOffset.generatedColumn - 1 : 0),
+            originalLine: mapping.originalLine,
+            originalColumn: mapping.originalColumn,
+            name
+          };
+          this.__generatedMappings.push(adjustedMapping);
+          if (typeof adjustedMapping.originalLine === "number") {
+            this.__originalMappings.push(adjustedMapping);
+          }
+        }
+      }
+      quickSort(this.__generatedMappings, util2.compareByGeneratedPositionsDeflated);
+      quickSort(this.__originalMappings, util2.compareByOriginalPositions);
+    };
+    exports.IndexedSourceMapConsumer = IndexedSourceMapConsumer;
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/source-node.js
+var require_source_node = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/lib/source-node.js"(exports) {
+    var SourceMapGenerator = require_source_map_generator().SourceMapGenerator;
+    var util2 = require_util();
+    var REGEX_NEWLINE = /(\r?\n)/;
+    var NEWLINE_CODE = 10;
+    var isSourceNode = "$$$isSourceNode$$$";
+    function SourceNode(aLine, aColumn, aSource, aChunks, aName) {
+      this.children = [];
+      this.sourceContents = {};
+      this.line = aLine == null ? null : aLine;
+      this.column = aColumn == null ? null : aColumn;
+      this.source = aSource == null ? null : aSource;
+      this.name = aName == null ? null : aName;
+      this[isSourceNode] = true;
+      if (aChunks != null) this.add(aChunks);
+    }
+    SourceNode.fromStringWithSourceMap = function SourceNode_fromStringWithSourceMap(aGeneratedCode, aSourceMapConsumer, aRelativePath) {
+      var node = new SourceNode();
+      var remainingLines = aGeneratedCode.split(REGEX_NEWLINE);
+      var remainingLinesIndex = 0;
+      var shiftNextLine = function() {
+        var lineContents = getNextLine();
+        var newLine = getNextLine() || "";
+        return lineContents + newLine;
+        function getNextLine() {
+          return remainingLinesIndex < remainingLines.length ? remainingLines[remainingLinesIndex++] : void 0;
+        }
+      };
+      var lastGeneratedLine = 1, lastGeneratedColumn = 0;
+      var lastMapping = null;
+      aSourceMapConsumer.eachMapping(function(mapping) {
+        if (lastMapping !== null) {
+          if (lastGeneratedLine < mapping.generatedLine) {
+            addMappingWithCode(lastMapping, shiftNextLine());
+            lastGeneratedLine++;
+            lastGeneratedColumn = 0;
+          } else {
+            var nextLine = remainingLines[remainingLinesIndex] || "";
+            var code = nextLine.substr(0, mapping.generatedColumn - lastGeneratedColumn);
+            remainingLines[remainingLinesIndex] = nextLine.substr(mapping.generatedColumn - lastGeneratedColumn);
+            lastGeneratedColumn = mapping.generatedColumn;
+            addMappingWithCode(lastMapping, code);
+            lastMapping = mapping;
+            return;
+          }
+        }
+        while (lastGeneratedLine < mapping.generatedLine) {
+          node.add(shiftNextLine());
+          lastGeneratedLine++;
+        }
+        if (lastGeneratedColumn < mapping.generatedColumn) {
+          var nextLine = remainingLines[remainingLinesIndex] || "";
+          node.add(nextLine.substr(0, mapping.generatedColumn));
+          remainingLines[remainingLinesIndex] = nextLine.substr(mapping.generatedColumn);
+          lastGeneratedColumn = mapping.generatedColumn;
+        }
+        lastMapping = mapping;
+      }, this);
+      if (remainingLinesIndex < remainingLines.length) {
+        if (lastMapping) {
+          addMappingWithCode(lastMapping, shiftNextLine());
+        }
+        node.add(remainingLines.splice(remainingLinesIndex).join(""));
+      }
+      aSourceMapConsumer.sources.forEach(function(sourceFile) {
+        var content = aSourceMapConsumer.sourceContentFor(sourceFile);
+        if (content != null) {
+          if (aRelativePath != null) {
+            sourceFile = util2.join(aRelativePath, sourceFile);
+          }
+          node.setSourceContent(sourceFile, content);
+        }
+      });
+      return node;
+      function addMappingWithCode(mapping, code) {
+        if (mapping === null || mapping.source === void 0) {
+          node.add(code);
+        } else {
+          var source = aRelativePath ? util2.join(aRelativePath, mapping.source) : mapping.source;
+          node.add(new SourceNode(
+            mapping.originalLine,
+            mapping.originalColumn,
+            source,
+            code,
+            mapping.name
+          ));
+        }
+      }
+    };
+    SourceNode.prototype.add = function SourceNode_add(aChunk) {
+      if (Array.isArray(aChunk)) {
+        aChunk.forEach(function(chunk) {
+          this.add(chunk);
+        }, this);
+      } else if (aChunk[isSourceNode] || typeof aChunk === "string") {
+        if (aChunk) {
+          this.children.push(aChunk);
+        }
+      } else {
+        throw new TypeError(
+          "Expected a SourceNode, string, or an array of SourceNodes and strings. Got " + aChunk
+        );
+      }
+      return this;
+    };
+    SourceNode.prototype.prepend = function SourceNode_prepend(aChunk) {
+      if (Array.isArray(aChunk)) {
+        for (var i = aChunk.length - 1; i >= 0; i--) {
+          this.prepend(aChunk[i]);
+        }
+      } else if (aChunk[isSourceNode] || typeof aChunk === "string") {
+        this.children.unshift(aChunk);
+      } else {
+        throw new TypeError(
+          "Expected a SourceNode, string, or an array of SourceNodes and strings. Got " + aChunk
+        );
+      }
+      return this;
+    };
+    SourceNode.prototype.walk = function SourceNode_walk(aFn) {
+      var chunk;
+      for (var i = 0, len = this.children.length; i < len; i++) {
+        chunk = this.children[i];
+        if (chunk[isSourceNode]) {
+          chunk.walk(aFn);
+        } else {
+          if (chunk !== "") {
+            aFn(chunk, {
+              source: this.source,
+              line: this.line,
+              column: this.column,
+              name: this.name
+            });
+          }
+        }
+      }
+    };
+    SourceNode.prototype.join = function SourceNode_join(aSep) {
+      var newChildren;
+      var i;
+      var len = this.children.length;
+      if (len > 0) {
+        newChildren = [];
+        for (i = 0; i < len - 1; i++) {
+          newChildren.push(this.children[i]);
+          newChildren.push(aSep);
+        }
+        newChildren.push(this.children[i]);
+        this.children = newChildren;
+      }
+      return this;
+    };
+    SourceNode.prototype.replaceRight = function SourceNode_replaceRight(aPattern, aReplacement) {
+      var lastChild = this.children[this.children.length - 1];
+      if (lastChild[isSourceNode]) {
+        lastChild.replaceRight(aPattern, aReplacement);
+      } else if (typeof lastChild === "string") {
+        this.children[this.children.length - 1] = lastChild.replace(aPattern, aReplacement);
+      } else {
+        this.children.push("".replace(aPattern, aReplacement));
+      }
+      return this;
+    };
+    SourceNode.prototype.setSourceContent = function SourceNode_setSourceContent(aSourceFile, aSourceContent) {
+      this.sourceContents[util2.toSetString(aSourceFile)] = aSourceContent;
+    };
+    SourceNode.prototype.walkSourceContents = function SourceNode_walkSourceContents(aFn) {
+      for (var i = 0, len = this.children.length; i < len; i++) {
+        if (this.children[i][isSourceNode]) {
+          this.children[i].walkSourceContents(aFn);
+        }
+      }
+      var sources = Object.keys(this.sourceContents);
+      for (var i = 0, len = sources.length; i < len; i++) {
+        aFn(util2.fromSetString(sources[i]), this.sourceContents[sources[i]]);
+      }
+    };
+    SourceNode.prototype.toString = function SourceNode_toString() {
+      var str = "";
+      this.walk(function(chunk) {
+        str += chunk;
+      });
+      return str;
+    };
+    SourceNode.prototype.toStringWithSourceMap = function SourceNode_toStringWithSourceMap(aArgs) {
+      var generated = {
+        code: "",
+        line: 1,
+        column: 0
+      };
+      var map = new SourceMapGenerator(aArgs);
+      var sourceMappingActive = false;
+      var lastOriginalSource = null;
+      var lastOriginalLine = null;
+      var lastOriginalColumn = null;
+      var lastOriginalName = null;
+      this.walk(function(chunk, original) {
+        generated.code += chunk;
+        if (original.source !== null && original.line !== null && original.column !== null) {
+          if (lastOriginalSource !== original.source || lastOriginalLine !== original.line || lastOriginalColumn !== original.column || lastOriginalName !== original.name) {
+            map.addMapping({
+              source: original.source,
+              original: {
+                line: original.line,
+                column: original.column
+              },
+              generated: {
+                line: generated.line,
+                column: generated.column
+              },
+              name: original.name
+            });
+          }
+          lastOriginalSource = original.source;
+          lastOriginalLine = original.line;
+          lastOriginalColumn = original.column;
+          lastOriginalName = original.name;
+          sourceMappingActive = true;
+        } else if (sourceMappingActive) {
+          map.addMapping({
+            generated: {
+              line: generated.line,
+              column: generated.column
+            }
+          });
+          lastOriginalSource = null;
+          sourceMappingActive = false;
+        }
+        for (var idx = 0, length = chunk.length; idx < length; idx++) {
+          if (chunk.charCodeAt(idx) === NEWLINE_CODE) {
+            generated.line++;
+            generated.column = 0;
+            if (idx + 1 === length) {
+              lastOriginalSource = null;
+              sourceMappingActive = false;
+            } else if (sourceMappingActive) {
+              map.addMapping({
+                source: original.source,
+                original: {
+                  line: original.line,
+                  column: original.column
+                },
+                generated: {
+                  line: generated.line,
+                  column: generated.column
+                },
+                name: original.name
+              });
+            }
+          } else {
+            generated.column++;
+          }
+        }
+      });
+      this.walkSourceContents(function(sourceFile, sourceContent) {
+        map.setSourceContent(sourceFile, sourceContent);
+      });
+      return { code: generated.code, map };
+    };
+    exports.SourceNode = SourceNode;
+  }
+});
+
+// ../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/source-map.js
+var require_source_map = __commonJS({
+  "../../node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/source-map.js"(exports) {
+    exports.SourceMapGenerator = require_source_map_generator().SourceMapGenerator;
+    exports.SourceMapConsumer = require_source_map_consumer().SourceMapConsumer;
+    exports.SourceNode = require_source_node().SourceNode;
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/code-gen.js
+var require_code_gen = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/code-gen.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    var _utils = require_utils();
+    var SourceNode = void 0;
+    try {
+      if (typeof define !== "function" || !define.amd) {
+        SourceMap = require_source_map();
+        SourceNode = SourceMap.SourceNode;
+      }
+    } catch (err) {
+    }
+    var SourceMap;
+    if (!SourceNode) {
+      SourceNode = function(line, column, srcFile, chunks) {
+        this.src = "";
+        if (chunks) {
+          this.add(chunks);
+        }
+      };
+      SourceNode.prototype = {
+        add: function add(chunks) {
+          if (_utils.isArray(chunks)) {
+            chunks = chunks.join("");
+          }
+          this.src += chunks;
+        },
+        prepend: function prepend(chunks) {
+          if (_utils.isArray(chunks)) {
+            chunks = chunks.join("");
+          }
+          this.src = chunks + this.src;
+        },
+        toStringWithSourceMap: function toStringWithSourceMap() {
+          return { code: this.toString() };
+        },
+        toString: function toString() {
+          return this.src;
+        }
+      };
+    }
+    function castChunk(chunk, codeGen, loc) {
+      if (_utils.isArray(chunk)) {
+        var ret = [];
+        for (var i = 0, len = chunk.length; i < len; i++) {
+          ret.push(codeGen.wrap(chunk[i], loc));
+        }
+        return ret;
+      } else if (typeof chunk === "boolean" || typeof chunk === "number") {
+        return chunk + "";
+      }
+      return chunk;
+    }
+    function CodeGen(srcFile) {
+      this.srcFile = srcFile;
+      this.source = [];
+    }
+    CodeGen.prototype = {
+      isEmpty: function isEmpty2() {
+        return !this.source.length;
+      },
+      prepend: function prepend(source, loc) {
+        this.source.unshift(this.wrap(source, loc));
+      },
+      push: function push(source, loc) {
+        this.source.push(this.wrap(source, loc));
+      },
+      merge: function merge() {
+        var source = this.empty();
+        this.each(function(line) {
+          source.add(["  ", line, "\n"]);
+        });
+        return source;
+      },
+      each: function each(iter) {
+        for (var i = 0, len = this.source.length; i < len; i++) {
+          iter(this.source[i]);
+        }
+      },
+      empty: function empty() {
+        var loc = this.currentLocation || { start: {} };
+        return new SourceNode(loc.start.line, loc.start.column, this.srcFile);
+      },
+      wrap: function wrap(chunk) {
+        var loc = arguments.length <= 1 || arguments[1] === void 0 ? this.currentLocation || { start: {} } : arguments[1];
+        if (chunk instanceof SourceNode) {
+          return chunk;
+        }
+        chunk = castChunk(chunk, this, loc);
+        return new SourceNode(loc.start.line, loc.start.column, this.srcFile, chunk);
+      },
+      functionCall: function functionCall(fn, type, params) {
+        params = this.generateList(params);
+        return this.wrap([fn, type ? "." + type + "(" : "(", params, ")"]);
+      },
+      quotedString: function quotedString(str) {
+        return '"' + (str + "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029") + '"';
+      },
+      objectLiteral: function objectLiteral(obj) {
+        var _this = this;
+        var pairs = [];
+        Object.keys(obj).forEach(function(key) {
+          var value = castChunk(obj[key], _this);
+          if (value !== "undefined") {
+            pairs.push([_this.quotedString(key), ":", value]);
+          }
+        });
+        var ret = this.generateList(pairs);
+        ret.prepend("{");
+        ret.add("}");
+        return ret;
+      },
+      generateList: function generateList(entries) {
+        var ret = this.empty();
+        for (var i = 0, len = entries.length; i < len; i++) {
+          if (i) {
+            ret.add(",");
+          }
+          ret.add(castChunk(entries[i], this));
+        }
+        return ret;
+      },
+      generateArray: function generateArray(entries) {
+        var ret = this.generateList(entries);
+        ret.prepend("[");
+        ret.add("]");
+        return ret;
+      }
+    };
+    exports["default"] = CodeGen;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/javascript-compiler.js
+var require_javascript_compiler = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/javascript-compiler.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _base = require_base();
+    var _exception = require_exception();
+    var _exception2 = _interopRequireDefault(_exception);
+    var _utils = require_utils();
+    var _codeGen = require_code_gen();
+    var _codeGen2 = _interopRequireDefault(_codeGen);
+    function Literal(value) {
+      this.value = value;
+    }
+    function JavaScriptCompiler() {
+    }
+    JavaScriptCompiler.prototype = {
+      // PUBLIC API: You can override these methods in a subclass to provide
+      // alternative compiled forms for name lookup and buffering semantics
+      nameLookup: function nameLookup(parent, name) {
+        return this.internalNameLookup(parent, name);
+      },
+      depthedLookup: function depthedLookup(name) {
+        return [this.aliasable("container.lookup"), "(depths, ", JSON.stringify(name), ")"];
+      },
+      compilerInfo: function compilerInfo() {
+        var revision = _base.COMPILER_REVISION, versions = _base.REVISION_CHANGES[revision];
+        return [revision, versions];
+      },
+      appendToBuffer: function appendToBuffer(source, location, explicit) {
+        if (!_utils.isArray(source)) {
+          source = [source];
+        }
+        source = this.source.wrap(source, location);
+        if (this.environment.isSimple) {
+          return ["return ", source, ";"];
+        } else if (explicit) {
+          return ["buffer += ", source, ";"];
+        } else {
+          source.appendToBuffer = true;
+          return source;
+        }
+      },
+      initializeBuffer: function initializeBuffer() {
+        return this.quotedString("");
+      },
+      // END PUBLIC API
+      internalNameLookup: function internalNameLookup(parent, name) {
+        this.lookupPropertyFunctionIsUsed = true;
+        return ["lookupProperty(", parent, ",", JSON.stringify(name), ")"];
+      },
+      lookupPropertyFunctionIsUsed: false,
+      compile: function compile(environment, options, context, asObject) {
+        this.environment = environment;
+        this.options = options;
+        this.stringParams = this.options.stringParams;
+        this.trackIds = this.options.trackIds;
+        this.precompile = !asObject;
+        this.name = this.environment.name;
+        this.isChild = !!context;
+        this.context = context || {
+          decorators: [],
+          programs: [],
+          environments: []
+        };
+        this.preamble();
+        this.stackSlot = 0;
+        this.stackVars = [];
+        this.aliases = {};
+        this.registers = { list: [] };
+        this.hashes = [];
+        this.compileStack = [];
+        this.inlineStack = [];
+        this.blockParams = [];
+        this.compileChildren(environment, options);
+        this.useDepths = this.useDepths || environment.useDepths || environment.useDecorators || this.options.compat;
+        this.useBlockParams = this.useBlockParams || environment.useBlockParams;
+        var opcodes = environment.opcodes, opcode = void 0, firstLoc = void 0, i = void 0, l = void 0;
+        for (i = 0, l = opcodes.length; i < l; i++) {
+          opcode = opcodes[i];
+          this.source.currentLocation = opcode.loc;
+          firstLoc = firstLoc || opcode.loc;
+          this[opcode.opcode].apply(this, opcode.args);
+        }
+        this.source.currentLocation = firstLoc;
+        this.pushSource("");
+        if (this.stackSlot || this.inlineStack.length || this.compileStack.length) {
+          throw new _exception2["default"]("Compile completed with content left on stack");
+        }
+        if (!this.decorators.isEmpty()) {
+          this.useDecorators = true;
+          this.decorators.prepend(["var decorators = container.decorators, ", this.lookupPropertyFunctionVarDeclaration(), ";\n"]);
+          this.decorators.push("return fn;");
+          if (asObject) {
+            this.decorators = Function.apply(this, ["fn", "props", "container", "depth0", "data", "blockParams", "depths", this.decorators.merge()]);
+          } else {
+            this.decorators.prepend("function(fn, props, container, depth0, data, blockParams, depths) {\n");
+            this.decorators.push("}\n");
+            this.decorators = this.decorators.merge();
+          }
+        } else {
+          this.decorators = void 0;
+        }
+        var fn = this.createFunctionContext(asObject);
+        if (!this.isChild) {
+          var ret = {
+            compiler: this.compilerInfo(),
+            main: fn
+          };
+          if (this.decorators) {
+            ret.main_d = this.decorators;
+            ret.useDecorators = true;
+          }
+          var _context = this.context;
+          var programs = _context.programs;
+          var decorators = _context.decorators;
+          for (i = 0, l = programs.length; i < l; i++) {
+            if (programs[i]) {
+              ret[i] = programs[i];
+              if (decorators[i]) {
+                ret[i + "_d"] = decorators[i];
+                ret.useDecorators = true;
+              }
+            }
+          }
+          if (this.environment.usePartial) {
+            ret.usePartial = true;
+          }
+          if (this.options.data) {
+            ret.useData = true;
+          }
+          if (this.useDepths) {
+            ret.useDepths = true;
+          }
+          if (this.useBlockParams) {
+            ret.useBlockParams = true;
+          }
+          if (this.options.compat) {
+            ret.compat = true;
+          }
+          if (!asObject) {
+            ret.compiler = JSON.stringify(ret.compiler);
+            this.source.currentLocation = { start: { line: 1, column: 0 } };
+            ret = this.objectLiteral(ret);
+            if (options.srcName) {
+              ret = ret.toStringWithSourceMap({ file: options.destName });
+              ret.map = ret.map && ret.map.toString();
+            } else {
+              ret = ret.toString();
+            }
+          } else {
+            ret.compilerOptions = this.options;
+          }
+          return ret;
+        } else {
+          return fn;
+        }
+      },
+      preamble: function preamble() {
+        this.lastContext = 0;
+        this.source = new _codeGen2["default"](this.options.srcName);
+        this.decorators = new _codeGen2["default"](this.options.srcName);
+      },
+      createFunctionContext: function createFunctionContext(asObject) {
+        var _this = this;
+        var varDeclarations = "";
+        var locals = this.stackVars.concat(this.registers.list);
+        if (locals.length > 0) {
+          varDeclarations += ", " + locals.join(", ");
+        }
+        var aliasCount = 0;
+        Object.keys(this.aliases).forEach(function(alias) {
+          var node = _this.aliases[alias];
+          if (node.children && node.referenceCount > 1) {
+            varDeclarations += ", alias" + ++aliasCount + "=" + alias;
+            node.children[0] = "alias" + aliasCount;
+          }
+        });
+        if (this.lookupPropertyFunctionIsUsed) {
+          varDeclarations += ", " + this.lookupPropertyFunctionVarDeclaration();
+        }
+        var params = ["container", "depth0", "helpers", "partials", "data"];
+        if (this.useBlockParams || this.useDepths) {
+          params.push("blockParams");
+        }
+        if (this.useDepths) {
+          params.push("depths");
+        }
+        var source = this.mergeSource(varDeclarations);
+        if (asObject) {
+          params.push(source);
+          return Function.apply(this, params);
+        } else {
+          return this.source.wrap(["function(", params.join(","), ") {\n  ", source, "}"]);
+        }
+      },
+      mergeSource: function mergeSource(varDeclarations) {
+        var isSimple = this.environment.isSimple, appendOnly = !this.forceBuffer, appendFirst = void 0, sourceSeen = void 0, bufferStart = void 0, bufferEnd = void 0;
+        this.source.each(function(line) {
+          if (line.appendToBuffer) {
+            if (bufferStart) {
+              line.prepend("  + ");
+            } else {
+              bufferStart = line;
+            }
+            bufferEnd = line;
+          } else {
+            if (bufferStart) {
+              if (!sourceSeen) {
+                appendFirst = true;
+              } else {
+                bufferStart.prepend("buffer += ");
+              }
+              bufferEnd.add(";");
+              bufferStart = bufferEnd = void 0;
+            }
+            sourceSeen = true;
+            if (!isSimple) {
+              appendOnly = false;
+            }
+          }
+        });
+        if (appendOnly) {
+          if (bufferStart) {
+            bufferStart.prepend("return ");
+            bufferEnd.add(";");
+          } else if (!sourceSeen) {
+            this.source.push('return "";');
+          }
+        } else {
+          varDeclarations += ", buffer = " + (appendFirst ? "" : this.initializeBuffer());
+          if (bufferStart) {
+            bufferStart.prepend("return buffer + ");
+            bufferEnd.add(";");
+          } else {
+            this.source.push("return buffer;");
+          }
+        }
+        if (varDeclarations) {
+          this.source.prepend("var " + varDeclarations.substring(2) + (appendFirst ? "" : ";\n"));
+        }
+        return this.source.merge();
+      },
+      lookupPropertyFunctionVarDeclaration: function lookupPropertyFunctionVarDeclaration() {
+        return "\n      lookupProperty = container.lookupProperty || function(parent, propertyName) {\n        if (Object.prototype.hasOwnProperty.call(parent, propertyName)) {\n          return parent[propertyName];\n        }\n        return undefined\n    }\n    ".trim();
+      },
+      // [blockValue]
+      //
+      // On stack, before: hash, inverse, program, value
+      // On stack, after: return value of blockHelperMissing
+      //
+      // The purpose of this opcode is to take a block of the form
+      // `{{#this.foo}}...{{/this.foo}}`, resolve the value of `foo`, and
+      // replace it on the stack with the result of properly
+      // invoking blockHelperMissing.
+      blockValue: function blockValue(name) {
+        var blockHelperMissing = this.aliasable("container.hooks.blockHelperMissing"), params = [this.contextName(0)];
+        this.setupHelperArgs(name, 0, params);
+        var blockName = this.popStack();
+        params.splice(1, 0, blockName);
+        this.push(this.source.functionCall(blockHelperMissing, "call", params));
+      },
+      // [ambiguousBlockValue]
+      //
+      // On stack, before: hash, inverse, program, value
+      // Compiler value, before: lastHelper=value of last found helper, if any
+      // On stack, after, if no lastHelper: same as [blockValue]
+      // On stack, after, if lastHelper: value
+      ambiguousBlockValue: function ambiguousBlockValue() {
+        var blockHelperMissing = this.aliasable("container.hooks.blockHelperMissing"), params = [this.contextName(0)];
+        this.setupHelperArgs("", 0, params, true);
+        this.flushInline();
+        var current = this.topStack();
+        params.splice(1, 0, current);
+        this.pushSource(["if (!", this.lastHelper, ") { ", current, " = ", this.source.functionCall(blockHelperMissing, "call", params), "}"]);
+      },
+      // [appendContent]
+      //
+      // On stack, before: ...
+      // On stack, after: ...
+      //
+      // Appends the string value of `content` to the current buffer
+      appendContent: function appendContent(content) {
+        if (this.pendingContent) {
+          content = this.pendingContent + content;
+        } else {
+          this.pendingLocation = this.source.currentLocation;
+        }
+        this.pendingContent = content;
+      },
+      // [append]
+      //
+      // On stack, before: value, ...
+      // On stack, after: ...
+      //
+      // Coerces `value` to a String and appends it to the current buffer.
+      //
+      // If `value` is truthy, or 0, it is coerced into a string and appended
+      // Otherwise, the empty string is appended
+      append: function append() {
+        if (this.isInline()) {
+          this.replaceStack(function(current) {
+            return [" != null ? ", current, ' : ""'];
+          });
+          this.pushSource(this.appendToBuffer(this.popStack()));
+        } else {
+          var local = this.popStack();
+          this.pushSource(["if (", local, " != null) { ", this.appendToBuffer(local, void 0, true), " }"]);
+          if (this.environment.isSimple) {
+            this.pushSource(["else { ", this.appendToBuffer("''", void 0, true), " }"]);
+          }
+        }
+      },
+      // [appendEscaped]
+      //
+      // On stack, before: value, ...
+      // On stack, after: ...
+      //
+      // Escape `value` and append it to the buffer
+      appendEscaped: function appendEscaped() {
+        this.pushSource(this.appendToBuffer([this.aliasable("container.escapeExpression"), "(", this.popStack(), ")"]));
+      },
+      // [getContext]
+      //
+      // On stack, before: ...
+      // On stack, after: ...
+      // Compiler value, after: lastContext=depth
+      //
+      // Set the value of the `lastContext` compiler value to the depth
+      getContext: function getContext(depth) {
+        this.lastContext = depth;
+      },
+      // [pushContext]
+      //
+      // On stack, before: ...
+      // On stack, after: currentContext, ...
+      //
+      // Pushes the value of the current context onto the stack.
+      pushContext: function pushContext() {
+        this.pushStackLiteral(this.contextName(this.lastContext));
+      },
+      // [lookupOnContext]
+      //
+      // On stack, before: ...
+      // On stack, after: currentContext[name], ...
+      //
+      // Looks up the value of `name` on the current context and pushes
+      // it onto the stack.
+      lookupOnContext: function lookupOnContext(parts, falsy, strict, scoped) {
+        var i = 0;
+        if (!scoped && this.options.compat && !this.lastContext) {
+          this.push(this.depthedLookup(parts[i++]));
+        } else {
+          this.pushContext();
+        }
+        this.resolvePath("context", parts, i, falsy, strict);
+      },
+      // [lookupBlockParam]
+      //
+      // On stack, before: ...
+      // On stack, after: blockParam[name], ...
+      //
+      // Looks up the value of `parts` on the given block param and pushes
+      // it onto the stack.
+      lookupBlockParam: function lookupBlockParam(blockParamId, parts) {
+        this.useBlockParams = true;
+        this.push(["blockParams[", blockParamId[0], "][", blockParamId[1], "]"]);
+        this.resolvePath("context", parts, 1);
+      },
+      // [lookupData]
+      //
+      // On stack, before: ...
+      // On stack, after: data, ...
+      //
+      // Push the data lookup operator
+      lookupData: function lookupData(depth, parts, strict) {
+        if (!depth) {
+          this.pushStackLiteral("data");
+        } else {
+          this.pushStackLiteral("container.data(data, " + depth + ")");
+        }
+        this.resolvePath("data", parts, 0, true, strict);
+      },
+      resolvePath: function resolvePath2(type, parts, i, falsy, strict) {
+        var _this2 = this;
+        if (this.options.strict || this.options.assumeObjects) {
+          this.push(strictLookup(this.options.strict && strict, this, parts, i, type));
+          return;
+        }
+        var len = parts.length;
+        for (; i < len; i++) {
+          this.replaceStack(function(current) {
+            var lookup = _this2.nameLookup(current, parts[i], type);
+            if (!falsy) {
+              return [" != null ? ", lookup, " : ", current];
+            } else {
+              return [" && ", lookup];
+            }
+          });
+        }
+      },
+      // [resolvePossibleLambda]
+      //
+      // On stack, before: value, ...
+      // On stack, after: resolved value, ...
+      //
+      // If the `value` is a lambda, replace it on the stack by
+      // the return value of the lambda
+      resolvePossibleLambda: function resolvePossibleLambda() {
+        this.push([this.aliasable("container.lambda"), "(", this.popStack(), ", ", this.contextName(0), ")"]);
+      },
+      // [pushStringParam]
+      //
+      // On stack, before: ...
+      // On stack, after: string, currentContext, ...
+      //
+      // This opcode is designed for use in string mode, which
+      // provides the string value of a parameter along with its
+      // depth rather than resolving it immediately.
+      pushStringParam: function pushStringParam(string, type) {
+        this.pushContext();
+        this.pushString(type);
+        if (type !== "SubExpression") {
+          if (typeof string === "string") {
+            this.pushString(string);
+          } else {
+            this.pushStackLiteral(string);
+          }
+        }
+      },
+      emptyHash: function emptyHash(omitEmpty) {
+        if (this.trackIds) {
+          this.push("{}");
+        }
+        if (this.stringParams) {
+          this.push("{}");
+          this.push("{}");
+        }
+        this.pushStackLiteral(omitEmpty ? "undefined" : "{}");
+      },
+      pushHash: function pushHash() {
+        if (this.hash) {
+          this.hashes.push(this.hash);
+        }
+        this.hash = { values: {}, types: [], contexts: [], ids: [] };
+      },
+      popHash: function popHash() {
+        var hash = this.hash;
+        this.hash = this.hashes.pop();
+        if (this.trackIds) {
+          this.push(this.objectLiteral(hash.ids));
+        }
+        if (this.stringParams) {
+          this.push(this.objectLiteral(hash.contexts));
+          this.push(this.objectLiteral(hash.types));
+        }
+        this.push(this.objectLiteral(hash.values));
+      },
+      // [pushString]
+      //
+      // On stack, before: ...
+      // On stack, after: quotedString(string), ...
+      //
+      // Push a quoted version of `string` onto the stack
+      pushString: function pushString(string) {
+        this.pushStackLiteral(this.quotedString(string));
+      },
+      // [pushLiteral]
+      //
+      // On stack, before: ...
+      // On stack, after: value, ...
+      //
+      // Pushes a value onto the stack. This operation prevents
+      // the compiler from creating a temporary variable to hold
+      // it.
+      pushLiteral: function pushLiteral(value) {
+        this.pushStackLiteral(value);
+      },
+      // [pushProgram]
+      //
+      // On stack, before: ...
+      // On stack, after: program(guid), ...
+      //
+      // Push a program expression onto the stack. This takes
+      // a compile-time guid and converts it into a runtime-accessible
+      // expression.
+      pushProgram: function pushProgram(guid) {
+        if (guid != null) {
+          this.pushStackLiteral(this.programExpression(guid));
+        } else {
+          this.pushStackLiteral(null);
+        }
+      },
+      // [registerDecorator]
+      //
+      // On stack, before: hash, program, params..., ...
+      // On stack, after: ...
+      //
+      // Pops off the decorator's parameters, invokes the decorator,
+      // and inserts the decorator into the decorators list.
+      registerDecorator: function registerDecorator(paramSize, name) {
+        var foundDecorator = this.nameLookup("decorators", name, "decorator"), options = this.setupHelperArgs(name, paramSize);
+        this.decorators.push(["fn = ", this.decorators.functionCall(foundDecorator, "", ["fn", "props", "container", options]), " || fn;"]);
+      },
+      // [invokeHelper]
+      //
+      // On stack, before: hash, inverse, program, params..., ...
+      // On stack, after: result of helper invocation
+      //
+      // Pops off the helper's parameters, invokes the helper,
+      // and pushes the helper's return value onto the stack.
+      //
+      // If the helper is not found, `helperMissing` is called.
+      invokeHelper: function invokeHelper(paramSize, name, isSimple) {
+        var nonHelper = this.popStack(), helper = this.setupHelper(paramSize, name);
+        var possibleFunctionCalls = [];
+        if (isSimple) {
+          possibleFunctionCalls.push(helper.name);
+        }
+        possibleFunctionCalls.push(nonHelper);
+        if (!this.options.strict) {
+          possibleFunctionCalls.push(this.aliasable("container.hooks.helperMissing"));
+        }
+        var functionLookupCode = ["(", this.itemsSeparatedBy(possibleFunctionCalls, "||"), ")"];
+        var functionCall = this.source.functionCall(functionLookupCode, "call", helper.callParams);
+        this.push(functionCall);
+      },
+      itemsSeparatedBy: function itemsSeparatedBy(items, separator) {
+        var result = [];
+        result.push(items[0]);
+        for (var i = 1; i < items.length; i++) {
+          result.push(separator, items[i]);
+        }
+        return result;
+      },
+      // [invokeKnownHelper]
+      //
+      // On stack, before: hash, inverse, program, params..., ...
+      // On stack, after: result of helper invocation
+      //
+      // This operation is used when the helper is known to exist,
+      // so a `helperMissing` fallback is not required.
+      invokeKnownHelper: function invokeKnownHelper(paramSize, name) {
+        var helper = this.setupHelper(paramSize, name);
+        this.push(this.source.functionCall(helper.name, "call", helper.callParams));
+      },
+      // [invokeAmbiguous]
+      //
+      // On stack, before: hash, inverse, program, params..., ...
+      // On stack, after: result of disambiguation
+      //
+      // This operation is used when an expression like `{{foo}}`
+      // is provided, but we don't know at compile-time whether it
+      // is a helper or a path.
+      //
+      // This operation emits more code than the other options,
+      // and can be avoided by passing the `knownHelpers` and
+      // `knownHelpersOnly` flags at compile-time.
+      invokeAmbiguous: function invokeAmbiguous(name, helperCall) {
+        this.useRegister("helper");
+        var nonHelper = this.popStack();
+        this.emptyHash();
+        var helper = this.setupHelper(0, name, helperCall);
+        var helperName = this.lastHelper = this.nameLookup("helpers", name, "helper");
+        var lookup = ["(", "(helper = ", helperName, " || ", nonHelper, ")"];
+        if (!this.options.strict) {
+          lookup[0] = "(helper = ";
+          lookup.push(" != null ? helper : ", this.aliasable("container.hooks.helperMissing"));
+        }
+        this.push(["(", lookup, helper.paramsInit ? ["),(", helper.paramsInit] : [], "),", "(typeof helper === ", this.aliasable('"function"'), " ? ", this.source.functionCall("helper", "call", helper.callParams), " : helper))"]);
+      },
+      // [invokePartial]
+      //
+      // On stack, before: context, ...
+      // On stack after: result of partial invocation
+      //
+      // This operation pops off a context, invokes a partial with that context,
+      // and pushes the result of the invocation back.
+      invokePartial: function invokePartial(isDynamic, name, indent) {
+        var params = [], options = this.setupParams(name, 1, params);
+        if (isDynamic) {
+          name = this.popStack();
+          delete options.name;
+        }
+        if (indent) {
+          options.indent = JSON.stringify(indent);
+        }
+        options.helpers = "helpers";
+        options.partials = "partials";
+        options.decorators = "container.decorators";
+        if (!isDynamic) {
+          params.unshift(this.nameLookup("partials", name, "partial"));
+        } else {
+          params.unshift(name);
+        }
+        if (this.options.compat) {
+          options.depths = "depths";
+        }
+        options = this.objectLiteral(options);
+        params.push(options);
+        this.push(this.source.functionCall("container.invokePartial", "", params));
+      },
+      // [assignToHash]
+      //
+      // On stack, before: value, ..., hash, ...
+      // On stack, after: ..., hash, ...
+      //
+      // Pops a value off the stack and assigns it to the current hash
+      assignToHash: function assignToHash(key) {
+        var value = this.popStack(), context = void 0, type = void 0, id = void 0;
+        if (this.trackIds) {
+          id = this.popStack();
+        }
+        if (this.stringParams) {
+          type = this.popStack();
+          context = this.popStack();
+        }
+        var hash = this.hash;
+        if (context) {
+          hash.contexts[key] = context;
+        }
+        if (type) {
+          hash.types[key] = type;
+        }
+        if (id) {
+          hash.ids[key] = id;
+        }
+        hash.values[key] = value;
+      },
+      pushId: function pushId(type, name, child) {
+        if (type === "BlockParam") {
+          this.pushStackLiteral("blockParams[" + name[0] + "].path[" + name[1] + "]" + (child ? " + " + JSON.stringify("." + child) : ""));
+        } else if (type === "PathExpression") {
+          this.pushString(name);
+        } else if (type === "SubExpression") {
+          this.pushStackLiteral("true");
+        } else {
+          this.pushStackLiteral("null");
+        }
+      },
+      // HELPERS
+      compiler: JavaScriptCompiler,
+      compileChildren: function compileChildren(environment, options) {
+        var children = environment.children, child = void 0, compiler = void 0;
+        for (var i = 0, l = children.length; i < l; i++) {
+          child = children[i];
+          compiler = new this.compiler();
+          var existing = this.matchExistingProgram(child);
+          if (existing == null) {
+            this.context.programs.push("");
+            var index = this.context.programs.length;
+            child.index = index;
+            child.name = "program" + index;
+            this.context.programs[index] = compiler.compile(child, options, this.context, !this.precompile);
+            this.context.decorators[index] = compiler.decorators;
+            this.context.environments[index] = child;
+            this.useDepths = this.useDepths || compiler.useDepths;
+            this.useBlockParams = this.useBlockParams || compiler.useBlockParams;
+            child.useDepths = this.useDepths;
+            child.useBlockParams = this.useBlockParams;
+          } else {
+            child.index = existing.index;
+            child.name = "program" + existing.index;
+            this.useDepths = this.useDepths || existing.useDepths;
+            this.useBlockParams = this.useBlockParams || existing.useBlockParams;
+          }
+        }
+      },
+      matchExistingProgram: function matchExistingProgram(child) {
+        for (var i = 0, len = this.context.environments.length; i < len; i++) {
+          var environment = this.context.environments[i];
+          if (environment && environment.equals(child)) {
+            return environment;
+          }
+        }
+      },
+      programExpression: function programExpression(guid) {
+        var child = this.environment.children[guid], programParams = [child.index, "data", child.blockParams];
+        if (this.useBlockParams || this.useDepths) {
+          programParams.push("blockParams");
+        }
+        if (this.useDepths) {
+          programParams.push("depths");
+        }
+        return "container.program(" + programParams.join(", ") + ")";
+      },
+      useRegister: function useRegister(name) {
+        if (!this.registers[name]) {
+          this.registers[name] = true;
+          this.registers.list.push(name);
+        }
+      },
+      push: function push(expr) {
+        if (!(expr instanceof Literal)) {
+          expr = this.source.wrap(expr);
+        }
+        this.inlineStack.push(expr);
+        return expr;
+      },
+      pushStackLiteral: function pushStackLiteral(item) {
+        this.push(new Literal(item));
+      },
+      pushSource: function pushSource(source) {
+        if (this.pendingContent) {
+          this.source.push(this.appendToBuffer(this.source.quotedString(this.pendingContent), this.pendingLocation));
+          this.pendingContent = void 0;
+        }
+        if (source) {
+          this.source.push(source);
+        }
+      },
+      replaceStack: function replaceStack(callback) {
+        var prefix = ["("], stack = void 0, createdStack = void 0, usedLiteral = void 0;
+        if (!this.isInline()) {
+          throw new _exception2["default"]("replaceStack on non-inline");
+        }
+        var top = this.popStack(true);
+        if (top instanceof Literal) {
+          stack = [top.value];
+          prefix = ["(", stack];
+          usedLiteral = true;
+        } else {
+          createdStack = true;
+          var _name = this.incrStack();
+          prefix = ["((", this.push(_name), " = ", top, ")"];
+          stack = this.topStack();
+        }
+        var item = callback.call(this, stack);
+        if (!usedLiteral) {
+          this.popStack();
+        }
+        if (createdStack) {
+          this.stackSlot--;
+        }
+        this.push(prefix.concat(item, ")"));
+      },
+      incrStack: function incrStack() {
+        this.stackSlot++;
+        if (this.stackSlot > this.stackVars.length) {
+          this.stackVars.push("stack" + this.stackSlot);
+        }
+        return this.topStackName();
+      },
+      topStackName: function topStackName() {
+        return "stack" + this.stackSlot;
+      },
+      flushInline: function flushInline() {
+        var inlineStack = this.inlineStack;
+        this.inlineStack = [];
+        for (var i = 0, len = inlineStack.length; i < len; i++) {
+          var entry = inlineStack[i];
+          if (entry instanceof Literal) {
+            this.compileStack.push(entry);
+          } else {
+            var stack = this.incrStack();
+            this.pushSource([stack, " = ", entry, ";"]);
+            this.compileStack.push(stack);
+          }
+        }
+      },
+      isInline: function isInline() {
+        return this.inlineStack.length;
+      },
+      popStack: function popStack(wrapped) {
+        var inline = this.isInline(), item = (inline ? this.inlineStack : this.compileStack).pop();
+        if (!wrapped && item instanceof Literal) {
+          return item.value;
+        } else {
+          if (!inline) {
+            if (!this.stackSlot) {
+              throw new _exception2["default"]("Invalid stack pop");
+            }
+            this.stackSlot--;
+          }
+          return item;
+        }
+      },
+      topStack: function topStack() {
+        var stack = this.isInline() ? this.inlineStack : this.compileStack, item = stack[stack.length - 1];
+        if (item instanceof Literal) {
+          return item.value;
+        } else {
+          return item;
+        }
+      },
+      contextName: function contextName(context) {
+        if (this.useDepths && context) {
+          return "depths[" + context + "]";
+        } else {
+          return "depth" + context;
+        }
+      },
+      quotedString: function quotedString(str) {
+        return this.source.quotedString(str);
+      },
+      objectLiteral: function objectLiteral(obj) {
+        return this.source.objectLiteral(obj);
+      },
+      aliasable: function aliasable(name) {
+        var ret = this.aliases[name];
+        if (ret) {
+          ret.referenceCount++;
+          return ret;
+        }
+        ret = this.aliases[name] = this.source.wrap(name);
+        ret.aliasable = true;
+        ret.referenceCount = 1;
+        return ret;
+      },
+      setupHelper: function setupHelper(paramSize, name, blockHelper) {
+        var params = [], paramsInit = this.setupHelperArgs(name, paramSize, params, blockHelper);
+        var foundHelper = this.nameLookup("helpers", name, "helper"), callContext = this.aliasable(this.contextName(0) + " != null ? " + this.contextName(0) + " : (container.nullContext || {})");
+        return {
+          params,
+          paramsInit,
+          name: foundHelper,
+          callParams: [callContext].concat(params)
+        };
+      },
+      setupParams: function setupParams(helper, paramSize, params) {
+        var options = {}, contexts = [], types = [], ids = [], objectArgs = !params, param = void 0;
+        if (objectArgs) {
+          params = [];
+        }
+        options.name = this.quotedString(helper);
+        options.hash = this.popStack();
+        if (this.trackIds) {
+          options.hashIds = this.popStack();
+        }
+        if (this.stringParams) {
+          options.hashTypes = this.popStack();
+          options.hashContexts = this.popStack();
+        }
+        var inverse = this.popStack(), program2 = this.popStack();
+        if (program2 || inverse) {
+          options.fn = program2 || "container.noop";
+          options.inverse = inverse || "container.noop";
+        }
+        var i = paramSize;
+        while (i--) {
+          param = this.popStack();
+          params[i] = param;
+          if (this.trackIds) {
+            ids[i] = this.popStack();
+          }
+          if (this.stringParams) {
+            types[i] = this.popStack();
+            contexts[i] = this.popStack();
+          }
+        }
+        if (objectArgs) {
+          options.args = this.source.generateArray(params);
+        }
+        if (this.trackIds) {
+          options.ids = this.source.generateArray(ids);
+        }
+        if (this.stringParams) {
+          options.types = this.source.generateArray(types);
+          options.contexts = this.source.generateArray(contexts);
+        }
+        if (this.options.data) {
+          options.data = "data";
+        }
+        if (this.useBlockParams) {
+          options.blockParams = "blockParams";
+        }
+        return options;
+      },
+      setupHelperArgs: function setupHelperArgs(helper, paramSize, params, useRegister) {
+        var options = this.setupParams(helper, paramSize, params);
+        options.loc = JSON.stringify(this.source.currentLocation);
+        options = this.objectLiteral(options);
+        if (useRegister) {
+          this.useRegister("options");
+          params.push("options");
+          return ["options=", options];
+        } else if (params) {
+          params.push(options);
+          return "";
+        } else {
+          return options;
+        }
+      }
+    };
+    (function() {
+      var reservedWords = "break else new var case finally return void catch for switch while continue function this with default if throw delete in try do instanceof typeof abstract enum int short boolean export interface static byte extends long super char final native synchronized class float package throws const goto private transient debugger implements protected volatile double import public let yield await null true false".split(" ");
+      var compilerWords = JavaScriptCompiler.RESERVED_WORDS = {};
+      for (var i = 0, l = reservedWords.length; i < l; i++) {
+        compilerWords[reservedWords[i]] = true;
+      }
+    })();
+    JavaScriptCompiler.isValidJavaScriptVariableName = function(name) {
+      return !JavaScriptCompiler.RESERVED_WORDS[name] && /^[a-zA-Z_$][0-9a-zA-Z_$]*$/.test(name);
+    };
+    function strictLookup(requireTerminal, compiler, parts, i, type) {
+      var stack = compiler.popStack(), len = parts.length;
+      if (requireTerminal) {
+        len--;
+      }
+      for (; i < len; i++) {
+        stack = compiler.nameLookup(stack, parts[i], type);
+      }
+      if (requireTerminal) {
+        return [compiler.aliasable("container.strict"), "(", stack, ", ", compiler.quotedString(parts[i]), ", ", JSON.stringify(compiler.source.currentLocation), " )"];
+      } else {
+        return stack;
+      }
+    }
+    exports["default"] = JavaScriptCompiler;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars.js
+var require_handlebars = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars.js"(exports, module) {
+    "use strict";
+    exports.__esModule = true;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _handlebarsRuntime = require_handlebars_runtime();
+    var _handlebarsRuntime2 = _interopRequireDefault(_handlebarsRuntime);
+    var _handlebarsCompilerAst = require_ast();
+    var _handlebarsCompilerAst2 = _interopRequireDefault(_handlebarsCompilerAst);
+    var _handlebarsCompilerBase = require_base2();
+    var _handlebarsCompilerCompiler = require_compiler();
+    var _handlebarsCompilerJavascriptCompiler = require_javascript_compiler();
+    var _handlebarsCompilerJavascriptCompiler2 = _interopRequireDefault(_handlebarsCompilerJavascriptCompiler);
+    var _handlebarsCompilerVisitor = require_visitor();
+    var _handlebarsCompilerVisitor2 = _interopRequireDefault(_handlebarsCompilerVisitor);
+    var _handlebarsNoConflict = require_no_conflict();
+    var _handlebarsNoConflict2 = _interopRequireDefault(_handlebarsNoConflict);
+    var _create = _handlebarsRuntime2["default"].create;
+    function create2() {
+      var hb = _create();
+      hb.compile = function(input, options) {
+        return _handlebarsCompilerCompiler.compile(input, options, hb);
+      };
+      hb.precompile = function(input, options) {
+        return _handlebarsCompilerCompiler.precompile(input, options, hb);
+      };
+      hb.AST = _handlebarsCompilerAst2["default"];
+      hb.Compiler = _handlebarsCompilerCompiler.Compiler;
+      hb.JavaScriptCompiler = _handlebarsCompilerJavascriptCompiler2["default"];
+      hb.Parser = _handlebarsCompilerBase.parser;
+      hb.parse = _handlebarsCompilerBase.parse;
+      hb.parseWithoutProcessing = _handlebarsCompilerBase.parseWithoutProcessing;
+      return hb;
+    }
+    var inst = create2();
+    inst.create = create2;
+    _handlebarsNoConflict2["default"](inst);
+    inst.Visitor = _handlebarsCompilerVisitor2["default"];
+    inst["default"] = inst;
+    exports["default"] = inst;
+    module.exports = exports["default"];
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/printer.js
+var require_printer = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/dist/cjs/handlebars/compiler/printer.js"(exports) {
+    "use strict";
+    exports.__esModule = true;
+    exports.print = print;
+    exports.PrintVisitor = PrintVisitor;
+    function _interopRequireDefault(obj) {
+      return obj && obj.__esModule ? obj : { "default": obj };
+    }
+    var _visitor = require_visitor();
+    var _visitor2 = _interopRequireDefault(_visitor);
+    function print(ast) {
+      return new PrintVisitor().accept(ast);
+    }
+    function PrintVisitor() {
+      this.padding = 0;
+    }
+    PrintVisitor.prototype = new _visitor2["default"]();
+    PrintVisitor.prototype.pad = function(string) {
+      var out = "";
+      for (var i = 0, l = this.padding; i < l; i++) {
+        out += "  ";
+      }
+      out += string + "\n";
+      return out;
+    };
+    PrintVisitor.prototype.Program = function(program2) {
+      var out = "", body = program2.body, i = void 0, l = void 0;
+      if (program2.blockParams) {
+        var blockParams = "BLOCK PARAMS: [";
+        for (i = 0, l = program2.blockParams.length; i < l; i++) {
+          blockParams += " " + program2.blockParams[i];
+        }
+        blockParams += " ]";
+        out += this.pad(blockParams);
+      }
+      for (i = 0, l = body.length; i < l; i++) {
+        out += this.accept(body[i]);
+      }
+      this.padding--;
+      return out;
+    };
+    PrintVisitor.prototype.MustacheStatement = function(mustache) {
+      return this.pad("{{ " + this.SubExpression(mustache) + " }}");
+    };
+    PrintVisitor.prototype.Decorator = function(mustache) {
+      return this.pad("{{ DIRECTIVE " + this.SubExpression(mustache) + " }}");
+    };
+    PrintVisitor.prototype.BlockStatement = PrintVisitor.prototype.DecoratorBlock = function(block) {
+      var out = "";
+      out += this.pad((block.type === "DecoratorBlock" ? "DIRECTIVE " : "") + "BLOCK:");
+      this.padding++;
+      out += this.pad(this.SubExpression(block));
+      if (block.program) {
+        out += this.pad("PROGRAM:");
+        this.padding++;
+        out += this.accept(block.program);
+        this.padding--;
+      }
+      if (block.inverse) {
+        if (block.program) {
+          this.padding++;
+        }
+        out += this.pad("{{^}}");
+        this.padding++;
+        out += this.accept(block.inverse);
+        this.padding--;
+        if (block.program) {
+          this.padding--;
+        }
+      }
+      this.padding--;
+      return out;
+    };
+    PrintVisitor.prototype.PartialStatement = function(partial) {
+      var content = "PARTIAL:" + partial.name.original;
+      if (partial.params[0]) {
+        content += " " + this.accept(partial.params[0]);
+      }
+      if (partial.hash) {
+        content += " " + this.accept(partial.hash);
+      }
+      return this.pad("{{> " + content + " }}");
+    };
+    PrintVisitor.prototype.PartialBlockStatement = function(partial) {
+      var content = "PARTIAL BLOCK:" + partial.name.original;
+      if (partial.params[0]) {
+        content += " " + this.accept(partial.params[0]);
+      }
+      if (partial.hash) {
+        content += " " + this.accept(partial.hash);
+      }
+      content += " " + this.pad("PROGRAM:");
+      this.padding++;
+      content += this.accept(partial.program);
+      this.padding--;
+      return this.pad("{{> " + content + " }}");
+    };
+    PrintVisitor.prototype.ContentStatement = function(content) {
+      return this.pad("CONTENT[ '" + content.value + "' ]");
+    };
+    PrintVisitor.prototype.CommentStatement = function(comment) {
+      return this.pad("{{! '" + comment.value + "' }}");
+    };
+    PrintVisitor.prototype.SubExpression = function(sexpr) {
+      var params = sexpr.params, paramStrings = [], hash = void 0;
+      for (var i = 0, l = params.length; i < l; i++) {
+        paramStrings.push(this.accept(params[i]));
+      }
+      params = "[" + paramStrings.join(", ") + "]";
+      hash = sexpr.hash ? " " + this.accept(sexpr.hash) : "";
+      return this.accept(sexpr.path) + " " + params + hash;
+    };
+    PrintVisitor.prototype.PathExpression = function(id) {
+      var path9 = id.parts.join("/");
+      return (id.data ? "@" : "") + "PATH:" + path9;
+    };
+    PrintVisitor.prototype.StringLiteral = function(string) {
+      return '"' + string.value + '"';
+    };
+    PrintVisitor.prototype.NumberLiteral = function(number) {
+      return "NUMBER{" + number.value + "}";
+    };
+    PrintVisitor.prototype.BooleanLiteral = function(bool) {
+      return "BOOLEAN{" + bool.value + "}";
+    };
+    PrintVisitor.prototype.UndefinedLiteral = function() {
+      return "UNDEFINED";
+    };
+    PrintVisitor.prototype.NullLiteral = function() {
+      return "NULL";
+    };
+    PrintVisitor.prototype.Hash = function(hash) {
+      var pairs = hash.pairs, joinedPairs = [];
+      for (var i = 0, l = pairs.length; i < l; i++) {
+        joinedPairs.push(this.accept(pairs[i]));
+      }
+      return "HASH{" + joinedPairs.join(", ") + "}";
+    };
+    PrintVisitor.prototype.HashPair = function(pair) {
+      return pair.key + "=" + this.accept(pair.value);
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/lib/index.js
+var require_lib = __commonJS({
+  "../../node_modules/.pnpm/handlebars@4.7.8/node_modules/handlebars/lib/index.js"(exports, module) {
+    var handlebars = require_handlebars()["default"];
+    var printer = require_printer();
+    handlebars.PrintVisitor = printer.PrintVisitor;
+    handlebars.print = printer.print;
+    module.exports = handlebars;
+    function extension(module2, filename) {
+      var fs10 = __require("fs");
+      var templateString = fs10.readFileSync(filename, "utf8");
+      module2.exports = handlebars.compile(templateString);
+    }
+    if (typeof __require !== "undefined" && __require.extensions) {
+      __require.extensions[".handlebars"] = extension;
+      __require.extensions[".hbs"] = extension;
+    }
+  }
+});
+
+// src/cache/cache.ts
+var cache_exports = {};
+__export(cache_exports, {
+  MemoryCache: () => MemoryCache,
+  NoOpCache: () => NoOpCache,
+  RepositoryCache: () => RepositoryCache
+});
+var RepositoryCache, MemoryCache, NoOpCache;
+var init_cache = __esm({
+  "src/cache/cache.ts"() {
+    "use strict";
+    init_result();
+    init_error_types();
+    RepositoryCache = class {
+      constructor(repository, config = {}) {
+        this.repository = repository;
+        this.config = {
+          defaultTTL: config.defaultTTL || 3600,
+          // 1 hour default
+          enabled: config.enabled ?? true,
+          keyPrefix: config.keyPrefix || "conductor:cache:"
+        };
+      }
+      /**
+       * Get value from cache
+       */
+      async get(key) {
+        if (!this.config.enabled) {
+          return Result.ok(null);
+        }
+        const cacheKey = this.buildKey(key);
+        const result = await this.repository.get(cacheKey);
+        if (!result.success) {
+          return Result.ok(null);
+        }
+        const cached = result.value;
+        if (cached.expiresAt && cached.expiresAt < Date.now()) {
+          await this.repository.delete(cacheKey);
+          return Result.ok(null);
+        }
+        return Result.ok(cached.value);
+      }
+      /**
+       * Set value in cache
+       */
+      async set(key, value, options = {}) {
+        if (!this.config.enabled || options.bypass) {
+          return Result.ok(void 0);
+        }
+        const ttl = options.ttl || this.config.defaultTTL;
+        const cacheKey = this.buildKey(key);
+        const cached = {
+          value,
+          cachedAt: Date.now(),
+          expiresAt: Date.now() + ttl * 1e3,
+          tags: options.tags
+        };
+        return await this.repository.put(cacheKey, cached, { ttl });
+      }
+      /**
+       * Delete value from cache
+       */
+      async delete(key) {
+        const cacheKey = this.buildKey(key);
+        return await this.repository.delete(cacheKey);
+      }
+      /**
+       * Check if key exists in cache
+       */
+      async has(key) {
+        const result = await this.get(key);
+        return Result.ok(result.success && result.value !== null);
+      }
+      /**
+       * Clear all cache entries (if supported by repository)
+       */
+      async clear() {
+        const listResult = await this.repository.list();
+        if (!listResult.success) {
+          return Result.err(listResult.error);
+        }
+        return Result.ok(void 0);
+      }
+      /**
+       * Invalidate cache entries by tag
+       */
+      async invalidateByTag(tag) {
+        return Result.err(Errors.internal("Tag-based invalidation not yet implemented"));
+      }
+      /**
+       * Build cache key with prefix
+       */
+      buildKey(key) {
+        return `${this.config.keyPrefix}${key}`;
+      }
+      /**
+       * Get cache statistics
+       */
+      getConfig() {
+        return { ...this.config };
+      }
+    };
+    MemoryCache = class {
+      constructor(config = {}) {
+        this.store = /* @__PURE__ */ new Map();
+        this.config = {
+          defaultTTL: config.defaultTTL || 3600,
+          enabled: config.enabled ?? true,
+          keyPrefix: config.keyPrefix || ""
+        };
+      }
+      async get(key) {
+        if (!this.config.enabled) {
+          return Result.ok(null);
+        }
+        const cacheKey = this.buildKey(key);
+        const cached = this.store.get(cacheKey);
+        if (!cached) {
+          return Result.ok(null);
+        }
+        if (cached.expiresAt && cached.expiresAt < Date.now()) {
+          this.store.delete(cacheKey);
+          return Result.ok(null);
+        }
+        return Result.ok(cached.value);
+      }
+      async set(key, value, options = {}) {
+        if (!this.config.enabled || options.bypass) {
+          return Result.ok(void 0);
+        }
+        const ttl = options.ttl || this.config.defaultTTL;
+        const cacheKey = this.buildKey(key);
+        this.store.set(cacheKey, {
+          value,
+          cachedAt: Date.now(),
+          expiresAt: Date.now() + ttl * 1e3,
+          tags: options.tags
+        });
+        return Result.ok(void 0);
+      }
+      async delete(key) {
+        const cacheKey = this.buildKey(key);
+        this.store.delete(cacheKey);
+        return Result.ok(void 0);
+      }
+      async has(key) {
+        const result = await this.get(key);
+        return Result.ok(result.success && result.value !== null);
+      }
+      async clear() {
+        this.store.clear();
+        return Result.ok(void 0);
+      }
+      async invalidateByTag(tag) {
+        const keysToDelete = [];
+        for (const [key, cached] of this.store.entries()) {
+          if (cached.tags && cached.tags.includes(tag)) {
+            keysToDelete.push(key);
+          }
+        }
+        for (const key of keysToDelete) {
+          this.store.delete(key);
+        }
+        return Result.ok(void 0);
+      }
+      buildKey(key) {
+        return `${this.config.keyPrefix}${key}`;
+      }
+      /**
+       * Get cache size (memory only)
+       */
+      size() {
+        return this.store.size;
+      }
+    };
+    NoOpCache = class {
+      async get() {
+        return Result.ok(null);
+      }
+      async set() {
+        return Result.ok(void 0);
+      }
+      async delete() {
+        return Result.ok(void 0);
+      }
+      async has() {
+        return Result.ok(false);
+      }
+      async clear() {
+        return Result.ok(void 0);
+      }
+      async invalidateByTag() {
+        return Result.ok(void 0);
+      }
+    };
+  }
+});
+
 // src/cli/index.ts
-import { Command as Command13 } from "commander";
-import chalk13 from "chalk";
+import { Command as Command15 } from "commander";
+import chalk15 from "chalk";
 
 // src/cli/commands/init.ts
 import { Command } from "commander";
@@ -2972,8 +9892,8 @@ var ConductorClient = class {
     const response = await this.request("GET", "/health/live");
     return response.alive;
   }
-  async request(method, path8, body) {
-    const url = `${this.baseUrl}${path8}`;
+  async request(method, path9, body) {
+    const url = `${this.baseUrl}${path9}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     try {
@@ -3018,8 +9938,8 @@ function createExecCommand() {
       if (options.input) {
         input = JSON.parse(options.input);
       } else if (options.file) {
-        const fs9 = await import("fs");
-        const content = fs9.readFileSync(options.file, "utf-8");
+        const fs10 = await import("fs");
+        const content = fs10.readFileSync(options.file, "utf-8");
         input = JSON.parse(content);
       }
       let config = {};
@@ -3772,8 +10692,8 @@ function getErrorMap() {
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path8, errorMaps, issueData } = params;
-  const fullPath = [...path8, ...issueData.path || []];
+  const { data, path: path9, errorMaps, issueData } = params;
+  const fullPath = [...path9, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -3889,11 +10809,11 @@ var errorUtil;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path8, key) {
+  constructor(parent, value, path9, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path8;
+    this._path = path9;
     this._key = key;
   }
   get path() {
@@ -7427,17 +14347,17 @@ var StringResolver = class {
     const handlebarMatch = template.match(this.fullPatternHandlebar);
     const fullMatch = dollarMatch || handlebarMatch;
     if (fullMatch) {
-      const path8 = fullMatch[1].trim();
-      if (!path8) {
+      const path9 = fullMatch[1].trim();
+      if (!path9) {
         return void 0;
       }
-      return this.traversePath(path8, context);
+      return this.traversePath(path9, context);
     }
     const result = template.replace(
       /(\$\{([^}]*)\}|\{\{([^}]*)\}\})/g,
       (match, _full, dollarPath, handlebarPath) => {
-        const path8 = dollarPath !== void 0 ? dollarPath : handlebarPath;
-        const trimmedPath = path8.trim();
+        const path9 = dollarPath !== void 0 ? dollarPath : handlebarPath;
+        const trimmedPath = path9.trim();
         if (!trimmedPath) {
           return "";
         }
@@ -7456,16 +14376,16 @@ var StringResolver = class {
    * - input.text | split(' ') | length (filters)
    * Note: We check for single pipe (filter) vs double pipe (|| logical OR)
    */
-  traversePath(path8, context) {
-    const ternaryMatch = path8.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/);
+  traversePath(path9, context) {
+    const ternaryMatch = path9.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/);
     if (ternaryMatch) {
       const [, conditionPath, trueExpr, falseExpr] = ternaryMatch;
       const condition = this.resolvePathWithFilters(conditionPath.trim(), context);
       const selectedExpr = condition ? trueExpr.trim() : falseExpr.trim();
       return this.resolveLiteralOrPath(selectedExpr, context);
     }
-    if (path8.includes("??")) {
-      const alternatives = path8.split("??").map((alt) => alt.trim());
+    if (path9.includes("??")) {
+      const alternatives = path9.split("??").map((alt) => alt.trim());
       for (const alt of alternatives) {
         const value = this.resolveLiteralOrPath(alt, context);
         if (value !== null && value !== void 0) {
@@ -7474,8 +14394,8 @@ var StringResolver = class {
       }
       return void 0;
     }
-    if (/\|\|/.test(path8)) {
-      const alternatives = path8.split("||").map((alt) => alt.trim());
+    if (/\|\|/.test(path9)) {
+      const alternatives = path9.split("||").map((alt) => alt.trim());
       for (const alt of alternatives) {
         const value = this.resolveLiteralOrPath(alt, context);
         if (value) {
@@ -7485,7 +14405,7 @@ var StringResolver = class {
       const lastAlt = alternatives[alternatives.length - 1];
       return this.resolveLiteralOrPath(lastAlt, context);
     }
-    return this.resolvePathWithFilters(path8, context);
+    return this.resolvePathWithFilters(path9, context);
   }
   /**
    * Resolve a value that could be a literal or a path expression
@@ -7507,10 +14427,10 @@ var StringResolver = class {
   /**
    * Resolve a path that may include filter chains
    */
-  resolvePathWithFilters(path8, context) {
-    const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path8);
+  resolvePathWithFilters(path9, context) {
+    const hasSinglePipe = /(?<!\|)\|(?!\|)/.test(path9);
     if (hasSinglePipe) {
-      const parts = path8.split(/(?<!\|)\|(?!\|)/);
+      const parts = path9.split(/(?<!\|)\|(?!\|)/);
       const propertyPath = parts[0].trim();
       let value = this.resolvePropertyPath(propertyPath, context);
       if (parts.length > 1) {
@@ -7521,7 +14441,7 @@ var StringResolver = class {
       }
       return value;
     }
-    return this.resolvePropertyPath(path8, context);
+    return this.resolvePropertyPath(path9, context);
   }
   /**
    * Resolve a simple dot-separated property path with support for:
@@ -7529,12 +14449,12 @@ var StringResolver = class {
    * - Boolean negation: !input.disabled
    * - Optional chaining: input.user?.name, input.items?.[0]
    */
-  resolvePropertyPath(path8, context) {
+  resolvePropertyPath(path9, context) {
     let negate = false;
-    let actualPath = path8;
-    if (path8.startsWith("!")) {
+    let actualPath = path9;
+    if (path9.startsWith("!")) {
       negate = true;
-      actualPath = path8.slice(1).trim();
+      actualPath = path9.slice(1).trim();
     }
     const segments = this.parsePathSegments(actualPath);
     let value = context;
@@ -7580,9 +14500,9 @@ var StringResolver = class {
    * - "items[0]" → [{name: "items", optional: false, arrayIndex: 0}]
    * - "items?.[0]" → [{name: "items", optional: false}, {name: "", optional: true, arrayIndex: 0}]
    */
-  parsePathSegments(path8) {
+  parsePathSegments(path9) {
     const segments = [];
-    let remaining = path8.trim();
+    let remaining = path9.trim();
     while (remaining.length > 0) {
       let optional = false;
       if (remaining.startsWith("?.")) {
@@ -7676,6 +14596,35 @@ function getInterpolator() {
     globalInterpolator = new Interpolator();
   }
   return globalInterpolator;
+}
+
+// src/runtime/output-types.ts
+var RedirectOutputSchema = external_exports.object({
+  url: external_exports.string(),
+  status: external_exports.union([external_exports.literal(301), external_exports.literal(302), external_exports.literal(307), external_exports.literal(308)]).optional()
+});
+var OutputBlockSchema = external_exports.object({
+  when: external_exports.string().optional(),
+  status: external_exports.number().int().min(100).max(599).optional(),
+  headers: external_exports.record(external_exports.string()).optional(),
+  body: external_exports.unknown().optional(),
+  rawBody: external_exports.string().optional(),
+  redirect: RedirectOutputSchema.optional()
+});
+var EnsembleOutputSchema = external_exports.union([
+  // New: Array of conditional output blocks
+  external_exports.array(OutputBlockSchema),
+  // Legacy: Simple object output (will be wrapped as body)
+  external_exports.record(external_exports.unknown())
+]);
+function isConditionalOutput(output) {
+  return Array.isArray(output);
+}
+function normalizeOutput(output) {
+  if (isConditionalOutput(output)) {
+    return output;
+  }
+  return [{ body: output }];
 }
 
 // src/primitives/ensemble.ts
@@ -7951,10 +14900,17 @@ var EnsembleSchema = external_exports.object({
       // HTTP trigger (full web routing with Hono features)
       external_exports.object({
         type: external_exports.literal("http"),
-        // Core HTTP config (like webhook)
+        // Core HTTP config - single path (like webhook)
         path: external_exports.string().min(1).optional(),
         // Defaults to /{ensemble-name}
         methods: external_exports.array(external_exports.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])).optional(),
+        // Multi-path support - array of path/methods combinations
+        paths: external_exports.array(
+          external_exports.object({
+            path: external_exports.string().min(1),
+            methods: external_exports.array(external_exports.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])).optional()
+          })
+        ).optional(),
         auth: external_exports.object({
           type: external_exports.enum(["bearer", "signature", "basic"]),
           secret: external_exports.string()
@@ -7998,13 +14954,42 @@ var EnsembleSchema = external_exports.object({
           }).optional()
         }).optional(),
         templateEngine: external_exports.enum(["handlebars", "liquid", "simple"]).optional()
+      }),
+      // Build trigger - run at build/deploy time
+      external_exports.object({
+        type: external_exports.literal("build"),
+        enabled: external_exports.boolean().optional(),
+        output: external_exports.string().optional(),
+        // Output directory (e.g., './dist/docs')
+        input: external_exports.record(external_exports.unknown()).optional(),
+        // Static input for build
+        metadata: external_exports.record(external_exports.unknown()).optional()
+      }),
+      // CLI trigger - run from command line
+      external_exports.object({
+        type: external_exports.literal("cli"),
+        command: external_exports.string().min(1),
+        // Command name (e.g., 'docs-generate')
+        description: external_exports.string().optional(),
+        // Description for help text
+        options: external_exports.array(
+          external_exports.object({
+            name: external_exports.string().min(1),
+            type: external_exports.enum(["string", "number", "boolean"]).optional(),
+            default: external_exports.union([external_exports.string(), external_exports.number(), external_exports.boolean()]).optional(),
+            description: external_exports.string().optional(),
+            required: external_exports.boolean().optional()
+          })
+        ).optional(),
+        enabled: external_exports.boolean().optional()
       })
     ])
   ).optional().refine(
     (trigger) => {
       if (!trigger) return true;
       return trigger.every((t) => {
-        if (t.type === "queue" || t.type === "cron") return true;
+        if (t.type === "queue" || t.type === "cron" || t.type === "build" || t.type === "cli")
+          return true;
         return t.auth || t.public === true;
       });
     },
@@ -8066,7 +15051,8 @@ var EnsembleSchema = external_exports.object({
   flow: external_exports.array(external_exports.lazy(() => FlowStepSchema)).optional(),
   inputs: external_exports.record(external_exports.unknown()).optional(),
   // Input schema definition
-  output: external_exports.record(external_exports.unknown()).optional(),
+  output: EnsembleOutputSchema.optional(),
+  // Conditional outputs with status, headers, redirect, rawBody
   /** Ensemble-level logging configuration */
   logging: external_exports.object({
     /** Override log level for this ensemble */
@@ -8191,15 +15177,15 @@ var Parser = class {
     } catch (error) {
       if (error instanceof external_exports.ZodError) {
         const enhancedErrors = error.errors.map((e) => {
-          const path8 = e.path.join(".");
-          const baseMessage = `${path8}: ${e.message}`;
-          if (path8 === "output" && e.code === "invalid_type" && e.expected === "object") {
+          const path9 = e.path.join(".");
+          const baseMessage = `${path9}: ${e.message}`;
+          if (path9 === "output" && e.code === "invalid_type" && e.expected === "object") {
             return `${baseMessage}
     \u21B3 Hint: Use object syntax with field mappings:
       output:
         result: \${agent-name.output.fieldName}`;
           }
-          if (path8.startsWith("flow") && e.message.includes("agent")) {
+          if (path9.startsWith("flow") && e.message.includes("agent")) {
             return `${baseMessage}
     \u21B3 Hint: Flow steps should use 'agent' key:
       flow:
@@ -8566,12 +15552,12 @@ Check response headers for rate limit information:
 - \`X-RateLimit-Limit\`: Maximum requests per window
 - \`X-RateLimit-Remaining\`: Requests remaining
 - \`X-RateLimit-Reset\`: When the window resets`;
-    for (const [path8, pathItem] of Object.entries(enhanced.paths)) {
+    for (const [path9, pathItem] of Object.entries(enhanced.paths)) {
       for (const method of ["get", "post", "put", "delete", "patch"]) {
         const operation = pathItem[method];
         if (!operation) continue;
-        if (path8.includes("/api/v1/execute/ensemble/")) {
-          const ensembleName = path8.split("/api/v1/execute/ensemble/")[1];
+        if (path9.includes("/api/v1/execute/ensemble/")) {
+          const ensembleName = path9.split("/api/v1/execute/ensemble/")[1];
           operation.description = `Execute the **${ensembleName}** ensemble workflow.
 
 This endpoint triggers the ensemble's flow, executing each agent in sequence (or parallel where configured).
@@ -8588,8 +15574,8 @@ The ensemble may include:
 - Database operations (data)
 - And more...`;
         }
-        if (path8.includes("/api/v1/execute/agent/")) {
-          const agentName = path8.split("/api/v1/execute/agent/")[1];
+        if (path9.includes("/api/v1/execute/agent/")) {
+          const agentName = path9.split("/api/v1/execute/agent/")[1];
           operation.description = `Execute the **${agentName}** agent directly.
 
 This endpoint bypasses the ensemble flow and executes an agent directly.
@@ -8601,14 +15587,14 @@ This endpoint bypasses the ensemble flow and executes an agent directly.
 **Input**: Provide the agent's expected input in the request body.
 **Output**: Returns the agent's output.`;
         }
-        if (path8 === "/api/v1/agents") {
+        if (path9 === "/api/v1/agents") {
           operation.description = `List all available agents in this Conductor project.
 
 Returns both **built-in agents** (provided by Conductor) and **custom agents** (defined in your \`agents/\` directory).
 
 Use this to discover what agents are available for use in your ensembles.`;
         }
-        if (path8 === "/api/v1/agents/{name}") {
+        if (path9 === "/api/v1/agents/{name}") {
           operation.description = `Get detailed information about a specific agent.
 
 Returns:
@@ -8617,7 +15603,7 @@ Returns:
 - Usage examples
 - Whether it's a built-in or custom agent`;
         }
-        if (path8 === "/api/v1/ensembles") {
+        if (path9 === "/api/v1/ensembles") {
           operation.description = `List all available ensembles in this Conductor project.
 
 Returns ensembles defined in your \`ensembles/\` directory, including:
@@ -8625,7 +15611,7 @@ Returns ensembles defined in your \`ensembles/\` directory, including:
 - Trigger configuration (HTTP, cron, webhook, etc.)
 - Number of flow steps`;
         }
-        if (path8 === "/api/v1/ensembles/{name}") {
+        if (path9 === "/api/v1/ensembles/{name}") {
           operation.description = `Get detailed information about a specific ensemble.
 
 Returns:
@@ -8824,288 +15810,7 @@ var DEFAULT_CONFIG = {
 import * as fs3 from "fs/promises";
 import * as path3 from "path";
 import { pathToFileURL } from "url";
-
-// src/types/result.ts
-var Result = {
-  /**
-   * Create a successful Result
-   */
-  ok(value) {
-    return { success: true, value };
-  },
-  /**
-   * Create a failed Result
-   */
-  err(error) {
-    return { success: false, error };
-  },
-  /**
-   * Wrap a Promise to catch errors and return a Result
-   * @example
-   * ```typescript
-   * const result = await Result.fromPromise(
-   *   fetch('https://api.example.com/data')
-   * );
-   * ```
-   */
-  async fromPromise(promise) {
-    try {
-      const value = await promise;
-      return Result.ok(value);
-    } catch (error) {
-      return Result.err(error instanceof Error ? error : new Error(String(error)));
-    }
-  },
-  /**
-   * Wrap a synchronous function to catch errors and return a Result
-   * @example
-   * ```typescript
-   * const result = Result.fromThrowable(() => JSON.parse(input));
-   * ```
-   */
-  fromThrowable(fn) {
-    try {
-      return Result.ok(fn());
-    } catch (error) {
-      return Result.err(error instanceof Error ? error : new Error(String(error)));
-    }
-  },
-  /**
-   * Transform the value inside a successful Result
-   * Leaves error Results unchanged
-   * @example
-   * ```typescript
-   * const result = Result.ok(5);
-   * const doubled = Result.map(result, x => x * 2);
-   * // doubled = { success: true, value: 10 }
-   * ```
-   */
-  map(result, fn) {
-    if (result.success) {
-      return Result.ok(fn(result.value));
-    }
-    return result;
-  },
-  /**
-   * Async version of map
-   */
-  async mapAsync(result, fn) {
-    if (result.success) {
-      return Result.ok(await fn(result.value));
-    }
-    return result;
-  },
-  /**
-   * Transform the error inside a failed Result
-   * Leaves success Results unchanged
-   * @example
-   * ```typescript
-   * const result = Result.err(new Error('failed'));
-   * const wrapped = Result.mapErr(result, e => new CustomError(e));
-   * ```
-   */
-  mapErr(result, fn) {
-    if (result.success) {
-      return result;
-    }
-    return Result.err(fn(result.error));
-  },
-  /**
-   * Chain Results together (flatMap/bind)
-   * If the first Result is an error, returns it without calling fn
-   * If the first Result is success, calls fn with the value
-   * @example
-   * ```typescript
-   * const result = Result.ok(5);
-   * const chained = Result.flatMap(result, x => {
-   *   if (x > 10) return Result.ok(x);
-   *   return Result.err(new Error('too small'));
-   * });
-   * ```
-   */
-  flatMap(result, fn) {
-    if (result.success) {
-      return fn(result.value);
-    }
-    return result;
-  },
-  /**
-   * Async version of flatMap
-   */
-  async flatMapAsync(result, fn) {
-    if (result.success) {
-      return await fn(result.value);
-    }
-    return result;
-  },
-  /**
-   * Unwrap a Result, throwing if it's an error
-   * Use sparingly - prefer explicit error handling
-   * @throws The error if Result is failed
-   * @example
-   * ```typescript
-   * const value = Result.unwrap(result); // Throws if error
-   * ```
-   */
-  unwrap(result) {
-    if (result.success) {
-      return result.value;
-    }
-    throw result.error;
-  },
-  /**
-   * Unwrap a Result, returning a default value if it's an error
-   * @example
-   * ```typescript
-   * const value = Result.unwrapOr(result, 'default');
-   * ```
-   */
-  unwrapOr(result, defaultValue) {
-    return result.success ? result.value : defaultValue;
-  },
-  /**
-   * Unwrap a Result, computing a default value from the error
-   * @example
-   * ```typescript
-   * const value = Result.unwrapOrElse(result, error => {
-   *   console.error('Failed:', error);
-   *   return 'fallback';
-   * });
-   * ```
-   */
-  unwrapOrElse(result, fn) {
-    return result.success ? result.value : fn(result.error);
-  },
-  /**
-   * Check if Result is success
-   */
-  isOk(result) {
-    return result.success === true;
-  },
-  /**
-   * Check if Result is error
-   */
-  isErr(result) {
-    return result.success === false;
-  },
-  /**
-   * Combine multiple Results into one
-   * Returns first error, or all values if all succeed
-   * @example
-   * ```typescript
-   * const results = [Result.ok(1), Result.ok(2), Result.ok(3)];
-   * const combined = Result.all(results);
-   * // combined = { success: true, value: [1, 2, 3] }
-   * ```
-   */
-  all(results) {
-    const values = [];
-    for (const result of results) {
-      if (!result.success) {
-        return result;
-      }
-      values.push(result.value);
-    }
-    return Result.ok(values);
-  },
-  /**
-   * Combine multiple Results, collecting all errors or all values
-   * Unlike `all`, this doesn't short-circuit on first error
-   * @example
-   * ```typescript
-   * const results = [
-   *   Result.ok(1),
-   *   Result.err(new Error('e1')),
-   *   Result.err(new Error('e2'))
-   * ];
-   * const combined = Result.partition(results);
-   * // combined = { success: false, error: [Error('e1'), Error('e2')] }
-   * ```
-   */
-  partition(results) {
-    const values = [];
-    const errors = [];
-    for (const result of results) {
-      if (result.success) {
-        values.push(result.value);
-      } else {
-        errors.push(result.error);
-      }
-    }
-    if (errors.length > 0) {
-      return Result.err(errors);
-    }
-    return Result.ok(values);
-  },
-  /**
-   * Sequence async operations, short-circuiting on first error
-   * @example
-   * ```typescript
-   * const result = await Result.sequence([
-   *   () => validateInput(data),
-   *   () => fetchUser(data.userId),
-   *   () => updateUser(user)
-   * ]);
-   * ```
-   */
-  async sequence(operations) {
-    const values = [];
-    for (const operation of operations) {
-      const result = await operation();
-      if (!result.success) {
-        return result;
-      }
-      values.push(result.value);
-    }
-    return Result.ok(values);
-  },
-  /**
-   * Match on a Result, providing handlers for both cases
-   * @example
-   * ```typescript
-   * const message = Result.match(result, {
-   *   ok: user => `Welcome ${user.name}`,
-   *   err: error => `Error: ${error.message}`
-   * });
-   * ```
-   */
-  match(result, handlers) {
-    if (result.success) {
-      return handlers.ok(result.value);
-    }
-    return handlers.err(result.error);
-  },
-  /**
-   * Perform a side effect on success, returning the original Result
-   * @example
-   * ```typescript
-   * const result = Result.ok(user)
-   *   .pipe(Result.tap(u => console.log('Found user:', u.name)));
-   * ```
-   */
-  tap(result, fn) {
-    if (result.success) {
-      fn(result.value);
-    }
-    return result;
-  },
-  /**
-   * Perform a side effect on error, returning the original Result
-   * @example
-   * ```typescript
-   * const result = operation()
-   *   .pipe(Result.tapErr(e => console.error('Operation failed:', e)));
-   * ```
-   */
-  tapErr(result, fn) {
-    if (!result.success) {
-      fn(result.error);
-    }
-    return result;
-  }
-};
-
-// src/config/loader.ts
+init_result();
 async function loadConfig(projectPath) {
   try {
     const configPath = path3.join(projectPath, "conductor.config.ts");
@@ -9209,6 +15914,9 @@ ${errors.join("\n")}`));
   }
   return Result.ok(void 0);
 }
+
+// src/config/loader-workers.ts
+init_result();
 
 // src/config/security.ts
 var DEFAULT_SECURITY_CONFIG = {
@@ -10481,8 +17189,8 @@ function createValidateCommand() {
       } else {
         for (const p of paths) {
           const resolved = path5.resolve(process.cwd(), p);
-          const stat3 = await fs6.stat(resolved);
-          if (stat3.isDirectory()) {
+          const stat4 = await fs6.stat(resolved);
+          if (stat4.isDirectory()) {
             const files = await glob("**/*.{yaml,yml,ts}", {
               cwd: resolved,
               absolute: true,
@@ -11424,24 +18132,9694 @@ async function handleKeysCommand(subcommand, args) {
   }
 }
 
+// src/cli/commands/build.ts
+import { Command as Command13 } from "commander";
+import chalk13 from "chalk";
+
+// src/runtime/state-manager.ts
+init_observability();
+var StateManager = class _StateManager {
+  constructor(config, existingState, existingLog) {
+    this.schema = Object.freeze(config.schema || {});
+    this.state = Object.freeze(existingState || { ...config.initial || {} });
+    this.accessLog = existingLog || [];
+    this.logger = config.logger || createLogger({ serviceName: "state-manager" });
+  }
+  /**
+   * Create a state context for a specific agent
+   * Returns both the context and a function to retrieve accumulated updates
+   */
+  getStateForAgent(agentName, config) {
+    const { use = [], set = [] } = config;
+    const viewState = {};
+    const newLog = [...this.accessLog];
+    for (const key of use) {
+      if (this.state && key in this.state) {
+        viewState[key] = this.state[key];
+        newLog.push({
+          agent: agentName,
+          key,
+          operation: "read",
+          timestamp: Date.now()
+        });
+      }
+    }
+    const pendingUpdates = {};
+    const setState = (updates) => {
+      for (const [key, value] of Object.entries(updates)) {
+        if (set.includes(key)) {
+          pendingUpdates[key] = value;
+          newLog.push({
+            agent: agentName,
+            key,
+            operation: "write",
+            timestamp: Date.now()
+          });
+        } else {
+          this.logger.warn("Agent attempted to set undeclared state key", {
+            agentName,
+            key,
+            declaredKeys: set
+          });
+        }
+      }
+    };
+    return {
+      context: {
+        state: Object.freeze(viewState),
+        setState
+      },
+      getPendingUpdates: () => ({ updates: pendingUpdates, newLog })
+    };
+  }
+  /**
+   * Apply pending updates from a agent execution (returns new StateManager instance)
+   * This is the preferred method when using getStateForAgent with getPendingUpdates
+   */
+  applyPendingUpdates(updates, newLog) {
+    if (Object.keys(updates).length === 0 && newLog.length === this.accessLog.length) {
+      return this;
+    }
+    const newState = { ...this.state, ...updates };
+    return new _StateManager(
+      { schema: this.schema, initial: {}, logger: this.logger },
+      newState,
+      newLog
+    );
+  }
+  /**
+   * Update state from a agent (returns new StateManager instance)
+   * Use applyPendingUpdates for better performance when using getStateForAgent
+   */
+  setStateFromMember(agentName, updates, config) {
+    const { set = [] } = config;
+    const newState = { ...this.state };
+    const newLog = [...this.accessLog];
+    for (const [key, value] of Object.entries(updates)) {
+      if (set.includes(key)) {
+        newState[key] = value;
+        newLog.push({
+          agent: agentName,
+          key,
+          operation: "write",
+          timestamp: Date.now()
+        });
+      } else {
+        this.logger.warn("Agent attempted to set undeclared state key", {
+          agentName,
+          key,
+          declaredKeys: set
+        });
+      }
+    }
+    return new _StateManager(
+      { schema: this.schema, initial: {}, logger: this.logger },
+      newState,
+      newLog
+    );
+  }
+  /**
+   * Get the full current state snapshot
+   */
+  getState() {
+    return this.state;
+  }
+  /**
+   * Generate an access report showing state usage patterns
+   */
+  getAccessReport() {
+    const allKeys = Object.keys(this.state);
+    const usedKeys = /* @__PURE__ */ new Set();
+    for (const access6 of this.accessLog) {
+      usedKeys.add(access6.key);
+    }
+    const unusedKeys = allKeys.filter((key) => !usedKeys.has(key));
+    const accessPatterns = {};
+    for (const access6 of this.accessLog) {
+      if (!accessPatterns[access6.agent]) {
+        accessPatterns[access6.agent] = [];
+      }
+      accessPatterns[access6.agent].push(access6);
+    }
+    return {
+      unusedKeys,
+      accessPatterns
+    };
+  }
+  /**
+   * Clear access logs (returns new instance)
+   */
+  clearAccessLog() {
+    return new _StateManager(
+      { schema: this.schema, initial: {}, logger: this.logger },
+      this.state,
+      []
+    );
+  }
+  /**
+   * Reset state to initial values (returns new instance)
+   */
+  reset(initialState) {
+    return new _StateManager(
+      { schema: this.schema, initial: initialState || {}, logger: this.logger },
+      void 0,
+      []
+    );
+  }
+  /**
+   * Create a new StateManager with merged state
+   */
+  merge(updates) {
+    const newState = { ...this.state, ...updates };
+    return new _StateManager(
+      { schema: this.schema, initial: {}, logger: this.logger },
+      newState,
+      this.accessLog
+    );
+  }
+};
+
+// src/agents/function-agent.ts
+init_base_agent();
+var FunctionAgent = class _FunctionAgent extends BaseAgent {
+  constructor(config, implementation) {
+    super(config);
+    if (typeof implementation !== "function") {
+      throw new Error(`Function agent "${config.name}" requires a function implementation`);
+    }
+    this.implementation = implementation;
+  }
+  /**
+   * Execute the user-provided function
+   */
+  async run(context) {
+    try {
+      const result = await this.implementation(context);
+      return result;
+    } catch (error) {
+      throw new Error(
+        `Function agent "${this.name}" execution failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+  /**
+   * Get the function implementation (for testing/inspection)
+   */
+  getImplementation() {
+    return this.implementation;
+  }
+  /**
+   * Create a FunctionAgent from a config with inline handler
+   * Supports test-style handlers: (input, context?) => result
+   */
+  static fromConfig(config) {
+    const handler = config.config?.handler;
+    if (typeof handler === "function") {
+      const implementation = async (context) => {
+        return await handler(context.input, context);
+      };
+      return new _FunctionAgent(config, implementation);
+    }
+    return null;
+  }
+};
+
+// src/agents/code-agent.ts
+init_base_agent();
+
+// src/utils/script-loader.ts
+function parseScriptURI(uri) {
+  let pathWithVersion;
+  if (uri.startsWith("script://")) {
+    pathWithVersion = uri.slice("script://".length);
+  } else if (uri.startsWith("scripts/")) {
+    pathWithVersion = uri.slice("scripts/".length);
+  } else {
+    throw new Error(
+      `Invalid script reference: ${uri}
+Expected formats:
+  - script://transforms/csv (full URI)
+  - scripts/transforms/csv (shorthand)
+  - scripts/transforms/csv@v1.0.0 (with version)
+Examples:
+  - script://validators/email
+  - scripts/health-check
+  - scripts/auth/verify-token@v1.0.0`
+    );
+  }
+  const [path9] = pathWithVersion.split("@");
+  if (!path9) {
+    throw new Error(`Script reference has empty path: ${uri}`);
+  }
+  return path9;
+}
+function isScriptReference(value) {
+  return typeof value === "string" && (value.startsWith("script://") || value.startsWith("scripts/"));
+}
+var globalScriptLoader = null;
+function getGlobalScriptLoader() {
+  if (!globalScriptLoader) {
+    throw new Error(
+      "Script loader not initialized.\nCall setGlobalScriptLoader() during app initialization:\n\n  import { scriptsMap } from 'virtual:conductor-scripts'\n  import { setGlobalScriptLoader, createScriptLoader } from '@ensemble-edge/conductor'\n\n  setGlobalScriptLoader(createScriptLoader(scriptsMap))"
+    );
+  }
+  return globalScriptLoader;
+}
+function hasGlobalScriptLoader() {
+  return globalScriptLoader !== null;
+}
+
+// src/agents/code-agent.ts
+var CodeAgent = class _CodeAgent extends BaseAgent {
+  constructor(config) {
+    super(config);
+    this.codeConfig = config.config || {};
+    if (!this.codeConfig.script && !this.codeConfig.handler) {
+      throw new Error(`Code agent "${config.name}" requires either a script URI or inline handler`);
+    }
+    if (this.codeConfig.handler) {
+      this.compiledFunction = this.codeConfig.handler;
+    }
+  }
+  /**
+   * Execute the code
+   */
+  async run(context) {
+    try {
+      if (!this.compiledFunction && this.codeConfig.script) {
+        this.compiledFunction = this.loadScript(context);
+      }
+      if (!this.compiledFunction) {
+        throw new Error("No code implementation available");
+      }
+      const result = await this.compiledFunction(context);
+      return result;
+    } catch (error) {
+      throw new Error(
+        `Code agent "${this.name}" execution failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+  /**
+   * Load script from bundled scripts
+   *
+   * Uses the global ScriptLoader which contains pre-bundled scripts
+   * discovered at build time by vite-plugin-script-discovery.
+   *
+   * This approach works in Cloudflare Workers because it doesn't
+   * use new Function() or eval() - scripts are statically imported.
+   */
+  loadScript(context) {
+    const scriptUri = this.codeConfig.script;
+    if (!scriptUri) {
+      throw new Error("No script URI provided");
+    }
+    if (!hasGlobalScriptLoader()) {
+      throw new Error(
+        `Cannot load script "${scriptUri}": Script loader not initialized.
+
+For Cloudflare Workers, scripts must be bundled at build time:
+1. Create your script in scripts/${scriptUri.replace("script://", "")}.ts
+2. Export a default function: export default async function(context) { ... }
+3. Initialize the script loader in your worker entry point:
+
+   import { scriptsMap } from 'virtual:conductor-scripts'
+   import { setGlobalScriptLoader, createScriptLoader } from '@ensemble-edge/conductor'
+   setGlobalScriptLoader(createScriptLoader(scriptsMap))
+
+Note: Dynamic script loading via KV is not supported in Workers due to
+security restrictions (new Function() is blocked).`
+      );
+    }
+    const scriptLoader = getGlobalScriptLoader();
+    context.logger?.debug("Loading script from bundle", { uri: scriptUri });
+    try {
+      return scriptLoader.resolve(scriptUri);
+    } catch (error) {
+      context.logger?.error("Script resolution failed", error, { uri: scriptUri });
+      throw error;
+    }
+  }
+  /**
+   * Create a CodeAgent from a config with script URI or handler
+   */
+  static fromConfig(config) {
+    const codeConfig = config.config;
+    if (codeConfig?.script || codeConfig?.handler) {
+      return new _CodeAgent(config);
+    }
+    return null;
+  }
+};
+
+// src/agents/think-agent.ts
+init_base_agent();
+
+// src/agents/think-providers/base-provider.ts
+var BaseAIProvider = class {
+  /**
+   * Default validation checks for API key
+   */
+  validateConfig(config, env) {
+    return this.getConfigError(config, env) === null;
+  }
+  /**
+   * Helper to get API key from config or env
+   */
+  getApiKey(config, env, envVarName) {
+    return config.apiKey || env[envVarName] || null;
+  }
+  /**
+   * Helper to make HTTP request
+   */
+  async makeRequest(endpoint, headers, body) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API request failed: ${response.status} ${response.statusText}
+${errorText}`);
+    }
+    return await response.json();
+  }
+};
+
+// src/agents/think-providers/openai-provider.ts
+var OpenAIProvider = class extends BaseAIProvider {
+  constructor() {
+    super(...arguments);
+    this.id = "openai";
+    this.name = "OpenAI";
+    this.defaultEndpoint = "https://api.openai.com/v1/chat/completions";
+  }
+  async execute(request) {
+    const { messages, config, env } = request;
+    const apiKey = this.getApiKey(config, env, "OPENAI_API_KEY");
+    if (!apiKey) {
+      throw new Error("OpenAI API key not found. Set OPENAI_API_KEY in env or config");
+    }
+    const endpoint = config.apiEndpoint || this.defaultEndpoint;
+    const data = await this.makeRequest(
+      endpoint,
+      { Authorization: `Bearer ${apiKey}` },
+      {
+        model: config.model,
+        messages,
+        temperature: config.temperature,
+        max_tokens: config.maxTokens
+      }
+    );
+    return {
+      content: data.choices[0]?.message?.content || "",
+      model: config.model,
+      tokensUsed: data.usage?.total_tokens,
+      provider: this.id,
+      metadata: {
+        finishReason: data.choices[0]?.finish_reason,
+        promptTokens: data.usage?.prompt_tokens,
+        completionTokens: data.usage?.completion_tokens
+      }
+    };
+  }
+  getConfigError(config, env) {
+    const apiKey = this.getApiKey(config, env, "OPENAI_API_KEY");
+    if (!apiKey) {
+      return "OpenAI API key not found. Set OPENAI_API_KEY in env or config.apiKey";
+    }
+    return null;
+  }
+};
+
+// src/agents/think-providers/anthropic-provider.ts
+var AnthropicProvider = class extends BaseAIProvider {
+  constructor() {
+    super(...arguments);
+    this.id = "anthropic";
+    this.name = "Anthropic";
+    this.defaultEndpoint = "https://api.anthropic.com/v1/messages";
+    this.defaultModel = "claude-3-sonnet-20240229";
+  }
+  async execute(request) {
+    const { messages, config, env } = request;
+    const apiKey = this.getApiKey(config, env, "ANTHROPIC_API_KEY");
+    if (!apiKey) {
+      throw new Error("Anthropic API key not found. Set ANTHROPIC_API_KEY in env or config");
+    }
+    const endpoint = config.apiEndpoint || this.defaultEndpoint;
+    const anthropicMessages = messages.filter((m) => m.role !== "system");
+    const systemMessage = messages.find((m) => m.role === "system")?.content || config.systemPrompt;
+    const requestBody = {
+      model: config.model || this.defaultModel,
+      messages: anthropicMessages,
+      system: systemMessage,
+      temperature: config.temperature,
+      max_tokens: config.maxTokens
+    };
+    if (config.schema) {
+      const schema = typeof config.schema === "string" ? JSON.parse(config.schema) : config.schema;
+      requestBody.response_format = {
+        type: "json_schema",
+        json_schema: schema
+      };
+    }
+    const data = await this.makeRequest(
+      endpoint,
+      {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      requestBody
+    );
+    return {
+      content: data.content[0]?.text || "",
+      model: config.model || this.defaultModel,
+      tokensUsed: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+      provider: this.id,
+      metadata: {
+        stopReason: data.stop_reason,
+        inputTokens: data.usage?.input_tokens,
+        outputTokens: data.usage?.output_tokens,
+        schema: config.schema ? typeof config.schema === "string" ? config.schema : JSON.stringify(config.schema) : void 0
+      }
+    };
+  }
+  getConfigError(config, env) {
+    const apiKey = this.getApiKey(config, env, "ANTHROPIC_API_KEY");
+    if (!apiKey) {
+      return "Anthropic API key not found. Set ANTHROPIC_API_KEY in env or config.apiKey";
+    }
+    return null;
+  }
+};
+
+// src/agents/think-providers/cloudflare-provider.ts
+var CloudflareProvider = class extends BaseAIProvider {
+  constructor() {
+    super(...arguments);
+    this.id = "workers-ai";
+    this.name = "Cloudflare Workers AI";
+    this.defaultModel = "@cf/meta/llama-2-7b-chat-int8";
+  }
+  async execute(request) {
+    const { messages, config, env } = request;
+    if (!env.AI) {
+      throw new Error(
+        'Cloudflare AI binding not available. Add [ai] binding = "AI" to wrangler.toml'
+      );
+    }
+    const model = config.model || this.defaultModel;
+    const response = await env.AI.run(model, {
+      messages,
+      temperature: config.temperature,
+      max_tokens: config.maxTokens
+    });
+    return {
+      content: response.response || response.result?.response || String(response),
+      model,
+      tokensUsed: response.tokens_used,
+      provider: this.id,
+      metadata: {
+        raw: response
+      }
+    };
+  }
+  getConfigError(config, env) {
+    if (!env.AI) {
+      return 'Cloudflare AI binding not found. Add [ai] binding = "AI" to wrangler.toml';
+    }
+    return null;
+  }
+};
+
+// src/agents/think-providers/custom-provider.ts
+var CustomProvider = class extends BaseAIProvider {
+  constructor() {
+    super(...arguments);
+    this.id = "custom";
+    this.name = "Custom API";
+  }
+  async execute(request) {
+    const { messages, config, env } = request;
+    if (!config.apiEndpoint) {
+      throw new Error("Custom provider requires apiEndpoint in config");
+    }
+    const apiKey = this.getApiKey(config, env, "AI_API_KEY");
+    const headers = {};
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+    const data = await this.makeRequest(config.apiEndpoint, headers, {
+      model: config.model,
+      messages,
+      temperature: config.temperature,
+      max_tokens: config.maxTokens
+    });
+    const content = data.choices?.[0]?.message?.content || data.response || data.content || "";
+    return {
+      content,
+      model: config.model,
+      tokensUsed: data.usage?.total_tokens,
+      provider: this.id,
+      metadata: data
+    };
+  }
+  getConfigError(config, env) {
+    if (!config.apiEndpoint) {
+      return "Custom provider requires apiEndpoint in config";
+    }
+    return null;
+  }
+};
+
+// src/agents/think-providers/registry.ts
+var ProviderRegistry = class {
+  constructor() {
+    this.providers = /* @__PURE__ */ new Map();
+    this.registerDefaultProviders();
+  }
+  /**
+   * Register default providers
+   */
+  registerDefaultProviders() {
+    this.register(new OpenAIProvider());
+    this.register(new AnthropicProvider());
+    this.register(new CloudflareProvider());
+    this.register(new CustomProvider());
+  }
+  /**
+   * Register a provider
+   */
+  register(provider) {
+    this.providers.set(provider.id, provider);
+  }
+  /**
+   * Get provider by ID
+   */
+  get(providerId) {
+    return this.providers.get(providerId) || null;
+  }
+  /**
+   * Check if provider exists
+   */
+  has(providerId) {
+    return this.providers.has(providerId);
+  }
+  /**
+   * Get all registered provider IDs
+   */
+  getProviderIds() {
+    return Array.from(this.providers.keys());
+  }
+  /**
+   * Get all registered providers
+   */
+  getAllProviders() {
+    return Array.from(this.providers.values());
+  }
+};
+var globalRegistry = null;
+function getProviderRegistry() {
+  if (!globalRegistry) {
+    globalRegistry = new ProviderRegistry();
+  }
+  return globalRegistry;
+}
+
+// src/utils/component-resolver.ts
+function isComponentReference(value) {
+  const componentPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i;
+  return componentPattern.test(value);
+}
+function isUnversionedComponent(value) {
+  const pathPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+$/i;
+  return pathPattern.test(value) && !value.includes("@");
+}
+function isFilePath(value) {
+  return /^\.{0,2}\//.test(value);
+}
+var pathUtils = {
+  /**
+   * Check if a path is absolute (starts with /)
+   */
+  isAbsolute(filePath) {
+    return filePath.startsWith("/");
+  },
+  /**
+   * Join path segments
+   */
+  join(...segments) {
+    return segments.join("/").replace(/\/+/g, "/").replace(/\/$/, "");
+  },
+  /**
+   * Get the basename of a path
+   */
+  basename(filePath) {
+    const parts = filePath.split("/");
+    return parts[parts.length - 1] || "";
+  },
+  /**
+   * Normalize a path (resolve . and ..)
+   */
+  normalize(filePath) {
+    const parts = filePath.split("/");
+    const result = [];
+    for (const part of parts) {
+      if (part === "..") {
+        result.pop();
+      } else if (part !== "." && part !== "") {
+        result.push(part);
+      }
+    }
+    const normalized = result.join("/");
+    return filePath.startsWith("/") ? "/" + normalized : normalized;
+  }
+};
+async function loadFromKV(filePath, context) {
+  const normalizedPath = pathUtils.normalize(filePath).replace(/^\.\//, "");
+  const kv = context.env?.COMPONENTS || context.env?.EDGIT;
+  if (!kv) {
+    throw new Error(
+      `Cannot load file "${filePath}" in Workers runtime without KV storage.
+Configure COMPONENTS or EDGIT KV namespace, or use inline content instead.`
+    );
+  }
+  try {
+    const content = await kv.get(`files/${normalizedPath}`);
+    if (content) {
+      return content;
+    }
+    const contentAlt = await kv.get(normalizedPath);
+    if (contentAlt) {
+      return contentAlt;
+    }
+    throw new Error(`File not found in KV: ${normalizedPath}`);
+  } catch (error) {
+    throw new Error(
+      `Failed to load file from KV: ${filePath}
+Looked for keys: files/${normalizedPath}, ${normalizedPath}
+Error: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+async function resolveComponentRef(ref, context) {
+  const [pathPart, version2] = ref.split("@");
+  if (context.env?.EDGIT) {
+    const edgitPath = `components/${pathPart}/${version2}`;
+    try {
+      const content = await context.env.EDGIT.get(edgitPath);
+      if (content) {
+        try {
+          return JSON.parse(content);
+        } catch {
+          return content;
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch from Edgit: ${edgitPath}`, error);
+    }
+  }
+  if (context.env?.COMPONENTS) {
+    const componentPath = `${pathPart}/${version2}`;
+    try {
+      const content = await context.env.COMPONENTS.get(componentPath);
+      if (content) {
+        try {
+          return JSON.parse(content);
+        } catch {
+          return content;
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, error);
+    }
+  }
+  throw new Error(
+    `Component not found: ${ref}
+Tried EDGIT: components/${pathPart}/${version2}
+Tried COMPONENTS: ${pathPart}/${version2}
+Make sure the component is stored in KV storage.`
+  );
+}
+async function resolveValue(value, context) {
+  if (typeof value !== "string") {
+    return {
+      content: value,
+      source: "inline",
+      originalRef: value
+    };
+  }
+  if (value.includes("\n")) {
+    return {
+      content: value,
+      source: "inline",
+      originalRef: value
+    };
+  }
+  if (isFilePath(value)) {
+    const content = await loadFromKV(value, context);
+    return {
+      content,
+      source: "file",
+      originalRef: value
+    };
+  }
+  if (isComponentReference(value)) {
+    const content = await resolveComponentRef(value, context);
+    const [pathPart, version2] = value.split("@");
+    return {
+      content,
+      source: "component",
+      originalRef: value,
+      metadata: {
+        path: pathPart,
+        version: version2,
+        fromEdgit: !!context.env?.EDGIT
+      }
+    };
+  }
+  if (isUnversionedComponent(value)) {
+    const versionedRef = `${value}@latest`;
+    const content = await resolveComponentRef(versionedRef, context);
+    return {
+      content,
+      source: "component",
+      originalRef: value,
+      metadata: {
+        path: value,
+        version: "latest",
+        fromEdgit: !!context.env?.EDGIT
+      }
+    };
+  }
+  return {
+    content: value,
+    source: "inline",
+    originalRef: value
+  };
+}
+
+// src/utils/templates/engines/base.ts
+var BaseTemplateEngine = class {
+  /**
+   * Compile a template for repeated use (optional optimization)
+   */
+  async compile(template) {
+    return template;
+  }
+  /**
+   * Register a helper function
+   */
+  registerHelper(name, fn) {
+  }
+  /**
+   * Register a partial template
+   */
+  registerPartial(name, template) {
+  }
+};
+
+// src/utils/templates/engines/simple.ts
+var SimpleTemplateEngine = class extends BaseTemplateEngine {
+  constructor() {
+    super(...arguments);
+    this.name = "simple";
+    this.partials = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Set the component loader for partial support
+   */
+  setComponentLoader(loader) {
+    this.componentLoader = loader;
+  }
+  /**
+   * Register a partial template
+   */
+  registerPartial(name, content) {
+    this.partials.set(name, content);
+  }
+  /**
+   * Render template with simple {{variable}} replacement
+   */
+  async render(template, context) {
+    let result = template;
+    const data = context.data !== void 0 ? context.data : context;
+    const helpers = context.helpers;
+    result = await this.processConditionalsRecursive(result, data, context);
+    result = await this.processLoopsRecursive(result, data, context);
+    result = await this.processPartials(result, { ...context, data });
+    result = result.replace(/\{\{(\s*[\w.]+\s*)\}\}/g, (match, key) => {
+      const trimmedKey = key.trim();
+      const value = this.resolveValue(data, trimmedKey);
+      if (value === void 0) {
+        return "";
+      }
+      if (value === null) {
+        return "null";
+      }
+      return String(value);
+    });
+    if (helpers) {
+      result = this.processHelpers(result, helpers);
+    }
+    return result;
+  }
+  /**
+   * Validate template syntax
+   */
+  async validate(template) {
+    const errors = [];
+    const openBraces = (template.match(/\{\{/g) || []).length;
+    const closeBraces = (template.match(/\}\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      errors.push(`Unbalanced braces: ${openBraces} opening {{ but ${closeBraces} closing }}`);
+    }
+    const ifBlocks = (template.match(/\{\{#if\s+\w+\}\}/g) || []).length;
+    const endifBlocks = (template.match(/\{\{\/if\}\}/g) || []).length;
+    if (ifBlocks !== endifBlocks) {
+      errors.push(`Unbalanced conditionals: ${ifBlocks} {{#if}} but ${endifBlocks} {{/if}}`);
+    }
+    const eachBlocks = (template.match(/\{\{#each\s+\w+\}\}/g) || []).length;
+    const endEachBlocks = (template.match(/\{\{\/each\}\}/g) || []).length;
+    if (eachBlocks !== endEachBlocks) {
+      errors.push(`Unbalanced loops: ${eachBlocks} {{#each}} but ${endEachBlocks} {{/each}}`);
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+  /**
+   * Resolve nested object path (e.g., "user.name" -> context.user.name)
+   */
+  resolveValue(data, path9) {
+    const keys = path9.split(".");
+    let value = data;
+    for (const key of keys) {
+      if (value && typeof value === "object" && key in value) {
+        value = value[key];
+      } else {
+        return void 0;
+      }
+    }
+    return value;
+  }
+  /**
+   * Process {{#if condition}}...{{else}}...{{/if}} blocks recursively
+   * This allows conditionals to contain partials and other templates
+   */
+  async processConditionalsRecursive(template, data, context) {
+    const conditionalRegex = /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/;
+    let result = template;
+    let match;
+    while ((match = conditionalRegex.exec(result)) !== null) {
+      const [fullMatch, key, content] = match;
+      const value = this.resolveValue(data, key);
+      const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/);
+      let selectedContent;
+      if (elseMatch) {
+        const [, ifContent, elseContent] = elseMatch;
+        selectedContent = value ? ifContent : elseContent;
+      } else {
+        selectedContent = value ? content : "";
+      }
+      const rendered = await this.render(selectedContent, { ...context, data });
+      result = result.replace(fullMatch, rendered);
+    }
+    return result;
+  }
+  /**
+   * Process {{#each array}}...{{/each}} blocks recursively
+   * This allows loops to contain partials with access to loop item data
+   */
+  async processLoopsRecursive(template, data, context) {
+    const loopRegex = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/;
+    let result = template;
+    let match;
+    while ((match = loopRegex.exec(result)) !== null) {
+      const [fullMatch, key, content] = match;
+      const array = this.resolveValue(data, key);
+      if (!Array.isArray(array)) {
+        result = result.replace(fullMatch, "");
+        continue;
+      }
+      const renderedItems = await Promise.all(
+        array.map(async (item, index) => {
+          const itemData = typeof item === "object" && item !== null ? {
+            ...data,
+            ...item,
+            "@index": index,
+            "@first": index === 0,
+            "@last": index === array.length - 1
+          } : {
+            ...data,
+            this: item,
+            "@index": index,
+            "@first": index === 0,
+            "@last": index === array.length - 1
+          };
+          return await this.render(content, { ...context, data: itemData });
+        })
+      );
+      result = result.replace(fullMatch, renderedItems.join(""));
+    }
+    return result;
+  }
+  /**
+   * Process {{#if condition}}...{{else}}...{{/if}} blocks (non-recursive, legacy)
+   * @deprecated Use processConditionalsRecursive instead
+   */
+  processConditionals(template, data) {
+    return template.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, key, content) => {
+      const value = this.resolveValue(data, key);
+      const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/);
+      if (elseMatch) {
+        const [, ifContent, elseContent] = elseMatch;
+        return value ? ifContent : elseContent;
+      }
+      return value ? content : "";
+    });
+  }
+  /**
+   * Process {{#each array}}...{{/each}} blocks
+   */
+  processLoops(template, data) {
+    return template.replace(
+      /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g,
+      (match, key, content) => {
+        const array = this.resolveValue(data, key);
+        if (!Array.isArray(array)) {
+          return "";
+        }
+        return array.map((item, index) => {
+          let itemContent = content;
+          itemContent = itemContent.replace(/\{\{this\}\}/g, String(item));
+          itemContent = itemContent.replace(/\{\{@index\}\}/g, String(index));
+          itemContent = itemContent.replace(/\{\{@first\}\}/g, String(index === 0));
+          itemContent = itemContent.replace(/\{\{@last\}\}/g, String(index === array.length - 1));
+          if (typeof item === "object" && item !== null) {
+            itemContent = itemContent.replace(/\{\{(\w+)\}\}/g, (m, k) => {
+              const val = item[k];
+              return val !== void 0 ? String(val) : m;
+            });
+          }
+          return itemContent;
+        }).join("");
+      }
+    );
+  }
+  /**
+   * Process {{> partialName}} or {{> uri://path@version}} includes
+   */
+  async processPartials(template, context) {
+    const partialRegex = /\{\{>\s*([^}\s]+)(?:\s+([^}]+))?\s*\}\}/g;
+    const matches = Array.from(template.matchAll(partialRegex));
+    if (matches.length === 0) {
+      return template;
+    }
+    let result = template;
+    for (const match of matches) {
+      const [fullMatch, partialRef, argsStr] = match;
+      const partialData = argsStr ? this.parsePartialArgs(argsStr, context.data) : context.data;
+      try {
+        let partialContent;
+        if (partialRef.includes("://")) {
+          if (!this.componentLoader) {
+            throw new Error(
+              `Component loader not configured. Cannot load component: ${partialRef}`
+            );
+          }
+          partialContent = await this.componentLoader.load(partialRef);
+        } else {
+          partialContent = this.partials.get(partialRef) || "";
+          if (!partialContent) {
+            throw new Error(`Partial not found: ${partialRef}`);
+          }
+        }
+        const rendered = await this.render(partialContent, {
+          ...context,
+          data: partialData
+        });
+        result = result.replace(fullMatch, rendered);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        result = result.replace(fullMatch, `<!-- Partial error: ${errorMsg} -->`);
+      }
+    }
+    return result;
+  }
+  /**
+   * Parse partial arguments
+   * Example: title="My Site" count=5 -> { title: "My Site", count: 5 }
+   */
+  parsePartialArgs(argsStr, contextData) {
+    const args = { ...contextData };
+    const argRegex = /(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g;
+    let match;
+    while ((match = argRegex.exec(argsStr)) !== null) {
+      const [, key, quotedVal1, quotedVal2, unquotedVal] = match;
+      const value = quotedVal1 || quotedVal2 || unquotedVal;
+      if (value && !value.startsWith('"') && !value.startsWith("'")) {
+        const contextValue = this.resolveValue(contextData, value);
+        args[key] = contextValue !== void 0 ? contextValue : value;
+      } else {
+        args[key] = value;
+      }
+    }
+    return args;
+  }
+  /**
+   * Process helper functions {{helper arg1 arg2}}
+   */
+  processHelpers(template, helpers) {
+    return template.replace(/\{\{(\w+)\s+([^}]+)\}\}/g, (match, helperName, args) => {
+      const helper = helpers[helperName];
+      if (!helper) {
+        return match;
+      }
+      const parsedArgs = args.split(/\s+/);
+      try {
+        const result = helper(...parsedArgs);
+        return String(result);
+      } catch {
+        return match;
+      }
+    });
+  }
+};
+
+// src/utils/templates/engines/liquid.ts
+import { Liquid } from "liquidjs";
+var LiquidTemplateEngine = class extends BaseTemplateEngine {
+  constructor() {
+    super();
+    this.name = "liquid";
+    this.compiledTemplates = /* @__PURE__ */ new Map();
+    this.liquid = new Liquid({
+      cache: true,
+      strictFilters: false,
+      // Allow undefined filters to fail gracefully
+      strictVariables: false,
+      // Allow undefined variables
+      trimTagLeft: false,
+      trimTagRight: false,
+      trimOutputLeft: false,
+      trimOutputRight: false
+    });
+    this.registerDefaultFilters();
+  }
+  /**
+   * Render a template with Liquid
+   */
+  async render(template, context) {
+    try {
+      let compiledTemplate = this.compiledTemplates.get(template);
+      if (!compiledTemplate) {
+        compiledTemplate = this.liquid.parse(template);
+        this.compiledTemplates.set(template, compiledTemplate);
+      }
+      const data = context.data !== void 0 ? context.data : context;
+      return await this.liquid.render(compiledTemplate, data);
+    } catch (error) {
+      throw new Error(
+        `Liquid render error: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  /**
+   * Validate template syntax
+   */
+  async validate(template) {
+    try {
+      this.liquid.parse(template);
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        errors: [error instanceof Error ? error.message : String(error)]
+      };
+    }
+  }
+  /**
+   * Compile a template for repeated use
+   */
+  async compile(template) {
+    const compiled = this.liquid.parse(template);
+    this.compiledTemplates.set(template, compiled);
+    return compiled;
+  }
+  /**
+   * Register a helper function (Liquid calls them filters)
+   */
+  registerHelper(name, fn) {
+    this.liquid.registerFilter(name, fn);
+  }
+  /**
+   * Register default filters
+   */
+  registerDefaultFilters() {
+    this.liquid.registerFilter("money", (value) => {
+      const num = parseFloat(value);
+      if (isNaN(num)) return value;
+      return `$${num.toFixed(2)}`;
+    });
+    this.liquid.registerFilter("money_with_currency", (value, currency = "USD") => {
+      const num = parseFloat(value);
+      if (isNaN(num)) return value;
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency
+      }).format(num);
+    });
+    this.liquid.registerFilter("phone", (value) => {
+      const cleaned = value.replace(/\D/g, "");
+      if (cleaned.length === 10) {
+        return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+      }
+      return value;
+    });
+    this.liquid.registerFilter("pluralize", (count, singular, plural) => {
+      if (count === 1) return singular;
+      return plural || `${singular}s`;
+    });
+    this.liquid.registerFilter("default", (value, defaultValue) => {
+      return value ?? defaultValue;
+    });
+    this.liquid.registerFilter("json", (obj) => {
+      try {
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return String(obj);
+      }
+    });
+    this.liquid.registerFilter("excerpt", (text, length = 200) => {
+      if (typeof text !== "string") return text;
+      if (text.length <= length) return text;
+      return text.substring(0, length).trim() + "...";
+    });
+    this.liquid.registerFilter("strip_html", (text) => {
+      if (typeof text !== "string") return text;
+      return text.replace(/<[^>]*>/g, "");
+    });
+    this.liquid.registerFilter("highlight", (text, term) => {
+      if (!text || !term) return text;
+      const regex = new RegExp(`(${term})`, "gi");
+      return text.replace(regex, "<mark>$1</mark>");
+    });
+    this.liquid.registerFilter("file_size", (bytes) => {
+      if (bytes === 0) return "0 Bytes";
+      const k = 1024;
+      const sizes = ["Bytes", "KB", "MB", "GB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
+    });
+    this.liquid.registerFilter("time_ago", (date) => {
+      const d = date instanceof Date ? date : new Date(date);
+      const now = /* @__PURE__ */ new Date();
+      const seconds = Math.floor((now.getTime() - d.getTime()) / 1e3);
+      const intervals = [
+        { label: "year", seconds: 31536e3 },
+        { label: "month", seconds: 2592e3 },
+        { label: "week", seconds: 604800 },
+        { label: "day", seconds: 86400 },
+        { label: "hour", seconds: 3600 },
+        { label: "minute", seconds: 60 },
+        { label: "second", seconds: 1 }
+      ];
+      for (const interval of intervals) {
+        const count = Math.floor(seconds / interval.seconds);
+        if (count >= 1) {
+          return `${count} ${interval.label}${count > 1 ? "s" : ""} ago`;
+        }
+      }
+      return "just now";
+    });
+  }
+  /**
+   * Clear the template cache
+   */
+  clearCache() {
+    this.compiledTemplates.clear();
+  }
+};
+
+// src/agents/think-agent.ts
+var ThinkAgent = class extends BaseAgent {
+  constructor(config, providerRegistry) {
+    super(config);
+    this.providerRegistry = providerRegistry || getProviderRegistry();
+    const cfg = config.config;
+    const engineType = cfg?.templateEngine || "simple";
+    switch (engineType) {
+      case "simple":
+        this.templateEngine = new SimpleTemplateEngine();
+        break;
+      case "liquid":
+        this.templateEngine = new LiquidTemplateEngine();
+        break;
+      default:
+        this.templateEngine = new SimpleTemplateEngine();
+        break;
+    }
+    const model = cfg?.model || "claude-3-5-haiku-20241022";
+    const provider = cfg?.provider || this.detectProvider(model);
+    this.thinkConfig = {
+      model,
+      provider,
+      temperature: cfg?.temperature || 0.7,
+      maxTokens: cfg?.maxTokens || 1e3,
+      apiKey: cfg?.apiKey,
+      apiEndpoint: cfg?.apiEndpoint,
+      systemPrompt: cfg?.systemPrompt,
+      prompt: cfg?.prompt,
+      schema: cfg?.schema
+    };
+  }
+  /**
+   * Auto-detect AI provider from model name
+   */
+  detectProvider(model) {
+    if (model.startsWith("@cf/")) {
+      return "cloudflare" /* Cloudflare */;
+    }
+    if (model.startsWith("gpt-") || model.startsWith("o1-") || model.startsWith("text-")) {
+      return "openai" /* OpenAI */;
+    }
+    if (model.startsWith("claude-")) {
+      return "anthropic" /* Anthropic */;
+    }
+    return "anthropic" /* Anthropic */;
+  }
+  /**
+   * Execute AI reasoning via provider system
+   *
+   * Output Design Philosophy:
+   * ─────────────────────────
+   * Think agents return output that's intuitive to use in ensembles:
+   *
+   * 1. If schema defines output fields → AI response maps to those fields
+   *    Schema: { output: { greeting: string } }
+   *    Output: { greeting: "Hello!", _meta: { model, provider, tokens } }
+   *    Usage:  ${agent.output.greeting}
+   *
+   * 2. If no schema → AI response is the direct output value
+   *    Output: "Hello!"  (string, not wrapped in object)
+   *    Usage:  ${agent.output}
+   *
+   * 3. If AI returns JSON → parsed and spread as output fields
+   *    Output: { name: "John", age: 30, _meta: {...} }
+   *    Usage:  ${agent.output.name}, ${agent.output.age}
+   *
+   * The _meta field contains provider details (model, tokens, etc.)
+   * for debugging/logging, but user data is always top-level.
+   */
+  async run(context) {
+    const { input, env } = context;
+    await this.resolvePrompt(env);
+    if (this.thinkConfig.systemPrompt) {
+      console.log("[ThinkAgent] BEFORE template rendering:", this.thinkConfig.systemPrompt);
+      console.log("[ThinkAgent] Input data:", JSON.stringify(input));
+      try {
+        this.thinkConfig.systemPrompt = await this.templateEngine.render(
+          this.thinkConfig.systemPrompt,
+          {
+            input,
+            env,
+            context
+          }
+        );
+        console.log("[ThinkAgent] AFTER template rendering:", this.thinkConfig.systemPrompt);
+      } catch (error) {
+        console.error("[ThinkAgent] Template rendering error:", error);
+        throw new Error(
+          `Failed to render systemPrompt template: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    await this.resolveSchema(env);
+    const providerId = this.thinkConfig.provider || "anthropic" /* Anthropic */;
+    const provider = this.providerRegistry.get(providerId);
+    if (!provider) {
+      throw new Error(
+        `Unknown AI provider: ${providerId}. Available providers: ${this.providerRegistry.getProviderIds().join(", ")}`
+      );
+    }
+    const providerConfig = {
+      model: this.thinkConfig.model || "claude-3-5-haiku-20241022",
+      temperature: this.thinkConfig.temperature,
+      maxTokens: this.thinkConfig.maxTokens,
+      apiKey: this.thinkConfig.apiKey,
+      apiEndpoint: this.thinkConfig.apiEndpoint,
+      systemPrompt: this.thinkConfig.systemPrompt,
+      schema: this.thinkConfig.schema
+    };
+    const configError = provider.getConfigError(providerConfig, env);
+    if (configError) {
+      throw new Error(configError);
+    }
+    const messages = this.buildMessages(input);
+    const response = await provider.execute({
+      messages,
+      config: providerConfig,
+      env
+    });
+    return this.buildOutput(response);
+  }
+  /**
+   * Build user-friendly output from AI provider response
+   *
+   * Design Goals:
+   * 1. Schema-defined fields are top-level (not nested under 'content')
+   * 2. Metadata is accessible but doesn't pollute user data
+   * 3. Works intuitively with ${agent.output.fieldName} syntax
+   */
+  buildOutput(response) {
+    const outputSchema = this.config.schema?.output;
+    const meta = {
+      model: response.model,
+      provider: response.provider,
+      tokensUsed: response.tokensUsed,
+      ...response.metadata || {}
+    };
+    let parsedContent = null;
+    try {
+      parsedContent = JSON.parse(response.content);
+    } catch {
+    }
+    if (parsedContent && typeof parsedContent === "object" && !Array.isArray(parsedContent)) {
+      return {
+        ...parsedContent,
+        _meta: meta
+      };
+    }
+    if (outputSchema && typeof outputSchema === "object") {
+      const schemaFields = Object.keys(outputSchema);
+      if (schemaFields.length === 1) {
+        const fieldName = schemaFields[0];
+        return {
+          [fieldName]: parsedContent ?? response.content,
+          _meta: meta
+        };
+      } else if (schemaFields.length > 1) {
+        const fieldName = schemaFields[0];
+        return {
+          [fieldName]: parsedContent ?? response.content,
+          _meta: meta
+        };
+      }
+    }
+    if (Array.isArray(parsedContent)) {
+      return {
+        items: parsedContent,
+        _meta: meta
+      };
+    }
+    return {
+      content: response.content,
+      _meta: meta
+    };
+  }
+  /**
+   * Resolve prompt from Edgit if needed
+   */
+  async resolvePrompt(env) {
+    if (this.thinkConfig.systemPrompt) return;
+    if (this.thinkConfig.prompt) {
+      const context = {
+        env,
+        baseDir: process.cwd()
+      };
+      try {
+        const resolved = await resolveValue(this.thinkConfig.prompt, context);
+        if (typeof resolved.content === "string") {
+          this.thinkConfig.systemPrompt = resolved.content;
+        } else {
+          throw new Error(`Prompt must resolve to a string, got ${typeof resolved.content}`);
+        }
+      } catch (error) {
+        throw new Error(
+          `Failed to resolve prompt "${this.thinkConfig.prompt}": ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  }
+  /**
+   * Resolve schema from Edgit if needed
+   */
+  async resolveSchema(env) {
+    if (!this.thinkConfig.schema) return;
+    if (typeof this.thinkConfig.schema !== "string") return;
+    const context = {
+      env,
+      baseDir: process.cwd()
+    };
+    try {
+      const resolved = await resolveValue(this.thinkConfig.schema, context);
+      if (typeof resolved.content === "object" && resolved.content !== null) {
+        this.thinkConfig.schema = resolved.content;
+      } else if (typeof resolved.content === "string") {
+        try {
+          this.thinkConfig.schema = JSON.parse(resolved.content);
+        } catch {
+          throw new Error(`Schema must be valid JSON, got invalid string`);
+        }
+      } else {
+        throw new Error(
+          `Schema must resolve to an object or JSON string, got ${typeof resolved.content}`
+        );
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to resolve schema "${this.thinkConfig.schema}": ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  /**
+   * Build messages array from input
+   */
+  buildMessages(input) {
+    const messages = [];
+    if (this.thinkConfig.systemPrompt) {
+      messages.push({
+        role: "system",
+        content: this.thinkConfig.systemPrompt
+      });
+    }
+    if (input.messages && Array.isArray(input.messages)) {
+      messages.push(...input.messages);
+    } else if (input.prompt) {
+      messages.push({
+        role: "user",
+        content: input.prompt
+      });
+    } else {
+      const promptParts = [];
+      for (const [key, value] of Object.entries(input)) {
+        if (typeof value === "string") {
+          promptParts.push(`${key}: ${value}`);
+        } else {
+          promptParts.push(`${key}: ${JSON.stringify(value, null, 2)}`);
+        }
+      }
+      messages.push({
+        role: "user",
+        content: promptParts.join("\n\n")
+      });
+    }
+    return messages;
+  }
+  /**
+   * Get Think configuration
+   */
+  getThinkConfig() {
+    return { ...this.thinkConfig };
+  }
+};
+
+// src/agents/storage-agent.ts
+init_base_agent();
+
+// src/storage/repository.ts
+var JSONSerializer = class {
+  serialize(value) {
+    return JSON.stringify(value);
+  }
+  deserialize(raw) {
+    return JSON.parse(raw);
+  }
+};
+
+// src/storage/kv-repository.ts
+init_result();
+init_error_types();
+var KVRepository = class {
+  constructor(binding, serializer = new JSONSerializer()) {
+    this.binding = binding;
+    this.serializer = serializer;
+  }
+  /**
+   * Get a value from KV
+   */
+  async get(key) {
+    try {
+      const raw = await this.binding.get(key);
+      if (raw === null) {
+        return Result.err(Errors.storageNotFound(key, "KV"));
+      }
+      const value = this.serializer.deserialize(raw);
+      return Result.ok(value);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `KV get operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Store a value in KV
+   */
+  async put(key, value, options) {
+    try {
+      const serialized = this.serializer.serialize(value);
+      const kvOptions = {};
+      if (options?.ttl) {
+        kvOptions.expirationTtl = options.ttl;
+      }
+      if (options?.expiration) {
+        kvOptions.expiration = options.expiration;
+      }
+      if (options?.metadata) {
+        kvOptions.metadata = options.metadata;
+      }
+      await this.binding.put(key, serialized, kvOptions);
+      return Result.ok(void 0);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `KV put operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Delete a value from KV
+   */
+  async delete(key) {
+    try {
+      await this.binding.delete(key);
+      return Result.ok(void 0);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `KV delete operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * List keys in KV
+   */
+  async list(options) {
+    try {
+      const listOptions = {};
+      if (options?.prefix) {
+        listOptions.prefix = options.prefix;
+      }
+      if (options?.limit) {
+        listOptions.limit = options.limit;
+      }
+      if (options?.cursor) {
+        listOptions.cursor = options.cursor;
+      }
+      const result = await this.binding.list(listOptions);
+      const values = [];
+      for (const key of result.keys) {
+        const getResult = await this.get(key.name);
+        if (getResult.success) {
+          values.push(getResult.value);
+        }
+      }
+      return Result.ok(values);
+    } catch (error) {
+      return Result.err(
+        Errors.internal("KV list operation failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Check if a key exists in KV
+   */
+  async has(key) {
+    try {
+      const value = await this.binding.get(key);
+      return Result.ok(value !== null);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `KV has operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Get value with metadata
+   */
+  async getWithMetadata(key) {
+    try {
+      const result = await this.binding.getWithMetadata(key);
+      if (result.value === null) {
+        return Result.err(Errors.storageNotFound(key, "KV"));
+      }
+      const value = this.serializer.deserialize(result.value);
+      return Result.ok({
+        value,
+        metadata: result.metadata
+      });
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `KV getWithMetadata operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+};
+
+// src/storage/d1-repository.ts
+init_result();
+init_error_types();
+var D1Repository = class {
+  constructor(binding, config, serializer = new JSONSerializer()) {
+    this.binding = binding;
+    this.serializer = serializer;
+    this.tableName = config.tableName;
+    this.idColumn = config.idColumn || "id";
+    this.valueColumn = config.valueColumn || "value";
+    this.createdAtColumn = config.createdAtColumn || "created_at";
+    this.updatedAtColumn = config.updatedAtColumn || "updated_at";
+    this.expirationColumn = config.expirationColumn;
+  }
+  /**
+   * Get a value from D1
+   */
+  async get(id) {
+    try {
+      const query = `
+				SELECT ${this.valueColumn}, ${this.expirationColumn || "NULL as expiration"}
+				FROM ${this.tableName}
+				WHERE ${this.idColumn} = ?
+			`;
+      const result = await this.binding.prepare(query).bind(id).first();
+      if (!result) {
+        return Result.err(Errors.storageNotFound(id, "D1"));
+      }
+      if (this.expirationColumn && result.expiration) {
+        const expiration = new Date(result.expiration).getTime();
+        if (expiration < Date.now()) {
+          await this.delete(id);
+          return Result.err(Errors.storageNotFound(id, "D1"));
+        }
+      }
+      const value = this.serializer.deserialize(result[this.valueColumn]);
+      return Result.ok(value);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 get operation failed for id "${id}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Store a value in D1
+   */
+  async put(id, value, options) {
+    try {
+      const serialized = this.serializer.serialize(value);
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      let query;
+      let params;
+      if (this.expirationColumn && (options?.ttl || options?.expiration)) {
+        const expiration = options.expiration ? new Date(options.expiration * 1e3).toISOString() : new Date(Date.now() + options.ttl * 1e3).toISOString();
+        query = `
+					INSERT INTO ${this.tableName}
+					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn}, ${this.expirationColumn})
+					VALUES (?, ?, ?, ?, ?)
+					ON CONFLICT(${this.idColumn})
+					DO UPDATE SET
+						${this.valueColumn} = excluded.${this.valueColumn},
+						${this.updatedAtColumn} = excluded.${this.updatedAtColumn},
+						${this.expirationColumn} = excluded.${this.expirationColumn}
+				`;
+        params = [id, serialized, now, now, expiration];
+      } else {
+        query = `
+					INSERT INTO ${this.tableName}
+					(${this.idColumn}, ${this.valueColumn}, ${this.createdAtColumn}, ${this.updatedAtColumn})
+					VALUES (?, ?, ?, ?)
+					ON CONFLICT(${this.idColumn})
+					DO UPDATE SET
+						${this.valueColumn} = excluded.${this.valueColumn},
+						${this.updatedAtColumn} = excluded.${this.updatedAtColumn}
+				`;
+        params = [id, serialized, now, now];
+      }
+      await this.binding.prepare(query).bind(...params).run();
+      return Result.ok(void 0);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 put operation failed for id "${id}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Delete a value from D1
+   */
+  async delete(id) {
+    try {
+      const query = `DELETE FROM ${this.tableName} WHERE ${this.idColumn} = ?`;
+      await this.binding.prepare(query).bind(id).run();
+      return Result.ok(void 0);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 delete operation failed for id "${id}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * List values from D1
+   */
+  async list(options) {
+    try {
+      let query = `SELECT ${this.valueColumn} FROM ${this.tableName}`;
+      const params = [];
+      if (options?.prefix) {
+        query += ` WHERE ${this.idColumn} LIKE ?`;
+        params.push(`${options.prefix}%`);
+      }
+      if (this.expirationColumn) {
+        const whereOrAnd = options?.prefix ? "AND" : "WHERE";
+        query += ` ${whereOrAnd} (${this.expirationColumn} IS NULL OR ${this.expirationColumn} > datetime('now'))`;
+      }
+      query += ` ORDER BY ${this.createdAtColumn} DESC`;
+      if (options?.limit) {
+        query += ` LIMIT ?`;
+        params.push(options.limit);
+      }
+      const result = await this.binding.prepare(query).bind(...params).all();
+      const values = result.results.map(
+        (row) => this.serializer.deserialize(row[this.valueColumn])
+      );
+      return Result.ok(values);
+    } catch (error) {
+      return Result.err(
+        Errors.internal("D1 list operation failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Check if an ID exists in D1
+   */
+  async has(id) {
+    try {
+      const query = `SELECT 1 FROM ${this.tableName} WHERE ${this.idColumn} = ? LIMIT 1`;
+      const result = await this.binding.prepare(query).bind(id).first();
+      return Result.ok(result !== null);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `D1 has operation failed for id "${id}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Clean up expired entries
+   */
+  async cleanExpired() {
+    if (!this.expirationColumn) {
+      return Result.ok(0);
+    }
+    try {
+      const query = `
+				DELETE FROM ${this.tableName}
+				WHERE ${this.expirationColumn} IS NOT NULL
+				AND ${this.expirationColumn} <= datetime('now')
+			`;
+      const result = await this.binding.prepare(query).run();
+      return Result.ok(result.meta.changes || 0);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          "D1 cleanExpired operation failed",
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+};
+
+// src/storage/r2-repository.ts
+init_result();
+init_error_types();
+var R2Repository = class {
+  constructor(binding, serializer = new JSONSerializer()) {
+    this.binding = binding;
+    this.serializer = serializer;
+  }
+  /**
+   * Get an object from R2
+   */
+  async get(key) {
+    try {
+      const object = await this.binding.get(key);
+      if (object === null) {
+        return Result.err(Errors.storageNotFound(key, "R2"));
+      }
+      const text = await object.text();
+      const value = this.serializer.deserialize(text);
+      return Result.ok(value);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `R2 get operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Store an object in R2
+   */
+  async put(key, value, options) {
+    try {
+      const serialized = this.serializer.serialize(value);
+      const r2Options = {};
+      if (options?.metadata) {
+        r2Options.customMetadata = options.metadata;
+      }
+      if (options?.ttl) {
+        const expiration = Date.now() + options.ttl * 1e3;
+        r2Options.customMetadata = {
+          ...r2Options.customMetadata,
+          "x-expiration": expiration.toString()
+        };
+      }
+      if (options?.expiration) {
+        r2Options.customMetadata = {
+          ...r2Options.customMetadata,
+          "x-expiration": (options.expiration * 1e3).toString()
+        };
+      }
+      await this.binding.put(key, serialized, r2Options);
+      return Result.ok(void 0);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `R2 put operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Delete an object from R2
+   */
+  async delete(key) {
+    try {
+      await this.binding.delete(key);
+      return Result.ok(void 0);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `R2 delete operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * List objects in R2
+   */
+  async list(options) {
+    try {
+      const listOptions = {};
+      if (options?.prefix) {
+        listOptions.prefix = options.prefix;
+      }
+      if (options?.limit) {
+        listOptions.limit = options.limit;
+      }
+      if (options?.cursor) {
+        listOptions.cursor = options.cursor;
+      }
+      const result = await this.binding.list(listOptions);
+      const values = [];
+      for (const object of result.objects) {
+        const getResult = await this.get(object.key);
+        if (getResult.success) {
+          const expiration = object.customMetadata?.["x-expiration"];
+          if (expiration) {
+            const expirationTime = parseInt(expiration, 10);
+            if (expirationTime < Date.now()) {
+              await this.delete(object.key);
+              continue;
+            }
+          }
+          values.push(getResult.value);
+        }
+      }
+      return Result.ok(values);
+    } catch (error) {
+      return Result.err(
+        Errors.internal("R2 list operation failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Check if an object exists in R2
+   */
+  async has(key) {
+    try {
+      const object = await this.binding.head(key);
+      return Result.ok(object !== null);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `R2 has operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Get object with metadata
+   */
+  async getWithMetadata(key) {
+    try {
+      const object = await this.binding.get(key);
+      if (object === null) {
+        return Result.err(Errors.storageNotFound(key, "R2"));
+      }
+      const text = await object.text();
+      const value = this.serializer.deserialize(text);
+      return Result.ok({
+        value,
+        metadata: object
+      });
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `R2 getWithMetadata operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Get object metadata only (head request)
+   */
+  async getMetadata(key) {
+    try {
+      const metadata = await this.binding.head(key);
+      return Result.ok(metadata);
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `R2 getMetadata operation failed for key "${key}"`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+};
+
+// src/storage/hyperdrive-repository.ts
+init_result();
+init_error_types();
+var HyperdriveRepository = class {
+  constructor(hyperdrive, config) {
+    this.hyperdrive = hyperdrive;
+    this.config = config;
+    this.schema = config.schema;
+    this.timeout = config.options?.timeout || 3e4;
+    this.readOnly = config.options?.readOnly || false;
+    this.maxRows = config.options?.maxRows;
+  }
+  /**
+   * Execute a raw SQL query
+   */
+  async query(sql, params) {
+    try {
+      if (this.readOnly && this.isWriteQuery(sql)) {
+        return Result.err(Errors.internal("Write operations not allowed in read-only mode"));
+      }
+      const startTime = Date.now();
+      let stmt = this.hyperdrive.prepare(sql);
+      if (params && params.length > 0) {
+        stmt = stmt.bind(...params);
+      }
+      const result = await stmt.all();
+      const executionTime = Date.now() - startTime;
+      let rows = result.results;
+      if (this.maxRows && rows.length > this.maxRows) {
+        rows = rows.slice(0, this.maxRows);
+      }
+      const columns = rows.length > 0 ? Object.keys(rows[0]) : result.meta?.columns ? result.meta.columns.map((c) => c.name) : [];
+      return Result.ok({
+        rows,
+        metadata: {
+          executionTime,
+          columns,
+          rowCount: rows.length,
+          rowsAffected: result.meta?.changes
+        }
+      });
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `Hyperdrive query failed: ${sql}`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Execute a query with named parameters
+   * Converts named parameters (:name) to positional parameters based on database type
+   */
+  async queryNamed(sql, params) {
+    const { convertedSql, orderedParams } = this.convertNamedParams(sql, params);
+    return this.query(convertedSql, orderedParams);
+  }
+  /**
+   * Execute a write query (INSERT, UPDATE, DELETE)
+   */
+  async execute(sql, params) {
+    if (this.readOnly) {
+      return Result.err(Errors.internal("Write operations not allowed in read-only mode"));
+    }
+    try {
+      const startTime = Date.now();
+      let stmt = this.hyperdrive.prepare(sql);
+      if (params && params.length > 0) {
+        stmt = stmt.bind(...params);
+      }
+      const result = await stmt.run();
+      return Result.ok({
+        rowsAffected: result.meta.changes || 0
+      });
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `Hyperdrive execute failed: ${sql}`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * Begin a transaction
+   * Note: D1/Hyperdrive transaction support is limited - this is a best-effort implementation
+   */
+  async transaction(callback) {
+    const beginResult = await this.execute("BEGIN");
+    if (!beginResult.success) {
+      return Result.err(beginResult.error);
+    }
+    const tx = {
+      query: async (sql, params) => this.query(sql, params),
+      commit: async () => {
+        const result = await this.execute("COMMIT");
+        return result.success ? Result.ok(void 0) : Result.err(result.error);
+      },
+      rollback: async () => {
+        const result = await this.execute("ROLLBACK");
+        return result.success ? Result.ok(void 0) : Result.err(result.error);
+      }
+    };
+    try {
+      const result = await callback(tx);
+      const commitResult = await tx.commit();
+      if (!commitResult.success) {
+        return Result.err(commitResult.error);
+      }
+      return Result.ok(result);
+    } catch (error) {
+      await tx.rollback();
+      return Result.err(
+        Errors.internal("Transaction failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Get table metadata
+   */
+  async getTableInfo(tableName) {
+    try {
+      let sql;
+      switch (this.config.databaseType) {
+        case "postgres":
+          sql = `
+						SELECT
+							column_name as name,
+							data_type as type,
+							is_nullable = 'YES' as nullable,
+							column_default as default_value
+						FROM information_schema.columns
+						WHERE table_name = $1
+						${this.schema ? "AND table_schema = $2" : ""}
+						ORDER BY ordinal_position
+					`;
+          break;
+        case "mysql":
+        case "mariadb":
+          sql = `
+						SELECT
+							COLUMN_NAME as name,
+							DATA_TYPE as type,
+							IS_NULLABLE = 'YES' as nullable,
+							COLUMN_DEFAULT as default_value
+						FROM information_schema.columns
+						WHERE TABLE_NAME = ?
+						${this.schema ? "AND TABLE_SCHEMA = ?" : ""}
+						ORDER BY ORDINAL_POSITION
+					`;
+          break;
+      }
+      const params = this.schema ? [tableName, this.schema] : [tableName];
+      const result = await this.query(sql, params);
+      if (!result.success) {
+        return Result.err(result.error);
+      }
+      return Result.ok({
+        name: tableName,
+        schema: this.schema,
+        columns: result.value.rows.map((row) => ({
+          name: row.name,
+          type: row.type,
+          nullable: row.nullable,
+          defaultValue: row.default_value
+        }))
+      });
+    } catch (error) {
+      return Result.err(
+        Errors.internal(
+          `Failed to get table info for ${tableName}`,
+          error instanceof Error ? error : void 0
+        )
+      );
+    }
+  }
+  /**
+   * List tables in schema
+   */
+  async listTables() {
+    try {
+      let sql;
+      switch (this.config.databaseType) {
+        case "postgres":
+          sql = `
+						SELECT table_name
+						FROM information_schema.tables
+						WHERE table_schema = $1
+						ORDER BY table_name
+					`;
+          break;
+        case "mysql":
+        case "mariadb":
+          sql = `
+						SELECT TABLE_NAME as table_name
+						FROM information_schema.tables
+						WHERE TABLE_SCHEMA = ?
+						ORDER BY TABLE_NAME
+					`;
+          break;
+      }
+      const params = [this.schema || "public"];
+      const result = await this.query(sql, params);
+      if (!result.success) {
+        return Result.err(result.error);
+      }
+      return Result.ok(result.value.rows.map((row) => row.table_name));
+    } catch (error) {
+      return Result.err(
+        Errors.internal("Failed to list tables", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Check if a query is a write operation
+   */
+  isWriteQuery(sql) {
+    const upperSQL = sql.trim().toUpperCase();
+    return /^(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|REPLACE)/i.test(upperSQL);
+  }
+  /**
+   * Convert named parameters to positional parameters
+   */
+  convertNamedParams(sql, params) {
+    const orderedParams = [];
+    let paramIndex = 1;
+    const convertedSql = sql.replace(/:(\w+)/g, (match, paramName) => {
+      if (!(paramName in params)) {
+        throw new Error(`Missing parameter: ${paramName}`);
+      }
+      orderedParams.push(params[paramName]);
+      switch (this.config.databaseType) {
+        case "postgres":
+          return `$${paramIndex++}`;
+        case "mysql":
+        case "mariadb":
+          return "?";
+        default:
+          return "?";
+      }
+    });
+    return { convertedSql, orderedParams };
+  }
+  /**
+   * Get database type
+   */
+  getDatabaseType() {
+    return this.config.databaseType;
+  }
+  /**
+   * Check if repository is read-only
+   */
+  isReadOnly() {
+    return this.readOnly;
+  }
+};
+
+// src/storage/query-cache.ts
+init_result();
+init_error_types();
+
+// src/agents/storage-agent.ts
+var StorageAgent = class extends BaseAgent {
+  constructor(config, repository) {
+    super(config);
+    this.repository = repository;
+    const cfg = config.config;
+    this.storageConfig = {
+      backend: cfg?.backend,
+      operation: cfg?.operation,
+      binding: cfg?.binding,
+      ttl: cfg?.ttl
+    };
+    if (!this.storageConfig.backend) {
+      throw new Error(`Storage agent "${config.name}" requires backend type (kv, r2, or cache)`);
+    }
+    if (!this.storageConfig.operation) {
+      throw new Error(`Storage agent "${config.name}" requires operation type`);
+    }
+  }
+  /**
+   * Execute storage operation via repository
+   */
+  async run(context) {
+    const { input, env } = context;
+    const repo = this.repository || this.createRepository(env);
+    switch (this.storageConfig.operation) {
+      case "get":
+        return await this.executeGet(repo, input);
+      case "put":
+        return await this.executePut(repo, input);
+      case "delete":
+        return await this.executeDelete(repo, input);
+      case "list":
+        return await this.executeList(repo, input);
+      default:
+        throw new Error(`Unknown operation: ${this.storageConfig.operation}`);
+    }
+  }
+  /**
+   * Execute GET operation
+   */
+  async executeGet(repo, input) {
+    if (!input.key) {
+      throw new Error('GET operation requires "key" in input');
+    }
+    const result = await repo.get(input.key);
+    if (result.success) {
+      return {
+        key: input.key,
+        value: result.value,
+        found: true
+      };
+    } else {
+      return {
+        key: input.key,
+        value: null,
+        found: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute PUT operation
+   */
+  async executePut(repo, input) {
+    if (!input.key || input.value === void 0) {
+      throw new Error('PUT operation requires "key" and "value" in input');
+    }
+    const result = await repo.put(input.key, input.value, {
+      ttl: input.ttl || this.storageConfig.ttl
+    });
+    if (result.success) {
+      return {
+        key: input.key,
+        success: true
+      };
+    } else {
+      return {
+        key: input.key,
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute DELETE operation
+   */
+  async executeDelete(repo, input) {
+    if (!input.key) {
+      throw new Error('DELETE operation requires "key" in input');
+    }
+    const result = await repo.delete(input.key);
+    if (result.success) {
+      return {
+        key: input.key,
+        success: true
+      };
+    } else {
+      return {
+        key: input.key,
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute LIST operation
+   */
+  async executeList(repo, input) {
+    const result = await repo.list({
+      prefix: input.prefix,
+      limit: input.limit,
+      cursor: input.cursor
+    });
+    if (result.success) {
+      return {
+        items: result.value,
+        success: true
+      };
+    } else {
+      return {
+        items: [],
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Create repository from environment bindings
+   * Falls back to original behavior if no repository injected
+   */
+  createRepository(env) {
+    const bindingName = this.getBindingName();
+    const binding = env[bindingName];
+    if (!binding) {
+      throw new Error(
+        `Binding "${bindingName}" not found. Add it to wrangler.toml or inject a repository in constructor.`
+      );
+    }
+    switch (this.storageConfig.backend) {
+      case "kv" /* KV */:
+        return new KVRepository(binding, new JSONSerializer());
+      case "r2" /* R2 */:
+        return new R2Repository(binding, new JSONSerializer());
+      case "cache" /* Cache */:
+        throw new Error("Cache API repository not yet implemented");
+      default:
+        throw new Error(`Unknown storage backend: ${this.storageConfig.backend}`);
+    }
+  }
+  /**
+   * Get binding name with sensible defaults
+   */
+  getBindingName() {
+    if (this.storageConfig.binding) {
+      return this.storageConfig.binding;
+    }
+    switch (this.storageConfig.backend) {
+      case "kv" /* KV */:
+        return "CACHE";
+      case "r2" /* R2 */:
+        return "STORAGE";
+      case "cache" /* Cache */:
+        return "CACHE_API";
+      default:
+        return "STORAGE";
+    }
+  }
+  /**
+   * Get Storage configuration
+   */
+  getStorageConfig() {
+    return { ...this.storageConfig };
+  }
+};
+
+// src/agents/data-agent.ts
+init_base_agent();
+
+// src/agents/data/export-formats.ts
+async function exportData(data, options) {
+  switch (options.format) {
+    case "csv":
+      return exportToCSV(data, options);
+    case "json":
+      return exportToJSON(data, options);
+    case "ndjson":
+      return exportToNDJSON(data, options);
+    case "xlsx":
+      return exportToExcel(data, options);
+    default:
+      throw new Error(`Unsupported export format: ${options.format}`);
+  }
+}
+function exportToCSV(data, options) {
+  const delimiter = options.delimiter || ",";
+  const includeHeaders = options.headers !== false;
+  if (data.length === 0) {
+    return {
+      data: "",
+      contentType: "text/csv",
+      extension: "csv",
+      size: 0,
+      streaming: false
+    };
+  }
+  const fields = options.fields || Object.keys(data[0]);
+  const lines = [];
+  if (includeHeaders) {
+    lines.push(fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter));
+  }
+  for (const row of data) {
+    const rowData = row;
+    const values = fields.map((field) => {
+      const value = rowData[field];
+      return escapeCsvValue(String(value ?? ""), delimiter);
+    });
+    lines.push(values.join(delimiter));
+  }
+  const csv = lines.join("\n");
+  return {
+    data: csv,
+    contentType: "text/csv",
+    extension: "csv",
+    size: new Blob([csv]).size,
+    streaming: false
+  };
+}
+function exportToJSON(data, options) {
+  const json = options.pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data);
+  return {
+    data: json,
+    contentType: "application/json",
+    extension: "json",
+    size: new Blob([json]).size,
+    streaming: false
+  };
+}
+function exportToNDJSON(data, options) {
+  const lines = data.map((item) => JSON.stringify(item));
+  const ndjson = lines.join("\n");
+  return {
+    data: ndjson,
+    contentType: "application/x-ndjson",
+    extension: "ndjson",
+    size: new Blob([ndjson]).size,
+    streaming: false
+  };
+}
+function exportToExcel(data, options) {
+  const csv = exportToCSV(data, options);
+  return {
+    ...csv,
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    extension: "xlsx"
+  };
+}
+function escapeCsvValue(value, delimiter) {
+  if (value.includes(delimiter) || value.includes("\n") || value.includes('"')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+function createStreamingExport(dataSource, options) {
+  let isFirst = true;
+  let fields = [];
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      try {
+        for await (const batch of dataSource) {
+          if (batch.length === 0) continue;
+          if (isFirst) {
+            fields = options.fields || Object.keys(batch[0]);
+            if (options.format === "csv" && options.headers !== false) {
+              const delimiter = options.delimiter || ",";
+              const headerLine = fields.map((f) => escapeCsvValue(f, delimiter)).join(delimiter) + "\n";
+              controller.enqueue(encoder.encode(headerLine));
+            }
+            if (options.format === "json") {
+              controller.enqueue(encoder.encode("[\n"));
+            }
+            isFirst = false;
+          }
+          const chunk = formatBatch(batch, fields, options, isFirst);
+          controller.enqueue(encoder.encode(chunk));
+        }
+        if (options.format === "json") {
+          controller.enqueue(encoder.encode("\n]"));
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    }
+  });
+  return {
+    data: stream,
+    contentType: getContentType(options.format),
+    extension: getExtension(options.format),
+    streaming: true
+  };
+}
+function formatBatch(batch, fields, options, isFirst) {
+  switch (options.format) {
+    case "csv":
+      return formatCsvBatch(batch, fields, options.delimiter || ",");
+    case "json":
+      return formatJsonBatch(batch, isFirst);
+    case "ndjson":
+      return formatNdjsonBatch(batch);
+    default:
+      return "";
+  }
+}
+function formatCsvBatch(batch, fields, delimiter) {
+  const lines = [];
+  for (const row of batch) {
+    const rowData = row;
+    const values = fields.map((field) => {
+      const value = rowData[field];
+      return escapeCsvValue(String(value ?? ""), delimiter);
+    });
+    lines.push(values.join(delimiter));
+  }
+  return lines.join("\n") + "\n";
+}
+function formatJsonBatch(batch, isFirst) {
+  const items = batch.map((item, index) => {
+    const json = JSON.stringify(item, null, 2);
+    const prefix = isFirst && index === 0 ? "  " : ",\n  ";
+    return prefix + json;
+  });
+  return items.join("");
+}
+function formatNdjsonBatch(batch) {
+  return batch.map((item) => JSON.stringify(item)).join("\n") + "\n";
+}
+function getContentType(format) {
+  switch (format) {
+    case "csv":
+      return "text/csv";
+    case "json":
+      return "application/json";
+    case "ndjson":
+      return "application/x-ndjson";
+    case "xlsx":
+      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    default:
+      return "application/octet-stream";
+  }
+}
+function getExtension(format) {
+  switch (format) {
+    case "csv":
+      return "csv";
+    case "json":
+      return "json";
+    case "ndjson":
+      return "ndjson";
+    case "xlsx":
+      return "xlsx";
+    default:
+      return "bin";
+  }
+}
+
+// src/agents/data-agent.ts
+var DataAgent = class extends BaseAgent {
+  constructor(config, repository) {
+    super(config);
+    this.repository = repository;
+    const cfg = config.config;
+    this.dataConfig = {
+      database: cfg?.database,
+      operation: cfg?.operation,
+      binding: cfg?.binding,
+      tableName: cfg?.tableName,
+      // Hyperdrive options
+      databaseType: cfg?.databaseType,
+      schema: cfg?.schema,
+      readOnly: cfg?.readOnly,
+      // Export options
+      exportFormat: cfg?.exportFormat,
+      exportOptions: cfg?.exportOptions
+    };
+    if (!this.dataConfig.database) {
+      throw new Error(
+        `Data agent "${config.name}" requires database type (d1, hyperdrive, vectorize, etc.)`
+      );
+    }
+    if (!this.dataConfig.operation) {
+      throw new Error(`Data agent "${config.name}" requires operation type`);
+    }
+  }
+  /**
+   * Execute data operation via repository
+   */
+  async run(context) {
+    const { input, env } = context;
+    if (this.dataConfig.database === "hyperdrive" /* Hyperdrive */) {
+      return await this.executeHyperdriveOperation(env, input);
+    }
+    const repo = this.repository || this.createRepository(env);
+    switch (this.dataConfig.operation) {
+      case "get":
+        return await this.executeGet(repo, input);
+      case "put":
+        return await this.executePut(repo, input);
+      case "delete":
+        return await this.executeDelete(repo, input);
+      case "list":
+        return await this.executeList(repo, input);
+      case "query":
+        return await this.executeQuery(repo, input);
+      case "export":
+        return await this.executeExport(repo, input);
+      default:
+        throw new Error(`Unknown operation: ${this.dataConfig.operation}`);
+    }
+  }
+  /**
+   * Execute Hyperdrive operation (SQL-native)
+   */
+  async executeHyperdriveOperation(env, input) {
+    if (!this.hyperdriveRepo) {
+      this.hyperdriveRepo = this.createHyperdriveRepository(env);
+    }
+    switch (this.dataConfig.operation) {
+      case "query": {
+        if (!input.query) {
+          return {
+            success: false,
+            error: "SQL query is required for Hyperdrive query operation"
+          };
+        }
+        const result = await this.hyperdriveRepo.query(input.query, input.params);
+        if (result.success) {
+          return {
+            rows: result.value.rows,
+            metadata: result.value.metadata,
+            success: true
+          };
+        } else {
+          return {
+            rows: [],
+            success: false,
+            error: result.error.message
+          };
+        }
+      }
+      case "get": {
+        if (!input.key) {
+          return { value: null, success: false, error: "Key is required for get operation" };
+        }
+        const tableName = this.dataConfig.tableName || "data";
+        const sql = this.dataConfig.databaseType === "postgres" ? `SELECT * FROM ${tableName} WHERE id = $1 LIMIT 1` : `SELECT * FROM ${tableName} WHERE id = ? LIMIT 1`;
+        const result = await this.hyperdriveRepo.query(sql, [input.key]);
+        if (result.success && result.value.rows.length > 0) {
+          return { value: result.value.rows[0], found: true, success: true };
+        }
+        return { value: null, found: false, success: true };
+      }
+      case "put": {
+        if (!input.key || input.value === void 0) {
+          return { success: false, error: "Key and value are required for put operation" };
+        }
+        const tableName = this.dataConfig.tableName || "data";
+        const valueJson = JSON.stringify(input.value);
+        let sql;
+        if (this.dataConfig.databaseType === "postgres") {
+          sql = `INSERT INTO ${tableName} (id, value) VALUES ($1, $2)
+                 ON CONFLICT (id) DO UPDATE SET value = $2`;
+        } else {
+          sql = `INSERT INTO ${tableName} (id, value) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE value = VALUES(value)`;
+        }
+        const result = await this.hyperdriveRepo.execute(sql, [input.key, valueJson]);
+        return result.success ? { success: true, rowsAffected: result.value.rowsAffected } : { success: false, error: result.error.message };
+      }
+      case "delete": {
+        if (!input.key) {
+          return { success: false, error: "Key is required for delete operation" };
+        }
+        const tableName = this.dataConfig.tableName || "data";
+        const sql = this.dataConfig.databaseType === "postgres" ? `DELETE FROM ${tableName} WHERE id = $1` : `DELETE FROM ${tableName} WHERE id = ?`;
+        const result = await this.hyperdriveRepo.execute(sql, [input.key]);
+        return result.success ? { success: true, rowsAffected: result.value.rowsAffected } : { success: false, error: result.error.message };
+      }
+      case "list": {
+        const tableName = this.dataConfig.tableName || "data";
+        const limit = input.limit || 100;
+        const sql = this.dataConfig.databaseType === "postgres" ? `SELECT * FROM ${tableName} LIMIT $1` : `SELECT * FROM ${tableName} LIMIT ?`;
+        const result = await this.hyperdriveRepo.query(sql, [limit]);
+        return result.success ? { items: result.value.rows, count: result.value.rows.length, success: true } : { items: [], success: false, error: result.error.message };
+      }
+      default:
+        return {
+          success: false,
+          error: `Operation ${this.dataConfig.operation} not supported for Hyperdrive`
+        };
+    }
+  }
+  /**
+   * Create Hyperdrive repository from environment bindings
+   */
+  createHyperdriveRepository(env) {
+    const bindingName = this.getBindingName();
+    const binding = env[bindingName];
+    if (!binding) {
+      throw new Error(
+        `Hyperdrive binding "${bindingName}" not found. Add [[hyperdrive]] to wrangler.toml with binding = "${bindingName}".`
+      );
+    }
+    const config = {
+      databaseType: this.dataConfig.databaseType || "postgres",
+      schema: this.dataConfig.schema,
+      options: {
+        readOnly: this.dataConfig.readOnly
+      }
+    };
+    return new HyperdriveRepository(binding, config);
+  }
+  /**
+   * Execute GET operation
+   */
+  async executeGet(repo, input) {
+    if (!input.key) {
+      throw new Error('GET operation requires "key" in input');
+    }
+    const result = await repo.get(input.key);
+    if (result.success) {
+      return {
+        key: input.key,
+        value: result.value,
+        found: true
+      };
+    } else {
+      return {
+        key: input.key,
+        value: null,
+        found: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute PUT operation
+   */
+  async executePut(repo, input) {
+    if (!input.key || input.value === void 0) {
+      throw new Error('PUT operation requires "key" and "value" in input');
+    }
+    const result = await repo.put(input.key, input.value);
+    if (result.success) {
+      return {
+        key: input.key,
+        success: true
+      };
+    } else {
+      return {
+        key: input.key,
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute DELETE operation
+   */
+  async executeDelete(repo, input) {
+    if (!input.key) {
+      throw new Error('DELETE operation requires "key" in input');
+    }
+    const result = await repo.delete(input.key);
+    if (result.success) {
+      return {
+        key: input.key,
+        success: true
+      };
+    } else {
+      return {
+        key: input.key,
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Execute LIST operation
+   */
+  async executeList(repo, input) {
+    const result = await repo.list({
+      prefix: input.prefix,
+      limit: input.limit,
+      cursor: input.cursor
+    });
+    if (result.success) {
+      return {
+        items: result.value,
+        success: true
+      };
+    } else {
+      return {
+        items: [],
+        success: false,
+        error: result.error.message
+      };
+    }
+  }
+  /**
+   * Create repository from environment bindings
+   * Falls back to original behavior if no repository injected
+   */
+  createRepository(env) {
+    const bindingName = this.getBindingName();
+    const binding = env[bindingName];
+    if (!binding) {
+      throw new Error(
+        `Binding "${bindingName}" not found. Add it to wrangler.toml or inject a repository in constructor.`
+      );
+    }
+    switch (this.dataConfig.database) {
+      case "d1" /* D1 */:
+        return new D1Repository(
+          binding,
+          {
+            tableName: this.dataConfig.tableName || "data",
+            idColumn: "key",
+            valueColumn: "value"
+          },
+          new JSONSerializer()
+        );
+      case "hyperdrive" /* Hyperdrive */:
+        throw new Error("Hyperdrive uses SQL-native operations, not Repository pattern");
+      case "vectorize" /* Vectorize */:
+        throw new Error("Vectorize repository not yet implemented");
+      case "supabase" /* Supabase */:
+      case "neon" /* Neon */:
+      case "planetscale" /* PlanetScale */:
+        throw new Error(`${this.dataConfig.database} repository not yet implemented`);
+      default:
+        throw new Error(`Unknown database type: ${this.dataConfig.database}`);
+    }
+  }
+  /**
+   * Get binding name with sensible defaults
+   */
+  getBindingName() {
+    if (this.dataConfig.binding) {
+      return this.dataConfig.binding;
+    }
+    switch (this.dataConfig.database) {
+      case "d1" /* D1 */:
+        return "DB";
+      case "hyperdrive" /* Hyperdrive */:
+        return "HYPERDRIVE";
+      case "vectorize" /* Vectorize */:
+        return "VECTORIZE";
+      case "supabase" /* Supabase */:
+        return "SUPABASE_URL";
+      case "neon" /* Neon */:
+        return "NEON_URL";
+      case "planetscale" /* PlanetScale */:
+        return "PLANETSCALE_URL";
+      default:
+        return "DATABASE";
+    }
+  }
+  /**
+   * Execute QUERY operation (D1 only)
+   */
+  async executeQuery(repo, input) {
+    const listResult = await repo.list({
+      prefix: input.prefix,
+      limit: input.limit,
+      cursor: input.cursor
+    });
+    if (!listResult.success) {
+      return {
+        items: [],
+        success: false,
+        error: listResult.error.message
+      };
+    }
+    let items = listResult.value;
+    if (input.filter) {
+      items = items.filter((item) => {
+        return Object.entries(input.filter).every(([key, value]) => {
+          return item[key] === value;
+        });
+      });
+    }
+    if (input.sort) {
+      const [field, order = "asc"] = input.sort.split(":");
+      items = items.sort((a, b) => {
+        const aVal = a[field];
+        const bVal = b[field];
+        if (order === "desc") {
+          return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+        }
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      });
+    }
+    return {
+      items,
+      count: items.length,
+      success: true
+    };
+  }
+  /**
+   * Execute EXPORT operation
+   */
+  async executeExport(repo, input) {
+    const listResult = await repo.list({
+      prefix: input.prefix,
+      limit: input.limit || 1e4,
+      // Default to large limit for exports
+      cursor: input.cursor
+    });
+    if (!listResult.success) {
+      return {
+        success: false,
+        error: listResult.error.message
+      };
+    }
+    let items = listResult.value;
+    if (input.filter) {
+      items = items.filter((item) => {
+        return Object.entries(input.filter).every(([key, value]) => {
+          return item[key] === value;
+        });
+      });
+    }
+    const exportOptions = {
+      format: input.format || this.dataConfig.exportFormat || "json",
+      ...this.dataConfig.exportOptions,
+      ...input.exportOptions
+    };
+    if (input.streaming || items.length > 1e3) {
+      async function* dataSource() {
+        const batchSize = exportOptions.batchSize || 100;
+        for (let i = 0; i < items.length; i += batchSize) {
+          yield items.slice(i, i + batchSize);
+        }
+      }
+      const exportResult2 = createStreamingExport(dataSource(), exportOptions);
+      return {
+        success: true,
+        streaming: true,
+        stream: exportResult2.data,
+        contentType: exportResult2.contentType,
+        extension: exportResult2.extension,
+        count: items.length
+      };
+    }
+    const exportResult = await exportData(items, exportOptions);
+    return {
+      success: true,
+      streaming: false,
+      data: exportResult.data,
+      contentType: exportResult.contentType,
+      extension: exportResult.extension,
+      size: exportResult.size,
+      count: items.length
+    };
+  }
+  /**
+   * Get Data configuration
+   */
+  getDataConfig() {
+    return { ...this.dataConfig };
+  }
+};
+
+// src/agents/api-agent.ts
+init_base_agent();
+var APIAgent = class extends BaseAgent {
+  constructor(config) {
+    super(config);
+    const cfg = config.config;
+    this.apiConfig = {
+      url: cfg?.url,
+      method: cfg?.method || "GET",
+      headers: cfg?.headers || {},
+      timeout: cfg?.timeout || 3e4,
+      retries: cfg?.retries || 0
+    };
+  }
+  /**
+   * Execute the API request
+   */
+  async run(context) {
+    const { input } = context;
+    const url = this.apiConfig.url || input.url;
+    if (!url) {
+      throw new Error(`API agent "${this.name}" requires a URL (in config or input)`);
+    }
+    const requestInit = {
+      method: this.apiConfig.method,
+      headers: this.resolveHeaders(this.apiConfig.headers || {}, context)
+    };
+    if (["POST", "PUT", "PATCH"].includes(this.apiConfig.method)) {
+      if (input.body) {
+        requestInit.body = typeof input.body === "string" ? input.body : JSON.stringify(input.body);
+        const headers = requestInit.headers;
+        if (!headers["content-type"] && !headers["Content-Type"]) {
+          headers["content-type"] = "application/json";
+        }
+      }
+    }
+    return await this.executeWithRetries(url, requestInit);
+  }
+  /**
+   * Resolve headers (may contain env var references)
+   */
+  resolveHeaders(headers, context) {
+    const resolved = {};
+    for (const [key, value] of Object.entries(headers)) {
+      resolved[key] = value.replace(/\$\{env\.(\w+)\}/g, (_, varName) => {
+        return context.env[varName] || "";
+      });
+    }
+    return resolved;
+  }
+  /**
+   * Execute request with timeout and retry logic
+   */
+  async executeWithRetries(url, init, attempt = 0) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.apiConfig.timeout);
+      try {
+        const response = await fetch(url, {
+          ...init,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        const contentType = response.headers.get("content-type");
+        let data;
+        if (contentType?.includes("application/json")) {
+          data = await response.json();
+        } else {
+          data = await response.text();
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return {
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          data
+        };
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (error) {
+      if (attempt < (this.apiConfig.retries || 0)) {
+        const delay = Math.min(1e3 * Math.pow(2, attempt), 1e4);
+        await new Promise((resolve5) => setTimeout(resolve5, delay));
+        return this.executeWithRetries(url, init, attempt + 1);
+      }
+      throw new Error(
+        `API request to ${url} failed after ${attempt + 1} attempts: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+  /**
+   * Get API configuration
+   */
+  getAPIConfig() {
+    return { ...this.apiConfig };
+  }
+};
+
+// src/agents/email/email-agent.ts
+init_base_agent();
+
+// src/agents/email/providers/base.ts
+var BaseEmailProvider = class {
+  /**
+   * Normalize recipients to array
+   */
+  normalizeRecipients(recipients) {
+    return Array.isArray(recipients) ? recipients : [recipients];
+  }
+  /**
+   * Validate email address format
+   */
+  validateEmail(email) {
+    const emailRegex2 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex2.test(email);
+  }
+  /**
+   * Validate required fields
+   */
+  validateMessage(message) {
+    const errors = [];
+    if (!message.to || Array.isArray(message.to) && message.to.length === 0) {
+      errors.push("Recipient (to) is required");
+    }
+    if (!message.subject || message.subject.trim() === "") {
+      errors.push("Subject is required");
+    }
+    if (!message.html && !message.text) {
+      errors.push("Either html or text content is required");
+    }
+    const recipients = this.normalizeRecipients(message.to);
+    for (const email of recipients) {
+      if (!this.validateEmail(email)) {
+        errors.push(`Invalid email address: ${email}`);
+      }
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+};
+
+// src/agents/email/providers/cloudflare.ts
+var CloudflareEmailProvider = class extends BaseEmailProvider {
+  constructor(binding, defaultFrom, enableDkim = true) {
+    super();
+    this.binding = binding;
+    this.defaultFrom = defaultFrom;
+    this.enableDkim = enableDkim;
+    this.name = "cloudflare";
+  }
+  /**
+   * Send email via Cloudflare Email Workers
+   */
+  async send(message) {
+    const validation = this.validateMessage(message);
+    if (!validation.valid) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: validation.errors?.join(", ")
+      };
+    }
+    try {
+      const request = {
+        from: message.from || this.defaultFrom,
+        to: message.to,
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        headers: message.headers
+      };
+      if (this.enableDkim && request.headers) {
+        request.headers["X-Cloudflare-DKIM"] = "enabled";
+      }
+      const response = await this.binding.send(request);
+      if (!response.success) {
+        return {
+          messageId: "",
+          status: "failed",
+          provider: this.name,
+          error: response.error || "Unknown error"
+        };
+      }
+      return {
+        messageId: response.messageId || `cf-${Date.now()}`,
+        status: "sent",
+        provider: this.name
+      };
+    } catch (error) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  }
+  /**
+   * Validate configuration
+   */
+  async validateConfig() {
+    const errors = [];
+    if (!this.binding) {
+      errors.push("Cloudflare Email binding is not configured");
+    }
+    if (!this.defaultFrom) {
+      errors.push("Default from address is required");
+    } else if (!this.validateEmail(this.defaultFrom)) {
+      errors.push("Default from address is invalid");
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+};
+
+// src/agents/email/providers/resend.ts
+var ResendProvider = class extends BaseEmailProvider {
+  constructor(apiKey, defaultFrom) {
+    super();
+    this.apiKey = apiKey;
+    this.defaultFrom = defaultFrom;
+    this.name = "resend";
+    this.apiUrl = "https://api.resend.com/emails";
+  }
+  /**
+   * Send email via Resend API
+   */
+  async send(message) {
+    const validation = this.validateMessage(message);
+    if (!validation.valid) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: validation.errors?.join(", ")
+      };
+    }
+    try {
+      const request = {
+        from: message.from || this.defaultFrom,
+        to: message.to,
+        subject: message.subject,
+        html: message.html,
+        text: message.text
+      };
+      if (message.cc) request.cc = message.cc;
+      if (message.bcc) request.bcc = message.bcc;
+      if (message.replyTo) request.reply_to = message.replyTo;
+      if (message.headers) request.headers = message.headers;
+      if (message.attachments) {
+        request.attachments = message.attachments.map((att) => ({
+          filename: att.filename,
+          content: typeof att.content === "string" ? att.content : att.content.toString("base64")
+        }));
+      }
+      if (message.tags) {
+        request.tags = message.tags.map((tag) => ({
+          name: tag,
+          value: "true"
+        }));
+      }
+      const response = await fetch(this.apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(request)
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        return {
+          messageId: "",
+          status: "failed",
+          provider: this.name,
+          error: data.error?.message || `HTTP ${response.status}`
+        };
+      }
+      return {
+        messageId: data.id,
+        status: "sent",
+        provider: this.name
+      };
+    } catch (error) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  }
+  /**
+   * Validate configuration
+   */
+  async validateConfig() {
+    const errors = [];
+    if (!this.apiKey) {
+      errors.push("Resend API key is required");
+    }
+    if (!this.defaultFrom) {
+      errors.push("Default from address is required");
+    } else if (!this.validateEmail(this.defaultFrom)) {
+      errors.push("Default from address is invalid");
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+};
+
+// src/agents/email/providers/smtp.ts
+var SmtpProvider = class extends BaseEmailProvider {
+  constructor(config, defaultFrom) {
+    super();
+    this.config = config;
+    this.defaultFrom = defaultFrom;
+    this.name = "smtp";
+  }
+  /**
+   * Send email via SMTP
+   */
+  async send(message) {
+    const validation = this.validateMessage(message);
+    if (!validation.valid) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: validation.errors?.join(", ")
+      };
+    }
+    try {
+      const from = message.from || this.defaultFrom;
+      const to = this.normalizeRecipients(message.to);
+      const messageId = `<${Date.now()}.${Math.random().toString(36)}@${from.split("@")[1]}>`;
+      const headers = [
+        `Message-ID: ${messageId}`,
+        `From: ${from}`,
+        `To: ${to.join(", ")}`,
+        `Subject: ${message.subject}`,
+        `Date: ${(/* @__PURE__ */ new Date()).toUTCString()}`,
+        "MIME-Version: 1.0"
+      ];
+      if (message.cc) {
+        headers.push(`Cc: ${this.normalizeRecipients(message.cc).join(", ")}`);
+      }
+      if (message.bcc) {
+        headers.push(`Bcc: ${this.normalizeRecipients(message.bcc).join(", ")}`);
+      }
+      if (message.replyTo) {
+        headers.push(`Reply-To: ${message.replyTo}`);
+      }
+      if (message.headers) {
+        for (const [key, value] of Object.entries(message.headers)) {
+          headers.push(`${key}: ${value}`);
+        }
+      }
+      let body = "";
+      if (message.html && message.text) {
+        const boundary = `boundary_${Date.now()}_${Math.random().toString(36)}`;
+        headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+        body = [
+          "",
+          `--${boundary}`,
+          "Content-Type: text/plain; charset=utf-8",
+          "Content-Transfer-Encoding: quoted-printable",
+          "",
+          this.encodeQuotedPrintable(message.text),
+          "",
+          `--${boundary}`,
+          "Content-Type: text/html; charset=utf-8",
+          "Content-Transfer-Encoding: quoted-printable",
+          "",
+          this.encodeQuotedPrintable(message.html),
+          "",
+          `--${boundary}--`
+        ].join("\r\n");
+      } else if (message.html) {
+        headers.push("Content-Type: text/html; charset=utf-8");
+        headers.push("Content-Transfer-Encoding: quoted-printable");
+        body = "\r\n" + this.encodeQuotedPrintable(message.html);
+      } else if (message.text) {
+        headers.push("Content-Type: text/plain; charset=utf-8");
+        headers.push("Content-Transfer-Encoding: quoted-printable");
+        body = "\r\n" + this.encodeQuotedPrintable(message.text);
+      }
+      const response = await this.sendSmtp(from, to, headers.join("\r\n") + body);
+      if (!response.success) {
+        return {
+          messageId: "",
+          status: "failed",
+          provider: this.name,
+          error: response.error || "SMTP send failed"
+        };
+      }
+      return {
+        messageId: messageId.slice(1, -1),
+        // Remove < >
+        status: "sent",
+        provider: this.name
+      };
+    } catch (error) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  }
+  /**
+   * Validate configuration
+   */
+  async validateConfig() {
+    const errors = [];
+    if (!this.config.host) {
+      errors.push("SMTP host is required");
+    }
+    if (!this.config.port || this.config.port < 1 || this.config.port > 65535) {
+      errors.push("Valid SMTP port is required (1-65535)");
+    }
+    if (!this.config.auth?.user) {
+      errors.push("SMTP username is required");
+    }
+    if (!this.config.auth?.pass) {
+      errors.push("SMTP password is required");
+    }
+    if (!this.defaultFrom) {
+      errors.push("Default from address is required");
+    } else if (!this.validateEmail(this.defaultFrom)) {
+      errors.push("Default from address is invalid");
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+  /**
+   * Send email via SMTP protocol
+   */
+  async sendSmtp(from, to, message) {
+    try {
+      const protocol = this.config.secure ? "smtps" : "smtp";
+      const url = `${protocol}://${this.config.host}:${this.config.port}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "message/rfc822",
+          Authorization: `Basic ${btoa(`${this.config.auth.user}:${this.config.auth.pass}`)}`
+        },
+        body: `MAIL FROM:<${from}>\r
+RCPT TO:<${to.join(">,<")}>\r
+DATA\r
+${message}\r
+.\r
+`
+      });
+      if (!response.ok) {
+        return {
+          success: false,
+          error: `SMTP error: ${response.status} ${response.statusText}`
+        };
+      }
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown SMTP error"
+      };
+    }
+  }
+  /**
+   * Encode string as quoted-printable
+   */
+  encodeQuotedPrintable(text) {
+    return text.replace(/[^\x20-\x7E]/g, (char) => {
+      const hex = char.charCodeAt(0).toString(16).toUpperCase();
+      return "=" + (hex.length === 1 ? "0" + hex : hex);
+    }).replace(/=/g, "=3D").replace(/\r\n/g, "\n").split("\n").map((line) => {
+      if (line.length <= 76) return line;
+      const result = [];
+      for (let i = 0; i < line.length; i += 75) {
+        result.push(line.slice(i, i + 75) + "=");
+      }
+      return result.join("\r\n");
+    }).join("\r\n");
+  }
+};
+
+// src/agents/email/providers/index.ts
+function createEmailProvider(config) {
+  const from = config.from || "noreply@example.com";
+  switch (config.provider) {
+    case "cloudflare":
+      if (!config.cloudflare?.binding) {
+        throw new Error("Cloudflare Email binding is required");
+      }
+      return new CloudflareEmailProvider(
+        config.cloudflare.binding,
+        from,
+        config.cloudflare.dkim ?? true
+      );
+    case "resend":
+      if (!config.resend?.apiKey) {
+        throw new Error("Resend API key is required");
+      }
+      return new ResendProvider(config.resend.apiKey, from);
+    case "smtp":
+      if (!config.smtp) {
+        throw new Error("SMTP configuration is required");
+      }
+      return new SmtpProvider(config.smtp, from);
+    default:
+      throw new Error(`Unknown email provider: ${config.provider}`);
+  }
+}
+
+// src/utils/templates/engines/handlebars.ts
+var Handlebars = __toESM(require_lib(), 1);
+
+// src/utils/templates/engines/index.ts
+function createTemplateEngine(engine) {
+  switch (engine) {
+    case "simple":
+      return new SimpleTemplateEngine();
+    case "liquid":
+      return new LiquidTemplateEngine();
+    default:
+      throw new Error(`Unknown template engine: ${engine}`);
+  }
+}
+
+// src/agents/email/template-loader.ts
+var TemplateLoader = class {
+  constructor(config) {
+    this.engine = config.engine;
+    this.kv = config.kv;
+    this.localDir = config.localDir || "templates";
+    this.defaultVersion = config.defaultVersion || "latest";
+    this.cache = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Load and render template
+   */
+  async render(template, data = {}, env) {
+    const context = {
+      env,
+      baseDir: process.cwd()
+    };
+    const resolved = await resolveValue(template, context);
+    const content = typeof resolved.content === "string" ? resolved.content : JSON.stringify(resolved.content);
+    return await this.engine.render(content, data);
+  }
+  /**
+   * Parse template reference
+   */
+  parseTemplateRef(template) {
+    if (template.startsWith("kv://")) {
+      const path9 = template.slice(5);
+      const [pathPart, version2] = path9.split("@");
+      return {
+        type: "kv",
+        path: pathPart,
+        version: version2 || this.defaultVersion
+      };
+    }
+    const isFilePath2 = (template.endsWith(".html") || template.endsWith(".mjml")) && !template.includes("<");
+    if (isFilePath2) {
+      return {
+        type: "local",
+        path: template
+      };
+    }
+    return {
+      type: "inline",
+      path: template
+    };
+  }
+  /**
+   * Load template from storage
+   */
+  async loadTemplate(ref) {
+    const cacheKey = `${ref.type}:${ref.path}${ref.version ? `@${ref.version}` : ""}`;
+    if (this.cache.has(cacheKey)) {
+      return this.cache.get(cacheKey);
+    }
+    let content;
+    switch (ref.type) {
+      case "kv":
+        content = await this.loadFromKv(ref.path, ref.version);
+        break;
+      case "local":
+        content = await this.loadFromLocal(ref.path);
+        break;
+      case "inline":
+        content = ref.path;
+        break;
+    }
+    this.cache.set(cacheKey, content);
+    return content;
+  }
+  /**
+   * Load template from KV
+   */
+  async loadFromKv(path9, version2) {
+    if (!this.kv) {
+      throw new Error("KV namespace not configured for template loading");
+    }
+    const key = version2 ? `${path9}@${version2}` : path9;
+    const content = await this.kv.get(key, "text");
+    if (!content) {
+      throw new Error(`Template not found in KV: ${key}`);
+    }
+    return content;
+  }
+  /**
+   * Load template from local file system
+   */
+  async loadFromLocal(path9) {
+    throw new Error(
+      "Local file system access not available in Cloudflare Workers. Use KV storage (kv://...) or inline templates instead."
+    );
+  }
+  /**
+   * Clear template cache
+   */
+  clearCache() {
+    this.cache.clear();
+  }
+  /**
+   * Preload template into cache
+   */
+  async preload(template) {
+    const ref = this.parseTemplateRef(template);
+    await this.loadTemplate(ref);
+  }
+};
+
+// src/agents/email/email-agent.ts
+var EmailAgent = class extends BaseAgent {
+  constructor(config) {
+    super(config);
+    const emailConfig = config.config;
+    if (!emailConfig?.provider) {
+      throw new Error("Email agent requires provider configuration");
+    }
+    this.provider = createEmailProvider(emailConfig.provider);
+    const engine = emailConfig.templateEngine || "simple";
+    this.templateEngine = createTemplateEngine(engine);
+    this.templateLoader = new TemplateLoader({
+      engine: this.templateEngine,
+      kv: emailConfig.templatesKv ? config.env?.[emailConfig.templatesKv] || void 0 : void 0,
+      defaultVersion: "latest"
+    });
+    this.rateLimit = emailConfig.rateLimit || 10;
+    this.tracking = emailConfig.tracking ?? false;
+  }
+  /**
+   * Execute email sending
+   */
+  async run(context) {
+    const input = context.input;
+    if ("recipients" in input && Array.isArray(input.recipients)) {
+      return this.sendBatch(input, context);
+    }
+    return this.sendSingle(input, context);
+  }
+  /**
+   * Send single email
+   */
+  async sendSingle(input, context) {
+    const message = await this.buildMessage(input, context);
+    const validation = await this.provider.validateConfig();
+    if (!validation.valid) {
+      throw new Error(`Provider validation failed: ${validation.errors?.join(", ")}`);
+    }
+    const result = await this.provider.send(message);
+    if (result.status === "failed") {
+      throw new Error(`Email send failed: ${result.error}`);
+    }
+    return {
+      messageId: result.messageId,
+      status: result.status,
+      provider: result.provider,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  /**
+   * Send batch emails
+   */
+  async sendBatch(input, context) {
+    const results = [];
+    const errors = [];
+    const messageIds = [];
+    const delayMs = 1e3 / this.rateLimit;
+    let lastSendTime = 0;
+    for (const recipient of input.recipients) {
+      try {
+        const now = Date.now();
+        const timeSinceLastSend = now - lastSendTime;
+        if (timeSinceLastSend < delayMs) {
+          await this.delay(delayMs - timeSinceLastSend);
+        }
+        lastSendTime = Date.now();
+        const emailInput = {
+          to: recipient.email,
+          subject: input.subject,
+          template: input.template,
+          data: {
+            ...input.commonData,
+            ...recipient.data
+          }
+        };
+        const message = await this.buildMessage(emailInput, context);
+        const result = await this.provider.send(message);
+        results.push(result);
+        if (result.status === "sent") {
+          messageIds.push(result.messageId);
+        } else {
+          errors.push({
+            email: recipient.email,
+            error: result.error || "Unknown error"
+          });
+        }
+      } catch (error) {
+        errors.push({
+          email: recipient.email,
+          error: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    }
+    const sent = results.filter((r) => r.status === "sent").length;
+    const failed = results.length - sent;
+    return {
+      sent,
+      failed,
+      messageIds,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+  /**
+   * Build email message from input
+   */
+  async buildMessage(input, context) {
+    let html = input.html;
+    let text = input.text;
+    if (input.template) {
+      const data = input.data || {};
+      html = await this.templateLoader.render(input.template, data, context.env);
+      if (!text) {
+        text = this.stripHtml(html);
+      }
+    }
+    const message = {
+      to: input.to,
+      cc: input.cc,
+      bcc: input.bcc,
+      from: input.from,
+      replyTo: input.replyTo,
+      subject: input.subject,
+      html,
+      text,
+      attachments: input.attachments,
+      headers: input.headers,
+      tags: input.tags,
+      metadata: input.metadata
+    };
+    if (this.tracking) {
+      message.headers = {
+        ...message.headers,
+        "X-Conductor-Tracking": "enabled",
+        "X-Conductor-Ensemble": context.state?.ensembleName || "unknown"
+      };
+    }
+    return message;
+  }
+  /**
+   * Strip HTML tags for plain text version
+   */
+  stripHtml(html) {
+    return html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+  }
+  /**
+   * Delay execution
+   */
+  delay(ms) {
+    return new Promise((resolve5) => setTimeout(resolve5, ms));
+  }
+};
+
+// src/agents/sms/sms-agent.ts
+init_base_agent();
+
+// src/agents/sms/providers/base.ts
+var BaseSmsProvider = class {
+  /**
+   * Normalize recipients to array
+   */
+  normalizeRecipients(recipients) {
+    return Array.isArray(recipients) ? recipients : [recipients];
+  }
+  /**
+   * Validate phone number format (basic E.164 validation)
+   */
+  validatePhoneNumber(phone) {
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    return e164Regex.test(phone);
+  }
+  /**
+   * Validate required fields
+   */
+  validateMessage(message) {
+    const errors = [];
+    if (!message.to || Array.isArray(message.to) && message.to.length === 0) {
+      errors.push("Recipient (to) is required");
+    }
+    if (!message.body || message.body.trim() === "") {
+      errors.push("Message body is required");
+    }
+    const recipients = this.normalizeRecipients(message.to);
+    for (const phone of recipients) {
+      if (!this.validatePhoneNumber(phone)) {
+        errors.push(
+          `Invalid phone number format: ${phone} (must be E.164 format, e.g., +1234567890)`
+        );
+      }
+    }
+    if (message.body.length > 1600) {
+      errors.push("Message body exceeds maximum length of 1600 characters");
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+};
+
+// src/agents/sms/providers/twilio.ts
+var TwilioProvider = class extends BaseSmsProvider {
+  constructor(accountSid, authToken, defaultFrom, messagingServiceSid) {
+    super();
+    this.accountSid = accountSid;
+    this.authToken = authToken;
+    this.defaultFrom = defaultFrom;
+    this.messagingServiceSid = messagingServiceSid;
+    this.name = "twilio";
+    this.apiUrl = "https://api.twilio.com/2010-04-01";
+  }
+  /**
+   * Send SMS via Twilio API
+   */
+  async send(message) {
+    const validation = this.validateMessage(message);
+    if (!validation.valid) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: validation.errors?.join(", ")
+      };
+    }
+    try {
+      const recipients = this.normalizeRecipients(message.to);
+      if (recipients.length === 1) {
+        return await this.sendSingle(message, recipients[0]);
+      }
+      const results = [];
+      for (const recipient of recipients) {
+        const result = await this.sendSingle({ ...message, to: recipient }, recipient);
+        results.push(result);
+      }
+      return results[0];
+    } catch (error) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  }
+  /**
+   * Send SMS to single recipient
+   */
+  async sendSingle(message, recipient) {
+    const body = new URLSearchParams();
+    body.append("To", recipient);
+    body.append("Body", message.body);
+    if (this.messagingServiceSid) {
+      body.append("MessagingServiceSid", this.messagingServiceSid);
+    } else {
+      body.append("From", message.from || this.defaultFrom);
+    }
+    if (message.mediaUrl && message.mediaUrl.length > 0) {
+      message.mediaUrl.forEach((url2) => {
+        body.append("MediaUrl", url2);
+      });
+    }
+    if (message.metadata?.statusCallback) {
+      body.append("StatusCallback", message.metadata.statusCallback);
+    }
+    const url = `${this.apiUrl}/Accounts/${this.accountSid}/Messages.json`;
+    const auth = btoa(`${this.accountSid}:${this.authToken}`);
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: body.toString()
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return {
+        messageId: "",
+        status: "failed",
+        provider: this.name,
+        error: data?.message || `HTTP ${response.status}`
+      };
+    }
+    return {
+      messageId: data.sid,
+      status: this.mapTwilioStatus(data.status),
+      provider: this.name
+    };
+  }
+  /**
+   * Map Twilio status to our status
+   */
+  mapTwilioStatus(twilioStatus) {
+    switch (twilioStatus) {
+      case "sent":
+      case "delivered":
+        return "sent";
+      case "queued":
+      case "accepted":
+      case "sending":
+        return "queued";
+      case "failed":
+      case "undelivered":
+      default:
+        return "failed";
+    }
+  }
+  /**
+   * Validate configuration
+   */
+  async validateConfig() {
+    const errors = [];
+    if (!this.accountSid) {
+      errors.push("Twilio Account SID is required");
+    }
+    if (!this.authToken) {
+      errors.push("Twilio Auth Token is required");
+    }
+    if (!this.messagingServiceSid && !this.defaultFrom) {
+      errors.push("Either Twilio Messaging Service SID or default from number is required");
+    }
+    if (this.defaultFrom && !this.validatePhoneNumber(this.defaultFrom)) {
+      errors.push("Default from number must be in E.164 format (e.g., +1234567890)");
+    }
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+};
+
+// src/agents/sms/providers/index.ts
+function createSmsProvider(config) {
+  const from = config.from || "";
+  switch (config.provider) {
+    case "twilio":
+      if (!config.twilio) {
+        throw new Error("Twilio configuration is required");
+      }
+      if (!config.twilio.accountSid) {
+        throw new Error("Twilio Account SID is required");
+      }
+      if (!config.twilio.authToken) {
+        throw new Error("Twilio Auth Token is required");
+      }
+      return new TwilioProvider(
+        config.twilio.accountSid,
+        config.twilio.authToken,
+        from,
+        config.twilio.messagingServiceSid
+      );
+    default:
+      throw new Error(`Unknown SMS provider: ${config.provider}`);
+  }
+}
+
+// src/agents/sms/sms-agent.ts
+var SmsMember = class extends BaseAgent {
+  constructor(config) {
+    super(config);
+    const smsConfig = config.config;
+    if (!smsConfig?.provider) {
+      throw new Error("SMS agent requires provider configuration");
+    }
+    this.provider = createSmsProvider(smsConfig.provider);
+    const engine = smsConfig.templateEngine || "simple";
+    this.templateEngine = createTemplateEngine(engine);
+    this.rateLimit = smsConfig.rateLimit || 10;
+  }
+  /**
+   * Execute SMS sending
+   */
+  async run(context) {
+    const input = context.input;
+    if ("recipients" in input && Array.isArray(input.recipients)) {
+      return this.sendBatch(input, context);
+    }
+    return this.sendSingle(input, context);
+  }
+  /**
+   * Send single SMS
+   */
+  async sendSingle(input, context) {
+    const message = this.buildMessage(input);
+    const validation = await this.provider.validateConfig();
+    if (!validation.valid) {
+      throw new Error(`Provider validation failed: ${validation.errors?.join(", ")}`);
+    }
+    const result = await this.provider.send(message);
+    if (result.status === "failed") {
+      throw new Error(`SMS send failed: ${result.error}`);
+    }
+    return {
+      messageId: result.messageId,
+      status: result.status,
+      provider: result.provider,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  /**
+   * Send batch SMS
+   */
+  async sendBatch(input, context) {
+    const results = [];
+    const errors = [];
+    const messageIds = [];
+    const delayMs = 1e3 / this.rateLimit;
+    let lastSendTime = 0;
+    for (const recipient of input.recipients) {
+      try {
+        const now = Date.now();
+        const timeSinceLastSend = now - lastSendTime;
+        if (timeSinceLastSend < delayMs) {
+          await this.delay(delayMs - timeSinceLastSend);
+        }
+        lastSendTime = Date.now();
+        const body = await this.renderTemplate(input.body, {
+          ...input.commonData,
+          ...recipient.data
+        });
+        const smsInput = {
+          to: recipient.phone,
+          body,
+          mediaUrl: input.mediaUrl
+        };
+        const message = this.buildMessage(smsInput);
+        const result = await this.provider.send(message);
+        results.push(result);
+        if (result.status === "sent" || result.status === "queued") {
+          messageIds.push(result.messageId);
+        } else {
+          errors.push({
+            phone: recipient.phone,
+            error: result.error || "Unknown error"
+          });
+        }
+      } catch (error) {
+        errors.push({
+          phone: recipient.phone,
+          error: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    }
+    const sent = results.filter((r) => r.status === "sent" || r.status === "queued").length;
+    const failed = results.length - sent;
+    return {
+      sent,
+      failed,
+      messageIds,
+      errors: errors.length > 0 ? errors : void 0
+    };
+  }
+  /**
+   * Build SMS message from input
+   */
+  buildMessage(input) {
+    return {
+      to: input.to,
+      from: input.from,
+      body: input.body,
+      mediaUrl: input.mediaUrl,
+      metadata: input.metadata
+    };
+  }
+  /**
+   * Render template with variables using template engine
+   */
+  async renderTemplate(template, data) {
+    return await this.templateEngine.render(template, data);
+  }
+  /**
+   * Delay execution
+   */
+  delay(ms) {
+    return new Promise((resolve5) => setTimeout(resolve5, ms));
+  }
+};
+
+// src/agents/form/form-agent.ts
+init_base_agent();
+
+// src/agents/form/utils/validation.ts
+async function validateField(field, value, allData, context) {
+  const errors = [];
+  if (field.disabled || field.readonly) {
+    return errors;
+  }
+  const validation = field.validation;
+  if (!validation) {
+    return errors;
+  }
+  if (validation.required) {
+    if (isEmpty(value)) {
+      const message = typeof validation.required === "string" ? validation.required : `${field.label || field.name} is required`;
+      errors.push({ field: field.name, message, rule: "required" });
+      return errors;
+    }
+  }
+  if (isEmpty(value)) {
+    return errors;
+  }
+  const stringValue = String(value);
+  if (validation.email) {
+    if (!isValidEmail(stringValue)) {
+      const message = typeof validation.email === "string" ? validation.email : "Please enter a valid email address";
+      errors.push({ field: field.name, message, rule: "email" });
+    }
+  }
+  if (validation.url) {
+    if (!isValidUrl(stringValue)) {
+      const message = typeof validation.url === "string" ? validation.url : "Please enter a valid URL";
+      errors.push({ field: field.name, message, rule: "url" });
+    }
+  }
+  if (validation.pattern) {
+    const pattern = typeof validation.pattern === "string" ? { regex: validation.pattern, message: "Invalid format" } : validation.pattern;
+    const regex = new RegExp(pattern.regex);
+    if (!regex.test(stringValue)) {
+      errors.push({ field: field.name, message: pattern.message, rule: "pattern" });
+    }
+  }
+  if (field.type === "number" && typeof value === "number") {
+    if (validation.min !== void 0) {
+      const min = typeof validation.min === "number" ? { value: validation.min, message: `Minimum value is ${validation.min}` } : validation.min;
+      if (value < min.value) {
+        errors.push({ field: field.name, message: min.message, rule: "min" });
+      }
+    }
+    if (validation.max !== void 0) {
+      const max = typeof validation.max === "number" ? { value: validation.max, message: `Maximum value is ${validation.max}` } : validation.max;
+      if (value > max.value) {
+        errors.push({ field: field.name, message: max.message, rule: "max" });
+      }
+    }
+  }
+  if (validation.minLength !== void 0) {
+    const minLength = typeof validation.minLength === "number" ? { value: validation.minLength, message: `Minimum length is ${validation.minLength}` } : validation.minLength;
+    if (stringValue.length < minLength.value) {
+      errors.push({ field: field.name, message: minLength.message, rule: "minLength" });
+    }
+  }
+  if (validation.maxLength !== void 0) {
+    const maxLength = typeof validation.maxLength === "number" ? { value: validation.maxLength, message: `Maximum length is ${validation.maxLength}` } : validation.maxLength;
+    if (stringValue.length > maxLength.value) {
+      errors.push({ field: field.name, message: maxLength.message, rule: "maxLength" });
+    }
+  }
+  if (validation.matches) {
+    const matches = typeof validation.matches === "string" ? { field: validation.matches, message: "Fields do not match" } : validation.matches;
+    const matchValue = allData[matches.field];
+    if (value !== matchValue) {
+      errors.push({ field: field.name, message: matches.message, rule: "matches" });
+    }
+  }
+  if (validation.custom) {
+    const customValidator = context.input?.validators?.[validation.custom];
+    if (typeof customValidator === "function") {
+      const customResult = await customValidator(value, allData, field);
+      if (customResult !== true) {
+        const message = typeof customResult === "string" ? customResult : "Validation failed";
+        errors.push({ field: field.name, message, rule: "custom" });
+      }
+    }
+  }
+  return errors;
+}
+function isEmpty(value) {
+  if (value === null || value === void 0) {
+    return true;
+  }
+  if (typeof value === "string") {
+    return value.trim() === "";
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  return false;
+}
+function isValidEmail(email) {
+  const emailRegex2 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex2.test(email);
+}
+function isValidUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// src/agents/form/utils/renderer.ts
+async function renderForm(options) {
+  const { config, fields, data, errors, csrfToken, currentStep, stepInfo } = options;
+  const style = config.style || {};
+  const classes = style.classes || {};
+  const errorMap2 = /* @__PURE__ */ new Map();
+  for (const error of errors) {
+    if (!errorMap2.has(error.field)) {
+      errorMap2.set(error.field, []);
+    }
+    errorMap2.get(error.field).push(error.message);
+  }
+  let html = `<form
+		class="${classes.form || "conductor-form"}"
+		method="${config.method || "POST"}"
+		${config.action ? `action="${escapeHtml(config.action)}"` : ""}
+		novalidate
+	>`;
+  const title = stepInfo?.title || config.title;
+  const description = stepInfo?.description || config.description;
+  if (title) {
+    html += `<h2 class="form-title">${escapeHtml(title)}</h2>`;
+  }
+  if (description) {
+    html += `<p class="form-description">${escapeHtml(description)}</p>`;
+  }
+  if (csrfToken) {
+    const csrfFieldName = config.csrf?.fieldName || "_csrf";
+    html += `<input type="hidden" name="${escapeHtml(csrfFieldName)}" value="${escapeHtml(csrfToken)}">`;
+  }
+  if (config.honeypot) {
+    html += `<input type="text" name="${escapeHtml(config.honeypot)}" value="" style="position:absolute;left:-9999px;" tabindex="-1" autocomplete="off" aria-hidden="true">`;
+  }
+  if (currentStep) {
+    html += `<input type="hidden" name="_currentStep" value="${escapeHtml(currentStep)}">`;
+  }
+  for (const field of fields) {
+    html += renderField(field, data[field.name], errorMap2.get(field.name), classes);
+  }
+  if (config.captcha) {
+    html += renderCaptcha(config.captcha.type, config.captcha.siteKey, config.captcha);
+  }
+  html += `<div class="form-actions">
+		<button type="submit" class="${classes.button || "form-submit"}">
+			${escapeHtml(config.submitText || "Submit")}
+		</button>
+	</div>`;
+  html += `</form>`;
+  if (style.includeDefaultStyles !== false) {
+    html = renderDefaultStyles() + html;
+  }
+  return html;
+}
+function renderField(field, value, errors, classes) {
+  const hasError = errors && errors.length > 0;
+  const fieldClass = `${classes.field || "form-field"} ${hasError ? "has-error" : ""}`.trim();
+  let html = `<div class="${fieldClass}">`;
+  if (field.label && field.type !== "hidden") {
+    const required = field.validation?.required ? ' <span class="required">*</span>' : "";
+    html += `<label for="${field.name}" class="${classes.label || "form-label"}">
+			${escapeHtml(field.label)}${required}
+		</label>`;
+  }
+  html += renderFieldInput(field, value, classes);
+  if (field.help) {
+    html += `<div class="${classes.help || "form-help"}">${escapeHtml(field.help)}</div>`;
+  }
+  if (hasError) {
+    for (const error of errors) {
+      html += `<div class="${classes.error || "form-error"}">${escapeHtml(error)}</div>`;
+    }
+  }
+  html += `</div>`;
+  return html;
+}
+function renderFieldInput(field, value, classes) {
+  const inputClass = `${classes.input || "form-input"} ${field.className || ""}`.trim();
+  const commonAttrs = `
+		name="${escapeHtml(field.name)}"
+		id="${field.name}"
+		class="${inputClass}"
+		${field.placeholder ? `placeholder="${escapeHtml(field.placeholder)}"` : ""}
+		${field.disabled ? "disabled" : ""}
+		${field.readonly ? "readonly" : ""}
+		${field.autocomplete ? `autocomplete="${escapeHtml(field.autocomplete)}"` : ""}
+	`.trim();
+  switch (field.type) {
+    case "textarea":
+      return `<textarea ${commonAttrs} ${field.rows ? `rows="${field.rows}"` : ""} ${field.cols ? `cols="${field.cols}"` : ""}>${escapeHtml(String(value || field.default || ""))}</textarea>`;
+    case "select":
+      return renderSelectField(field, value, commonAttrs);
+    case "checkbox":
+      return renderCheckboxField(field, value, commonAttrs);
+    case "radio":
+      return renderRadioField(field, value, commonAttrs);
+    case "hidden":
+      return `<input type="hidden" name="${escapeHtml(field.name)}" value="${escapeHtml(String(value || field.default || ""))}">`;
+    default:
+      return `<input
+				type="${field.type}"
+				${commonAttrs}
+				${field.min !== void 0 ? `min="${field.min}"` : ""}
+				${field.max !== void 0 ? `max="${field.max}"` : ""}
+				${field.step !== void 0 ? `step="${field.step}"` : ""}
+				${field.accept ? `accept="${escapeHtml(field.accept)}"` : ""}
+				value="${escapeHtml(String(value || field.default || ""))}"
+			>`;
+  }
+}
+function renderSelectField(field, value, commonAttrs) {
+  let html = `<select ${commonAttrs} ${field.multiple ? "multiple" : ""}>`;
+  const options = normalizeOptions(field.options || []);
+  const selectedValues = field.multiple && Array.isArray(value) ? value : [value];
+  for (const option of options) {
+    const selected = selectedValues.includes(option.value) || option.selected;
+    html += `<option value="${escapeHtml(option.value)}" ${selected ? "selected" : ""} ${option.disabled ? "disabled" : ""}>
+			${escapeHtml(option.label)}
+		</option>`;
+  }
+  html += `</select>`;
+  return html;
+}
+function renderCheckboxField(field, value, commonAttrs) {
+  const checked = Boolean(value || field.default);
+  return `<input type="checkbox" ${commonAttrs} ${checked ? "checked" : ""} value="true">`;
+}
+function renderRadioField(field, value, commonAttrs) {
+  const options = normalizeOptions(field.options || []);
+  let html = "";
+  for (const option of options) {
+    const checked = value === option.value || option.selected;
+    html += `<label class="radio-option">
+			<input
+				type="radio"
+				name="${escapeHtml(field.name)}"
+				value="${escapeHtml(option.value)}"
+				${checked ? "checked" : ""}
+				${option.disabled ? "disabled" : ""}
+			>
+			${escapeHtml(option.label)}
+		</label>`;
+  }
+  return html;
+}
+function normalizeOptions(options) {
+  return options.map((opt) => typeof opt === "string" ? { label: opt, value: opt } : opt);
+}
+function renderCaptcha(type, siteKey, config) {
+  switch (type) {
+    case "turnstile":
+      return `<div class="cf-turnstile"
+				data-sitekey="${escapeHtml(siteKey)}"
+				data-theme="${config.theme || "auto"}"
+				data-size="${config.size || "normal"}">
+			</div>
+			<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`;
+    case "recaptcha":
+      return `<div class="g-recaptcha"
+				data-sitekey="${escapeHtml(siteKey)}"
+				data-theme="${config.theme || "light"}"
+				data-size="${config.size || "normal"}">
+			</div>
+			<script src="https://www.google.com/recaptcha/api.js" async defer></script>`;
+    case "hcaptcha":
+      return `<div class="h-captcha"
+				data-sitekey="${escapeHtml(siteKey)}"
+				data-theme="${config.theme || "light"}"
+				data-size="${config.size || "normal"}">
+			</div>
+			<script src="https://js.hcaptcha.com/1/api.js" async defer></script>`;
+    default:
+      return "";
+  }
+}
+function renderDefaultStyles() {
+  return `<style>
+		.conductor-form {
+			max-width: 600px;
+			margin: 0 auto;
+			padding: 2rem;
+		}
+		.form-title {
+			margin: 0 0 0.5rem;
+			font-size: 1.75rem;
+			font-weight: 600;
+		}
+		.form-description {
+			margin: 0 0 1.5rem;
+			color: #666;
+		}
+		.form-field {
+			margin-bottom: 1.5rem;
+		}
+		.form-label {
+			display: block;
+			margin-bottom: 0.5rem;
+			font-weight: 500;
+		}
+		.required {
+			color: #e53e3e;
+		}
+		.form-input, .form-input textarea, .form-input select {
+			width: 100%;
+			padding: 0.5rem 0.75rem;
+			border: 1px solid #d1d5db;
+			border-radius: 0.375rem;
+			font-size: 1rem;
+			transition: border-color 0.15s;
+		}
+		.form-input:focus {
+			outline: none;
+			border-color: #3b82f6;
+			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+		}
+		.form-help {
+			margin-top: 0.25rem;
+			font-size: 0.875rem;
+			color: #6b7280;
+		}
+		.form-error {
+			margin-top: 0.25rem;
+			font-size: 0.875rem;
+			color: #e53e3e;
+		}
+		.has-error .form-input {
+			border-color: #e53e3e;
+		}
+		.radio-option {
+			display: block;
+			margin-bottom: 0.5rem;
+		}
+		.radio-option input {
+			margin-right: 0.5rem;
+		}
+		.form-actions {
+			margin-top: 2rem;
+		}
+		.form-submit {
+			padding: 0.75rem 1.5rem;
+			background-color: #3b82f6;
+			color: white;
+			border: none;
+			border-radius: 0.375rem;
+			font-size: 1rem;
+			font-weight: 500;
+			cursor: pointer;
+			transition: background-color 0.15s;
+		}
+		.form-submit:hover {
+			background-color: #2563eb;
+		}
+		.form-submit:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+	</style>`;
+}
+function escapeHtml(str) {
+  const map = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  };
+  return str.replace(/[&<>"']/g, (char) => map[char]);
+}
+
+// src/agents/form/utils/csrf.ts
+async function generateCsrfToken(config, env) {
+  const secret = config.secret || "default-csrf-secret";
+  const expiresIn = config.expiresIn || 3600;
+  const tokenValue = generateRandomString(32);
+  const expiresAt = Date.now() + expiresIn * 1e3;
+  const payload = {
+    value: tokenValue,
+    expiresAt
+  };
+  const signature = await signData(JSON.stringify(payload), secret);
+  const token = btoa(JSON.stringify({ ...payload, signature }));
+  const kv = env.CSRF_TOKENS;
+  if (kv) {
+    await kv.put(tokenValue, JSON.stringify(payload), {
+      expirationTtl: expiresIn
+    });
+  }
+  return token;
+}
+async function validateCsrfToken(token, config, env) {
+  if (!token) {
+    return false;
+  }
+  try {
+    const secret = config.secret || "default-csrf-secret";
+    const decoded = JSON.parse(atob(token));
+    const { value, expiresAt, signature } = decoded;
+    if (Date.now() > expiresAt) {
+      return false;
+    }
+    const payload = { value, expiresAt };
+    const expectedSignature = await signData(JSON.stringify(payload), secret);
+    if (signature !== expectedSignature) {
+      return false;
+    }
+    const kv = env.CSRF_TOKENS;
+    if (kv) {
+      const stored = await kv.get(value);
+      if (!stored) {
+        return false;
+      }
+      await kv.delete(value);
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+function generateRandomString(length) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const array = new Uint8Array(length);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < length; i++) {
+      result += chars[array[i] % chars.length];
+    }
+  } else {
+    for (let i = 0; i < length; i++) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    }
+  }
+  return result;
+}
+async function signData(data, secret) {
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secret);
+    const messageData = encoder.encode(data);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signature = await crypto.subtle.sign("HMAC", key, messageData);
+    return Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return simpleHash(data + secret);
+}
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16);
+}
+
+// src/agents/form/utils/rate-limit.ts
+async function checkRateLimit(identifier, config, kv) {
+  if (!kv) {
+    return {
+      allowed: true,
+      remaining: config.max,
+      reset: Date.now() + config.window * 1e3,
+      limit: config.max
+    };
+  }
+  const key = `rate-limit:${identifier}`;
+  const now = Date.now();
+  const windowMs = config.window * 1e3;
+  const stored = await kv.get(key, "json");
+  let data;
+  if (stored) {
+    data = stored;
+    if (now > data.resetAt) {
+      data = {
+        count: 0,
+        resetAt: now + windowMs
+      };
+    }
+  } else {
+    data = {
+      count: 0,
+      resetAt: now + windowMs
+    };
+  }
+  if (data.count >= config.max) {
+    return {
+      allowed: false,
+      remaining: 0,
+      reset: data.resetAt,
+      limit: config.max
+    };
+  }
+  data.count++;
+  const ttl = Math.ceil((data.resetAt - now) / 1e3);
+  await kv.put(key, JSON.stringify(data), {
+    expirationTtl: ttl
+  });
+  return {
+    allowed: true,
+    remaining: config.max - data.count,
+    reset: data.resetAt,
+    limit: config.max
+  };
+}
+
+// src/agents/form/form-agent.ts
+var FormAgent = class extends BaseAgent {
+  constructor(config) {
+    super(config);
+    this.formConfig = config.config || {};
+    this.validateConfig();
+  }
+  /**
+   * Validate agent configuration
+   */
+  validateConfig() {
+    if (!this.formConfig.fields && !this.formConfig.steps) {
+      throw new Error("Form agent requires either fields or steps configuration");
+    }
+    if (this.formConfig.fields && this.formConfig.steps) {
+      throw new Error("Form agent cannot have both fields and steps - use one or the other");
+    }
+    if (this.formConfig.captcha) {
+      if (!this.formConfig.captcha.siteKey) {
+        throw new Error("CAPTCHA configuration requires siteKey");
+      }
+    }
+    if (this.formConfig.csrf?.enabled) {
+      if (!this.formConfig.csrf.secret) {
+        throw new Error("CSRF protection requires a secret");
+      }
+    }
+  }
+  /**
+   * Execute form operation
+   */
+  async run(context) {
+    const input = context.input;
+    const mode = input.mode || "render";
+    if (this.formConfig.rateLimit) {
+      const identifier = input.request?.ip || "anonymous";
+      const rateLimitResult = await checkRateLimit(
+        identifier,
+        this.formConfig.rateLimit,
+        context.env.RATE_LIMIT
+      );
+      if (!rateLimitResult.allowed) {
+        return {
+          valid: false,
+          errors: [
+            {
+              field: "_form",
+              message: "Rate limit exceeded. Please try again later.",
+              rule: "rate_limit"
+            }
+          ],
+          rateLimit: {
+            remaining: rateLimitResult.remaining,
+            reset: rateLimitResult.reset
+          }
+        };
+      }
+    }
+    switch (mode) {
+      case "render":
+        return this.renderForm(input, context);
+      case "validate":
+        return this.validateForm(input, context);
+      case "submit":
+        return this.submitForm(input, context);
+      default:
+        throw new Error(`Invalid form mode: ${mode}`);
+    }
+  }
+  /**
+   * Render form HTML
+   */
+  async renderForm(input, context) {
+    let csrfToken;
+    if (this.formConfig.csrf?.enabled) {
+      csrfToken = await generateCsrfToken(this.formConfig.csrf, context.env);
+    }
+    const currentStep = this.getCurrentStep(input);
+    const fields = this.getFieldsForStep(currentStep);
+    const html = await renderForm({
+      config: this.formConfig,
+      fields,
+      data: input.data || {},
+      csrfToken,
+      currentStep: currentStep?.id,
+      stepInfo: currentStep || void 0,
+      errors: []
+    });
+    return {
+      html,
+      currentStep: currentStep?.id,
+      csrfToken,
+      valid: true
+    };
+  }
+  /**
+   * Validate form data
+   */
+  async validateForm(input, context) {
+    const data = input.data || {};
+    const errors = [];
+    if (this.formConfig.honeypot && data[this.formConfig.honeypot]) {
+      return {
+        valid: false,
+        errors: [{ field: "_form", message: "Form submission failed", rule: "honeypot" }]
+      };
+    }
+    if (this.formConfig.csrf?.enabled) {
+      const csrfToken = data[this.formConfig.csrf.fieldName || "_csrf"];
+      const isValid2 = await validateCsrfToken(csrfToken, this.formConfig.csrf, context.env);
+      if (!isValid2) {
+        errors.push({
+          field: "_csrf",
+          message: "Invalid or expired security token",
+          rule: "csrf"
+        });
+      }
+    }
+    const currentStep = this.getCurrentStep(input);
+    const fields = this.getFieldsForStep(currentStep);
+    for (const field of fields) {
+      const value = data[field.name];
+      const fieldErrors = await validateField(field, value, data, context);
+      errors.push(...fieldErrors);
+    }
+    const sanitizedData = this.sanitizeData(data, fields);
+    return {
+      valid: errors.length === 0,
+      errors: errors.length > 0 ? errors : void 0,
+      data: sanitizedData,
+      currentStep: currentStep?.id
+    };
+  }
+  /**
+   * Submit form (validate + return next step/completion)
+   */
+  async submitForm(input, context) {
+    const validationResult = await this.validateForm(input, context);
+    if (!validationResult.valid) {
+      return validationResult;
+    }
+    if (this.formConfig.steps) {
+      const currentStepIndex = this.formConfig.steps.findIndex(
+        (step) => step.id === input.currentStep
+      );
+      const nextStep = this.formConfig.steps[currentStepIndex + 1];
+      return {
+        ...validationResult,
+        currentStep: input.currentStep,
+        nextStep: nextStep?.id,
+        isLastStep: !nextStep
+      };
+    }
+    return {
+      ...validationResult,
+      isLastStep: true
+    };
+  }
+  /**
+   * Get current step for multi-step forms
+   */
+  getCurrentStep(input) {
+    if (!this.formConfig.steps) {
+      return null;
+    }
+    if (input.currentStep) {
+      const step = this.formConfig.steps.find((s) => s.id === input.currentStep);
+      if (step) return step;
+    }
+    return this.formConfig.steps[0];
+  }
+  /**
+   * Get fields for current step or all fields
+   */
+  getFieldsForStep(step) {
+    if (step) {
+      return step.fields;
+    }
+    return this.formConfig.fields || [];
+  }
+  /**
+   * Sanitize form data
+   */
+  sanitizeData(data, fields) {
+    const sanitized = {};
+    for (const field of fields) {
+      const value = data[field.name];
+      if (value === void 0 || value === null) {
+        continue;
+      }
+      switch (field.type) {
+        case "email":
+          sanitized[field.name] = String(value).toLowerCase().trim();
+          break;
+        case "number":
+          sanitized[field.name] = Number(value);
+          break;
+        case "checkbox":
+          sanitized[field.name] = Boolean(value);
+          break;
+        case "select":
+          if (field.multiple && Array.isArray(value)) {
+            sanitized[field.name] = value.map((v) => String(v).trim());
+          } else {
+            sanitized[field.name] = String(value).trim();
+          }
+          break;
+        case "textarea":
+        case "text":
+        case "password":
+        case "tel":
+        case "url":
+        default:
+          sanitized[field.name] = String(value).trim();
+      }
+    }
+    return sanitized;
+  }
+};
+
+// src/agents/html/html-agent.ts
+init_base_agent();
+
+// src/agents/html/utils/template-loader.ts
+function detectTemplateEngine(key, content) {
+  if (key.endsWith(".liquid")) {
+    return "liquid";
+  }
+  if (content && /\{%.*%\}/.test(content)) {
+    return "liquid";
+  }
+  return "simple";
+}
+async function loadTemplate(source, env) {
+  if (source.inline) {
+    const engine = source.engine || detectTemplateEngine("inline", source.inline);
+    return {
+      content: source.inline,
+      engine,
+      source: "inline"
+    };
+  }
+  if (source.kv) {
+    if (!env?.TEMPLATES) {
+      throw new Error("KV namespace TEMPLATES is not configured");
+    }
+    const content = await env.TEMPLATES.get(source.kv, "text");
+    if (!content) {
+      throw new Error(`Template not found in KV: ${source.kv}`);
+    }
+    const engine = source.engine || detectTemplateEngine(source.kv, content);
+    return {
+      content,
+      engine,
+      source: "kv"
+    };
+  }
+  if (source.r2) {
+    if (!env?.ASSETS) {
+      throw new Error("R2 bucket ASSETS is not configured");
+    }
+    const object = await env.ASSETS.get(source.r2);
+    if (!object) {
+      throw new Error(`Template not found in R2: ${source.r2}`);
+    }
+    const content = await object.text();
+    const engine = source.engine || detectTemplateEngine(source.r2, content);
+    return {
+      content,
+      engine,
+      source: "r2"
+    };
+  }
+  if (source.file) {
+    throw new Error(
+      "File-based templates are not supported in Cloudflare Workers. Use inline, KV (TEMPLATES), or R2 (ASSETS) instead."
+    );
+  }
+  throw new Error("No valid template source specified (inline, kv, or r2)");
+}
+function normalizeTemplateSource(source) {
+  if (typeof source === "string") {
+    if (source.startsWith("kv://")) {
+      return { kv: source.slice(5) };
+    }
+    if (source.startsWith("r2://")) {
+      return { r2: source.slice(5) };
+    }
+    if (source.startsWith("file://")) {
+      return { file: source.slice(7) };
+    }
+    return { inline: source };
+  }
+  return source;
+}
+
+// src/runtime/component-loader.ts
+var ComponentLoader = class {
+  constructor(options) {
+    this.kv = options.kv;
+    this.cache = options.cache;
+    this.logger = options.logger;
+    this.defaultVersion = options.defaultVersion || "latest";
+  }
+  /**
+   * Parse component URI
+   *
+   * Supports:
+   * - template://components/header          (defaults to @latest)
+   * - template://components/header@latest
+   * - template://components/header@v1.0.0
+   * - prompt://analyze-company@prod
+   */
+  parseURI(uri) {
+    const match = uri.match(/^(\w+):\/\/([^@]+)(?:@(.+))?$/);
+    if (!match) {
+      throw new Error(
+        `Invalid component URI: ${uri}
+Expected format: {protocol}://{path}[@{version}]
+Examples:
+  - template://components/header
+  - template://components/header@latest
+  - prompt://analyze-company@v1.0.0`
+      );
+    }
+    const [, protocol, path9, version2] = match;
+    const validProtocols = [
+      "template",
+      "prompt",
+      "query",
+      "config",
+      "script",
+      "schema",
+      "docs"
+    ];
+    if (!validProtocols.includes(protocol)) {
+      throw new Error(
+        `Invalid protocol: ${protocol}
+Valid protocols: ${validProtocols.join(", ")}`
+      );
+    }
+    return {
+      protocol,
+      path: path9,
+      version: version2 || this.defaultVersion,
+      // Default to "latest"
+      originalURI: uri
+    };
+  }
+  /**
+   * Map protocol to KV key prefix
+   */
+  getPrefix(protocol) {
+    const prefixMap = {
+      template: "templates",
+      prompt: "prompts",
+      query: "queries",
+      config: "configs",
+      script: "scripts",
+      schema: "schemas",
+      docs: "docs"
+    };
+    return prefixMap[protocol];
+  }
+  /**
+   * Build KV key from parsed URI
+   */
+  buildKVKey(parsed) {
+    const prefix = this.getPrefix(parsed.protocol);
+    return `${prefix}/${parsed.path}@${parsed.version}`;
+  }
+  /**
+   * Build cache key for component
+   */
+  buildCacheKey(uri) {
+    return `components:${uri}`;
+  }
+  /**
+   * Load component content from KV with standard Conductor caching
+   */
+  async load(uri, options) {
+    const cacheKey = this.buildCacheKey(uri);
+    const bypass = options?.cache?.bypass ?? false;
+    const ttl = options?.cache?.ttl ?? 3600;
+    if (this.cache && !bypass) {
+      const cacheResult = await this.cache.get(cacheKey);
+      if (cacheResult.success && cacheResult.value !== null) {
+        this.logger?.debug("Component cache hit", { uri, cacheKey });
+        return cacheResult.value;
+      }
+    }
+    const parsed = this.parseURI(uri);
+    const kvKey = this.buildKVKey(parsed);
+    this.logger?.debug("Loading component from KV", { uri, kvKey, bypass });
+    const content = await this.kv.get(kvKey, "text");
+    if (!content) {
+      this.logger?.warn("Component not found", { uri, kvKey });
+      throw new Error(
+        `Component not found: ${uri}
+KV key: ${kvKey}
+Make sure the component is deployed to KV with:
+  edgit components add <name> <path> ${parsed.protocol}
+  edgit tag create <name> ${parsed.version}
+  edgit deploy set <name> ${parsed.version} --to production`
+      );
+    }
+    if (this.cache && !bypass) {
+      const cacheResult = await this.cache.set(cacheKey, content, { ttl });
+      if (cacheResult.success) {
+        this.logger?.debug("Component cached", { uri, cacheKey, ttl });
+      }
+    }
+    return content;
+  }
+  /**
+   * Load and parse JSON component
+   */
+  async loadJSON(uri, options) {
+    const content = await this.load(uri, options);
+    try {
+      return JSON.parse(content);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger?.error("JSON parse error", err, { uri });
+      throw new Error(`Failed to parse JSON component: ${uri}
+Error: ${err.message}`);
+    }
+  }
+  /**
+   * Load and evaluate compiled component (for JSX components/pages)
+   *
+   * @deprecated This method uses new Function() which is blocked in Cloudflare Workers.
+   * For scripts, use the ScriptLoader with bundled scripts instead:
+   *
+   * ```typescript
+   * import { scriptsMap } from 'virtual:conductor-scripts'
+   * import { createScriptLoader } from '@ensemble-edge/conductor'
+   *
+   * const loader = createScriptLoader(scriptsMap)
+   * const handler = loader.resolve('script://my-script')
+   * ```
+   *
+   * For other compiled components, bundle them at build time using Vite plugins.
+   */
+  async loadCompiled(uri, options) {
+    this.logger?.warn("loadCompiled() is deprecated and will not work in Cloudflare Workers", {
+      uri
+    });
+    const content = await this.load(uri, options);
+    try {
+      const module = new Function("exports", content);
+      const exports = {};
+      module(exports);
+      return exports.default || exports;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger?.error("Component compilation error", err, { uri });
+      throw new Error(
+        `Failed to load compiled component: ${uri}
+Error: ${err.message}
+
+Note: This method uses new Function() which is blocked in Cloudflare Workers.
+For Workers compatibility, use bundled scripts via script:// URIs instead.
+See: https://docs.ensemble.ai/conductor/guides/migrate-inline-code`
+      );
+    }
+  }
+  /**
+   * Check if a component exists in KV
+   */
+  async exists(uri) {
+    try {
+      const parsed = this.parseURI(uri);
+      const kvKey = this.buildKVKey(parsed);
+      const metadata = await this.kv.getWithMetadata(kvKey);
+      return metadata.value !== null;
+    } catch (error) {
+      this.logger?.debug("Component exists check failed", { uri, error });
+      return false;
+    }
+  }
+  /**
+   * List all versions of a component
+   */
+  async listVersions(protocol, path9) {
+    const prefix = this.getPrefix(protocol);
+    const listPrefix = `${prefix}/${path9}@`;
+    const list = await this.kv.list({ prefix: listPrefix });
+    return list.keys.map((key) => {
+      const match = key.name.match(/@(.+)$/);
+      return match ? match[1] : "unknown";
+    });
+  }
+  /**
+   * Invalidate cache for a component
+   */
+  async invalidateCache(uri) {
+    if (this.cache) {
+      const cacheKey = this.buildCacheKey(uri);
+      const result = await this.cache.delete(cacheKey);
+      if (result.success) {
+        this.logger?.info("Component cache invalidated", { uri, cacheKey });
+      }
+    }
+  }
+};
+function createComponentLoader(options) {
+  return new ComponentLoader(options);
+}
+
+// src/agents/html/utils/cookies.ts
+function serializeCookie(name, value, options = {}) {
+  const pairs = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+  if (options.maxAge !== void 0) {
+    pairs.push(`Max-Age=${options.maxAge}`);
+  }
+  if (options.expires) {
+    pairs.push(`Expires=${options.expires.toUTCString()}`);
+  }
+  if (options.domain) {
+    pairs.push(`Domain=${options.domain}`);
+  }
+  if (options.path) {
+    pairs.push(`Path=${options.path}`);
+  } else {
+    pairs.push("Path=/");
+  }
+  if (options.secure) {
+    pairs.push("Secure");
+  }
+  if (options.httpOnly) {
+    pairs.push("HttpOnly");
+  }
+  if (options.sameSite) {
+    const sameSite = options.sameSite.charAt(0).toUpperCase() + options.sameSite.slice(1);
+    pairs.push(`SameSite=${sameSite}`);
+  }
+  return pairs.join("; ");
+}
+async function signCookie(value, secret) {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
+  const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  return `${value}.${signatureBase64}`;
+}
+async function unsignCookie(signedValue, secret) {
+  const lastDotIndex = signedValue.lastIndexOf(".");
+  if (lastDotIndex === -1) {
+    return null;
+  }
+  const value = signedValue.slice(0, lastDotIndex);
+  const signatureBase64 = signedValue.slice(lastDotIndex + 1);
+  try {
+    const expectedSigned = await signCookie(value, secret);
+    const expectedSignature = expectedSigned.slice(expectedSigned.lastIndexOf(".") + 1);
+    if (signatureBase64 === expectedSignature) {
+      return { name: "", value, valid: true };
+    }
+    return { name: "", value, valid: false };
+  } catch {
+    return null;
+  }
+}
+async function createSetCookieHeader(cookie, secret) {
+  let value = cookie.value;
+  if (cookie.options?.signed && secret) {
+    value = await signCookie(value, secret);
+  }
+  return serializeCookie(cookie.name, value, cookie.options);
+}
+function createDeleteCookie(name, options = {}) {
+  return serializeCookie(name, "", {
+    ...options,
+    expires: /* @__PURE__ */ new Date(0),
+    maxAge: 0
+  });
+}
+async function parseSignedCookies(cookies, secret) {
+  const parsed = {};
+  for (const [name, value] of Object.entries(cookies)) {
+    const unsigned = await unsignCookie(value, secret);
+    if (unsigned) {
+      parsed[name] = { ...unsigned, name };
+    } else {
+      parsed[name] = { name, value, valid: void 0 };
+    }
+  }
+  return parsed;
+}
+function isValidCookieName(name) {
+  const invalidChars = /[()<>@,;:\\"\/\[\]?={}]/;
+  return name.length > 0 && !invalidChars.test(name);
+}
+function mergeCookieOptions(options, defaults) {
+  return {
+    ...defaults,
+    ...options
+  };
+}
+
+// src/agents/html/html-agent.ts
+var HtmlMember = class extends BaseAgent {
+  constructor(config) {
+    super(config);
+    const rawConfig = config.config || {};
+    this.htmlConfig = this.normalizeConfig(rawConfig);
+    this.validateConfig();
+  }
+  /**
+   * Normalize YAML config format to typed config
+   *
+   * Handles the common YAML pattern:
+   *   config:
+   *     templateEngine: liquid
+   *     template: |
+   *       <html>...
+   *
+   * Converts to:
+   *   template: { inline: "<html>...", engine: "liquid" }
+   */
+  normalizeConfig(rawConfig) {
+    const { template, templateEngine, ...rest } = rawConfig;
+    if (template && typeof template === "object" && !Array.isArray(template)) {
+      const templateObj = template;
+      if ("inline" in templateObj || "kv" in templateObj || "r2" in templateObj || "file" in templateObj) {
+        if (templateEngine && !templateObj.engine) {
+          templateObj.engine = templateEngine;
+        }
+        return {
+          ...rest,
+          template: templateObj
+        };
+      }
+    }
+    if (typeof template === "string") {
+      return {
+        ...rest,
+        template: {
+          inline: template,
+          engine: templateEngine
+        }
+      };
+    }
+    return rawConfig;
+  }
+  /**
+   * Validate agent configuration
+   */
+  validateConfig() {
+    if (!this.htmlConfig.template) {
+      throw new Error("HTML agent requires a template configuration");
+    }
+  }
+  /**
+   * Execute HTML rendering
+   */
+  async run(context) {
+    const startTime = Date.now();
+    const input = context.input;
+    const templateSource = input.template ? normalizeTemplateSource(input.template) : this.htmlConfig.template;
+    const templateResult = await loadTemplate(templateSource, {
+      TEMPLATES: context.env.KV,
+      ASSETS: context.env.STORAGE
+    });
+    const requestCookies = input.cookies || {};
+    let readCookies = {};
+    if (Object.keys(requestCookies).length > 0) {
+      if (this.htmlConfig.cookieSecret) {
+        const parsed = await parseSignedCookies(requestCookies, this.htmlConfig.cookieSecret);
+        readCookies = Object.entries(parsed).reduce(
+          (acc, [name, cookie]) => {
+            acc[name] = cookie.value;
+            return acc;
+          },
+          {}
+        );
+      } else {
+        readCookies = requestCookies;
+      }
+    }
+    const engine = createTemplateEngine(templateResult.engine);
+    if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
+      let cache;
+      if (context.env.CACHE) {
+        const { MemoryCache: MemoryCache2 } = await Promise.resolve().then(() => (init_cache(), cache_exports));
+        cache = new MemoryCache2({
+          defaultTTL: 3600
+        });
+      }
+      const componentLoader = createComponentLoader({
+        kv: context.env.COMPONENTS,
+        cache,
+        logger: context.logger
+      });
+      engine.setComponentLoader(componentLoader);
+    }
+    const templateContext = {
+      data: {
+        ...input.data,
+        // Add cookies to template data
+        cookies: readCookies
+      },
+      helpers: this.getDefaultHelpers(),
+      partials: {}
+    };
+    let html = await engine.render(templateResult.content, templateContext);
+    if (input.layout && engine instanceof SimpleTemplateEngine) {
+      const layoutContent = await this.loadLayoutContent(input.layout, context, engine);
+      if (layoutContent) {
+        html = await engine.render(layoutContent, {
+          data: {
+            ...templateContext.data,
+            content: html
+            // Make rendered HTML available as {{content}}
+          },
+          helpers: templateContext.helpers,
+          partials: templateContext.partials
+        });
+      }
+    }
+    const renderOptions = { ...this.htmlConfig.renderOptions, ...input.renderOptions };
+    if (renderOptions?.inlineCss) {
+      html = await this.inlineCss(html);
+    }
+    if (renderOptions?.minify) {
+      html = this.minifyHtml(html);
+    }
+    const setCookieHeaders = [];
+    if (input.setCookies && input.setCookies.length > 0) {
+      for (const cookie of input.setCookies) {
+        if (!isValidCookieName(cookie.name)) {
+          throw new Error(`Invalid cookie name: ${cookie.name}`);
+        }
+        const options = mergeCookieOptions(cookie.options, this.htmlConfig.defaultCookieOptions);
+        const header = await createSetCookieHeader(
+          { ...cookie, options },
+          this.htmlConfig.cookieSecret
+        );
+        setCookieHeaders.push(header);
+      }
+    }
+    if (input.deleteCookies && input.deleteCookies.length > 0) {
+      for (const cookieName of input.deleteCookies) {
+        const deleteHeader = createDeleteCookie(cookieName, this.htmlConfig.defaultCookieOptions);
+        setCookieHeaders.push(deleteHeader);
+      }
+    }
+    const renderTime = Date.now() - startTime;
+    return {
+      html,
+      cookies: setCookieHeaders.length > 0 ? setCookieHeaders : void 0,
+      readCookies: Object.keys(readCookies).length > 0 ? readCookies : void 0,
+      engine: templateResult.engine,
+      metadata: {
+        renderTime,
+        templateSize: templateResult.content.length,
+        outputSize: html.length,
+        cssInlined: renderOptions?.inlineCss || false,
+        minified: renderOptions?.minify || false
+      }
+    };
+  }
+  /**
+   * Load layout content from ComponentLoader or registered partial
+   */
+  async loadLayoutContent(layout, context, engine) {
+    if (layout.includes("://")) {
+      if (context.env.COMPONENTS) {
+        let cache;
+        if (context.env.CACHE) {
+          const { MemoryCache: MemoryCache2 } = await Promise.resolve().then(() => (init_cache(), cache_exports));
+          cache = new MemoryCache2({
+            defaultTTL: 3600
+          });
+        }
+        const componentLoader = createComponentLoader({
+          kv: context.env.COMPONENTS,
+          cache,
+          logger: context.logger
+        });
+        try {
+          return await componentLoader.load(layout);
+        } catch (error) {
+          context.logger?.warn("Failed to load layout", {
+            layout,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+  /**
+   * Get default template helpers
+   */
+  getDefaultHelpers() {
+    return {
+      // Date formatting
+      formatDate: (date, format) => {
+        const d = typeof date === "string" ? new Date(date) : date;
+        return d.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+      },
+      // String helpers
+      uppercase: (str) => String(str).toUpperCase(),
+      lowercase: (str) => String(str).toLowerCase(),
+      capitalize: (str) => {
+        const s = String(str);
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      },
+      // Number formatting
+      currency: (amount, currency = "USD") => {
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: String(currency)
+        }).format(Number(amount));
+      },
+      // Conditional helpers
+      eq: (a, b) => a === b,
+      ne: (a, b) => a !== b,
+      lt: (a, b) => Number(a) < Number(b),
+      gt: (a, b) => Number(a) > Number(b),
+      and: (...args) => args.every(Boolean),
+      or: (...args) => args.some(Boolean)
+    };
+  }
+  /**
+   * Inline CSS for email compatibility
+   * Simple implementation - for production use a library like juice
+   */
+  async inlineCss(html) {
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    const styles = [];
+    let match;
+    while ((match = styleRegex.exec(html)) !== null) {
+      styles.push(match[1]);
+    }
+    if (styles.length === 0) {
+      return html;
+    }
+    let result = html;
+    for (const style of styles) {
+      const rules = style.match(/([.#][\w-]+)\s*\{([^}]+)\}/g);
+      if (rules) {
+        for (const rule of rules) {
+          const [, selector, properties] = rule.match(/([.#][\w-]+)\s*\{([^}]+)\}/) || [];
+          if (selector && properties) {
+            const trimmedProps = properties.trim();
+            if (selector.startsWith(".")) {
+              const className = selector.slice(1);
+              const classRegex = new RegExp(
+                `(<[^>]*class=["'][^"']*\\b${className}\\b[^"']*["'][^>]*)(>)`,
+                "g"
+              );
+              result = result.replace(classRegex, `$1 style="${trimmedProps}"$2`);
+            } else if (selector.startsWith("#")) {
+              const idName = selector.slice(1);
+              const idRegex = new RegExp(`(<[^>]*id=["']${idName}["'][^>]*)(>)`, "g");
+              result = result.replace(idRegex, `$1 style="${trimmedProps}"$2`);
+            }
+          }
+        }
+      }
+    }
+    result = result.replace(styleRegex, "");
+    return result;
+  }
+  /**
+   * Minify HTML (basic implementation)
+   */
+  minifyHtml(html) {
+    return html.replace(/<!--[\s\S]*?-->/g, "").replace(/>\s+</g, "><").trim();
+  }
+};
+
+// src/agents/pdf/pdf-agent.ts
+init_base_agent();
+
+// src/agents/pdf/utils/pdf-generator.ts
+async function generatePdf(options, env) {
+  const startTime = Date.now();
+  if (env?.BROWSER) {
+    return await generatePdfWithBrowser(options, env.BROWSER);
+  }
+  return await generatePdfBasic(options);
+}
+async function generatePdfWithBrowser(options, browser) {
+  const startTime = Date.now();
+  const session = await browser.newSession();
+  try {
+    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(options.html)}`;
+    await session.goto(dataUrl, { waitUntil: "networkidle" });
+    const pdfOptions = {
+      format: options.page?.size || "A4",
+      landscape: options.page?.orientation === "landscape",
+      printBackground: options.page?.printBackground !== false,
+      margin: {
+        top: `${options.page?.margins?.top || 10}mm`,
+        right: `${options.page?.margins?.right || 10}mm`,
+        bottom: `${options.page?.margins?.bottom || 10}mm`,
+        left: `${options.page?.margins?.left || 10}mm`
+      }
+    };
+    if (options.headerFooter?.displayHeaderFooter) {
+      pdfOptions.displayHeaderFooter = true;
+      pdfOptions.headerTemplate = options.headerFooter.header || "";
+      pdfOptions.footerTemplate = options.headerFooter.footer || "";
+    }
+    if (options.page?.scale) {
+      pdfOptions.scale = options.page.scale;
+    }
+    const pdfBuffer = await session.pdf(pdfOptions);
+    const pdf = pdfBuffer instanceof ArrayBuffer ? pdfBuffer : new Uint8Array(pdfBuffer).buffer;
+    return {
+      pdf,
+      generateTime: Date.now() - startTime
+    };
+  } finally {
+    await session.close();
+  }
+}
+async function generatePdfBasic(options) {
+  const startTime = Date.now();
+  const pdfContent = createBasicPdf(options);
+  const encoder = new TextEncoder();
+  const pdfBuffer = encoder.encode(pdfContent);
+  const pdf = pdfBuffer.buffer.slice(0);
+  return {
+    pdf,
+    generateTime: Date.now() - startTime
+  };
+}
+function createBasicPdf(options) {
+  const title = options.metadata?.title || "Document";
+  const author = options.metadata?.author || "Conductor";
+  const creationDate = options.metadata?.creationDate || /* @__PURE__ */ new Date();
+  const textContent = options.html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+/Metadata 3 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [4 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Metadata
+/Subtype /XML
+/Length 0
+>>
+stream
+endstream
+endobj
+
+4 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 595 842]
+/Contents 5 0 R
+/Resources <<
+/Font <<
+/F1 6 0 R
+>>
+>>
+>>
+endobj
+
+5 0 obj
+<<
+/Length ${textContent.length + 50}
+>>
+stream
+BT
+/F1 12 Tf
+50 800 Td
+(${title}) Tj
+0 -20 Td
+(${textContent.substring(0, 500)}) Tj
+ET
+endstream
+endobj
+
+6 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+
+xref
+0 7
+0000000000 65535 f
+0000000009 00000 n
+0000000074 00000 n
+0000000131 00000 n
+0000000229 00000 n
+0000000379 00000 n
+0000000${(500 + textContent.length).toString().padStart(3, "0")} 00000 n
+trailer
+<<
+/Size 7
+/Root 1 0 R
+/Info <<
+/Title (${title})
+/Author (${author})
+/CreationDate (D:${formatPdfDate(creationDate)})
+>>
+>>
+startxref
+${(550 + textContent.length).toString()}
+%%EOF`;
+}
+function formatPdfDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}${month}${day}${hours}${minutes}${seconds}`;
+}
+function validatePageConfig(page) {
+  const errors = [];
+  if (page?.scale && (page.scale < 0.1 || page.scale > 2)) {
+    errors.push("Scale must be between 0.1 and 2.0");
+  }
+  if (page?.margins) {
+    const { top, right, bottom, left } = page.margins;
+    if (top && top < 0) errors.push("Top margin cannot be negative");
+    if (right && right < 0) errors.push("Right margin cannot be negative");
+    if (bottom && bottom < 0) errors.push("Bottom margin cannot be negative");
+    if (left && left < 0) errors.push("Left margin cannot be negative");
+  }
+  return {
+    valid: errors.length === 0,
+    errors: errors.length > 0 ? errors : void 0
+  };
+}
+
+// src/agents/pdf/utils/storage.ts
+async function storePdfToR2(pdf, config, env) {
+  const r2BindingName = config.r2Binding || "ASSETS";
+  const bucket = env[r2BindingName];
+  if (!bucket) {
+    throw new Error(`R2 bucket binding "${r2BindingName}" not found in environment`);
+  }
+  const r2Key = config.r2Key || generateDefaultR2Key();
+  await bucket.put(r2Key, pdf, {
+    httpMetadata: {
+      contentType: "application/pdf"
+    },
+    customMetadata: {
+      uploadedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      generatedBy: "conductor-pdf-agent"
+    }
+  });
+  let url;
+  if (config.publicUrl) {
+    url = `/assets/static/${r2Key.split("/").pop()}`;
+  }
+  return { r2Key, url };
+}
+function generateDefaultR2Key() {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8);
+  return `static/generated-${timestamp}-${random}.pdf`;
+}
+function generateFilename(r2Key, configFilename, fallback = "document.pdf") {
+  if (configFilename) {
+    return configFilename.endsWith(".pdf") ? configFilename : `${configFilename}.pdf`;
+  }
+  if (r2Key) {
+    const parts = r2Key.split("/");
+    const filename = parts[parts.length - 1];
+    return filename || fallback;
+  }
+  return fallback;
+}
+function createContentDisposition(mode, filename) {
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  if (mode === "attachment") {
+    return `attachment; filename="${safeFilename}"`;
+  }
+  return `inline; filename="${safeFilename}"`;
+}
+function validateStorageConfig(config) {
+  if (!config || !config.saveToR2) {
+    return { valid: true };
+  }
+  const errors = [];
+  if (config.r2Key) {
+    if (config.r2Key.includes("..")) {
+      errors.push('R2 key cannot contain ".."');
+    }
+    if (config.r2Key.startsWith("/")) {
+      errors.push('R2 key should not start with "/"');
+    }
+  }
+  return {
+    valid: errors.length === 0,
+    errors: errors.length > 0 ? errors : void 0
+  };
+}
+
+// src/agents/pdf/pdf-agent.ts
+var PdfMember = class extends BaseAgent {
+  constructor(config) {
+    super(config);
+    this.pdfConfig = config.config || {};
+    const engine = this.pdfConfig.templateEngine || "simple";
+    this.templateEngine = createTemplateEngine(engine);
+    this.validateConfig();
+  }
+  /**
+   * Validate agent configuration
+   */
+  validateConfig() {
+    if (this.pdfConfig.page) {
+      const pageValidation = validatePageConfig(this.pdfConfig.page);
+      if (!pageValidation.valid) {
+        throw new Error(`Invalid page config: ${pageValidation.errors?.join(", ")}`);
+      }
+    }
+    if (this.pdfConfig.storage) {
+      const storageValidation = validateStorageConfig(this.pdfConfig.storage);
+      if (!storageValidation.valid) {
+        throw new Error(`Invalid storage config: ${storageValidation.errors?.join(", ")}`);
+      }
+    }
+  }
+  /**
+   * Execute PDF generation
+   */
+  async run(context) {
+    const startTime = Date.now();
+    const input = context.input;
+    const htmlSource = input.html || this.pdfConfig.html;
+    const pageConfig = { ...this.pdfConfig.page, ...input.page };
+    const headerFooter = { ...this.pdfConfig.headerFooter, ...input.headerFooter };
+    const storageConfig = { ...this.pdfConfig.storage, ...input.storage };
+    const metadata = { ...this.pdfConfig.metadata, ...input.metadata };
+    const deliveryMode = input.deliveryMode || this.pdfConfig.deliveryMode || "inline";
+    const filename = input.filename || this.pdfConfig.filename;
+    let html;
+    let htmlSize;
+    if (htmlSource?.inline) {
+      html = htmlSource.inline;
+      htmlSize = html.length;
+    } else if (htmlSource?.fromMember) {
+      const memberOutput = context.previousOutputs?.[htmlSource.fromMember];
+      if (!memberOutput?.output?.html) {
+        throw new Error(
+          `Agent "${htmlSource.fromMember}" did not produce HTML output. Make sure it's an HTML agent and executed before this PDF agent.`
+        );
+      }
+      html = memberOutput.output.html;
+      htmlSize = html.length;
+    } else if (htmlSource?.template) {
+      const htmlMemberConfig = {
+        name: `${this.name}-html-renderer`,
+        operation: "html" /* html */,
+        config: {
+          template: htmlSource.template,
+          templateEngine: this.pdfConfig.templateEngine || "simple",
+          renderOptions: {
+            // Don't inline CSS for PDF - browser can handle it
+            inlineCss: false,
+            minify: false
+          }
+        }
+      };
+      const htmlMember = new HtmlMember(htmlMemberConfig);
+      const htmlContext = {
+        input: { data: htmlSource.data || {} },
+        env: context.env,
+        ctx: context.ctx,
+        previousOutputs: context.previousOutputs
+      };
+      const htmlResponse = await htmlMember.execute(htmlContext);
+      if (!htmlResponse.success) {
+        throw new Error(`HTML rendering failed: ${htmlResponse.error}`);
+      }
+      html = htmlResponse.data.html;
+      htmlSize = html.length;
+    } else {
+      throw new Error(
+        "No HTML source specified. Provide html.inline, html.fromMember, or html.template"
+      );
+    }
+    const renderedHeaderFooter = await this.renderHeaderFooter(headerFooter);
+    const pdfResult = await generatePdf(
+      {
+        html,
+        page: pageConfig,
+        headerFooter: renderedHeaderFooter,
+        metadata
+      },
+      context.env
+    );
+    let r2Key;
+    let url;
+    if (storageConfig?.saveToR2) {
+      const storageResult = await storePdfToR2(pdfResult.pdf, storageConfig, context.env);
+      r2Key = storageResult.r2Key;
+      url = storageResult.url;
+    }
+    const finalFilename = generateFilename(r2Key, filename, "document.pdf");
+    const contentDisposition = createContentDisposition(deliveryMode, finalFilename);
+    return {
+      pdf: pdfResult.pdf,
+      size: pdfResult.pdf.byteLength,
+      url,
+      r2Key,
+      contentDisposition,
+      filename: finalFilename,
+      metadata: {
+        generateTime: Date.now() - startTime,
+        pageCount: pdfResult.pageCount,
+        htmlSize
+      }
+    };
+  }
+  /**
+   * Render header/footer templates with template engine
+   */
+  async renderHeaderFooter(headerFooter) {
+    if (!headerFooter) {
+      return void 0;
+    }
+    const data = headerFooter.data || {};
+    const rendered = { ...headerFooter };
+    if (headerFooter.header) {
+      rendered.header = await this.templateEngine.render(headerFooter.header, data);
+    }
+    if (headerFooter.footer) {
+      rendered.footer = await this.templateEngine.render(headerFooter.footer, data);
+    }
+    return rendered;
+  }
+};
+
+// src/runtime/executor.ts
+init_result();
+init_error_types();
+
+// src/runtime/scoring/scoring-executor.ts
+init_error_types();
+init_observability();
+var logger3 = createLogger({ serviceName: "scoring-executor" });
+var ScoringExecutor = class {
+  /**
+   * Execute a agent with scoring and retry logic
+   */
+  async executeWithScoring(executeAgent, evaluateOutput, config) {
+    const startTime = Date.now();
+    let attempts = 0;
+    let lastScore;
+    let lastOutput;
+    let backoffMs = 1e3;
+    const maxAttempts = config.retryLimit || 3;
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const output = await executeAgent();
+        lastOutput = output;
+        const score = await evaluateOutput(output, attempts, lastScore);
+        lastScore = score;
+        if (score.passed) {
+          return {
+            output,
+            score,
+            attempts,
+            status: "passed",
+            executionTime: Date.now() - startTime
+          };
+        }
+        if (config.requireImprovement && lastScore && attempts > 1) {
+          const improvement = score.score - lastScore.score;
+          const minImprovement = config.minImprovement || 0.05;
+          if (improvement < minImprovement) {
+            return {
+              output,
+              score,
+              attempts,
+              status: "max_retries_exceeded",
+              executionTime: Date.now() - startTime
+            };
+          }
+        }
+        const onFailure = config.onFailure || "retry";
+        switch (onFailure) {
+          case "retry":
+            if (attempts < maxAttempts) {
+              await this.applyBackoff(backoffMs);
+              backoffMs = this.calculateNextBackoff(backoffMs, "exponential");
+            }
+            break;
+          case "continue":
+            logger3.warn("Score below threshold, continuing anyway", {
+              score: score.score,
+              threshold: config.thresholds?.minimum,
+              attempts
+            });
+            return {
+              output,
+              score,
+              attempts,
+              status: "below_threshold",
+              executionTime: Date.now() - startTime
+            };
+          case "abort":
+            throw Errors.internal(
+              `Score ${score.score} below minimum threshold ${config.thresholds?.minimum}`
+            );
+        }
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+        await this.applyBackoff(backoffMs);
+        backoffMs = this.calculateNextBackoff(backoffMs, "exponential");
+      }
+    }
+    return {
+      output: lastOutput,
+      score: lastScore,
+      attempts,
+      status: "max_retries_exceeded",
+      executionTime: Date.now() - startTime
+    };
+  }
+  /**
+   * Apply backoff delay
+   */
+  async applyBackoff(ms) {
+    return new Promise((resolve5) => setTimeout(resolve5, ms));
+  }
+  /**
+   * Calculate next backoff delay
+   */
+  calculateNextBackoff(current, strategy) {
+    switch (strategy) {
+      case "exponential":
+        return Math.min(current * 2, 6e4);
+      // Cap at 60s
+      case "linear":
+        return Math.min(current + 1e3, 3e4);
+      // Cap at 30s
+      case "fixed":
+      default:
+        return current;
+    }
+  }
+  /**
+   * Calculate composite score from breakdown
+   */
+  calculateCompositeScore(breakdown, weights) {
+    const criteria = Object.keys(breakdown);
+    if (!criteria.length) {
+      return 0;
+    }
+    if (!weights) {
+      const sum = criteria.reduce((acc, key) => acc + breakdown[key], 0);
+      return sum / criteria.length;
+    }
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (const criterion of criteria) {
+      const weight = weights[criterion] || 1;
+      weightedSum += breakdown[criterion] * weight;
+      totalWeight += weight;
+    }
+    return totalWeight > 0 ? weightedSum / totalWeight : 0;
+  }
+  /**
+   * Check if score meets threshold
+   */
+  checkThreshold(score, threshold) {
+    return score >= threshold;
+  }
+  /**
+   * Get score range category
+   */
+  getScoreRange(score) {
+    if (score >= 0.95) return "excellent";
+    if (score >= 0.8) return "good";
+    if (score >= 0.6) return "acceptable";
+    return "poor";
+  }
+  /**
+   * Get failed criteria from breakdown
+   */
+  getFailedCriteria(breakdown, threshold) {
+    return Object.entries(breakdown).filter(([_, score]) => score < threshold).map(([criterion]) => criterion);
+  }
+};
+
+// src/runtime/scoring/ensemble-scorer.ts
+var EnsembleScorer = class {
+  constructor(config) {
+    this.config = config;
+  }
+  /**
+   * Calculate overall ensemble score from history
+   */
+  calculateEnsembleScore(history, weights) {
+    if (!history.length) {
+      return 0;
+    }
+    if (!weights) {
+      const latestScores2 = this.getLatestScoresPerMember(history);
+      const sum = Array.from(latestScores2.values()).reduce((acc, score) => acc + score, 0);
+      return sum / latestScores2.size;
+    }
+    const latestScores = this.getLatestScoresPerMember(history);
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (const [agent, score] of latestScores.entries()) {
+      const weight = weights[agent] || 1;
+      weightedSum += score * weight;
+      totalWeight += weight;
+    }
+    return totalWeight > 0 ? weightedSum / totalWeight : 0;
+  }
+  /**
+   * Get latest score for each agent
+   */
+  getLatestScoresPerMember(history) {
+    const scores = /* @__PURE__ */ new Map();
+    for (const entry of history) {
+      if (entry.passed) {
+        scores.set(entry.agent, entry.score);
+      }
+    }
+    return scores;
+  }
+  /**
+   * Calculate comprehensive quality metrics
+   */
+  calculateQualityMetrics(history) {
+    if (!history.length) {
+      return {
+        ensembleScore: 0,
+        averageScore: 0,
+        minScore: 0,
+        maxScore: 0,
+        totalEvaluations: 0,
+        passRate: 0,
+        totalRetries: 0,
+        averageAttempts: 0
+      };
+    }
+    const scores = history.map((e) => e.score);
+    const attempts = history.map((e) => e.attempt);
+    const ensembleScore = this.calculateEnsembleScore(history);
+    const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const minScore = Math.min(...scores);
+    const maxScore = Math.max(...scores);
+    const passRate = history.filter((e) => e.passed).length / history.length;
+    const totalRetries = attempts.filter((a) => a > 1).length;
+    const averageAttempts = attempts.reduce((a, b) => a + b, 0) / attempts.length;
+    const criteriaBreakdown = this.aggregateCriteria(history);
+    return {
+      ensembleScore,
+      averageScore,
+      minScore,
+      maxScore,
+      totalEvaluations: history.length,
+      passRate,
+      criteriaBreakdown,
+      totalRetries,
+      averageAttempts
+    };
+  }
+  /**
+   * Aggregate scores by criterion
+   */
+  aggregateCriteria(history) {
+    const criteria = {};
+    for (const entry of history) {
+      if (entry.breakdown) {
+        for (const [criterion, score] of Object.entries(entry.breakdown)) {
+          if (!criteria[criterion]) {
+            criteria[criterion] = { scores: [], average: 0, passRate: 0 };
+          }
+          criteria[criterion].scores.push(score);
+        }
+      }
+    }
+    const threshold = this.config.defaultThresholds.minimum;
+    for (const criterion of Object.keys(criteria)) {
+      const scores = criteria[criterion].scores;
+      criteria[criterion].average = scores.reduce((a, b) => a + b, 0) / scores.length;
+      criteria[criterion].passRate = scores.filter((s) => s >= threshold).length / scores.length;
+    }
+    return criteria;
+  }
+  /**
+   * Update scoring state with new entry
+   */
+  updateScoringState(state, entry) {
+    const newHistory = [...state.scoreHistory, entry];
+    const retryCount = { ...state.retryCount };
+    if (entry.attempt > 1) {
+      retryCount[entry.agent] = (retryCount[entry.agent] || 0) + 1;
+    }
+    const qualityMetrics = this.calculateQualityMetrics(newHistory);
+    const finalScore = qualityMetrics.ensembleScore;
+    return {
+      scoreHistory: newHistory,
+      finalScore,
+      retryCount,
+      qualityMetrics
+    };
+  }
+  /**
+   * Initialize empty scoring state
+   */
+  initializeScoringState() {
+    return {
+      scoreHistory: [],
+      finalScore: void 0,
+      retryCount: {},
+      qualityMetrics: void 0
+    };
+  }
+  /**
+   * Check if ensemble quality is degrading
+   */
+  isQualityDegrading(history, windowSize = 5) {
+    if (history.length < windowSize * 2) {
+      return false;
+    }
+    const recentScores = history.slice(-windowSize).map((e) => e.score);
+    const olderScores = history.slice(-windowSize * 2, -windowSize).map((e) => e.score);
+    const recentAvg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+    const olderAvg = olderScores.reduce((a, b) => a + b, 0) / olderScores.length;
+    const degradationThreshold = 0.1;
+    return recentAvg < olderAvg - degradationThreshold;
+  }
+  /**
+   * Get recommendations based on quality metrics
+   */
+  getRecommendations(metrics) {
+    const recommendations = [];
+    if (metrics.ensembleScore < 0.7) {
+      recommendations.push(
+        "Overall ensemble score is low. Review agent configurations and criteria."
+      );
+    }
+    if (metrics.totalRetries > metrics.totalEvaluations * 0.5) {
+      recommendations.push(
+        "High retry rate detected. Consider adjusting thresholds or improving agent quality."
+      );
+    }
+    if (metrics.passRate < 0.8) {
+      recommendations.push(
+        `Pass rate is ${(metrics.passRate * 100).toFixed(0)}%. Review failing criteria.`
+      );
+    }
+    if (metrics.criteriaBreakdown) {
+      for (const [criterion, data] of Object.entries(metrics.criteriaBreakdown)) {
+        if (data.passRate < 0.7) {
+          recommendations.push(
+            `Criterion '${criterion}' has low pass rate (${(data.passRate * 100).toFixed(0)}%). Focus improvement efforts here.`
+          );
+        }
+      }
+    }
+    return recommendations;
+  }
+  /**
+   * Get score trend (improving, declining, stable)
+   */
+  getScoreTrend(history, windowSize = 5) {
+    if (history.length < windowSize * 2) {
+      return "stable";
+    }
+    const recentScores = history.slice(-windowSize).map((e) => e.score);
+    const olderScores = history.slice(-windowSize * 2, -windowSize).map((e) => e.score);
+    const recentAvg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+    const olderAvg = olderScores.reduce((a, b) => a + b, 0) / olderScores.length;
+    const changeThreshold = 0.05;
+    if (recentAvg > olderAvg + changeThreshold) {
+      return "improving";
+    } else if (recentAvg < olderAvg - changeThreshold) {
+      return "declining";
+    }
+    return "stable";
+  }
+};
+
+// src/runtime/executor.ts
+init_observability();
+
+// src/runtime/notifications/webhook-notifier.ts
+init_observability();
+var logger4 = createLogger({ serviceName: "webhook-notifier" });
+var WebhookNotifier = class {
+  constructor(config) {
+    this.config = {
+      retries: config.retries || 3,
+      timeout: config.timeout || 5e3,
+      ...config
+    };
+  }
+  /**
+   * Send webhook notification with retry logic
+   */
+  async send(eventData) {
+    const startTime = Date.now();
+    const maxRetries = this.config.retries || 0;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.sendRequest(eventData, attempt);
+        return {
+          success: true,
+          type: "webhook",
+          target: this.config.url,
+          event: eventData.event,
+          duration: Date.now() - startTime,
+          statusCode: result.status,
+          attempts: attempt + 1
+        };
+      } catch (error) {
+        logger4.error("Webhook notification failed", error instanceof Error ? error : void 0, {
+          url: this.config.url,
+          attempt: attempt + 1,
+          maxRetries: maxRetries + 1
+        });
+        if (attempt === maxRetries) {
+          return {
+            success: false,
+            type: "webhook",
+            target: this.config.url,
+            event: eventData.event,
+            duration: Date.now() - startTime,
+            error: error instanceof Error ? error.message : "Unknown error",
+            attempts: attempt + 1
+          };
+        }
+        const delay = this.calculateBackoff(attempt);
+        await this.sleep(delay);
+      }
+    }
+    return {
+      success: false,
+      type: "webhook",
+      target: this.config.url,
+      event: eventData.event,
+      duration: Date.now() - startTime,
+      error: "Maximum retries exceeded",
+      attempts: maxRetries + 1
+    };
+  }
+  /**
+   * Send webhook HTTP request
+   */
+  async sendRequest(eventData, attempt) {
+    const timestamp = Math.floor(Date.now() / 1e3);
+    const payload = {
+      event: eventData.event,
+      timestamp: eventData.timestamp,
+      data: eventData.data
+    };
+    const body = JSON.stringify(payload);
+    const headers = {
+      "Content-Type": "application/json",
+      "User-Agent": "Conductor-Webhook/1.0",
+      "X-Conductor-Event": eventData.event,
+      "X-Conductor-Timestamp": timestamp.toString(),
+      "X-Conductor-Delivery-Attempt": (attempt + 1).toString()
+    };
+    if (this.config.secret) {
+      const signature = await this.generateSignature(body, timestamp, this.config.secret);
+      headers["X-Conductor-Signature"] = signature;
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+    try {
+      const response = await fetch(this.config.url, {
+        method: "POST",
+        headers,
+        body,
+        signal: controller.signal
+      });
+      if (!response.ok && response.status >= 400) {
+        throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
+      }
+      return { status: response.status };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+  /**
+   * Generate HMAC signature for webhook verification
+   */
+  async generateSignature(body, timestamp, secret) {
+    const payload = `${timestamp}.${body}`;
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+    const hashArray = Array.from(new Uint8Array(signature));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return `sha256=${hashHex}`;
+  }
+  /**
+   * Calculate exponential backoff delay
+   */
+  calculateBackoff(attempt) {
+    const delays = [1e3, 5e3, 3e4, 12e4, 3e5];
+    return delays[Math.min(attempt, delays.length - 1)];
+  }
+  /**
+   * Sleep for specified milliseconds
+   */
+  sleep(ms) {
+    return new Promise((resolve5) => setTimeout(resolve5, ms));
+  }
+};
+
+// src/runtime/notifications/email-notifier.ts
+init_observability();
+var logger5 = createLogger({ serviceName: "email-notifier" });
+var EmailNotifier = class {
+  constructor(config) {
+    this.config = config;
+  }
+  /**
+   * Send email notification
+   */
+  async send(eventData, env) {
+    const startTime = Date.now();
+    try {
+      const emailData = this.buildEmailData(eventData);
+      await this.sendEmail(emailData, env);
+      logger5.info("Email notification sent", {
+        to: emailData.to,
+        event: eventData.event
+      });
+      return {
+        success: true,
+        type: "email",
+        target: emailData.to.join(", "),
+        event: eventData.event,
+        duration: Date.now() - startTime
+      };
+    } catch (error) {
+      logger5.error("Email notification failed", error instanceof Error ? error : void 0, {
+        to: this.config.to,
+        event: eventData.event
+      });
+      return {
+        success: false,
+        type: "email",
+        target: this.config.to.join(", "),
+        event: eventData.event,
+        duration: Date.now() - startTime,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  }
+  /**
+   * Build email data from event
+   */
+  buildEmailData(eventData) {
+    const subject = this.interpolateSubject(eventData);
+    const text = this.buildTextBody(eventData);
+    const html = this.buildHtmlBody(eventData);
+    return {
+      to: this.config.to,
+      from: this.config.from || "notifications@conductor.dev",
+      subject,
+      text,
+      html,
+      event: eventData.event,
+      eventData: eventData.data
+    };
+  }
+  /**
+   * Interpolate subject template with event data
+   */
+  interpolateSubject(eventData) {
+    if (!this.config.subject) {
+      return `Conductor: ${eventData.event}`;
+    }
+    let subject = this.config.subject;
+    subject = subject.replace(/\${event}/g, eventData.event);
+    subject = subject.replace(
+      /\${ensemble\.name}/g,
+      eventData.data.ensemble || "Unknown"
+    );
+    subject = subject.replace(/\${timestamp}/g, eventData.timestamp);
+    return subject;
+  }
+  /**
+   * Build plain text email body
+   */
+  buildTextBody(eventData) {
+    const lines = [
+      `Event: ${eventData.event}`,
+      `Timestamp: ${eventData.timestamp}`,
+      "",
+      "Details:",
+      JSON.stringify(eventData.data, null, 2),
+      "",
+      "---",
+      "This is an automated notification from Conductor."
+    ];
+    return lines.join("\n");
+  }
+  /**
+   * Build HTML email body
+   */
+  buildHtmlBody(eventData) {
+    const eventType = eventData.event.split(".")[0];
+    const eventAction = eventData.event.split(".")[1] || "";
+    let color = "#2563eb";
+    if (eventAction === "failed" || eventAction === "timeout") {
+      color = "#dc2626";
+    } else if (eventAction === "completed") {
+      color = "#16a34a";
+    }
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+			line-height: 1.6;
+			color: #333;
+			max-width: 600px;
+			margin: 0 auto;
+			padding: 20px;
+		}
+		.header {
+			background-color: ${color};
+			color: white;
+			padding: 20px;
+			border-radius: 8px 8px 0 0;
+		}
+		.header h1 {
+			margin: 0;
+			font-size: 24px;
+		}
+		.content {
+			background-color: #f9fafb;
+			padding: 20px;
+			border: 1px solid #e5e7eb;
+			border-top: none;
+			border-radius: 0 0 8px 8px;
+		}
+		.detail {
+			margin: 10px 0;
+		}
+		.label {
+			font-weight: 600;
+			color: #6b7280;
+		}
+		.value {
+			color: #111827;
+		}
+		.data {
+			background-color: white;
+			border: 1px solid #e5e7eb;
+			border-radius: 4px;
+			padding: 15px;
+			margin-top: 15px;
+			overflow-x: auto;
+		}
+		pre {
+			margin: 0;
+			font-size: 12px;
+		}
+		.footer {
+			margin-top: 20px;
+			padding-top: 20px;
+			border-top: 1px solid #e5e7eb;
+			text-align: center;
+			color: #6b7280;
+			font-size: 14px;
+		}
+	</style>
+</head>
+<body>
+	<div class="header">
+		<h1>${eventData.event}</h1>
+	</div>
+	<div class="content">
+		<div class="detail">
+			<span class="label">Timestamp:</span>
+			<span class="value">${eventData.timestamp}</span>
+		</div>
+		<div class="data">
+			<pre>${JSON.stringify(eventData.data, null, 2)}</pre>
+		</div>
+	</div>
+	<div class="footer">
+		This is an automated notification from Conductor.
+	</div>
+</body>
+</html>
+		`.trim();
+  }
+  /**
+   * Send email using MailChannels API
+   */
+  async sendEmail(emailData, env) {
+    const response = await fetch("https://api.mailchannels.net/tx/v1/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        personalizations: [
+          {
+            to: emailData.to.map((email) => ({ email }))
+          }
+        ],
+        from: {
+          email: emailData.from,
+          name: "Conductor Notifications"
+        },
+        subject: emailData.subject,
+        content: [
+          {
+            type: "text/plain",
+            value: emailData.text
+          },
+          {
+            type: "text/html",
+            value: emailData.html || emailData.text
+          }
+        ]
+      })
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
+      throw new Error(`MailChannels API error: ${response.status} - ${errorText}`);
+    }
+  }
+};
+
+// src/runtime/notifications/notification-manager.ts
+init_observability();
+var logger6 = createLogger({ serviceName: "notification-manager" });
+var NotificationManager = class {
+  /**
+   * Send notifications for an event
+   */
+  static async notify(ensemble, event, eventData, env) {
+    if (!ensemble.notifications || ensemble.notifications.length === 0) {
+      return [];
+    }
+    const notificationEvent = {
+      event,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      data: {
+        ensemble: ensemble.name,
+        ...eventData
+      }
+    };
+    const relevantNotifications = ensemble.notifications.filter(
+      (notification) => notification.events.includes(event)
+    );
+    if (relevantNotifications.length === 0) {
+      return [];
+    }
+    logger6.info("Sending notifications", {
+      ensemble: ensemble.name,
+      event,
+      count: relevantNotifications.length
+    });
+    const results = await Promise.all(
+      relevantNotifications.map(
+        (notification) => this.sendNotification(notification, notificationEvent, env)
+      )
+    );
+    const successful = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+    logger6.info("Notifications sent", {
+      ensemble: ensemble.name,
+      event,
+      total: results.length,
+      successful,
+      failed
+    });
+    return results;
+  }
+  /**
+   * Send a single notification
+   */
+  static async sendNotification(config, eventData, env) {
+    try {
+      if (config.type === "webhook") {
+        const notifier = new WebhookNotifier({
+          url: config.url,
+          secret: config.secret,
+          retries: config.retries,
+          timeout: config.timeout
+        });
+        return await notifier.send(eventData);
+      } else if (config.type === "email") {
+        const notifier = new EmailNotifier({
+          to: config.to,
+          from: config.from,
+          subject: config.subject,
+          events: config.events
+        });
+        return await notifier.send(eventData, env);
+      }
+      const unknownType2 = config.type || "unknown";
+      return {
+        success: false,
+        type: unknownType2,
+        target: "unknown",
+        event: eventData.event,
+        duration: 0,
+        error: `Unknown notification type: ${unknownType2}`
+      };
+    } catch (error) {
+      logger6.error("Notification failed", error instanceof Error ? error : void 0, {
+        type: config.type,
+        event: eventData.event
+      });
+      let target = "unknown";
+      if (config.type === "webhook") {
+        target = config.url;
+      } else if (config.type === "email") {
+        target = config.to.join(", ");
+      }
+      return {
+        success: false,
+        type: config.type,
+        target,
+        event: eventData.event,
+        duration: 0,
+        error: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+  }
+  /**
+   * Emit an event (convenience method for common events)
+   */
+  static async emitExecutionStarted(ensemble, executionId, input, env) {
+    return this.notify(
+      ensemble,
+      "execution.started",
+      {
+        id: executionId,
+        input
+      },
+      env
+    );
+  }
+  static async emitExecutionCompleted(ensemble, executionId, output, duration, env) {
+    return this.notify(
+      ensemble,
+      "execution.completed",
+      {
+        id: executionId,
+        status: "completed",
+        output,
+        duration
+      },
+      env
+    );
+  }
+  static async emitExecutionFailed(ensemble, executionId, error, duration, env) {
+    return this.notify(
+      ensemble,
+      "execution.failed",
+      {
+        id: executionId,
+        status: "failed",
+        error: {
+          message: error.message,
+          stack: error.stack
+        },
+        duration
+      },
+      env
+    );
+  }
+  static async emitExecutionTimeout(ensemble, executionId, duration, timeout, env) {
+    return this.notify(
+      ensemble,
+      "execution.timeout",
+      {
+        id: executionId,
+        duration,
+        timeout
+      },
+      env
+    );
+  }
+  static async emitAgentCompleted(ensemble, executionId, agentName, output, duration, env) {
+    return this.notify(
+      ensemble,
+      "agent.completed",
+      {
+        executionId,
+        agent: agentName,
+        output,
+        duration
+      },
+      env
+    );
+  }
+  static async emitStateUpdated(ensemble, executionId, state, env) {
+    return this.notify(
+      ensemble,
+      "state.updated",
+      {
+        executionId,
+        state
+      },
+      env
+    );
+  }
+};
+
+// src/components/schemas.ts
+var SchemaRegistry = class {
+  constructor(parent) {
+    this.parent = parent;
+  }
+  /**
+   * Get a schema by name (with optional @version)
+   *
+   * @param nameOrRef - Schema name with optional version
+   * @returns JSON Schema object
+   *
+   * @example
+   * ```typescript
+   * ctx.schemas.get('order')           // order@latest
+   * ctx.schemas.get('order@v1.0.0')    // exact version
+   * ctx.schemas.get('order@^2.0.0')    // semver range
+   * ```
+   */
+  async get(nameOrRef) {
+    const { name, version: version2 } = parseNameWithVersion(nameOrRef);
+    const ref = `schemas/${name}@${version2}`;
+    return this.parent.resolve(ref);
+  }
+  /**
+   * Validate data against a schema
+   *
+   * Uses a lightweight JSON Schema validator optimized for Workers.
+   * Supports most JSON Schema Draft 7 features.
+   *
+   * @param nameOrRef - Schema name with optional version
+   * @param data - Data to validate
+   * @returns Validation result with errors
+   *
+   * @example
+   * ```typescript
+   * const result = await ctx.schemas.validate('order@v1.0.0', orderData)
+   * if (!result.valid) {
+   *   console.log('Validation errors:', result.errors)
+   * }
+   * ```
+   */
+  async validate(nameOrRef, data) {
+    const schema = await this.get(nameOrRef);
+    return validateJsonSchema(schema, data);
+  }
+  /**
+   * Check if data matches schema (returns boolean)
+   *
+   * Convenience method for simple valid/invalid checks.
+   *
+   * @param nameOrRef - Schema name with optional version
+   * @param data - Data to validate
+   * @returns True if valid
+   *
+   * @example
+   * ```typescript
+   * if (await ctx.schemas.isValid('order', orderData)) {
+   *   await processOrder(orderData)
+   * }
+   * ```
+   */
+  async isValid(nameOrRef, data) {
+    const result = await this.validate(nameOrRef, data);
+    return result.valid;
+  }
+  /**
+   * Check if a schema exists
+   *
+   * @param nameOrRef - Schema name with optional version
+   * @returns True if schema exists
+   */
+  async exists(nameOrRef) {
+    try {
+      await this.get(nameOrRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
+function validateJsonSchema(schema, data, path9 = "") {
+  const errors = [];
+  const addError = (keyword, message, expected, actual) => {
+    errors.push({ path: path9 || "/", keyword, message, expected, actual });
+  };
+  if (schema === true) {
+    return { valid: true, errors: [] };
+  }
+  if (schema === false) {
+    addError("false", "Schema is false - no data is valid");
+    return { valid: false, errors };
+  }
+  if (schema === null || schema === void 0) {
+    return { valid: true, errors: [] };
+  }
+  if (schema.type !== void 0) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const actualType = getJsonType(data);
+    if (!types.includes(actualType)) {
+      if (!(types.includes("integer") && actualType === "number" && Number.isInteger(data))) {
+        addError("type", `Expected ${types.join(" or ")}, got ${actualType}`, types, actualType);
+      }
+    }
+  }
+  if (schema.const !== void 0) {
+    if (!deepEqual(data, schema.const)) {
+      addError("const", `Value must be ${JSON.stringify(schema.const)}`, schema.const, data);
+    }
+  }
+  if (schema.enum !== void 0) {
+    if (!schema.enum.some((e) => deepEqual(data, e))) {
+      addError("enum", `Value must be one of: ${JSON.stringify(schema.enum)}`, schema.enum, data);
+    }
+  }
+  if (typeof data === "string") {
+    if (schema.minLength !== void 0 && data.length < schema.minLength) {
+      addError("minLength", `String must be at least ${schema.minLength} characters`, schema.minLength, data.length);
+    }
+    if (schema.maxLength !== void 0 && data.length > schema.maxLength) {
+      addError("maxLength", `String must be at most ${schema.maxLength} characters`, schema.maxLength, data.length);
+    }
+    if (schema.pattern !== void 0) {
+      const regex = new RegExp(schema.pattern);
+      if (!regex.test(data)) {
+        addError("pattern", `String must match pattern: ${schema.pattern}`, schema.pattern, data);
+      }
+    }
+    if (schema.format !== void 0) {
+      const formatError = validateFormat(data, schema.format);
+      if (formatError) {
+        addError("format", formatError, schema.format, data);
+      }
+    }
+  }
+  if (typeof data === "number") {
+    if (schema.minimum !== void 0 && data < schema.minimum) {
+      addError("minimum", `Number must be >= ${schema.minimum}`, schema.minimum, data);
+    }
+    if (schema.maximum !== void 0 && data > schema.maximum) {
+      addError("maximum", `Number must be <= ${schema.maximum}`, schema.maximum, data);
+    }
+    if (schema.exclusiveMinimum !== void 0 && data <= schema.exclusiveMinimum) {
+      addError("exclusiveMinimum", `Number must be > ${schema.exclusiveMinimum}`, schema.exclusiveMinimum, data);
+    }
+    if (schema.exclusiveMaximum !== void 0 && data >= schema.exclusiveMaximum) {
+      addError("exclusiveMaximum", `Number must be < ${schema.exclusiveMaximum}`, schema.exclusiveMaximum, data);
+    }
+    if (schema.multipleOf !== void 0 && data % schema.multipleOf !== 0) {
+      addError("multipleOf", `Number must be a multiple of ${schema.multipleOf}`, schema.multipleOf, data);
+    }
+  }
+  if (Array.isArray(data)) {
+    if (schema.minItems !== void 0 && data.length < schema.minItems) {
+      addError("minItems", `Array must have at least ${schema.minItems} items`, schema.minItems, data.length);
+    }
+    if (schema.maxItems !== void 0 && data.length > schema.maxItems) {
+      addError("maxItems", `Array must have at most ${schema.maxItems} items`, schema.maxItems, data.length);
+    }
+    if (schema.uniqueItems && new Set(data.map((item) => JSON.stringify(item))).size !== data.length) {
+      addError("uniqueItems", "Array items must be unique");
+    }
+    if (schema.items) {
+      if (Array.isArray(schema.items)) {
+        schema.items.forEach((itemSchema, i) => {
+          if (i < data.length) {
+            const itemResult = validateJsonSchema(itemSchema, data[i], `${path9}[${i}]`);
+            errors.push(...itemResult.errors);
+          }
+        });
+      } else {
+        data.forEach((item, i) => {
+          const itemResult = validateJsonSchema(schema.items, item, `${path9}[${i}]`);
+          errors.push(...itemResult.errors);
+        });
+      }
+    }
+  }
+  if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+    const dataKeys = Object.keys(data);
+    if (schema.minProperties !== void 0 && dataKeys.length < schema.minProperties) {
+      addError("minProperties", `Object must have at least ${schema.minProperties} properties`, schema.minProperties, dataKeys.length);
+    }
+    if (schema.maxProperties !== void 0 && dataKeys.length > schema.maxProperties) {
+      addError("maxProperties", `Object must have at most ${schema.maxProperties} properties`, schema.maxProperties, dataKeys.length);
+    }
+    if (schema.required) {
+      for (const req of schema.required) {
+        if (!(req in data)) {
+          errors.push({
+            path: `${path9}/${req}`,
+            keyword: "required",
+            message: `Missing required property: ${req}`,
+            expected: req
+          });
+        }
+      }
+    }
+    if (schema.properties) {
+      for (const [key, propSchema] of Object.entries(schema.properties)) {
+        if (key in data) {
+          const propResult = validateJsonSchema(propSchema, data[key], `${path9}/${key}`);
+          errors.push(...propResult.errors);
+        }
+      }
+    }
+    if (schema.additionalProperties === false) {
+      const allowedKeys = Object.keys(schema.properties || {});
+      const patternKeys = Object.keys(schema.patternProperties || {});
+      for (const key of dataKeys) {
+        if (!allowedKeys.includes(key) && !patternKeys.some((p) => new RegExp(p).test(key))) {
+          addError("additionalProperties", `Additional property not allowed: ${key}`, false, key);
+        }
+      }
+    }
+  }
+  if (schema.allOf) {
+    for (let i = 0; i < schema.allOf.length; i++) {
+      const result = validateJsonSchema(schema.allOf[i], data, path9);
+      errors.push(...result.errors);
+    }
+  }
+  if (schema.anyOf) {
+    const anyValid = schema.anyOf.some((s) => validateJsonSchema(s, data, path9).valid);
+    if (!anyValid) {
+      addError("anyOf", "Data must match at least one schema in anyOf");
+    }
+  }
+  if (schema.oneOf) {
+    const matchCount = schema.oneOf.filter((s) => validateJsonSchema(s, data, path9).valid).length;
+    if (matchCount !== 1) {
+      addError("oneOf", `Data must match exactly one schema in oneOf (matched ${matchCount})`);
+    }
+  }
+  if (schema.not) {
+    if (validateJsonSchema(schema.not, data, path9).valid) {
+      addError("not", "Data must not match the schema in not");
+    }
+  }
+  if (schema.if) {
+    const ifValid = validateJsonSchema(schema.if, data, path9).valid;
+    if (ifValid && schema.then) {
+      const thenResult = validateJsonSchema(schema.then, data, path9);
+      errors.push(...thenResult.errors);
+    } else if (!ifValid && schema.else) {
+      const elseResult = validateJsonSchema(schema.else, data, path9);
+      errors.push(...elseResult.errors);
+    }
+  }
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+function getJsonType(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    if (a.length !== b.length) return false;
+    return a.every((item, i) => deepEqual(item, b[i]));
+  }
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((key) => key in b && deepEqual(a[key], b[key]));
+}
+function validateFormat(value, format) {
+  switch (format) {
+    case "email":
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        return "Invalid email format";
+      }
+      break;
+    case "uri":
+    case "url":
+      try {
+        new URL(value);
+      } catch {
+        return "Invalid URL format";
+      }
+      break;
+    case "uuid":
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+        return "Invalid UUID format";
+      }
+      break;
+    case "date":
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || isNaN(Date.parse(value))) {
+        return "Invalid date format (expected YYYY-MM-DD)";
+      }
+      break;
+    case "date-time":
+      if (isNaN(Date.parse(value))) {
+        return "Invalid date-time format";
+      }
+      break;
+    case "time":
+      if (!/^\d{2}:\d{2}:\d{2}/.test(value)) {
+        return "Invalid time format (expected HH:MM:SS)";
+      }
+      break;
+    case "ipv4":
+      if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(value) || value.split(".").some((n) => parseInt(n) > 255)) {
+        return "Invalid IPv4 address";
+      }
+      break;
+    case "ipv6":
+      if (!/^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/.test(value) && !/^([0-9a-fA-F]{1,4}:)*:([0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/.test(value)) {
+        return "Invalid IPv6 address";
+      }
+      break;
+  }
+  return null;
+}
+
+// src/components/prompts.ts
+var PromptRegistry = class {
+  constructor(parent) {
+    this.parent = parent;
+  }
+  /**
+   * Get a prompt template by name (with optional @version)
+   *
+   * Returns the raw prompt template string.
+   *
+   * @param nameOrRef - Prompt name with optional version
+   * @returns Prompt template string
+   *
+   * @example
+   * ```typescript
+   * ctx.prompts.get('extraction')           // extraction@latest
+   * ctx.prompts.get('extraction@v1.0.0')    // exact version
+   * ```
+   */
+  async get(nameOrRef) {
+    const { name, version: version2 } = parseNameWithVersion(nameOrRef);
+    const ref = `prompts/${name}@${version2}`;
+    const content = await this.parent.resolve(ref);
+    if (typeof content === "string") {
+      return content;
+    }
+    if (content && typeof content.content === "string") {
+      return content.content;
+    }
+    return String(content);
+  }
+  /**
+   * Get prompt with metadata
+   *
+   * @param nameOrRef - Prompt name with optional version
+   * @returns Prompt template with metadata
+   */
+  async getWithMetadata(nameOrRef) {
+    const { name, version: version2 } = parseNameWithVersion(nameOrRef);
+    const ref = `prompts/${name}@${version2}`;
+    const resolved = await this.parent.resolveWithMetadata(ref);
+    const content = resolved.content;
+    if (typeof content === "string") {
+      return {
+        content,
+        metadata: {
+          name,
+          version: resolved.metadata?.version || version2
+        }
+      };
+    }
+    if (content && typeof content.content === "string") {
+      return {
+        content: content.content,
+        metadata: {
+          name,
+          description: content.description,
+          variables: content.variables,
+          version: resolved.metadata?.version || version2
+        }
+      };
+    }
+    return {
+      content: String(content),
+      metadata: { name, version: version2 }
+    };
+  }
+  /**
+   * Render a prompt with variables (Handlebars)
+   *
+   * Uses Handlebars templating to replace variables in the prompt.
+   *
+   * @param nameOrRef - Prompt name with optional version
+   * @param variables - Variables to inject into the template
+   * @returns Rendered prompt string
+   *
+   * @example
+   * ```typescript
+   * const rendered = await ctx.prompts.render('docs-writer@v1.0.0', {
+   *   page: 'getting-started',
+   *   projectName: 'MyApp'
+   * })
+   * ```
+   */
+  async render(nameOrRef, variables) {
+    const template = await this.get(nameOrRef);
+    return renderHandlebars(template, variables);
+  }
+  /**
+   * Check if a prompt exists
+   *
+   * @param nameOrRef - Prompt name with optional version
+   * @returns True if prompt exists
+   */
+  async exists(nameOrRef) {
+    try {
+      await this.get(nameOrRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * List variables used in a prompt template
+   *
+   * Extracts Handlebars variable references from the template.
+   *
+   * @param nameOrRef - Prompt name with optional version
+   * @returns Array of variable names
+   *
+   * @example
+   * ```typescript
+   * const vars = await ctx.prompts.listVariables('docs-writer')
+   * // ['page', 'projectName', 'description']
+   * ```
+   */
+  async listVariables(nameOrRef) {
+    const template = await this.get(nameOrRef);
+    return extractHandlebarsVariables(template);
+  }
+};
+function renderHandlebars(template, variables) {
+  return renderLightweightHandlebars(template, variables);
+}
+function renderLightweightHandlebars(template, context) {
+  let result = template;
+  const getValue = (path9, ctx) => {
+    const parts = path9.split(".");
+    let value = ctx;
+    for (const part of parts) {
+      if (value === null || value === void 0) return void 0;
+      value = value[part];
+    }
+    return value;
+  };
+  result = result.replace(
+    /\{\{#each\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)\{\{\/each\}\}/g,
+    (_, path9, content) => {
+      const items = getValue(path9, context);
+      if (!Array.isArray(items)) return "";
+      return items.map((item, index) => {
+        let itemContent = content;
+        itemContent = itemContent.replace(/\{\{this\}\}/g, String(item ?? ""));
+        itemContent = itemContent.replace(/\{\{@index\}\}/g, String(index));
+        if (typeof item === "object" && item !== null) {
+          itemContent = renderLightweightHandlebars(itemContent, { ...context, ...item });
+        }
+        return itemContent;
+      }).join("");
+    }
+  );
+  result = result.replace(
+    /\{\{#if\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/g,
+    (_, path9, ifContent, elseContent = "") => {
+      const value = getValue(path9, context);
+      const isTruthy = value !== false && value !== null && value !== void 0 && value !== "" && value !== 0;
+      return isTruthy ? renderLightweightHandlebars(ifContent, context) : renderLightweightHandlebars(elseContent, context);
+    }
+  );
+  result = result.replace(
+    /\{\{#unless\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)\{\{\/unless\}\}/g,
+    (_, path9, content) => {
+      const value = getValue(path9, context);
+      const isTruthy = value !== false && value !== null && value !== void 0 && value !== "" && value !== 0;
+      return isTruthy ? "" : renderLightweightHandlebars(content, context);
+    }
+  );
+  result = result.replace(
+    /\{\{#with\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)\{\{\/with\}\}/g,
+    (_, path9, content) => {
+      const value = getValue(path9, context);
+      if (typeof value !== "object" || value === null) return "";
+      return renderLightweightHandlebars(content, { ...context, ...value });
+    }
+  );
+  result = result.replace(/\{\{([^#/][^}]*)\}\}/g, (_, path9) => {
+    const trimmedPath = path9.trim();
+    const value = getValue(trimmedPath, context);
+    if (value === void 0 || value === null) return "";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  });
+  return result;
+}
+function extractHandlebarsVariables(template) {
+  const variables = /* @__PURE__ */ new Set();
+  const varRegex = /\{\{([^#/][^}]*)\}\}/g;
+  let match;
+  while ((match = varRegex.exec(template)) !== null) {
+    const path9 = match[1].trim();
+    if (!path9.startsWith("@")) {
+      const rootVar = path9.split(".")[0];
+      variables.add(rootVar);
+    }
+  }
+  const eachRegex = /\{\{#each\s+(\w+)/g;
+  while ((match = eachRegex.exec(template)) !== null) {
+    variables.add(match[1]);
+  }
+  const ifRegex = /\{\{#if\s+(\w+(?:\.\w+)*)\}\}/g;
+  while ((match = ifRegex.exec(template)) !== null) {
+    const rootVar = match[1].split(".")[0];
+    variables.add(rootVar);
+  }
+  const unlessRegex = /\{\{#unless\s+(\w+(?:\.\w+)*)\}\}/g;
+  while ((match = unlessRegex.exec(template)) !== null) {
+    const rootVar = match[1].split(".")[0];
+    variables.add(rootVar);
+  }
+  const withRegex = /\{\{#with\s+(\w+)/g;
+  while ((match = withRegex.exec(template)) !== null) {
+    variables.add(match[1]);
+  }
+  return Array.from(variables).sort();
+}
+
+// src/components/configs.ts
+var ConfigRegistry = class {
+  constructor(parent) {
+    this.parent = parent;
+  }
+  /**
+   * Get a config component by name (with optional @version)
+   *
+   * @param nameOrRef - Config name with optional version
+   * @returns Config object (typed with generic parameter)
+   *
+   * @example
+   * ```typescript
+   * ctx.configs.get('settings')           // settings@latest
+   * ctx.configs.get('settings@v1.0.0')    // exact version
+   * ctx.configs.get<MySettings>('settings') // typed
+   * ```
+   */
+  async get(nameOrRef) {
+    const { name, version: version2 } = parseNameWithVersion(nameOrRef);
+    const ref = `configs/${name}@${version2}`;
+    return this.parent.resolve(ref);
+  }
+  /**
+   * Get a config value at a specific path
+   *
+   * Allows accessing nested properties directly.
+   *
+   * @param nameOrRef - Config name with optional version
+   * @param path - Dot-separated path to the value
+   * @returns Value at the path
+   *
+   * @example
+   * ```typescript
+   * // Get nested value
+   * const theme = await ctx.configs.getValue('docs-settings', 'theme.primaryColor')
+   * const aiEnabled = await ctx.configs.getValue('docs-settings', 'ai.enabled')
+   * ```
+   */
+  async getValue(nameOrRef, path9) {
+    const config = await this.get(nameOrRef);
+    return getNestedValue(config, path9);
+  }
+  /**
+   * Get a config value with a default fallback
+   *
+   * @param nameOrRef - Config name with optional version
+   * @param path - Dot-separated path to the value
+   * @param defaultValue - Default value if path doesn't exist
+   * @returns Value at the path or default
+   *
+   * @example
+   * ```typescript
+   * const theme = await ctx.configs.getValueOrDefault(
+   *   'docs-settings',
+   *   'theme.primaryColor',
+   *   '#3B82F6'
+   * )
+   * ```
+   */
+  async getValueOrDefault(nameOrRef, path9, defaultValue) {
+    const value = await this.getValue(nameOrRef, path9);
+    return value !== void 0 ? value : defaultValue;
+  }
+  /**
+   * Check if a config component exists
+   *
+   * @param nameOrRef - Config name with optional version
+   * @returns True if config exists
+   */
+  async exists(nameOrRef) {
+    try {
+      await this.get(nameOrRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Check if a config has a specific path
+   *
+   * @param nameOrRef - Config name with optional version
+   * @param path - Dot-separated path to check
+   * @returns True if path exists
+   */
+  async hasPath(nameOrRef, path9) {
+    const value = await this.getValue(nameOrRef, path9);
+    return value !== void 0;
+  }
+  /**
+   * Merge a config with overrides
+   *
+   * Returns a new object with overrides applied (does not modify stored config).
+   *
+   * @param nameOrRef - Config name with optional version
+   * @param overrides - Values to override
+   * @returns Merged config object
+   *
+   * @example
+   * ```typescript
+   * const customSettings = await ctx.configs.merge('docs-settings', {
+   *   theme: { primaryColor: '#FF0000' }
+   * })
+   * ```
+   */
+  async merge(nameOrRef, overrides) {
+    const base = await this.get(nameOrRef);
+    return deepMerge(base, overrides);
+  }
+};
+function getNestedValue(obj, path9) {
+  const parts = path9.split(".");
+  let current = obj;
+  for (const part of parts) {
+    if (current === null || current === void 0) {
+      return void 0;
+    }
+    current = current[part];
+  }
+  return current;
+}
+function deepMerge(target, source) {
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    const sourceValue = source[key];
+    const targetValue = target[key];
+    if (sourceValue !== null && typeof sourceValue === "object" && !Array.isArray(sourceValue) && targetValue !== null && typeof targetValue === "object" && !Array.isArray(targetValue)) {
+      result[key] = deepMerge(targetValue, sourceValue);
+    } else if (sourceValue !== void 0) {
+      result[key] = sourceValue;
+    }
+  }
+  return result;
+}
+
+// src/components/queries.ts
+var QueryRegistry = class {
+  constructor(parent) {
+    this.parent = parent;
+  }
+  /**
+   * Get a query template by name (with optional @version)
+   *
+   * @param nameOrRef - Query name with optional version (e.g., "find-users" or "find-users@v1.0.0")
+   * @returns Query template object
+   *
+   * @example
+   * queries.get('find-users')           // find-users@latest
+   * queries.get('find-users@v1.0.0')    // exact version
+   */
+  async get(nameOrRef) {
+    const { name, version: version2 } = parseNameWithVersion(nameOrRef);
+    const ref = `queries/${name}@${version2}`;
+    const content = await this.parent.resolve(ref);
+    if (typeof content === "string") {
+      return { sql: content };
+    }
+    return content;
+  }
+  /**
+   * Get raw SQL string from a query template
+   *
+   * @param nameOrRef - Query name with optional version
+   * @returns Raw SQL string
+   */
+  async getSql(nameOrRef) {
+    const template = await this.get(nameOrRef);
+    return template.sql;
+  }
+  /**
+   * Check if a query exists
+   *
+   * @param nameOrRef - Query name with optional version
+   * @returns True if query exists
+   */
+  async exists(nameOrRef) {
+    try {
+      await this.get(nameOrRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
+
+// src/components/scripts.ts
+var ScriptRegistry = class {
+  constructor(parent) {
+    this.parent = parent;
+  }
+  /**
+   * Get a script by name (with optional @version)
+   *
+   * @param nameOrRef - Script name with optional version (e.g., "transform" or "transform@v1.0.0")
+   * @returns Loaded script with content
+   *
+   * @example
+   * scripts.get('transform')           // transform@latest
+   * scripts.get('transform@v1.0.0')    // exact version
+   */
+  async get(nameOrRef) {
+    const { name, version: version2 } = parseNameWithVersion(nameOrRef);
+    const ref = `scripts/${name}@${version2}`;
+    const content = await this.parent.resolve(ref);
+    if (typeof content === "string") {
+      return {
+        content,
+        metadata: { name, version: version2 }
+      };
+    }
+    return {
+      content: content.content || content.code || String(content),
+      metadata: {
+        name,
+        version: version2,
+        description: content.description,
+        exports: content.exports
+      }
+    };
+  }
+  /**
+   * Get raw script content as string
+   *
+   * @param nameOrRef - Script name with optional version
+   * @returns Raw script content
+   */
+  async getContent(nameOrRef) {
+    const script = await this.get(nameOrRef);
+    return script.content;
+  }
+  /**
+   * Check if a script exists
+   *
+   * @param nameOrRef - Script name with optional version
+   * @returns True if script exists
+   */
+  async exists(nameOrRef) {
+    try {
+      await this.get(nameOrRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
+
+// src/components/templates.ts
+var TemplateRegistry = class {
+  constructor(parent) {
+    this.parent = parent;
+  }
+  /**
+   * Get a template by name (with optional @version)
+   *
+   * @param nameOrRef - Template name with optional version (e.g., "header" or "header@v1.0.0")
+   * @returns Template object with content
+   *
+   * @example
+   * templates.get('header')           // header@latest
+   * templates.get('header@v1.0.0')    // exact version
+   */
+  async get(nameOrRef) {
+    const { name, version: version2 } = parseNameWithVersion(nameOrRef);
+    const ref = `templates/${name}@${version2}`;
+    const content = await this.parent.resolve(ref);
+    if (typeof content === "string") {
+      return { content, engine: "handlebars" };
+    }
+    return {
+      content: content.content || content.template || String(content),
+      engine: content.engine || "handlebars",
+      description: content.description
+    };
+  }
+  /**
+   * Get raw template content as string
+   *
+   * @param nameOrRef - Template name with optional version
+   * @returns Raw template content
+   */
+  async getContent(nameOrRef) {
+    const template = await this.get(nameOrRef);
+    return template.content;
+  }
+  /**
+   * Render a template with variables
+   *
+   * Uses Handlebars for rendering by default.
+   *
+   * @param nameOrRef - Template name with optional version
+   * @param variables - Variables to substitute in the template
+   * @returns Rendered HTML string
+   *
+   * @example
+   * const html = await templates.render('email-template', {
+   *   userName: 'John',
+   *   orderNumber: '12345',
+   * })
+   */
+  async render(nameOrRef, variables) {
+    const template = await this.get(nameOrRef);
+    if (template.engine === "handlebars" || !template.engine) {
+      return renderHandlebars(template.content, variables);
+    }
+    if (template.engine === "html") {
+      return template.content;
+    }
+    return renderHandlebars(template.content, variables);
+  }
+  /**
+   * Check if a template exists
+   *
+   * @param nameOrRef - Template name with optional version
+   * @returns True if template exists
+   */
+  async exists(nameOrRef) {
+    try {
+      await this.get(nameOrRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
+
+// src/components/registry.ts
+function parseNameWithVersion(nameOrRef) {
+  if (nameOrRef.includes("@")) {
+    const atIndex = nameOrRef.lastIndexOf("@");
+    const name = nameOrRef.substring(0, atIndex);
+    const version2 = nameOrRef.substring(atIndex + 1);
+    return { name, version: version2 };
+  }
+  return { name: nameOrRef, version: "latest" };
+}
+var ComponentRegistry = class {
+  constructor(context) {
+    this.cache = /* @__PURE__ */ new Map();
+    this.resolutionContext = context;
+  }
+  /**
+   * Schema registry - access and validate against schemas
+   */
+  get schemas() {
+    if (!this._schemas) {
+      this._schemas = new SchemaRegistry(this);
+    }
+    return this._schemas;
+  }
+  /**
+   * Prompt registry - access and render prompts
+   */
+  get prompts() {
+    if (!this._prompts) {
+      this._prompts = new PromptRegistry(this);
+    }
+    return this._prompts;
+  }
+  /**
+   * Config component registry - access config components
+   */
+  get configs() {
+    if (!this._configs) {
+      this._configs = new ConfigRegistry(this);
+    }
+    return this._configs;
+  }
+  /**
+   * Query registry - access SQL query templates
+   */
+  get queries() {
+    if (!this._queries) {
+      this._queries = new QueryRegistry(this);
+    }
+    return this._queries;
+  }
+  /**
+   * Script registry - access JavaScript/TypeScript scripts
+   */
+  get scripts() {
+    if (!this._scripts) {
+      this._scripts = new ScriptRegistry(this);
+    }
+    return this._scripts;
+  }
+  /**
+   * Template registry - access HTML/Handlebars templates
+   */
+  get templates() {
+    if (!this._templates) {
+      this._templates = new TemplateRegistry(this);
+    }
+    return this._templates;
+  }
+  /**
+   * Resolve any component reference
+   *
+   * This is the core resolution method that delegates to resolveValue()
+   * from component-resolver.ts. Results are cached within the execution.
+   *
+   * @param ref - Component reference (e.g., "schemas/order@v1.0.0")
+   * @returns Resolved component content
+   */
+  async resolve(ref) {
+    if (this.cache.has(ref)) {
+      return this.cache.get(ref);
+    }
+    const resolved = await resolveValue(ref, this.resolutionContext);
+    this.cache.set(ref, resolved.content);
+    return resolved.content;
+  }
+  /**
+   * Resolve with full metadata (source, version, etc.)
+   *
+   * @param ref - Component reference
+   * @returns Full resolved component with metadata
+   */
+  async resolveWithMetadata(ref) {
+    return resolveValue(ref, this.resolutionContext);
+  }
+  /**
+   * Check if a component exists
+   *
+   * @param ref - Component reference
+   * @returns True if component exists
+   */
+  async exists(ref) {
+    try {
+      await this.resolve(ref);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Clear component cache
+   *
+   * Useful for testing or long-running processes that need fresh data.
+   */
+  clearCache() {
+    this.cache.clear();
+  }
+  /**
+   * Get cache statistics
+   *
+   * @returns Cache hit information
+   */
+  getCacheStats() {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys())
+    };
+  }
+  /**
+   * Get the resolution context
+   *
+   * Useful for passing to other functions that need KV access.
+   */
+  getContext() {
+    return this.resolutionContext;
+  }
+};
+function createComponentRegistry(env) {
+  return new ComponentRegistry({ env });
+}
+
+// src/components/discovery.ts
+function createAgentRegistry(agents) {
+  return {
+    list() {
+      const result = [];
+      for (const [name, agent] of agents) {
+        result.push(extractAgentMetadata(name, agent));
+      }
+      return result;
+    },
+    get(name) {
+      const agent = agents.get(name);
+      if (!agent) return void 0;
+      return extractAgentMetadata(name, agent);
+    },
+    has(name) {
+      return agents.has(name);
+    }
+  };
+}
+function extractAgentMetadata(name, agent) {
+  const config = agent.getConfig?.() || {};
+  return {
+    name,
+    operation: agent.getType?.() || config.operation || "unknown",
+    description: config.description,
+    // AgentConfig stores input/output schema under config.schema
+    inputSchema: config.schema?.input,
+    outputSchema: config.schema?.output,
+    builtIn: isBuiltInAgent(name)
+  };
+}
+function isBuiltInAgent(name) {
+  const builtInNames = [
+    "scrape",
+    "validate",
+    "rag",
+    "hitl",
+    "fetch",
+    "html",
+    "form",
+    "storage",
+    "queue",
+    "pdf",
+    "email",
+    "sms"
+  ];
+  return builtInNames.includes(name);
+}
+function createEnsembleRegistry(ensembles) {
+  return {
+    list() {
+      const result = [];
+      for (const [name, { config, source }] of ensembles) {
+        result.push(extractEnsembleMetadata(name, config, source));
+      }
+      return result;
+    },
+    get(name) {
+      const entry = ensembles.get(name);
+      if (!entry) return void 0;
+      return extractEnsembleMetadata(name, entry.config, entry.source);
+    },
+    has(name) {
+      return ensembles.has(name);
+    }
+  };
+}
+function extractEnsembleMetadata(name, config, source) {
+  const triggers = config.trigger?.map((t) => ({
+    type: t.type,
+    path: t.path || t.paths?.[0]?.path,
+    methods: t.methods || t.paths?.[0]?.methods,
+    cron: t.cron
+  })) || [];
+  const agentNames = [];
+  if (Array.isArray(config.flow)) {
+    for (const step of config.flow) {
+      if ("agent" in step && typeof step.agent === "string") {
+        agentNames.push(step.agent);
+      }
+    }
+  }
+  return {
+    name,
+    description: config.description,
+    triggers,
+    inputSchema: config.inputs,
+    outputSchema: config.output,
+    source,
+    agentNames,
+    stepCount: Array.isArray(config.flow) ? config.flow.length : 0
+  };
+}
+
+// src/runtime/output-resolver.ts
+function resolveOutput(output, context) {
+  if (!output) {
+    return { status: 200 };
+  }
+  const blocks = normalizeOutput(output);
+  for (const block of blocks) {
+    if (!block.when) {
+      return resolveOutputBlock(block, context);
+    }
+    const condition = evaluateCondition(block.when, context);
+    if (condition) {
+      return resolveOutputBlock(block, context);
+    }
+  }
+  return { status: 200 };
+}
+function resolveOutputBlock(block, context) {
+  const resolved = {
+    status: block.status || 200
+  };
+  if (block.headers) {
+    resolved.headers = {};
+    for (const [key, value] of Object.entries(block.headers)) {
+      resolved.headers[key] = String(Parser.resolveInterpolation(value, context));
+    }
+  }
+  if (block.redirect) {
+    resolved.redirect = {
+      url: String(Parser.resolveInterpolation(block.redirect.url, context)),
+      status: block.redirect.status
+    };
+    return resolved;
+  }
+  if (block.rawBody !== void 0) {
+    resolved.rawBody = String(Parser.resolveInterpolation(block.rawBody, context));
+    return resolved;
+  }
+  if (block.body !== void 0) {
+    resolved.body = Parser.resolveInterpolation(block.body, context);
+  }
+  return resolved;
+}
+function evaluateCondition(condition, context) {
+  const resolved = Parser.resolveInterpolation(condition, context);
+  if (typeof resolved === "boolean") {
+    return resolved;
+  }
+  if (typeof resolved === "string") {
+    if (resolved === "true") return true;
+    if (resolved === "false") return false;
+    const comparisonMatch = resolved.match(/^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
+    if (comparisonMatch) {
+      const [, left, op, right] = comparisonMatch;
+      return evaluateComparison(left.trim(), op, right.trim());
+    }
+  }
+  return Boolean(resolved);
+}
+function evaluateComparison(left, op, right) {
+  const leftVal = parseValue(left);
+  const rightVal = parseValue(right);
+  switch (op) {
+    case "==":
+      return leftVal === rightVal;
+    case "!=":
+      return leftVal !== rightVal;
+    case ">":
+      return Number(leftVal) > Number(rightVal);
+    case ">=":
+      return Number(leftVal) >= Number(rightVal);
+    case "<":
+      return Number(leftVal) < Number(rightVal);
+    case "<=":
+      return Number(leftVal) <= Number(rightVal);
+    default:
+      return false;
+  }
+}
+function parseValue(value) {
+  if (value.startsWith("'") && value.endsWith("'") || value.startsWith('"') && value.endsWith('"')) {
+    return value.slice(1, -1);
+  }
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null") return "";
+  const num = Number(value);
+  if (!isNaN(num)) return num;
+  return value;
+}
+
+// src/runtime/executor.ts
+function isAgentStep2(step) {
+  return "agent" in step && typeof step.agent === "string";
+}
+var Executor = class {
+  constructor(config) {
+    this.env = config.env;
+    this.ctx = config.ctx;
+    this.agentRegistry = /* @__PURE__ */ new Map();
+    this.observabilityConfig = config.observability;
+    this.requestId = config.requestId;
+    this.auth = config.auth;
+    this.logger = config.logger || createLogger({ serviceName: "executor" }, this.env.ANALYTICS);
+  }
+  /**
+   * Register an agent for use in ensembles
+   */
+  registerAgent(agent) {
+    this.agentRegistry.set(agent.getName(), agent);
+  }
+  /**
+   * Resolve an agent by reference with explicit error handling
+   * Supports both simple names and versioned references (name@version)
+   *
+   * Loading priority:
+   * 1. Check built-in agents (scrape, validate, rag, hitl, fetch)
+   * 2. Check user-defined agents (registered via registerAgent)
+   * 3. Error if not found
+   *
+   * @param agentRef - Agent reference (e.g., "greet" or "analyze-company@production")
+   * @returns Result containing the agent or an error
+   */
+  async resolveAgent(agentRef) {
+    const { name, version: version2 } = Parser.parseAgentReference(agentRef);
+    if (!version2) {
+      const builtInRegistry = getBuiltInRegistry();
+      if (builtInRegistry.isBuiltIn(name)) {
+        try {
+          const config = {
+            name,
+            operation: builtInRegistry.getMetadata(name)?.operation || "code" /* code */,
+            config: {}
+          };
+          const agent2 = await builtInRegistry.create(name, config, this.env);
+          return Result.ok(agent2);
+        } catch (error) {
+          return Result.err(
+            Errors.agentConfig(
+              name,
+              `Failed to load built-in agent: ${error instanceof Error ? error.message : "Unknown error"}`
+            )
+          );
+        }
+      }
+      const agent = this.agentRegistry.get(name);
+      if (!agent) {
+        return Result.err(Errors.agentNotFound(name));
+      }
+      return Result.ok(agent);
+    }
+    const versionedKey = `${name}@${version2}`;
+    if (this.agentRegistry.has(versionedKey)) {
+      const agent = this.agentRegistry.get(versionedKey);
+      return Result.ok(agent);
+    }
+    const localAgent = this.agentRegistry.get(name);
+    if (localAgent) {
+      this.agentRegistry.set(versionedKey, localAgent);
+      return Result.ok(localAgent);
+    }
+    return Result.err(
+      Errors.agentConfig(
+        agentRef,
+        "Versioned agent loading requires Edgit integration. Register agents manually using executor.registerAgent()"
+      )
+    );
+  }
+  /**
+   * Create an agent instance from config
+   * Used for dynamically loading agents from Edgit
+   */
+  createAgentFromConfig(config) {
+    switch (config.operation) {
+      case "think" /* think */:
+        return Result.ok(new ThinkAgent(config));
+      case "storage" /* storage */:
+        return Result.ok(new StorageAgent(config));
+      case "data" /* data */:
+        return Result.ok(new DataAgent(config));
+      case "http" /* http */:
+        return Result.ok(new APIAgent(config));
+      case "email" /* email */:
+        return Result.ok(new EmailAgent(config));
+      case "sms" /* sms */:
+        return Result.ok(new SmsMember(config));
+      case "form" /* form */:
+        return Result.ok(new FormAgent(config));
+      case "html" /* html */:
+        return Result.ok(new HtmlMember(config));
+      case "pdf" /* pdf */:
+        return Result.ok(new PdfMember(config));
+      case "code" /* code */:
+        const codeAgent = CodeAgent.fromConfig(config);
+        if (codeAgent) {
+          return Result.ok(codeAgent);
+        }
+        const inlineAgent = FunctionAgent.fromConfig(config);
+        if (inlineAgent) {
+          return Result.ok(inlineAgent);
+        }
+        return Result.err(
+          Errors.agentConfig(
+            config.name,
+            "Code agents require either a script:// URI or an inline handler function"
+          )
+        );
+      case "tools" /* tools */:
+        return Result.err(Errors.agentConfig(config.name, "MCP agent type not yet implemented"));
+      case "scoring" /* scoring */:
+        return Result.err(Errors.agentConfig(config.name, "Scoring agent type not yet implemented"));
+      default:
+        return Result.err(
+          Errors.agentConfig(config.name, `Unknown agent operation: ${config.operation}`)
+        );
+    }
+  }
+  /**
+   * Execute a single flow step with all associated logic
+   * Only handles AgentFlowStep - control flow steps should use GraphExecutor
+   * @private
+   */
+  async executeStep(step, flowContext, stepIndex) {
+    const {
+      ensemble,
+      executionContext,
+      metrics,
+      stateManager,
+      scoringState,
+      ensembleScorer,
+      scoringExecutor
+    } = flowContext;
+    const agentStartTime = Date.now();
+    let resolvedInput;
+    if (step.input) {
+      resolvedInput = Parser.resolveInterpolation(step.input, executionContext);
+    } else if (stepIndex > 0 && ensemble.flow) {
+      const previousStep = ensemble.flow[stepIndex - 1];
+      const previousAgentName = isAgentStep2(previousStep) ? previousStep.agent : void 0;
+      if (previousAgentName) {
+        const previousResult = executionContext[previousAgentName];
+        resolvedInput = previousResult?.output || {};
+      } else {
+        resolvedInput = executionContext.input || {};
+      }
+    } else {
+      resolvedInput = executionContext.input || {};
+    }
+    const agentResult = await this.resolveAgent(step.agent);
+    if (!agentResult.success) {
+      return Result.err(new EnsembleExecutionError(ensemble.name, step.agent, agentResult.error));
+    }
+    const agent = agentResult.value;
+    const agentObservability = flowContext.observability.forAgent(step.agent, stepIndex);
+    const agentLogger = agentObservability.getLogger();
+    const agentMetrics = agentObservability.getMetrics();
+    if (flowContext.observability.shouldLogEvent("agent:start")) {
+      agentLogger.info("Agent execution started", {
+        agentName: step.agent,
+        stepIndex,
+        ensembleName: ensemble.name
+      });
+    }
+    const agentDef = ensemble.agents?.find(
+      (a) => a.name === step.agent
+    );
+    const agentConfig = agentDef?.config || void 0;
+    const agentContext = {
+      input: resolvedInput,
+      env: this.env,
+      ctx: this.ctx,
+      previousOutputs: executionContext,
+      logger: agentLogger,
+      metrics: agentMetrics,
+      executionId: flowContext.executionId,
+      requestId: this.requestId,
+      auth: this.auth,
+      // Component registries for TypeScript handlers
+      schemas: flowContext.componentRegistry.schemas,
+      prompts: flowContext.componentRegistry.prompts,
+      configs: flowContext.componentRegistry.configs,
+      queries: flowContext.componentRegistry.queries,
+      scripts: flowContext.componentRegistry.scripts,
+      templates: flowContext.componentRegistry.templates,
+      // Discovery registries for agents and ensembles
+      agentRegistry: flowContext.agentRegistry,
+      ensembleRegistry: flowContext.ensembleRegistry,
+      // Agent-specific config from ensemble definition
+      config: agentConfig
+    };
+    let getPendingUpdates = null;
+    if (stateManager && step.state) {
+      const { context, getPendingUpdates: getUpdates } = stateManager.getStateForAgent(
+        step.agent,
+        step.state
+      );
+      agentContext.state = context.state;
+      agentContext.setState = context.setState;
+      getPendingUpdates = getUpdates;
+    }
+    let response;
+    let scoringResult;
+    if (step.scoring && scoringState && ensembleScorer) {
+      const scoringConfig = step.scoring;
+      const scoredResult = await scoringExecutor.executeWithScoring(
+        // Agent execution function
+        async () => {
+          const resp = await agent.execute(agentContext);
+          if (stateManager && getPendingUpdates) {
+            const { updates, newLog } = getPendingUpdates();
+            flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
+          }
+          return resp;
+        },
+        // Evaluator function
+        async (output, attempt, previousScore) => {
+          const evaluatorResult = await this.resolveAgent(scoringConfig.evaluator);
+          if (!evaluatorResult.success) {
+            throw new Error(`Failed to resolve evaluator agent: ${evaluatorResult.error.message}`);
+          }
+          const evaluator = evaluatorResult.value;
+          const evalContext = {
+            input: {
+              output: output.success ? output.data : null,
+              attempt,
+              previousScore,
+              criteria: scoringConfig.criteria || ensemble.scoring?.criteria
+            },
+            env: this.env,
+            ctx: this.ctx,
+            previousOutputs: executionContext
+          };
+          const evalResponse = await evaluator.execute(evalContext);
+          if (!evalResponse.success) {
+            throw new Error(`Evaluator failed: ${evalResponse.error || "Unknown error"}`);
+          }
+          const evalData = evalResponse.data;
+          const score = typeof evalData === "number" ? evalData : typeof evalData === "object" && evalData !== null && "score" in evalData ? evalData.score : typeof evalData === "object" && evalData !== null && "value" in evalData ? evalData.value : 0;
+          const threshold = scoringConfig.thresholds?.minimum || ensemble.scoring?.defaultThresholds?.minimum || 0.7;
+          return {
+            score,
+            passed: score >= threshold,
+            feedback: typeof evalData === "object" && evalData !== null && "feedback" in evalData ? String(evalData.feedback) : typeof evalData === "object" && evalData !== null && "message" in evalData ? String(evalData.message) : "",
+            breakdown: typeof evalData === "object" && evalData !== null && "breakdown" in evalData ? evalData.breakdown : {},
+            metadata: {
+              attempt,
+              evaluator: scoringConfig.evaluator,
+              timestamp: Date.now()
+            }
+          };
+        },
+        scoringConfig
+      );
+      response = scoredResult.output;
+      scoringResult = scoredResult.score;
+      scoringState.scoreHistory.push({
+        agent: step.agent,
+        score: scoringResult.score,
+        passed: scoringResult.passed,
+        feedback: scoringResult.feedback,
+        breakdown: scoringResult.breakdown,
+        timestamp: Date.now(),
+        attempt: scoredResult.attempts
+      });
+      scoringState.retryCount[step.agent] = scoredResult.attempts - 1;
+      if (scoredResult.status === "max_retries_exceeded") {
+        this.logger.warn("Agent exceeded max retries", {
+          agentName: step.agent,
+          score: scoringResult.score,
+          attempts: scoredResult.attempts,
+          ensembleName: ensemble.name
+        });
+      }
+    } else {
+      response = await agent.execute(agentContext);
+      if (stateManager && getPendingUpdates) {
+        const { updates, newLog } = getPendingUpdates();
+        flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
+      }
+    }
+    const agentDuration = Date.now() - agentStartTime;
+    metrics.agents.push({
+      name: step.agent,
+      duration: agentDuration,
+      cached: response.cached,
+      success: response.success
+    });
+    if (response.cached) {
+      metrics.cacheHits++;
+      if (flowContext.observability.shouldLogEvent("cache:hit")) {
+        agentLogger.debug("Cache hit", { agentName: step.agent });
+      }
+      agentMetrics.recordCachePerformance(true, step.agent);
+    } else {
+      agentMetrics.recordCachePerformance(false, step.agent);
+    }
+    agentMetrics.recordAgentExecution(step.agent, agentDuration, response.success, response.cached);
+    if (!response.success) {
+      if (flowContext.observability.shouldLogEvent("agent:error")) {
+        agentLogger.error("Agent execution failed", new Error(response.error || "Unknown error"), {
+          agentName: step.agent,
+          durationMs: agentDuration,
+          stepIndex
+        });
+      }
+      agentMetrics.recordError("AgentExecutionError", step.agent);
+      return Result.err(
+        new AgentExecutionError(step.agent, response.error || "Unknown error", void 0)
+      );
+    }
+    if (flowContext.observability.shouldLogEvent("agent:complete")) {
+      agentLogger.info("Agent execution completed", {
+        agentName: step.agent,
+        durationMs: agentDuration,
+        stepIndex,
+        cached: response.cached
+      });
+    }
+    const contextKey = step.id || step.agent;
+    executionContext[contextKey] = {
+      output: response.data
+    };
+    if (flowContext.stateManager) {
+      executionContext.state = flowContext.stateManager.getState();
+    }
+    if (scoringState) {
+      executionContext.scoring = scoringState;
+    }
+    return Result.ok(void 0);
+  }
+  /**
+   * Execute ensemble flow from a given step
+   * @private
+   */
+  async executeFlow(flowContext, startStep = 0) {
+    const {
+      ensemble,
+      executionContext,
+      metrics,
+      stateManager,
+      scoringState,
+      ensembleScorer,
+      startTime
+    } = flowContext;
+    if (!ensemble.flow || ensemble.flow.length === 0) {
+      return Result.err(
+        new EnsembleExecutionError(
+          ensemble.name,
+          "validation",
+          new Error("Ensemble has no flow steps defined")
+        )
+      );
+    }
+    for (let i = startStep; i < ensemble.flow.length; i++) {
+      const step = ensemble.flow[i];
+      if (!isAgentStep2(step)) {
+        return Result.err(
+          new EnsembleExecutionError(
+            ensemble.name,
+            "flow",
+            new Error(
+              `Control flow step type "${step.type}" requires GraphExecutor. Use GraphExecutor.execute() for ensembles with parallel, branch, foreach, try, switch, while, or map-reduce steps.`
+            )
+          )
+        );
+      }
+      const stepResult = await this.executeStep(step, flowContext, i);
+      if (!stepResult.success) {
+        return Result.err(stepResult.error);
+      }
+    }
+    if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
+      scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
+      scoringState.qualityMetrics = ensembleScorer.calculateQualityMetrics(
+        scoringState.scoreHistory
+      );
+    }
+    let finalOutput;
+    let responseMetadata;
+    if (ensemble.output) {
+      const resolved = resolveOutput(ensemble.output, executionContext);
+      if (resolved.redirect) {
+        finalOutput = {};
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          redirect: resolved.redirect
+        };
+      } else if (resolved.rawBody !== void 0) {
+        finalOutput = resolved.rawBody;
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          isRawBody: true
+        };
+      } else {
+        finalOutput = resolved.body ?? {};
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers
+        };
+      }
+    } else if (ensemble.flow && ensemble.flow.length > 0) {
+      const lastStep = ensemble.flow[ensemble.flow.length - 1];
+      const lastMemberName = isAgentStep2(lastStep) ? lastStep.agent : void 0;
+      if (lastMemberName) {
+        const lastResult = executionContext[lastMemberName];
+        finalOutput = lastResult?.output;
+      } else {
+        finalOutput = {};
+      }
+    } else {
+      finalOutput = {};
+    }
+    metrics.totalDuration = Date.now() - startTime;
+    const stateReport = flowContext.stateManager?.getAccessReport();
+    const executionOutput = {
+      output: finalOutput,
+      metrics,
+      stateReport,
+      response: responseMetadata
+    };
+    if (scoringState) {
+      executionOutput.scoring = scoringState;
+    }
+    return Result.ok(executionOutput);
+  }
+  /**
+   * Register inline agents defined in an ensemble's agents array
+   *
+   * Supports:
+   * 1. script:// URIs - Resolved from bundled scripts (Works in Workers!)
+   * 2. Pre-compiled handlers - Function objects passed in config.handler
+   * 3. Inline code strings - DEPRECATED, only works in test environments
+   *
+   * @private
+   */
+  registerInlineAgents(ensemble) {
+    if (!ensemble.agents || ensemble.agents.length === 0) {
+      return;
+    }
+    for (const agentDef of ensemble.agents) {
+      if (typeof agentDef !== "object" || agentDef === null) {
+        continue;
+      }
+      const name = agentDef.name;
+      const operation = agentDef.operation;
+      const config = agentDef.config;
+      if (!name || !operation) {
+        this.logger.warn("Skipping inline agent without name or operation", { agentDef });
+        continue;
+      }
+      if (this.agentRegistry.has(name)) {
+        this.logger.debug("Inline agent already registered", { name });
+        continue;
+      }
+      const agentConfig = {
+        name,
+        operation,
+        config: config || {}
+      };
+      if (operation === "code" /* code */ || operation === "function") {
+        const scriptRef = config?.script;
+        const inlineCode = config?.code || config?.function;
+        const precompiledHandler = config?.handler;
+        if (isScriptReference(scriptRef)) {
+          try {
+            const handler = this.resolveScriptHandler(scriptRef, name);
+            agentConfig.config = { ...config, handler };
+          } catch (error) {
+            this.logger.error(
+              "Failed to resolve script",
+              error instanceof Error ? error : void 0,
+              { name, scriptRef }
+            );
+            continue;
+          }
+        } else if (typeof precompiledHandler === "function") {
+          this.logger.debug("Using pre-compiled handler", { name });
+        } else if (typeof inlineCode === "string") {
+          this.logger.error(
+            "Inline code is not supported",
+            new Error(
+              `Agent "${name}" uses inline code (config.code) which is not supported.
+Cloudflare Workers block new Function() and eval() for security.
+
+To fix this, migrate to bundled scripts:
+1. Create a file: scripts/${name}.ts
+2. Export your function: export default async function(context) { ... }
+3. Update your ensemble to use: config.script: "scripts/${name}"
+
+See: https://docs.ensemble.ai/conductor/guides/migrate-inline-code`
+            ),
+            { name }
+          );
+          continue;
+        }
+      }
+      const agentResult = this.createAgentFromConfig(agentConfig);
+      if (agentResult.success) {
+        this.agentRegistry.set(name, agentResult.value);
+        this.logger.debug("Registered inline agent", { name, operation });
+      } else {
+        this.logger.warn("Failed to create inline agent", {
+          name,
+          error: agentResult.error.message
+        });
+      }
+    }
+  }
+  /**
+   * Resolve a script:// URI to a handler function from bundled scripts
+   * @private
+   */
+  resolveScriptHandler(scriptUri, agentName) {
+    if (!hasGlobalScriptLoader()) {
+      const scriptPath = parseScriptURI(scriptUri);
+      throw new Error(
+        `Cannot resolve script "${scriptUri}" for agent "${agentName}".
+
+Script loader not initialized. For Cloudflare Workers:
+1. Ensure scripts/${scriptPath}.ts exists with a default export
+2. Initialize the script loader in your worker entry:
+
+   import { scriptsMap } from 'virtual:conductor-scripts'
+   import { setGlobalScriptLoader, createScriptLoader } from '@ensemble-edge/conductor'
+   setGlobalScriptLoader(createScriptLoader(scriptsMap))`
+      );
+    }
+    const scriptLoader = getGlobalScriptLoader();
+    const handler = scriptLoader.resolve(scriptUri);
+    return async (context) => {
+      return handler(context);
+    };
+  }
+  /**
+   * Execute an ensemble with Result-based error handling
+   * @param ensemble - Parsed ensemble configuration
+   * @param input - Input data for the ensemble
+   * @returns Result containing execution output or error
+   */
+  async executeEnsemble(ensemble, input) {
+    const startTime = Date.now();
+    const executionId = generateExecutionId();
+    const observability = createObservabilityManager(
+      this.observabilityConfig,
+      {
+        requestId: this.requestId,
+        executionId,
+        ensembleName: ensemble.name,
+        environment: this.env.ENVIRONMENT
+      },
+      this.env.ANALYTICS
+    );
+    const ensembleLogger = observability.getLogger();
+    const ensembleMetrics = observability.getMetrics();
+    if (observability.shouldLogEvent("ensemble:start")) {
+      ensembleLogger.info("Ensemble execution started", {
+        ensembleName: ensemble.name,
+        executionId
+      });
+    }
+    const metrics = {
+      ensemble: ensemble.name,
+      totalDuration: 0,
+      agents: [],
+      cacheHits: 0
+    };
+    this.registerInlineAgents(ensemble);
+    this.ctx.waitUntil(
+      NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env)
+    );
+    const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
+    let scoringState = null;
+    let ensembleScorer = null;
+    const scoringExecutor = new ScoringExecutor();
+    if (ensemble.scoring?.enabled) {
+      ensembleScorer = new EnsembleScorer(ensemble.scoring);
+      scoringState = {
+        scoreHistory: [],
+        retryCount: {},
+        qualityMetrics: void 0,
+        finalScore: void 0
+      };
+    }
+    const executionContext = {
+      input,
+      state: stateManager ? stateManager.getState() : {},
+      scoring: scoringState || {}
+    };
+    const componentRegistry = createComponentRegistry(this.env);
+    const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const flowContext = {
+      ensemble,
+      executionContext,
+      metrics,
+      stateManager,
+      scoringState,
+      ensembleScorer,
+      scoringExecutor,
+      startTime,
+      observability,
+      executionId,
+      componentRegistry,
+      agentRegistry: agentDiscoveryRegistry,
+      ensembleRegistry: ensembleDiscoveryRegistry
+    };
+    const result = await this.executeFlow(flowContext, 0);
+    const totalDuration = Date.now() - startTime;
+    ensembleMetrics.recordEnsembleExecution(ensemble.name, totalDuration, result.success);
+    if (result.success) {
+      if (observability.shouldLogEvent("ensemble:complete")) {
+        ensembleLogger.info("Ensemble execution completed", {
+          ensembleName: ensemble.name,
+          executionId,
+          durationMs: totalDuration,
+          agentCount: metrics.agents.length,
+          cacheHits: metrics.cacheHits
+        });
+      }
+    } else {
+      if (observability.shouldLogEvent("ensemble:error")) {
+        ensembleLogger.error("Ensemble execution failed", result.error, {
+          ensembleName: ensemble.name,
+          executionId,
+          durationMs: totalDuration
+        });
+      }
+      ensembleMetrics.recordError("EnsembleExecutionError", result.error.code);
+    }
+    if (result.success) {
+      this.ctx.waitUntil(
+        NotificationManager.emitExecutionCompleted(
+          ensemble,
+          executionId,
+          result.value.output,
+          result.value.metrics.totalDuration,
+          this.env
+        )
+      );
+    } else {
+      const error = new Error(result.error.message);
+      error.stack = result.error.stack;
+      this.ctx.waitUntil(
+        NotificationManager.emitExecutionFailed(
+          ensemble,
+          executionId,
+          error,
+          Date.now() - startTime,
+          this.env
+        )
+      );
+    }
+    return result;
+  }
+  /**
+   * Load and execute an ensemble from YAML with Result-based error handling
+   */
+  async executeFromYAML(yamlContent, input) {
+    const parseResult = Result.fromThrowable(() => Parser.parseEnsemble(yamlContent));
+    if (!parseResult.success) {
+      return Result.err(Errors.ensembleParse("unknown", parseResult.error.message));
+    }
+    const ensemble = parseResult.value;
+    const availableMembers = new Set(this.agentRegistry.keys());
+    const validationResult = Result.fromThrowable(
+      () => Parser.validateAgentReferences(ensemble, availableMembers)
+    );
+    if (!validationResult.success) {
+      return Result.err(Errors.ensembleParse(ensemble.name, validationResult.error.message));
+    }
+    return await this.executeEnsemble(ensemble, input);
+  }
+  /**
+   * Get all registered agent names (both built-in and user-defined)
+   */
+  getRegisteredMembers() {
+    const builtInRegistry = getBuiltInRegistry();
+    const builtInNames = builtInRegistry.getAvailableNames();
+    const userDefinedNames = Array.from(this.agentRegistry.keys());
+    const allNames = /* @__PURE__ */ new Set([...builtInNames, ...userDefinedNames]);
+    return Array.from(allNames);
+  }
+  /**
+   * Check if a agent is registered (checks both built-in and user-defined)
+   */
+  hasMember(agentName) {
+    const builtInRegistry = getBuiltInRegistry();
+    return builtInRegistry.isBuiltIn(agentName) || this.agentRegistry.has(agentName);
+  }
+  /**
+   * Get all built-in agent metadata
+   */
+  getBuiltInMembers() {
+    const builtInRegistry = getBuiltInRegistry();
+    return builtInRegistry.list();
+  }
+  /**
+   * Resume execution from suspended state
+   * Used for HITL approval workflows and webhook resumption
+   */
+  async resumeExecution(suspendedState, resumeInput) {
+    const ensemble = suspendedState.ensemble;
+    const executionContext = suspendedState.executionContext;
+    if (resumeInput) {
+      executionContext.resumeInput = resumeInput;
+    }
+    let stateManager = null;
+    if (suspendedState.stateSnapshot) {
+      if (ensemble.state) {
+        stateManager = new StateManager(ensemble.state);
+      }
+    }
+    let scoringState = null;
+    let ensembleScorer = null;
+    const scoringExecutor = new ScoringExecutor();
+    if (suspendedState.scoringSnapshot) {
+      scoringState = suspendedState.scoringSnapshot;
+      if (ensemble.scoring?.enabled) {
+        ensembleScorer = new EnsembleScorer(ensemble.scoring);
+      }
+    }
+    const metrics = {
+      ensemble: ensemble.name,
+      totalDuration: 0,
+      agents: suspendedState.metrics.agents || [],
+      cacheHits: suspendedState.metrics.cacheHits || 0
+    };
+    const startTime = suspendedState.metrics.startTime || Date.now();
+    if (stateManager) {
+      executionContext.state = stateManager.getState();
+    }
+    if (scoringState) {
+      executionContext.scoring = scoringState;
+    }
+    const executionId = suspendedState.executionId || generateExecutionId();
+    const observability = createObservabilityManager(
+      this.observabilityConfig,
+      {
+        requestId: this.requestId,
+        executionId,
+        ensembleName: ensemble.name,
+        environment: this.env.ENVIRONMENT
+      },
+      this.env.ANALYTICS
+    );
+    const componentRegistry = createComponentRegistry(this.env);
+    const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const flowContext = {
+      ensemble,
+      executionContext,
+      metrics,
+      stateManager,
+      scoringState,
+      ensembleScorer,
+      scoringExecutor,
+      startTime,
+      observability,
+      executionId,
+      componentRegistry,
+      agentRegistry: agentDiscoveryRegistry,
+      ensembleRegistry: ensembleDiscoveryRegistry
+    };
+    const resumeFromStep = suspendedState.resumeFromStep;
+    return await this.executeFlow(flowContext, resumeFromStep);
+  }
+};
+
+// src/runtime/build-manager.ts
+init_observability();
+var BuildManager = class {
+  constructor(logger7) {
+    this.ensembles = /* @__PURE__ */ new Map();
+    this.logger = logger7 || createLogger({ serviceName: "build-manager" });
+  }
+  /**
+   * Register ensemble with build triggers
+   */
+  register(ensemble) {
+    const buildTriggers = ensemble.trigger?.filter((t) => t.type === "build") || [];
+    if (buildTriggers.length === 0) {
+      return;
+    }
+    this.ensembles.set(ensemble.name, ensemble);
+  }
+  /**
+   * Register multiple ensembles at once
+   */
+  registerAll(ensembles) {
+    for (const ensemble of ensembles) {
+      this.register(ensemble);
+    }
+  }
+  /**
+   * Run all build triggers
+   * Called during `conductor build` or deploy
+   */
+  async runBuildTriggers(env, ctx, options) {
+    const results = [];
+    let ensemblesToRun = Array.from(this.ensembles.values());
+    if (options?.filter && options.filter.length > 0) {
+      ensemblesToRun = ensemblesToRun.filter((e) => options.filter.includes(e.name));
+    }
+    if (ensemblesToRun.length === 0) {
+      this.logger.info("No build triggers to run");
+      return results;
+    }
+    this.logger.info(`Running ${ensemblesToRun.length} build trigger(s)`, {
+      ensembles: ensemblesToRun.map((e) => e.name),
+      dryRun: options?.dryRun
+    });
+    const executor = new Executor({ env, ctx });
+    for (const ensemble of ensemblesToRun) {
+      const buildTriggers = ensemble.trigger?.filter(
+        (t) => t.type === "build"
+      ) || [];
+      for (const trigger of buildTriggers) {
+        if (trigger.enabled === false) {
+          this.logger.debug(`Skipping disabled build trigger for ${ensemble.name}`);
+          continue;
+        }
+        if (options?.dryRun) {
+          this.logger.info(`[DRY RUN] Would run build trigger for ${ensemble.name}`, {
+            output: trigger.output,
+            input: trigger.input
+          });
+          results.push({
+            ensemble: ensemble.name,
+            success: true,
+            duration: 0,
+            outputPath: trigger.output
+          });
+          continue;
+        }
+        const startTime = Date.now();
+        try {
+          const input = {
+            ...trigger.input || {},
+            _build: {
+              triggeredAt: Date.now(),
+              output: trigger.output,
+              metadata: trigger.metadata
+            }
+          };
+          const result = await executor.executeEnsemble(ensemble, input);
+          const duration = Date.now() - startTime;
+          if (result.success) {
+            this.logger.info(`Build trigger completed for ${ensemble.name}`, {
+              durationMs: duration,
+              outputPath: trigger.output
+            });
+            results.push({
+              ensemble: ensemble.name,
+              success: true,
+              duration,
+              output: result.value?.output,
+              outputPath: trigger.output
+            });
+          } else {
+            this.logger.error(`Build trigger failed for ${ensemble.name}`, void 0, {
+              durationMs: duration,
+              error: result.error?.message
+            });
+            results.push({
+              ensemble: ensemble.name,
+              success: false,
+              duration,
+              error: result.error?.message || "Unknown error",
+              outputPath: trigger.output
+            });
+          }
+        } catch (error) {
+          const duration = Date.now() - startTime;
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          this.logger.error(
+            `Build trigger error for ${ensemble.name}`,
+            error instanceof Error ? error : void 0,
+            { durationMs: duration }
+          );
+          results.push({
+            ensemble: ensemble.name,
+            success: false,
+            duration,
+            error: errorMessage,
+            outputPath: trigger.output
+          });
+        }
+      }
+    }
+    const successful = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+    this.logger.info("Build triggers completed", {
+      total: results.length,
+      successful,
+      failed
+    });
+    return results;
+  }
+  /**
+   * List all ensembles with build triggers
+   */
+  listBuildEnsembles() {
+    const buildEnsembles = [];
+    for (const ensemble of this.ensembles.values()) {
+      const buildTriggers = ensemble.trigger?.filter(
+        (t) => t.type === "build"
+      ) || [];
+      if (buildTriggers.length > 0) {
+        buildEnsembles.push({
+          ensembleName: ensemble.name,
+          triggers: buildTriggers
+        });
+      }
+    }
+    return buildEnsembles;
+  }
+  /**
+   * Get count of registered ensembles with build triggers
+   */
+  getBuildCount() {
+    return this.ensembles.size;
+  }
+  /**
+   * Clear all registered ensembles
+   */
+  clear() {
+    this.ensembles.clear();
+  }
+};
+var globalBuildManager = null;
+function getBuildManager() {
+  if (!globalBuildManager) {
+    globalBuildManager = new BuildManager();
+  }
+  return globalBuildManager;
+}
+
+// src/cli/local-loader.ts
+import * as fs9 from "fs/promises";
+import * as path8 from "path";
+var DEFAULT_DIRS = {
+  ensembles: "catalog/ensembles",
+  agents: "catalog/agents"
+};
+var LocalLoader = class {
+  constructor(projectRoot) {
+    this.projectRoot = projectRoot || process.cwd();
+    this.ensemblesDir = path8.join(this.projectRoot, DEFAULT_DIRS.ensembles);
+    this.agentsDir = path8.join(this.projectRoot, DEFAULT_DIRS.agents);
+  }
+  /**
+   * Load all ensembles with build triggers
+   */
+  async loadBuildEnsembles() {
+    const ensembles = await this.loadAllEnsembles();
+    return ensembles.filter((e) => e.trigger?.some((t) => t.type === "build"));
+  }
+  /**
+   * Load all ensembles with CLI triggers
+   */
+  async loadCLIEnsembles() {
+    const ensembles = await this.loadAllEnsembles();
+    return ensembles.filter((e) => e.trigger?.some((t) => t.type === "cli"));
+  }
+  /**
+   * Load all ensembles with cron/schedule triggers
+   */
+  async loadScheduledEnsembles() {
+    const ensembles = await this.loadAllEnsembles();
+    return ensembles.filter((e) => e.trigger?.some((t) => t.type === "cron"));
+  }
+  /**
+   * Load all ensembles from the local catalog
+   */
+  async loadAllEnsembles() {
+    const ensembles = [];
+    try {
+      const files = await this.findYamlFiles(this.ensemblesDir);
+      for (const file of files) {
+        try {
+          const content = await fs9.readFile(file, "utf-8");
+          const ensemble = Parser.parseEnsemble(content);
+          ensembles.push(ensemble);
+        } catch (error) {
+          console.warn(`Warning: Failed to parse ensemble ${file}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+    return ensembles;
+  }
+  /**
+   * Load a specific ensemble by name
+   */
+  async loadEnsemble(name) {
+    const patterns = [
+      path8.join(this.ensemblesDir, `${name}.yaml`),
+      path8.join(this.ensemblesDir, `${name}.yml`),
+      path8.join(this.ensemblesDir, name, "ensemble.yaml"),
+      path8.join(this.ensemblesDir, name, "ensemble.yml"),
+      path8.join(this.ensemblesDir, name, `${name}.yaml`),
+      path8.join(this.ensemblesDir, name, `${name}.yml`)
+    ];
+    for (const filePath of patterns) {
+      try {
+        const content = await fs9.readFile(filePath, "utf-8");
+        return Parser.parseEnsemble(content);
+      } catch {
+      }
+    }
+    return null;
+  }
+  /**
+   * Load all agents from the local catalog
+   */
+  async loadAllAgents() {
+    const agents = [];
+    try {
+      const files = await this.findYamlFiles(this.agentsDir);
+      for (const file of files) {
+        try {
+          const content = await fs9.readFile(file, "utf-8");
+          const agent = Parser.parseAgent(content);
+          agents.push(agent);
+        } catch (error) {
+          console.warn(`Warning: Failed to parse agent ${file}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+    return agents;
+  }
+  /**
+   * Load a specific agent by name
+   */
+  async loadAgent(name) {
+    const patterns = [
+      path8.join(this.agentsDir, `${name}.yaml`),
+      path8.join(this.agentsDir, `${name}.yml`),
+      path8.join(this.agentsDir, name, "agent.yaml"),
+      path8.join(this.agentsDir, name, "agent.yml"),
+      path8.join(this.agentsDir, name, `${name}.yaml`),
+      path8.join(this.agentsDir, name, `${name}.yml`)
+    ];
+    for (const filePath of patterns) {
+      try {
+        const content = await fs9.readFile(filePath, "utf-8");
+        return Parser.parseAgent(content);
+      } catch {
+      }
+    }
+    return null;
+  }
+  /**
+   * Find all YAML files in a directory recursively
+   */
+  async findYamlFiles(dir) {
+    const files = [];
+    try {
+      const entries = await fs9.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path8.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          const subFiles = await this.findYamlFiles(fullPath);
+          files.push(...subFiles);
+        } else if (entry.isFile() && /\.ya?ml$/i.test(entry.name)) {
+          files.push(fullPath);
+        }
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+    return files;
+  }
+  /**
+   * Check if a directory exists
+   */
+  async directoryExists(dir) {
+    try {
+      const stats = await fs9.stat(dir);
+      return stats.isDirectory();
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the project root path
+   */
+  getProjectRoot() {
+    return this.projectRoot;
+  }
+  /**
+   * Get the ensembles directory path
+   */
+  getEnsemblesDir() {
+    return this.ensemblesDir;
+  }
+  /**
+   * Get the agents directory path
+   */
+  getAgentsDir() {
+    return this.agentsDir;
+  }
+};
+
+// src/cli/commands/build.ts
+function createBuildCommand() {
+  const build = new Command13("build").description("Run build triggers for ensembles").option("-f, --filter <names>", "Only run specific ensembles (comma-separated)").option("--dry-run", "Show what would run without executing").option("-v, --verbose", "Show detailed output").action(async (options) => {
+    try {
+      console.log("");
+      console.log(chalk13.bold("\u{1F528} Running build triggers"));
+      console.log(chalk13.dim("\u2500".repeat(50)));
+      console.log("");
+      const loader = new LocalLoader();
+      const ensemblesDir = loader.getEnsemblesDir();
+      if (!await loader.directoryExists(ensemblesDir)) {
+        console.log(chalk13.yellow(`No ensembles directory found at ${ensemblesDir}`));
+        console.log("");
+        console.log(chalk13.dim("Create ensembles with build triggers:"));
+        console.log(chalk13.dim("  mkdir -p catalog/ensembles"));
+        console.log(chalk13.dim("  # Add ensemble YAML files with build triggers"));
+        console.log("");
+        return;
+      }
+      const ensembles = await loader.loadBuildEnsembles();
+      if (ensembles.length === 0) {
+        console.log(chalk13.yellow("No ensembles with build triggers found."));
+        console.log("");
+        console.log(chalk13.dim("Add a build trigger to an ensemble:"));
+        console.log(chalk13.dim("  trigger:"));
+        console.log(chalk13.dim("    - type: build"));
+        console.log(chalk13.dim("      output: ./dist/docs"));
+        console.log("");
+        return;
+      }
+      const buildManager = getBuildManager();
+      buildManager.registerAll(ensembles);
+      const filter = options.filter ? options.filter.split(",").map((s) => s.trim()) : void 0;
+      if (options.verbose || options.dryRun) {
+        console.log(chalk13.bold("Build ensembles found:"));
+        for (const ensemble of buildManager.listBuildEnsembles()) {
+          console.log(`  \u2022 ${chalk13.cyan(ensemble.ensembleName)}`);
+          for (const trigger of ensemble.triggers) {
+            console.log(chalk13.dim(`    output: ${trigger.output || "(none)"}`));
+          }
+        }
+        console.log("");
+      }
+      if (options.dryRun) {
+        console.log(chalk13.yellow("Dry run - no ensembles executed"));
+        console.log("");
+        return;
+      }
+      const env = createLocalEnv();
+      const ctx = createLocalContext();
+      const results = await buildManager.runBuildTriggers(env, ctx, {
+        filter,
+        dryRun: false
+      });
+      console.log("");
+      console.log(chalk13.bold("Results:"));
+      console.log("");
+      for (const result of results) {
+        if (result.success) {
+          console.log(chalk13.green("\u2713"), chalk13.bold(result.ensemble));
+          console.log(chalk13.dim(`  Duration: ${result.duration}ms`));
+          if (result.outputPath) {
+            console.log(chalk13.dim(`  Output: ${result.outputPath}`));
+          }
+        } else {
+          console.log(chalk13.red("\u2717"), chalk13.bold(result.ensemble));
+          console.log(chalk13.red(`  Error: ${result.error}`));
+        }
+        console.log("");
+      }
+      const successful = results.filter((r) => r.success).length;
+      const failed = results.filter((r) => !r.success).length;
+      console.log(chalk13.dim("\u2500".repeat(50)));
+      if (failed === 0) {
+        console.log(chalk13.green(`\u2713 ${successful} build trigger(s) completed successfully`));
+      } else {
+        console.log(chalk13.yellow(`${successful} succeeded, ${chalk13.red(failed + " failed")}`));
+        process.exit(1);
+      }
+      console.log("");
+    } catch (error) {
+      console.error(chalk13.red("Error:"), error.message);
+      process.exit(1);
+    }
+  });
+  return build;
+}
+function createLocalEnv() {
+  return process.env;
+}
+function createLocalContext() {
+  return {
+    waitUntil: (_promise) => {
+    },
+    passThroughOnException: () => {
+    }
+  };
+}
+
+// src/cli/commands/run.ts
+import { Command as Command14 } from "commander";
+import chalk14 from "chalk";
+
+// src/runtime/cli-manager.ts
+init_observability();
+var CLIManager = class {
+  constructor(logger7) {
+    this.commands = /* @__PURE__ */ new Map();
+    this.logger = logger7 || createLogger({ serviceName: "cli-manager" });
+  }
+  /**
+   * Register ensemble with CLI triggers
+   */
+  register(ensemble) {
+    const cliTriggers = ensemble.trigger?.filter(
+      (t) => t.type === "cli"
+    ) || [];
+    for (const trigger of cliTriggers) {
+      if (trigger.enabled === false) continue;
+      if (this.commands.has(trigger.command)) {
+        this.logger.warn(`CLI command "${trigger.command}" already registered, overwriting`);
+      }
+      this.commands.set(trigger.command, { ensemble, trigger });
+      this.logger.debug(`Registered CLI command: ${trigger.command} \u2192 ${ensemble.name}`);
+    }
+  }
+  /**
+   * Register multiple ensembles at once
+   */
+  registerAll(ensembles) {
+    for (const ensemble of ensembles) {
+      this.register(ensemble);
+    }
+  }
+  /**
+   * Check if a command is registered
+   */
+  hasCommand(command) {
+    return this.commands.has(command);
+  }
+  /**
+   * Get command metadata
+   */
+  getCommandMetadata(command) {
+    const entry = this.commands.get(command);
+    if (!entry) return null;
+    return {
+      command: entry.trigger.command,
+      description: entry.trigger.description,
+      options: entry.trigger.options || [],
+      ensembleName: entry.ensemble.name
+    };
+  }
+  /**
+   * Run a CLI command
+   */
+  async runCommand(command, options, env, ctx) {
+    const entry = this.commands.get(command);
+    if (!entry) {
+      return {
+        command,
+        ensemble: "",
+        success: false,
+        duration: 0,
+        error: `Command not found: ${command}`
+      };
+    }
+    const { ensemble, trigger } = entry;
+    const startTime = Date.now();
+    this.logger.info(`Running CLI command: ${command}`, {
+      ensemble: ensemble.name,
+      options
+    });
+    try {
+      const parsedOptions = this.parseOptions(trigger.options || [], options);
+      const input = {
+        ...parsedOptions,
+        _cli: {
+          command,
+          triggeredAt: Date.now(),
+          options: parsedOptions
+        }
+      };
+      const executor = new Executor({ env, ctx });
+      const result = await executor.executeEnsemble(ensemble, input);
+      const duration = Date.now() - startTime;
+      if (result.success) {
+        this.logger.info(`CLI command completed: ${command}`, {
+          durationMs: duration
+        });
+        return {
+          command,
+          ensemble: ensemble.name,
+          success: true,
+          duration,
+          output: result.value?.output
+        };
+      } else {
+        this.logger.error(`CLI command failed: ${command}`, void 0, {
+          durationMs: duration,
+          error: result.error?.message
+        });
+        return {
+          command,
+          ensemble: ensemble.name,
+          success: false,
+          duration,
+          error: result.error?.message || "Unknown error"
+        };
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(
+        `CLI command error: ${command}`,
+        error instanceof Error ? error : void 0,
+        { durationMs: duration }
+      );
+      return {
+        command,
+        ensemble: ensemble.name,
+        success: false,
+        duration,
+        error: errorMessage
+      };
+    }
+  }
+  /**
+   * Parse and validate command options
+   */
+  parseOptions(definitions, provided) {
+    const result = {};
+    for (const def of definitions) {
+      const value = provided[def.name];
+      if (value === void 0) {
+        if (def.required) {
+          throw new Error(`Missing required option: --${def.name}`);
+        }
+        if (def.default !== void 0) {
+          result[def.name] = def.default;
+        }
+        continue;
+      }
+      switch (def.type) {
+        case "number":
+          const num = Number(value);
+          if (isNaN(num)) {
+            throw new Error(`Option --${def.name} must be a number`);
+          }
+          result[def.name] = num;
+          break;
+        case "boolean":
+          result[def.name] = value === true || value === "true" || value === "1" || value === "yes";
+          break;
+        default:
+          result[def.name] = String(value);
+      }
+    }
+    for (const [key, value] of Object.entries(provided)) {
+      if (!(key in result)) {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+  /**
+   * List all registered CLI commands
+   */
+  listCommands() {
+    const commands = [];
+    for (const [command, entry] of this.commands) {
+      commands.push({
+        command,
+        description: entry.trigger.description,
+        options: entry.trigger.options || [],
+        ensembleName: entry.ensemble.name
+      });
+    }
+    return commands.sort((a, b) => a.command.localeCompare(b.command));
+  }
+  /**
+   * Get count of registered commands
+   */
+  getCommandCount() {
+    return this.commands.size;
+  }
+  /**
+   * Clear all registered commands
+   */
+  clear() {
+    this.commands.clear();
+  }
+};
+var globalCLIManager = null;
+function getCLIManager() {
+  if (!globalCLIManager) {
+    globalCLIManager = new CLIManager();
+  }
+  return globalCLIManager;
+}
+
+// src/cli/commands/run.ts
+function createRunCommand() {
+  const run = new Command14("run").description("Run CLI-triggered ensembles").argument("[command]", "Command name to run").option("--list", "List all available CLI commands").option("-v, --verbose", "Show detailed output").option("--json", "Output result as JSON").allowUnknownOption(true).action(async (command, options, cmd) => {
+    try {
+      const loader = new LocalLoader();
+      const ensemblesDir = loader.getEnsemblesDir();
+      if (!await loader.directoryExists(ensemblesDir)) {
+        if (!options.json) {
+          console.log(chalk14.yellow(`No ensembles directory found at ${ensemblesDir}`));
+          console.log("");
+          console.log(chalk14.dim("Create ensembles with CLI triggers:"));
+          console.log(chalk14.dim("  mkdir -p catalog/ensembles"));
+          console.log(chalk14.dim("  # Add ensemble YAML files with CLI triggers"));
+          console.log("");
+        } else {
+          console.log(JSON.stringify({ error: "No ensembles directory found" }));
+        }
+        process.exit(1);
+      }
+      const ensembles = await loader.loadCLIEnsembles();
+      if (ensembles.length === 0) {
+        if (!options.json) {
+          console.log(chalk14.yellow("No ensembles with CLI triggers found."));
+          console.log("");
+          console.log(chalk14.dim("Add a CLI trigger to an ensemble:"));
+          console.log(chalk14.dim("  trigger:"));
+          console.log(chalk14.dim("    - type: cli"));
+          console.log(chalk14.dim("      command: my-command"));
+          console.log(chalk14.dim("      description: My custom command"));
+          console.log("");
+        } else {
+          console.log(JSON.stringify({ error: "No CLI triggers found" }));
+        }
+        return;
+      }
+      const cliManager = getCLIManager();
+      cliManager.registerAll(ensembles);
+      if (options.list || !command) {
+        const commands = cliManager.listCommands();
+        if (options.json) {
+          console.log(JSON.stringify({ commands }, null, 2));
+          return;
+        }
+        console.log("");
+        console.log(chalk14.bold("Available CLI commands:"));
+        console.log(chalk14.dim("\u2500".repeat(50)));
+        console.log("");
+        if (commands.length === 0) {
+          console.log(chalk14.dim("No CLI commands registered"));
+        } else {
+          for (const cmd2 of commands) {
+            console.log(`  ${chalk14.cyan(cmd2.command)}`);
+            if (cmd2.description) {
+              console.log(`    ${chalk14.dim(cmd2.description)}`);
+            }
+            console.log(chalk14.dim(`    \u2192 ensemble: ${cmd2.ensembleName}`));
+            if (cmd2.options.length > 0) {
+              console.log(chalk14.dim("    Options:"));
+              for (const opt of cmd2.options) {
+                const required = opt.required ? chalk14.red("*") : "";
+                const defaultVal = opt.default !== void 0 ? ` (default: ${opt.default})` : "";
+                console.log(
+                  chalk14.dim(`      --${opt.name}${required} [${opt.type || "string"}]${defaultVal}`)
+                );
+                if (opt.description) {
+                  console.log(chalk14.dim(`        ${opt.description}`));
+                }
+              }
+            }
+            console.log("");
+          }
+        }
+        console.log(chalk14.dim("Usage: conductor run <command> [options]"));
+        console.log("");
+        return;
+      }
+      if (!cliManager.hasCommand(command)) {
+        const available = cliManager.listCommands().map((c) => c.command);
+        if (options.json) {
+          console.log(
+            JSON.stringify({
+              error: `Command not found: ${command}`,
+              availableCommands: available
+            })
+          );
+        } else {
+          console.error(chalk14.red("Error:"), `Command not found: ${command}`);
+          console.log("");
+          if (available.length > 0) {
+            console.log(chalk14.dim("Available commands:"));
+            for (const cmd2 of available) {
+              console.log(chalk14.dim(`  \u2022 ${cmd2}`));
+            }
+          }
+          console.log("");
+        }
+        process.exit(1);
+      }
+      const rawArgs = cmd.args.slice(1);
+      const parsedOptions = parseCommandOptions(rawArgs);
+      const metadata = cliManager.getCommandMetadata(command);
+      if (options.verbose && !options.json) {
+        console.log("");
+        console.log(chalk14.bold(`Running: ${command}`));
+        console.log(chalk14.dim(`Ensemble: ${metadata?.ensembleName}`));
+        console.log(chalk14.dim(`Options: ${JSON.stringify(parsedOptions)}`));
+        console.log(chalk14.dim("\u2500".repeat(50)));
+        console.log("");
+      }
+      const env = createLocalEnv2();
+      const ctx = createLocalContext2();
+      const result = await cliManager.runCommand(command, parsedOptions, env, ctx);
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log("");
+        if (result.success) {
+          console.log(chalk14.green("\u2713"), chalk14.bold(`${result.command} completed`));
+          console.log(chalk14.dim(`  Duration: ${result.duration}ms`));
+          console.log(chalk14.dim(`  Ensemble: ${result.ensemble}`));
+          if (result.output !== void 0) {
+            console.log("");
+            console.log(chalk14.bold("Output:"));
+            console.log(JSON.stringify(result.output, null, 2));
+          }
+        } else {
+          console.log(chalk14.red("\u2717"), chalk14.bold(`${result.command} failed`));
+          console.log(chalk14.red(`  Error: ${result.error}`));
+          console.log(chalk14.dim(`  Duration: ${result.duration}ms`));
+          process.exit(1);
+        }
+        console.log("");
+      }
+      process.exit(result.success ? 0 : 1);
+    } catch (error) {
+      if (options.json) {
+        console.log(JSON.stringify({ error: error.message }));
+      } else {
+        console.error(chalk14.red("Error:"), error.message);
+      }
+      process.exit(1);
+    }
+  });
+  return run;
+}
+function parseCommandOptions(args) {
+  const options = {};
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg.startsWith("--")) {
+      const eqIndex = arg.indexOf("=");
+      if (eqIndex !== -1) {
+        const key = arg.slice(2, eqIndex);
+        const value = arg.slice(eqIndex + 1);
+        options[key] = parseValue2(value);
+      } else {
+        const key = arg.slice(2);
+        const nextArg = args[i + 1];
+        if (nextArg && !nextArg.startsWith("--")) {
+          options[key] = parseValue2(nextArg);
+          i++;
+        } else {
+          options[key] = true;
+        }
+      }
+    } else if (arg.startsWith("-") && arg.length === 2) {
+      const key = arg.slice(1);
+      const nextArg = args[i + 1];
+      if (nextArg && !nextArg.startsWith("-")) {
+        options[key] = parseValue2(nextArg);
+        i++;
+      } else {
+        options[key] = true;
+      }
+    }
+  }
+  return options;
+}
+function parseValue2(value) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  const num = Number(value);
+  if (!isNaN(num) && value.trim() !== "") return num;
+  return value;
+}
+function createLocalEnv2() {
+  return process.env;
+}
+function createLocalContext2() {
+  return {
+    waitUntil: (_promise) => {
+    },
+    passThroughOnException: () => {
+    }
+  };
+}
+
 // src/cli/index.ts
 var version = "0.4.5";
-var program = new Command13();
+var program = new Command15();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",
   `
-${chalk13.bold.cyan("Getting Started:")}
+${chalk15.bold.cyan("Getting Started:")}
 
-  ${chalk13.bold("Create new project:")}
-    ${chalk13.cyan("conductor init my-new-project")}
-    ${chalk13.dim("cd my-new-project")}
-    ${chalk13.dim("npm install")}
+  ${chalk15.bold("Create new project:")}
+    ${chalk15.cyan("conductor init my-new-project")}
+    ${chalk15.dim("cd my-new-project")}
+    ${chalk15.dim("npm install")}
 
-  ${chalk13.bold("Initialize existing project:")}
-    ${chalk13.cyan("conductor init .")}
-    ${chalk13.dim("npm install")}
+  ${chalk15.bold("Initialize existing project:")}
+    ${chalk15.cyan("conductor init .")}
+    ${chalk15.dim("npm install")}
 
-${chalk13.dim("Documentation:")} ${chalk13.cyan("https://docs.ensemble-edge.com/conductor")}
+${chalk15.dim("Documentation:")} ${chalk15.cyan("https://docs.ensemble-edge.com/conductor")}
 `
 );
 program.addCommand(createInitCommand());
@@ -11456,14 +27834,16 @@ program.addCommand(createReplayCommand());
 program.addCommand(createValidateCommand());
 program.addCommand(createBundleCommand());
 program.addCommand(createImportCommand());
-var keysCommand = new Command13("keys").description("Manage API keys for authentication").addHelpText(
+program.addCommand(createBuildCommand());
+program.addCommand(createRunCommand());
+var keysCommand = new Command15("keys").description("Manage API keys for authentication").addHelpText(
   "after",
   `
-${chalk13.bold("Examples:")}
-  ${chalk13.cyan('conductor keys generate --name "my-service" --permissions "ensemble:*:execute"')}
-  ${chalk13.cyan('conductor keys generate --name "admin" --permissions "*" --expires never')}
-  ${chalk13.cyan("conductor keys list")}
-  ${chalk13.cyan("conductor keys revoke key_abc123")}
+${chalk15.bold("Examples:")}
+  ${chalk15.cyan('conductor keys generate --name "my-service" --permissions "ensemble:*:execute"')}
+  ${chalk15.cyan('conductor keys generate --name "admin" --permissions "*" --expires never')}
+  ${chalk15.cyan("conductor keys list")}
+  ${chalk15.cyan("conductor keys revoke key_abc123")}
 `
 );
 keysCommand.command("generate").description("Generate a new API key").requiredOption("--name <name>", "Human-readable name for the key").option("--permissions <perms>", 'Comma-separated permissions (default: "*")').option("--expires <duration>", 'Expiration (e.g., "30d", "90d", "1y", "never")', "90d").option("--user-id <userId>", "User/service ID this key belongs to").option("--json", "Output as JSON").action(async (options) => {
@@ -11487,43 +27867,43 @@ program.command("health").description("Check API health").option("--api-url <url
     const apiUrl = options.apiUrl || process.env.CONDUCTOR_API_URL;
     if (!apiUrl) {
       console.error(
-        chalk13.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
+        chalk15.red("Error: API URL not configured. Set CONDUCTOR_API_URL or use --api-url")
       );
       process.exit(1);
     }
     const response = await fetch(`${apiUrl}/health`);
     const data = await response.json();
     console.log("");
-    console.log(chalk13.bold("API Health:"));
+    console.log(chalk15.bold("API Health:"));
     console.log("");
     console.log(
-      `Status: ${data.status === "healthy" ? chalk13.green(data.status) : chalk13.yellow(data.status)}`
+      `Status: ${data.status === "healthy" ? chalk15.green(data.status) : chalk15.yellow(data.status)}`
     );
     console.log(`Version: ${data.version}`);
     console.log("");
-    console.log(chalk13.bold("Checks:"));
+    console.log(chalk15.bold("Checks:"));
     Object.entries(data.checks).forEach(([key, value]) => {
-      const status = value ? chalk13.green("\u2713") : chalk13.red("\u2717");
+      const status = value ? chalk15.green("\u2713") : chalk15.red("\u2717");
       console.log(`  ${status} ${key}`);
     });
     console.log("");
   } catch (error) {
-    console.error(chalk13.red("Error:"), error.message);
+    console.error(chalk15.red("Error:"), error.message);
     process.exit(1);
   }
 });
 program.command("config").description("Show current configuration").action(() => {
   console.log("");
-  console.log(chalk13.bold("Configuration:"));
+  console.log(chalk15.bold("Configuration:"));
   console.log("");
-  console.log(`API URL: ${process.env.CONDUCTOR_API_URL || chalk13.dim("not set")}`);
+  console.log(`API URL: ${process.env.CONDUCTOR_API_URL || chalk15.dim("not set")}`);
   console.log(
-    `API Key: ${process.env.CONDUCTOR_API_KEY ? chalk13.green("set") : chalk13.dim("not set")}`
+    `API Key: ${process.env.CONDUCTOR_API_KEY ? chalk15.green("set") : chalk15.dim("not set")}`
   );
   console.log("");
-  console.log(chalk13.dim("Set via environment variables:"));
-  console.log(chalk13.dim("  export CONDUCTOR_API_URL=https://api.conductor.dev"));
-  console.log(chalk13.dim("  export CONDUCTOR_API_KEY=your-api-key"));
+  console.log(chalk15.dim("Set via environment variables:"));
+  console.log(chalk15.dim("  export CONDUCTOR_API_URL=https://api.conductor.dev"));
+  console.log(chalk15.dim("  export CONDUCTOR_API_KEY=your-api-key"));
   console.log("");
 });
 program.parse(process.argv);

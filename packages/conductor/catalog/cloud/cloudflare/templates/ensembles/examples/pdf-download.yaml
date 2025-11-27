@@ -6,6 +6,13 @@ description: |
   - Download headers (Content-Disposition: attachment)
   - Binary response handling
   - Custom filename for downloads
+  - Conditional outputs with custom headers
+
+trigger:
+  - type: http
+    path: /reports/pdf/:reportId
+    methods: [GET]
+    public: true
 
 flow:
   # Step 1: Fetch data for the report
@@ -19,7 +26,7 @@ flow:
         SELECT * FROM reports
         WHERE id = ?
       params:
-        - $input.reportId
+        - ${input.reportId}
     output: reportData
 
   # Step 2: Generate PDF from the data
@@ -149,13 +156,13 @@ flow:
         </body>
         </html>
       data:
-        title: $input.title
-        reportId: $input.reportId
-        generatedAt: $now
-        period: $input.period
-        summary: $fetch-report-data.summary
-        columns: $input.columns
-        rows: $fetch-report-data.items
+        title: ${input.title}
+        reportId: ${input.reportId}
+        generatedAt: ${now}
+        period: ${input.period}
+        summary: ${fetch-report-data.summary}
+        columns: ${input.columns}
+        rows: ${fetch-report-data.items}
         year: ${new Date().getFullYear()}
       pdfOptions:
         format: "A4"
@@ -165,17 +172,30 @@ flow:
           bottom: "20mm"
           left: "15mm"
           right: "15mm"
-      filename: ${`report-${$input.reportId}-${Date.now()}.pdf`}
+      filename: ${`report-${input.reportId}-${Date.now()}.pdf`}
       disposition: "attachment"  # Forces download instead of inline display
 
 output:
-  # Return the PDF with download headers
-  pdf: $generate-report-pdf.pdf
-  contentDisposition: $generate-report-pdf.contentDisposition
-  filename: $generate-report-pdf.filename
-  size: $generate-report-pdf.size
-  url: $generate-report-pdf.url  # R2 URL if storage enabled
-  r2Key: $generate-report-pdf.r2Key
+  # Success: Return PDF with download headers
+  - when: ${generate-report-pdf.success}
+    status: 200
+    headers:
+      Content-Type: application/pdf
+      Content-Disposition: ${generate-report-pdf.contentDisposition}
+    rawBody: ${generate-report-pdf.pdf}
+
+  # Not found - report doesn't exist
+  - when: ${fetch-report-data.output.error === 'not_found'}
+    status: 404
+    body:
+      error: "Report not found"
+      reportId: ${input.reportId}
+
+  # Error fallback
+  - status: 500
+    body:
+      error: "PDF generation failed"
+      message: ${generate-report-pdf.output.error}
 
 # Input schema
 schema:

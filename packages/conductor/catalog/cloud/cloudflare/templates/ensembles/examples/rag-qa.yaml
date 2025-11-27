@@ -23,9 +23,26 @@ flow:
       topK: 5
 
 output:
-  # AutoRAG returns ready-to-use answer
-  answer: ${docs-search.output.answer}
-  sources: ${docs-search.output.sources}
-  confidence: ${docs-search.output.sources[0].score}
-  metadata:
-    query: ${docs-search.output.query}
+  # Success case - found relevant documents
+  - when: ${docs-search.output.sources && docs-search.output.sources.length > 0}
+    status: 200
+    body:
+      answer: ${docs-search.output.answer}
+      sources: ${docs-search.output.sources}
+      confidence: ${docs-search.output.sources[0].score}
+      metadata:
+        query: ${docs-search.output.query}
+
+  # Not found - no relevant documents
+  - when: ${docs-search.output.sources.length === 0}
+    status: 404
+    body:
+      error: "No relevant documents found"
+      query: ${input.question}
+      suggestion: "Try rephrasing your question or check the document index"
+
+  # Error fallback
+  - status: 500
+    body:
+      error: "Search failed"
+      message: ${docs-search.output.error}

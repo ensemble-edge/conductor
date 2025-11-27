@@ -124,7 +124,16 @@ export interface RateLimitResult {
 }
 /**
  * Extended Hono Context
- * Note: This is a simplified version. In production, properly extend Hono's Context type.
+ *
+ * Extends Hono's Context with Conductor-specific variables:
+ * - auth: Authentication context from auth middleware
+ * - requestId: Unique request identifier for tracing
+ * - startTime: Request start timestamp for duration tracking
+ * - stealthMode: Whether stealth mode is enabled (auth failures return 404)
+ * - stealthDelayMs: Minimum delay for stealth responses (timing attack protection)
+ * - cacheHit: Whether response was served from cache
+ * - ensembleName: Name of the ensemble being executed
+ * - executedAgents: List of agents executed in this request
  */
 export type ConductorContext = Context<{
     Bindings: Env;
@@ -132,6 +141,11 @@ export type ConductorContext = Context<{
         auth?: AuthContext;
         requestId?: string;
         startTime?: number;
+        stealthMode?: boolean;
+        stealthDelayMs?: number;
+        cacheHit?: boolean;
+        ensembleName?: string;
+        executedAgents?: string[];
     };
 }>;
 //# sourceMappingURL=types.d.ts.map

@@ -1,6 +1,12 @@
 name: user-registration
 description: Multi-step user registration form with validation, CAPTCHA, and welcome email
 
+trigger:
+  - type: http
+    path: /register
+    methods: [GET, POST]
+    public: true
+
 agents:
   # Multi-step registration form
   - name: registration-form
@@ -191,8 +197,8 @@ agents:
     config:
       script: scripts/examples/auth/check-username
     input:
-      username: $registration-form.data.username
-    condition: $registration-form.valid
+      username: ${registration-form.data.username}
+    condition: ${registration-form.valid}
 
   # Create user account (simulated)
   - name: create-account
@@ -200,14 +206,14 @@ agents:
     config:
       script: scripts/examples/auth/create-account
     input:
-      username: $registration-form.data.username
-      email: $registration-form.data.email
-      password: $registration-form.data.password
-      firstName: $registration-form.data.firstName
-      lastName: $registration-form.data.lastName
-      dateOfBirth: $registration-form.data.dateOfBirth
-      country: $registration-form.data.country
-    condition: $registration-form.valid && $check-username.available
+      username: ${registration-form.data.username}
+      email: ${registration-form.data.email}
+      password: ${registration-form.data.password}
+      firstName: ${registration-form.data.firstName}
+      lastName: ${registration-form.data.lastName}
+      dateOfBirth: ${registration-form.data.dateOfBirth}
+      country: ${registration-form.data.country}
+    condition: ${registration-form.valid && check-username.available}
 
   # Send welcome email
   - name: send-welcome-email
@@ -217,8 +223,8 @@ agents:
         email: welcome@example.com
         name: Example Company
       to:
-        - email: $registration-form.data.email
-          name: "$registration-form.data.firstName $registration-form.data.lastName"
+        - email: ${registration-form.data.email}
+          name: "${registration-form.data.firstName} ${registration-form.data.lastName}"
       subject: "Welcome to Example Company, {{firstName}}!"
       template: |
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -263,11 +269,11 @@ agents:
           </p>
         </div>
     input:
-      firstName: $registration-form.data.firstName
-      username: $registration-form.data.username
-      email: $registration-form.data.email
-      verificationToken: $create-account.verificationToken
-    condition: $create-account.created
+      firstName: ${registration-form.data.firstName}
+      username: ${registration-form.data.username}
+      email: ${registration-form.data.email}
+      verificationToken: ${create-account.verificationToken}
+    condition: ${create-account.created}
 
   # Send admin notification
   - name: notify-admin
@@ -296,24 +302,24 @@ agents:
           <li>How they heard about us: {{howDidYouHear}}</li>
         </ul>
     input:
-      username: $registration-form.data.username
-      email: $registration-form.data.email
-      firstName: $registration-form.data.firstName
-      lastName: $registration-form.data.lastName
-      country: $registration-form.data.country
-      userId: $create-account.userId
-      notifications: $registration-form.data.notifications
-      newsletter: $registration-form.data.newsletter
-      howDidYouHear: $registration-form.data.howDidYouHear
-    condition: $create-account.created
+      username: ${registration-form.data.username}
+      email: ${registration-form.data.email}
+      firstName: ${registration-form.data.firstName}
+      lastName: ${registration-form.data.lastName}
+      country: ${registration-form.data.country}
+      userId: ${create-account.userId}
+      notifications: ${registration-form.data.notifications}
+      newsletter: ${registration-form.data.newsletter}
+      howDidYouHear: ${registration-form.data.howDidYouHear}
+    condition: ${create-account.created}
 
 output:
-  formHtml: $registration-form.html
-  currentStep: $registration-form.currentStep
-  nextStep: $registration-form.nextStep
-  isLastStep: $registration-form.isLastStep
-  valid: $registration-form.valid
-  errors: $registration-form.errors
-  accountCreated: $create-account.created
-  userId: $create-account.userId
-  welcomeEmailSent: $send-welcome-email.success
+  formHtml: ${registration-form.html}
+  currentStep: ${registration-form.currentStep}
+  nextStep: ${registration-form.nextStep}
+  isLastStep: ${registration-form.isLastStep}
+  valid: ${registration-form.valid}
+  errors: ${registration-form.errors}
+  accountCreated: ${create-account.created}
+  userId: ${create-account.userId}
+  welcomeEmailSent: ${send-welcome-email.success}
