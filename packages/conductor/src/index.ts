@@ -88,7 +88,20 @@ export type {
   ExposeConfig,
   NotificationConfig,
   ScheduleConfig,
+  BuildTriggerConfig,
+  CLITriggerConfig,
 } from './runtime/parser.js'
+
+// Build and CLI Managers
+export { BuildManager, getBuildManager, resetBuildManager } from './runtime/build-manager.js'
+export type { BuildExecutionResult } from './runtime/build-manager.js'
+
+export { CLIManager, getCLIManager, resetCLIManager } from './runtime/cli-manager.js'
+export type {
+  CLICommandMetadata,
+  CLIExecutionResult,
+  CLIOption,
+} from './runtime/cli-manager.js'
 
 export type {
   StateConfig,

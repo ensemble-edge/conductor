@@ -438,16 +438,43 @@ const EnsembleSchema = z.object({
             .optional(),
           templateEngine: z.enum(['handlebars', 'liquid', 'simple']).optional(),
         }),
+        // Build trigger - run at build/deploy time
+        z.object({
+          type: z.literal('build'),
+          enabled: z.boolean().optional(),
+          output: z.string().optional(), // Output directory (e.g., './dist/docs')
+          input: z.record(z.unknown()).optional(), // Static input for build
+          metadata: z.record(z.unknown()).optional(),
+        }),
+        // CLI trigger - run from command line
+        z.object({
+          type: z.literal('cli'),
+          command: z.string().min(1), // Command name (e.g., 'docs-generate')
+          description: z.string().optional(), // Description for help text
+          options: z
+            .array(
+              z.object({
+                name: z.string().min(1),
+                type: z.enum(['string', 'number', 'boolean']).optional(),
+                default: z.union([z.string(), z.number(), z.boolean()]).optional(),
+                description: z.string().optional(),
+                required: z.boolean().optional(),
+              })
+            )
+            .optional(),
+          enabled: z.boolean().optional(),
+        }),
       ])
     )
     .optional()
     .refine(
       (trigger) => {
         // Validate that all trigger entries have either auth or public: true
-        // (except queue and cron which are internally triggered)
+        // (except queue, cron, build, cli which are internally triggered)
         if (!trigger) return true
         return trigger.every((t) => {
-          if (t.type === 'queue' || t.type === 'cron') return true
+          if (t.type === 'queue' || t.type === 'cron' || t.type === 'build' || t.type === 'cli')
+            return true
           return t.auth || t.public === true
         })
       },
@@ -661,6 +688,8 @@ export type MCPTriggerConfig = Extract<TriggerConfig, { type: 'mcp' }>
 export type EmailTriggerConfig = Extract<TriggerConfig, { type: 'email' }>
 export type QueueTriggerConfig = Extract<TriggerConfig, { type: 'queue' }>
 export type CronTriggerConfig = Extract<TriggerConfig, { type: 'cron' }>
+export type BuildTriggerConfig = Extract<TriggerConfig, { type: 'build' }>
+export type CLITriggerConfig = Extract<TriggerConfig, { type: 'cli' }>
 
 export class Parser {
   private static interpolator = getInterpolator()

@@ -52,6 +52,22 @@ export class CatalogLoader {
   }
 
   /**
+   * Load all ensembles with build triggers from available storage
+   */
+  static async loadBuildEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]> {
+    const allEnsembles = await this.loadAllEnsembles(env)
+    return allEnsembles.filter((e) => e.trigger?.some((t) => t.type === 'build'))
+  }
+
+  /**
+   * Load all ensembles with CLI triggers from available storage
+   */
+  static async loadCLIEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]> {
+    const allEnsembles = await this.loadAllEnsembles(env)
+    return allEnsembles.filter((e) => e.trigger?.some((t) => t.type === 'cli'))
+  }
+
+  /**
    * Load all ensembles from storage (scheduled and non-scheduled)
    */
   static async loadAllEnsembles(env: ConductorEnv): Promise<EnsembleConfig[]> {
