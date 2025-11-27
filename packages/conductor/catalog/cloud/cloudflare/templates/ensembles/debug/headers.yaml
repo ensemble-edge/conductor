@@ -1,0 +1,60 @@
+# Debug Headers Endpoint
+#
+# Returns all request headers, categorized by type.
+# Useful for debugging:
+# - CORS configuration
+# - Auth header propagation
+# - CDN/proxy header injection (CF-Ray, X-Forwarded-For, etc.)
+
+name: debug-headers
+version: 1.0.0
+description: Inspect and categorize request headers
+
+trigger:
+  - type: http
+    path: /debug/headers
+    methods: [GET]
+    public: true
+
+agents:
+  - name: extract-headers
+    operation: code
+    config:
+      inline: |
+        export default async function(input) {
+          const cf = {}
+          const auth = {}
+          const standard = {}
+          const custom = {}
+
+          for (const [key, value] of Object.entries(input.headers || {})) {
+            const lk = key.toLowerCase()
+            if (lk.startsWith('cf-')) {
+              cf[key] = value
+            } else if (lk === 'authorization' || lk.startsWith('x-api')) {
+              auth[key] = '[REDACTED]'
+            } else if (['host', 'user-agent', 'accept', 'content-type', 'accept-encoding'].includes(lk)) {
+              standard[key] = value
+            } else {
+              custom[key] = value
+            }
+          }
+
+          return {
+            cloudflare: cf,
+            auth,
+            standard,
+            custom,
+            total: Object.keys(input.headers || {}).length
+          }
+        }
+
+flow:
+  - agent: extract-headers
+    input:
+      headers: ${{ trigger.headers }}
+
+output:
+  status: 200
+  body:
+    headers: ${{ agents.extract-headers.output }}
