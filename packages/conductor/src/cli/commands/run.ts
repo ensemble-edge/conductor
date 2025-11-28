@@ -116,7 +116,9 @@ export function createRunCommand(): Command {
                   const required = opt.required ? chalk.red('*') : ''
                   const defaultVal = opt.default !== undefined ? ` (default: ${opt.default})` : ''
                   console.log(
-                    chalk.dim(`      --${opt.name}${required} [${opt.type || 'string'}]${defaultVal}`)
+                    chalk.dim(
+                      `      --${opt.name}${required} [${opt.type || 'string'}]${defaultVal}`
+                    )
                   )
                   if (opt.description) {
                     console.log(chalk.dim(`        ${opt.description}`))

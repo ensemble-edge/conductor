@@ -37,4 +37,9 @@ export type { Template } from './templates.js'
 
 // Discovery registries for agents and ensembles
 export { createAgentRegistry, createEnsembleRegistry } from './discovery.js'
-export type { AgentRegistry, EnsembleRegistry, AgentMetadata, EnsembleMetadata } from './discovery.js'
+export type {
+  AgentRegistry,
+  EnsembleRegistry,
+  AgentMetadata,
+  EnsembleMetadata,
+} from './discovery.js'

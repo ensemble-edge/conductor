@@ -84,8 +84,7 @@ export function debugHeaders(config?: DebugHeadersConfig): MiddlewareHandler {
     // Determine if debug headers should be added
     // Cast env to check for ENVIRONMENT/NODE_ENV vars
     const envAny = c.env as unknown as Record<string, unknown> | undefined
-    const isProduction =
-      envAny?.ENVIRONMENT === 'production' || envAny?.NODE_ENV === 'production'
+    const isProduction = envAny?.ENVIRONMENT === 'production' || envAny?.NODE_ENV === 'production'
     const enabled = config?.enabled ?? !isProduction
 
     if (!enabled) return
