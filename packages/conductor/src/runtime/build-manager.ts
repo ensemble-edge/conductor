@@ -95,9 +95,8 @@ export class BuildManager {
 
     for (const ensemble of ensemblesToRun) {
       // Get build trigger(s) for this ensemble
-      const buildTriggers = ensemble.trigger?.filter(
-        (t): t is BuildTriggerConfig => t.type === 'build'
-      ) || []
+      const buildTriggers =
+        ensemble.trigger?.filter((t): t is BuildTriggerConfig => t.type === 'build') || []
 
       for (const trigger of buildTriggers) {
         // Skip disabled triggers
@@ -208,9 +207,8 @@ export class BuildManager {
     const buildEnsembles: Array<{ ensembleName: string; triggers: BuildTriggerConfig[] }> = []
 
     for (const ensemble of this.ensembles.values()) {
-      const buildTriggers = ensemble.trigger?.filter(
-        (t): t is BuildTriggerConfig => t.type === 'build'
-      ) || []
+      const buildTriggers =
+        ensemble.trigger?.filter((t): t is BuildTriggerConfig => t.type === 'build') || []
 
       if (buildTriggers.length > 0) {
         buildEnsembles.push({

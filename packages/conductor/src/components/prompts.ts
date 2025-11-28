@@ -245,8 +245,11 @@ function renderLightweightHandlebars(template: string, context: Record<string, a
     /\{\{#if\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/g,
     (_, path, ifContent, elseContent = '') => {
       const value = getValue(path, context)
-      const isTruthy = value !== false && value !== null && value !== undefined && value !== '' && value !== 0
-      return isTruthy ? renderLightweightHandlebars(ifContent, context) : renderLightweightHandlebars(elseContent, context)
+      const isTruthy =
+        value !== false && value !== null && value !== undefined && value !== '' && value !== 0
+      return isTruthy
+        ? renderLightweightHandlebars(ifContent, context)
+        : renderLightweightHandlebars(elseContent, context)
     }
   )
 
@@ -255,7 +258,8 @@ function renderLightweightHandlebars(template: string, context: Record<string, a
     /\{\{#unless\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)\{\{\/unless\}\}/g,
     (_, path, content) => {
       const value = getValue(path, context)
-      const isTruthy = value !== false && value !== null && value !== undefined && value !== '' && value !== 0
+      const isTruthy =
+        value !== false && value !== null && value !== undefined && value !== '' && value !== 0
       return isTruthy ? '' : renderLightweightHandlebars(content, context)
     }
   )

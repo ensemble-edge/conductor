@@ -66,9 +66,8 @@ export class CLIManager {
    * Register ensemble with CLI triggers
    */
   register(ensemble: EnsembleConfig): void {
-    const cliTriggers = ensemble.trigger?.filter(
-      (t): t is CLITriggerConfig => t.type === 'cli'
-    ) || []
+    const cliTriggers =
+      ensemble.trigger?.filter((t): t is CLITriggerConfig => t.type === 'cli') || []
 
     for (const trigger of cliTriggers) {
       if (trigger.enabled === false) continue
@@ -241,8 +240,7 @@ export class CLIManager {
           result[def.name] = num
           break
         case 'boolean':
-          result[def.name] =
-            value === true || value === 'true' || value === '1' || value === 'yes'
+          result[def.name] = value === true || value === 'true' || value === '1' || value === 'yes'
           break
         default:
           result[def.name] = String(value)

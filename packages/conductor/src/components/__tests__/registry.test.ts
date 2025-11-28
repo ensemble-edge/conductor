@@ -5,11 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-  ComponentRegistry,
-  createComponentRegistry,
-  parseNameWithVersion,
-} from '../registry.js'
+import { ComponentRegistry, createComponentRegistry, parseNameWithVersion } from '../registry.js'
 import { validateJsonSchema, type JSONSchema } from '../schemas.js'
 import { renderHandlebars } from '../prompts.js'
 

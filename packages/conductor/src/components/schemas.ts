@@ -186,7 +186,11 @@ export class SchemaRegistry {
  * Optimized for Cloudflare Workers - no external dependencies.
  * Supports most JSON Schema Draft 7 features.
  */
-export function validateJsonSchema(schema: JSONSchema | boolean, data: any, path: string = ''): ValidationResult {
+export function validateJsonSchema(
+  schema: JSONSchema | boolean,
+  data: any,
+  path: string = ''
+): ValidationResult {
   const errors: ValidationError[] = []
 
   // Helper to add error
@@ -240,10 +244,20 @@ export function validateJsonSchema(schema: JSONSchema | boolean, data: any, path
   // String validations
   if (typeof data === 'string') {
     if (schema.minLength !== undefined && data.length < schema.minLength) {
-      addError('minLength', `String must be at least ${schema.minLength} characters`, schema.minLength, data.length)
+      addError(
+        'minLength',
+        `String must be at least ${schema.minLength} characters`,
+        schema.minLength,
+        data.length
+      )
     }
     if (schema.maxLength !== undefined && data.length > schema.maxLength) {
-      addError('maxLength', `String must be at most ${schema.maxLength} characters`, schema.maxLength, data.length)
+      addError(
+        'maxLength',
+        `String must be at most ${schema.maxLength} characters`,
+        schema.maxLength,
+        data.length
+      )
     }
     if (schema.pattern !== undefined) {
       const regex = new RegExp(schema.pattern)
@@ -269,25 +283,53 @@ export function validateJsonSchema(schema: JSONSchema | boolean, data: any, path
       addError('maximum', `Number must be <= ${schema.maximum}`, schema.maximum, data)
     }
     if (schema.exclusiveMinimum !== undefined && data <= schema.exclusiveMinimum) {
-      addError('exclusiveMinimum', `Number must be > ${schema.exclusiveMinimum}`, schema.exclusiveMinimum, data)
+      addError(
+        'exclusiveMinimum',
+        `Number must be > ${schema.exclusiveMinimum}`,
+        schema.exclusiveMinimum,
+        data
+      )
     }
     if (schema.exclusiveMaximum !== undefined && data >= schema.exclusiveMaximum) {
-      addError('exclusiveMaximum', `Number must be < ${schema.exclusiveMaximum}`, schema.exclusiveMaximum, data)
+      addError(
+        'exclusiveMaximum',
+        `Number must be < ${schema.exclusiveMaximum}`,
+        schema.exclusiveMaximum,
+        data
+      )
     }
     if (schema.multipleOf !== undefined && data % schema.multipleOf !== 0) {
-      addError('multipleOf', `Number must be a multiple of ${schema.multipleOf}`, schema.multipleOf, data)
+      addError(
+        'multipleOf',
+        `Number must be a multiple of ${schema.multipleOf}`,
+        schema.multipleOf,
+        data
+      )
     }
   }
 
   // Array validations
   if (Array.isArray(data)) {
     if (schema.minItems !== undefined && data.length < schema.minItems) {
-      addError('minItems', `Array must have at least ${schema.minItems} items`, schema.minItems, data.length)
+      addError(
+        'minItems',
+        `Array must have at least ${schema.minItems} items`,
+        schema.minItems,
+        data.length
+      )
     }
     if (schema.maxItems !== undefined && data.length > schema.maxItems) {
-      addError('maxItems', `Array must have at most ${schema.maxItems} items`, schema.maxItems, data.length)
+      addError(
+        'maxItems',
+        `Array must have at most ${schema.maxItems} items`,
+        schema.maxItems,
+        data.length
+      )
     }
-    if (schema.uniqueItems && new Set(data.map((item: any) => JSON.stringify(item))).size !== data.length) {
+    if (
+      schema.uniqueItems &&
+      new Set(data.map((item: any) => JSON.stringify(item))).size !== data.length
+    ) {
       addError('uniqueItems', 'Array items must be unique')
     }
 
@@ -316,10 +358,20 @@ export function validateJsonSchema(schema: JSONSchema | boolean, data: any, path
     const dataKeys = Object.keys(data)
 
     if (schema.minProperties !== undefined && dataKeys.length < schema.minProperties) {
-      addError('minProperties', `Object must have at least ${schema.minProperties} properties`, schema.minProperties, dataKeys.length)
+      addError(
+        'minProperties',
+        `Object must have at least ${schema.minProperties} properties`,
+        schema.minProperties,
+        dataKeys.length
+      )
     }
     if (schema.maxProperties !== undefined && dataKeys.length > schema.maxProperties) {
-      addError('maxProperties', `Object must have at most ${schema.maxProperties} properties`, schema.maxProperties, dataKeys.length)
+      addError(
+        'maxProperties',
+        `Object must have at most ${schema.maxProperties} properties`,
+        schema.maxProperties,
+        dataKeys.length
+      )
     }
 
     // Required properties
@@ -351,7 +403,7 @@ export function validateJsonSchema(schema: JSONSchema | boolean, data: any, path
       const allowedKeys = Object.keys(schema.properties || {})
       const patternKeys = Object.keys(schema.patternProperties || {})
       for (const key of dataKeys) {
-        if (!allowedKeys.includes(key) && !patternKeys.some(p => new RegExp(p).test(key))) {
+        if (!allowedKeys.includes(key) && !patternKeys.some((p) => new RegExp(p).test(key))) {
           addError('additionalProperties', `Additional property not allowed: ${key}`, false, key)
         }
       }
@@ -374,7 +426,9 @@ export function validateJsonSchema(schema: JSONSchema | boolean, data: any, path
   }
 
   if (schema.oneOf) {
-    const matchCount = schema.oneOf.filter((s: JSONSchema) => validateJsonSchema(s, data, path).valid).length
+    const matchCount = schema.oneOf.filter(
+      (s: JSONSchema) => validateJsonSchema(s, data, path).valid
+    ).length
     if (matchCount !== 1) {
       addError('oneOf', `Data must match exactly one schema in oneOf (matched ${matchCount})`)
     }
@@ -432,7 +486,7 @@ function deepEqual(a: any, b: any): boolean {
   const keysB = Object.keys(b)
   if (keysA.length !== keysB.length) return false
 
-  return keysA.every(key => key in b && deepEqual(a[key], b[key]))
+  return keysA.every((key) => key in b && deepEqual(a[key], b[key]))
 }
 
 /**
@@ -475,15 +529,19 @@ function validateFormat(value: string, format: string): string | null {
       }
       break
     case 'ipv4':
-      if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(value) ||
-          value.split('.').some(n => parseInt(n) > 255)) {
+      if (
+        !/^(\d{1,3}\.){3}\d{1,3}$/.test(value) ||
+        value.split('.').some((n) => parseInt(n) > 255)
+      ) {
         return 'Invalid IPv4 address'
       }
       break
     case 'ipv6':
       // Simplified IPv6 check
-      if (!/^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/.test(value) &&
-          !/^([0-9a-fA-F]{1,4}:)*:([0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/.test(value)) {
+      if (
+        !/^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/.test(value) &&
+        !/^([0-9a-fA-F]{1,4}:)*:([0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}$/.test(value)
+      ) {
         return 'Invalid IPv6 address'
       }
       break

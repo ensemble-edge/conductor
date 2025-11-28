@@ -604,7 +604,8 @@ function applyHttpCacheHeaders(c: any, trigger: any): void {
     if (hc.noCache) directives.push('no-cache')
     if (hc.noStore) directives.push('no-store')
     if (hc.maxAge !== undefined) directives.push(`max-age=${hc.maxAge}`)
-    if (hc.staleWhileRevalidate) directives.push(`stale-while-revalidate=${hc.staleWhileRevalidate}`)
+    if (hc.staleWhileRevalidate)
+      directives.push(`stale-while-revalidate=${hc.staleWhileRevalidate}`)
     if (hc.staleIfError) directives.push(`stale-if-error=${hc.staleIfError}`)
     if (hc.custom) directives.push(hc.custom)
 
@@ -615,7 +616,9 @@ function applyHttpCacheHeaders(c: any, trigger: any): void {
     // Merge Vary headers (trigger config + any added by auth middleware)
     if (hc.vary?.length) {
       const existingVary = c.res?.headers?.get('Vary')
-      const varySet = new Set(existingVary ? existingVary.split(',').map((v: string) => v.trim()) : [])
+      const varySet = new Set(
+        existingVary ? existingVary.split(',').map((v: string) => v.trim()) : []
+      )
       hc.vary.forEach((v: string) => varySet.add(v))
       c.header('Vary', Array.from(varySet).join(', '))
     }

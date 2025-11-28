@@ -97,11 +97,7 @@ export { BuildManager, getBuildManager, resetBuildManager } from './runtime/buil
 export type { BuildExecutionResult } from './runtime/build-manager.js'
 
 export { CLIManager, getCLIManager, resetCLIManager } from './runtime/cli-manager.js'
-export type {
-  CLICommandMetadata,
-  CLIExecutionResult,
-  CLIOption,
-} from './runtime/cli-manager.js'
+export type { CLICommandMetadata, CLIExecutionResult, CLIOption } from './runtime/cli-manager.js'
 
 export type {
   StateConfig,

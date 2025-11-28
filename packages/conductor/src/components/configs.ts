@@ -138,10 +138,7 @@ export class ConfigRegistry {
    * })
    * ```
    */
-  async merge<T = Record<string, any>>(
-    nameOrRef: string,
-    overrides: Partial<T>
-  ): Promise<T> {
+  async merge<T = Record<string, any>>(nameOrRef: string, overrides: Partial<T>): Promise<T> {
     const base = await this.get<T>(nameOrRef)
     return deepMerge(base as Record<string, any>, overrides as Record<string, any>) as T
   }
@@ -191,10 +188,10 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
       !Array.isArray(targetValue)
     ) {
       // Recursively merge objects
-      (result as any)[key] = deepMerge(targetValue, sourceValue)
+      ;(result as any)[key] = deepMerge(targetValue, sourceValue)
     } else if (sourceValue !== undefined) {
       // Override with source value
-      (result as any)[key] = sourceValue
+      ;(result as any)[key] = sourceValue
     }
   }
 
