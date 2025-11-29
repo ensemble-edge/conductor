@@ -13,6 +13,7 @@
  * @see https://developers.cloudflare.com/kv
  */
 import type { AuthValidator, AuthValidationResult, SessionData } from '../types.js';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Cookie session configuration
  */
@@ -51,7 +52,7 @@ export declare class CookieValidator implements AuthValidator {
     /**
      * Validate cookie session
      */
-    validate(request: Request, env: any): Promise<AuthValidationResult>;
+    validate(request: Request, env: ConductorEnv): Promise<AuthValidationResult>;
     /**
      * Create session cookie header
      */
@@ -73,5 +74,5 @@ export declare class CookieValidator implements AuthValidator {
 /**
  * Create Cookie validator from environment
  */
-export declare function createCookieValidator(env: any): CookieValidator | null;
+export declare function createCookieValidator(env: ConductorEnv): CookieValidator | null;
 //# sourceMappingURL=cookie.d.ts.map

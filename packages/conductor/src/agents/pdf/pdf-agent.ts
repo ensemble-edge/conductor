@@ -93,14 +93,16 @@ export class PdfMember extends BaseAgent {
       htmlSize = html.length
     } else if (htmlSource?.fromMember) {
       // Get HTML from previous agent output
-      const memberOutput = context.previousOutputs?.[htmlSource.fromMember] as any
-      if (!memberOutput?.output?.html) {
+      const memberOutput = context.previousOutputs?.[htmlSource.fromMember]
+      // Type guard for HTML output structure
+      const output = memberOutput?.output as { html?: string } | undefined
+      if (!output?.html) {
         throw new Error(
           `Agent "${htmlSource.fromMember}" did not produce HTML output. ` +
             `Make sure it's an HTML agent and executed before this PDF agent.`
         )
       }
-      html = memberOutput.output.html
+      html = output.html
       htmlSize = html.length
     } else if (htmlSource?.template) {
       // Render HTML from template
@@ -119,6 +121,7 @@ export class PdfMember extends BaseAgent {
       }
 
       const htmlMember = new HtmlMember(htmlMemberConfig)
+      // Create child context (security features injected by BaseAgent.execute)
       const htmlContext: AgentExecutionContext = {
         input: { data: htmlSource.data || {} },
         env: context.env,
@@ -132,7 +135,12 @@ export class PdfMember extends BaseAgent {
         throw new Error(`HTML rendering failed: ${htmlResponse.error}`)
       }
 
-      html = (htmlResponse.data as any).html
+      // Type-safe access to HTML output
+      const htmlData = htmlResponse.data as { html?: string }
+      if (!htmlData.html) {
+        throw new Error('HTML rendering succeeded but no HTML content was produced')
+      }
+      html = htmlData.html
       htmlSize = html.length
     } else {
       throw new Error(
@@ -143,7 +151,7 @@ export class PdfMember extends BaseAgent {
     // Render header/footer templates if they contain variables
     const renderedHeaderFooter = await this.renderHeaderFooter(headerFooter)
 
-    // Generate PDF
+    // Generate PDF - pass env with BROWSER binding if available
     const pdfResult = await generatePdf(
       {
         html,
@@ -151,7 +159,7 @@ export class PdfMember extends BaseAgent {
         headerFooter: renderedHeaderFooter,
         metadata,
       },
-      context.env as any
+      { BROWSER: (context.env as Record<string, unknown>).BROWSER }
     )
 
     // Store to R2 if configured

@@ -63,8 +63,8 @@ export class FunctionAgent extends BaseAgent {
      * Supports test-style handlers: (input, context?) => result
      */
     static fromConfig(config) {
-        // Check if config has an inline handler function
-        const handler = config.config?.handler;
+        const agentConfig = config.config;
+        const handler = agentConfig?.handler;
         if (typeof handler === 'function') {
             // Wrap the handler to match FunctionImplementation signature
             const implementation = async (context) => {

@@ -319,7 +319,7 @@ export function storageStep(
     key?: string
     value?: unknown
     prefix?: string
-  } = {} as any
+  } = { binding: '' }
 ): AgentFlowStep {
   const { binding, type, key, value, prefix, ...stepOptions } = options
 
@@ -362,7 +362,7 @@ export function dataStep(
     binding: string
     type?: 'd1' | 'hyperdrive' | 'vectorize'
     params?: unknown[]
-  } = {} as any
+  } = { binding: '' }
 ): AgentFlowStep {
   const { binding, type, params, ...stepOptions } = options
 

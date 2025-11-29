@@ -149,6 +149,7 @@ export interface ParsedCookie {
 
 /**
  * Template rendering context
+ * Index signature allows flexible template data binding
  */
 export interface TemplateContext {
   /** Template data */
@@ -157,6 +158,8 @@ export interface TemplateContext {
   helpers?: Record<string, (...args: unknown[]) => unknown>
   /** Partials (template includes) */
   partials?: Record<string, string>
+  /** Allow additional properties for template flexibility */
+  [key: string]: unknown
 }
 
 /**

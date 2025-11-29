@@ -7,6 +7,7 @@
 import { BaseAIProvider } from './base-provider.js'
 import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider.js'
 import type { ProviderId } from '../../types/branded.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 export class CustomProvider extends BaseAIProvider {
   readonly id = 'custom' as ProviderId
@@ -51,7 +52,7 @@ export class CustomProvider extends BaseAIProvider {
     }
   }
 
-  getConfigError(config: AIProviderConfig, env: Env): string | null {
+  getConfigError(config: AIProviderConfig, _env: ConductorEnv): string | null {
     if (!config.apiEndpoint) {
       return 'Custom provider requires apiEndpoint in config'
     }

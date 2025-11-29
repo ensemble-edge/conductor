@@ -3,10 +3,15 @@
  *
  * Dynamically loads user-created agents from their project directory
  * This runs in the user's project context, not in the conductor package
+ *
+ * Note: tools, validate, autorag agents have been moved to template-based agents.
+ * They now use `operation: code` with handlers like any other agent.
+ * See: catalog/cloud/cloudflare/templates/agents/system/
  */
 import { type AgentConfig } from '../runtime/parser.js';
 import { BaseAgent } from '../agents/base-agent.js';
 import { type FunctionImplementation } from '../agents/function-agent.js';
+import type { ConductorEnv } from '../types/env.js';
 export interface LoaderConfig {
     /**
      * Base directory where agents are located
@@ -21,7 +26,7 @@ export interface LoaderConfig {
     /**
      * Environment context (passed from Worker)
      */
-    env: Env;
+    env: ConductorEnv;
     /**
      * Execution context (passed from Worker)
      */

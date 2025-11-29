@@ -4,6 +4,8 @@
  * Type definitions for the Conductor HTTP API.
  */
 import type { Context } from 'hono';
+import type { RequestId } from '../types/branded.js';
+import type { ConductorEnv } from '../types/env.js';
 /**
  * API Request/Response Types
  */
@@ -106,7 +108,9 @@ export interface AuthConfig {
     };
 }
 import type { AuthContext as CanonicalAuthContext } from '../auth/types.js';
+import type { SecurityConfig } from '../config/security.js';
 export type { AuthContext as CanonicalAuthContext } from '../auth/types.js';
+export type { SecurityConfig } from '../config/security.js';
 export type AuthContext = CanonicalAuthContext;
 /**
  * Rate Limiting Types
@@ -129,6 +133,7 @@ export interface RateLimitResult {
  * - auth: Authentication context from auth middleware
  * - requestId: Unique request identifier for tracing
  * - startTime: Request start timestamp for duration tracking
+ * - securityConfig: Security configuration for this request
  * - stealthMode: Whether stealth mode is enabled (auth failures return 404)
  * - stealthDelayMs: Minimum delay for stealth responses (timing attack protection)
  * - cacheHit: Whether response was served from cache
@@ -136,11 +141,12 @@ export interface RateLimitResult {
  * - executedAgents: List of agents executed in this request
  */
 export type ConductorContext = Context<{
-    Bindings: Env;
+    Bindings: ConductorEnv;
     Variables: {
         auth?: AuthContext;
-        requestId?: string;
+        requestId?: RequestId;
         startTime?: number;
+        securityConfig?: SecurityConfig;
         stealthMode?: boolean;
         stealthDelayMs?: number;
         cacheHit?: boolean;

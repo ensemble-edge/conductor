@@ -6,8 +6,9 @@
 
 import { Hono } from 'hono'
 import type { ConductorContext, HealthResponse } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
 
-const health = new Hono<{ Bindings: Env }>()
+const health = new Hono<{ Bindings: ConductorEnv }>()
 
 /**
  * GET /health - Health check
@@ -17,8 +18,8 @@ health.get('/', async (c: ConductorContext) => {
 
   // Check database connection
   try {
-    if ((c.env as any).DB) {
-      await (c.env as any).DB.prepare('SELECT 1').first()
+    if (c.env.DB) {
+      await c.env.DB.prepare('SELECT 1').first()
       checks.database = true
     }
   } catch (error) {
@@ -27,8 +28,8 @@ health.get('/', async (c: ConductorContext) => {
 
   // Check KV (session storage)
   try {
-    if ((c.env as any).SESSIONS) {
-      await (c.env as any).SESSIONS.get('_health_check')
+    if (c.env.SESSIONS) {
+      await c.env.SESSIONS.get('_health_check')
       checks.cache = true
     }
   } catch (error) {

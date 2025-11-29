@@ -111,7 +111,7 @@ export class AnalyticalMemory {
   private cache?: QueryCache
 
   constructor(
-    private readonly env: Env,
+    _env: unknown, // env reserved for future use, databases come from config
     private readonly config: AnalyticalMemoryConfig
   ) {
     this.repositories = new Map()

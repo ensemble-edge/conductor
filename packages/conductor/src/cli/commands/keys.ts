@@ -319,6 +319,24 @@ export const keysCommands = {
   },
 }
 
+/** Command argument types */
+interface GenerateArgs {
+  name: string
+  permissions?: string
+  expires?: string
+  userId?: string
+  json?: boolean
+}
+
+interface ListArgs {
+  json?: boolean
+}
+
+interface KeyIdArgs {
+  keyId: string
+  json?: boolean
+}
+
 /**
  * CLI entry point for keys commands
  */
@@ -328,19 +346,19 @@ export async function handleKeysCommand(
 ): Promise<void> {
   switch (subcommand) {
     case 'generate':
-      await keysCommands.generate(args as any)
+      await keysCommands.generate(args as unknown as GenerateArgs)
       break
     case 'list':
-      await keysCommands.list(args as any)
+      await keysCommands.list(args as unknown as ListArgs)
       break
     case 'revoke':
-      await keysCommands.revoke(args as any)
+      await keysCommands.revoke(args as unknown as KeyIdArgs)
       break
     case 'info':
-      await keysCommands.info(args as any)
+      await keysCommands.info(args as unknown as KeyIdArgs)
       break
     case 'rotate':
-      await keysCommands.rotate(args as any)
+      await keysCommands.rotate(args as unknown as KeyIdArgs)
       break
     default:
       console.log(`\n🔑 Conductor API Key Management\n`)

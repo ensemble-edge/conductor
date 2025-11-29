@@ -59,8 +59,8 @@ export function createAuthMiddleware(config: ExtendedAuthConfig): MiddlewareHand
   return async (c: ConductorContext, next) => {
     // Store stealth settings in context for use by other middleware
     if (config.stealthMode) {
-      c.set('stealthMode' as any, true)
-      c.set('stealthDelayMs' as any, config.stealthDelayMs ?? 50)
+      c.set('stealthMode', true)
+      c.set('stealthDelayMs', config.stealthDelayMs ?? 50)
     }
 
     // Extract API key from header
@@ -128,11 +128,11 @@ export function createAuthMiddleware(config: ExtendedAuthConfig): MiddlewareHand
 export function requireAuth(options?: { stealthMode?: boolean }): MiddlewareHandler {
   return async (c: ConductorContext, next) => {
     const auth = c.get('auth')
-    const stealthMode = options?.stealthMode ?? c.get('stealthMode' as any)
+    const stealthMode = options?.stealthMode ?? c.get('stealthMode')
 
     if (!auth?.authenticated) {
       if (stealthMode) {
-        const stealthDelayMs = c.get('stealthDelayMs' as any) ?? 50
+        const stealthDelayMs = c.get('stealthDelayMs') ?? 50
         return stealthNotFound(c, stealthDelayMs)
       }
       return c.json(

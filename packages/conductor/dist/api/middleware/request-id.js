@@ -2,26 +2,25 @@
  * Request ID Middleware
  *
  * Generates unique request ID for tracing and debugging.
+ * Uses branded RequestId type for compile-time safety.
  */
+import { RequestId } from '../../types/branded.js';
 export function requestId() {
     return async (c, next) => {
         // Check if request ID already exists in header
-        let reqId = c.req.header('X-Request-ID');
-        // Generate new ID if not present
-        if (!reqId) {
-            reqId = generateRequestId();
+        const headerReqId = c.req.header('X-Request-ID');
+        // Generate new ID if not present, or validate existing one
+        let reqId;
+        if (headerReqId && RequestId.isValid(headerReqId)) {
+            reqId = RequestId.create(headerReqId);
         }
-        // Set in context
+        else {
+            reqId = RequestId.generate();
+        }
+        // Set in context (branded type)
         c.set('requestId', reqId);
-        // Set in response header
-        c.header('X-Request-ID', reqId);
+        // Set in response header (unwrap to string for HTTP)
+        c.header('X-Request-ID', RequestId.unwrap(reqId));
         await next();
     };
-}
-/**
- * Generate cryptographically secure unique request ID
- */
-function generateRequestId() {
-    // Use crypto.randomUUID() for secure, unpredictable request IDs
-    return `req_${crypto.randomUUID()}`;
 }

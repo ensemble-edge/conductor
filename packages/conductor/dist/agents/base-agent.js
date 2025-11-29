@@ -4,6 +4,13 @@
  * Foundation for all agent types (Think, Function, Data, API, etc.)
  * Provides standard interface, response wrapping, error handling, and cache key generation
  */
+import { safeFetch } from '../utils/safe-fetch.js';
+/**
+ * Default security settings - secure by default
+ */
+const DEFAULT_SECURITY_SETTINGS = {
+    ssrf: true,
+};
 /**
  * Base class for all agent types
  */
@@ -12,6 +19,11 @@ export class BaseAgent {
         this.config = config;
         this.name = config.name;
         this.type = config.operation;
+        // Initialize security settings from config, with secure defaults
+        this.security = {
+            ...DEFAULT_SECURITY_SETTINGS,
+            ...config.security,
+        };
     }
     /**
      * Execute the agent with given input and context
@@ -20,9 +32,11 @@ export class BaseAgent {
      */
     async execute(context) {
         const startTime = Date.now();
+        // Enrich context with security features before passing to run()
+        const enrichedContext = this.enrichContext(context);
         try {
             // Perform the actual work (implemented by subclasses)
-            const result = await this.run(context);
+            const result = await this.run(enrichedContext);
             const executionTime = Date.now() - startTime;
             return this.wrapSuccess(result, executionTime, false);
         }
@@ -30,6 +44,33 @@ export class BaseAgent {
             const executionTime = Date.now() - startTime;
             return this.wrapError(error, executionTime);
         }
+    }
+    /**
+     * Enrich the execution context with automatic security features
+     *
+     * This method injects security utilities into the context based on
+     * the agent's security settings. Developers don't need to remember
+     * to add these - they're automatic.
+     *
+     * @param context - Original execution context
+     * @returns Enriched context with security features
+     */
+    enrichContext(context) {
+        // Start with the original context
+        const enriched = { ...context };
+        // SSRF-protected fetch (if enabled and not already set)
+        if (this.security.ssrf && !context.fetch) {
+            enriched.fetch = safeFetch;
+        }
+        else if (!this.security.ssrf && !context.fetch) {
+            // SSRF disabled - use global fetch
+            enriched.fetch = fetch;
+        }
+        // If context.fetch is already set, preserve it (allows override)
+        // Future security features would be added here:
+        // if (this.security.inputSanitization) { ... }
+        // if (this.security.rateLimiting) { ... }
+        return enriched;
     }
     /**
      * Wrap successful execution result

@@ -13,6 +13,35 @@ import { createLogger } from '../../observability/index.js';
 const app = new Hono();
 const logger = createLogger({ serviceName: 'api-email' });
 /**
+ * Redact email address for logging (GDPR compliance)
+ *
+ * Converts "user@example.com" to "u***@e***.com"
+ * This allows debugging while preventing PII storage in logs.
+ */
+function redactEmail(email) {
+    if (!email || typeof email !== 'string') {
+        return '[invalid]';
+    }
+    const atIndex = email.indexOf('@');
+    if (atIndex === -1) {
+        // Not a valid email format, just redact most of it
+        return email.length > 2 ? email[0] + '***' + email.slice(-1) : '***';
+    }
+    const localPart = email.substring(0, atIndex);
+    const domainPart = email.substring(atIndex + 1);
+    const dotIndex = domainPart.lastIndexOf('.');
+    // Redact local part: keep first char + ***
+    const redactedLocal = localPart.length > 1 ? localPart[0] + '***' : '***';
+    // Redact domain: keep first char + *** + TLD
+    let redactedDomain = '***';
+    if (dotIndex !== -1) {
+        const domainName = domainPart.substring(0, dotIndex);
+        const tld = domainPart.substring(dotIndex);
+        redactedDomain = (domainName.length > 1 ? domainName[0] + '***' : '***') + tld;
+    }
+    return `${redactedLocal}@${redactedDomain}`;
+}
+/**
  * Handle incoming email
  * POST /email
  *
@@ -32,16 +61,17 @@ app.post('/', async (c) => {
         }
         // Get email data
         const emailData = await parseEmailFromRequest(c);
+        // Log with redacted emails for GDPR compliance
         logger.info('Email received', {
-            from: emailData.from,
-            to: emailData.to,
-            subject: emailData.subject,
+            from: redactEmail(emailData.from),
+            to: redactEmail(emailData.to),
+            subjectLength: emailData.subject?.length ?? 0,
         });
         // Find ensemble that handles this email address
         const ensemble = await findEnsembleForEmail(emailData.to, env);
         if (!ensemble) {
             logger.warn('No ensemble found for email address', {
-                to: emailData.to,
+                to: redactEmail(emailData.to),
             });
             // Return 200 to prevent bounce (silently ignore)
             return c.text('OK');
@@ -51,7 +81,7 @@ app.post('/', async (c) => {
         if (!emailExpose || emailExpose.type !== 'email') {
             logger.warn('Ensemble found but no email exposure configured', {
                 ensemble: ensemble.name,
-                to: emailData.to,
+                to: redactEmail(emailData.to),
             });
             return c.text('OK');
         }
@@ -59,8 +89,8 @@ app.post('/', async (c) => {
         if (!emailExpose.addresses.includes(emailData.to)) {
             logger.warn('Email address not in configured addresses', {
                 ensemble: ensemble.name,
-                to: emailData.to,
-                configured: emailExpose.addresses,
+                to: redactEmail(emailData.to),
+                configuredCount: emailExpose.addresses.length,
             });
             return c.text('OK');
         }
@@ -70,8 +100,8 @@ app.post('/', async (c) => {
             if (!isAuthorized) {
                 logger.warn('Email sender not authorized', {
                     ensemble: ensemble.name,
-                    from: emailData.from,
-                    whitelist: emailExpose.auth.from,
+                    from: redactEmail(emailData.from),
+                    whitelistCount: emailExpose.auth.from.length,
                 });
                 // Send rejection email if configured
                 if (emailExpose.reply_with_output) {
@@ -84,8 +114,8 @@ app.post('/', async (c) => {
         const input = extractInputFromEmail(emailData);
         logger.info('Executing ensemble from email', {
             ensemble: ensemble.name,
-            from: emailData.from,
-            to: emailData.to,
+            from: redactEmail(emailData.from),
+            to: redactEmail(emailData.to),
         });
         // Execute ensemble
         const ctx = {

@@ -306,3 +306,192 @@ export const VersionString = {
         return versionString;
     },
 };
+/**
+ * Execution ID validation and creation
+ */
+export const ExecutionId = {
+    /**
+     * Create an ExecutionId from a string
+     * @throws {Error} if the execution ID is invalid
+     */
+    create(value) {
+        if (!value || value.trim().length === 0) {
+            throw new Error('Execution ID cannot be empty');
+        }
+        const normalized = value.trim();
+        if (!normalized.startsWith('exec_')) {
+            throw new Error(`Invalid execution ID format: "${value}" (must start with 'exec_')`);
+        }
+        return normalized;
+    },
+    /**
+     * Generate a new unique execution ID
+     */
+    generate() {
+        return `exec_${crypto.randomUUID()}`;
+    },
+    /**
+     * Check if a string is a valid ExecutionId
+     */
+    isValid(value) {
+        return !!value && value.trim().startsWith('exec_');
+    },
+    /**
+     * Safely create an ExecutionId, returning null if invalid
+     */
+    tryCreate(value) {
+        try {
+            return ExecutionId.create(value);
+        }
+        catch {
+            return null;
+        }
+    },
+    /**
+     * Unwrap an ExecutionId back to a string
+     */
+    unwrap(executionId) {
+        return executionId;
+    },
+};
+/**
+ * Request ID validation and creation
+ */
+export const RequestId = {
+    /**
+     * Create a RequestId from a string
+     * @throws {Error} if the request ID is invalid
+     */
+    create(value) {
+        if (!value || value.trim().length === 0) {
+            throw new Error('Request ID cannot be empty');
+        }
+        const normalized = value.trim();
+        if (!normalized.startsWith('req_')) {
+            throw new Error(`Invalid request ID format: "${value}" (must start with 'req_')`);
+        }
+        return normalized;
+    },
+    /**
+     * Generate a new unique request ID
+     */
+    generate() {
+        return `req_${crypto.randomUUID()}`;
+    },
+    /**
+     * Check if a string is a valid RequestId
+     */
+    isValid(value) {
+        return !!value && value.trim().startsWith('req_');
+    },
+    /**
+     * Safely create a RequestId, returning null if invalid
+     */
+    tryCreate(value) {
+        try {
+            return RequestId.create(value);
+        }
+        catch {
+            return null;
+        }
+    },
+    /**
+     * Unwrap a RequestId back to a string
+     */
+    unwrap(requestId) {
+        return requestId;
+    },
+};
+/**
+ * Resume Token validation and creation
+ */
+export const ResumeToken = {
+    /**
+     * Create a ResumeToken from a string
+     * @throws {Error} if the resume token is invalid
+     */
+    create(value) {
+        if (!value || value.trim().length === 0) {
+            throw new Error('Resume token cannot be empty');
+        }
+        const normalized = value.trim();
+        if (!normalized.startsWith('resume_')) {
+            throw new Error(`Invalid resume token format: "${value}" (must start with 'resume_')`);
+        }
+        return normalized;
+    },
+    /**
+     * Generate a new unique resume token
+     */
+    generate() {
+        return `resume_${crypto.randomUUID()}`;
+    },
+    /**
+     * Check if a string is a valid ResumeToken
+     */
+    isValid(value) {
+        return !!value && value.trim().startsWith('resume_');
+    },
+    /**
+     * Safely create a ResumeToken, returning null if invalid
+     */
+    tryCreate(value) {
+        try {
+            return ResumeToken.create(value);
+        }
+        catch {
+            return null;
+        }
+    },
+    /**
+     * Unwrap a ResumeToken back to a string
+     */
+    unwrap(resumeToken) {
+        return resumeToken;
+    },
+};
+/**
+ * Cache Key validation and creation
+ */
+export const CacheKey = {
+    /**
+     * Create a CacheKey from a string
+     * @throws {Error} if the cache key is invalid
+     */
+    create(value) {
+        if (!value || value.trim().length === 0) {
+            throw new Error('Cache key cannot be empty');
+        }
+        return value.trim();
+    },
+    /**
+     * Generate a cache key from components
+     */
+    generate(prefix, ...parts) {
+        const key = [prefix, ...parts].join(':');
+        return key;
+    },
+    /**
+     * Check if a string is a valid CacheKey
+     */
+    isValid(value) {
+        return !!value && value.trim().length > 0;
+    },
+    /**
+     * Safely create a CacheKey, returning null if invalid
+     */
+    tryCreate(value) {
+        try {
+            return CacheKey.create(value);
+        }
+        catch {
+            return null;
+        }
+    },
+    /**
+     * Unwrap a CacheKey back to a string
+     */
+    unwrap(cacheKey) {
+        return cacheKey;
+    },
+};

@@ -14,6 +14,7 @@
  */
 
 import type { AuthValidator, AuthValidationResult, AuthContext } from './types.js'
+import type { ConductorEnv } from '../types/env.js'
 import { BearerValidator } from './providers/bearer.js'
 import {
   SignatureValidator,
@@ -21,7 +22,11 @@ import {
   signaturePresets,
 } from './providers/signature.js'
 import { BasicAuthValidator, createBasicValidator } from './providers/basic.js'
-import { ApiKeyValidator } from './providers/apikey.js'
+import { createApiKeyValidator } from './providers/apikey.js'
+import { timingSafeEqual } from './utils/crypto.js'
+import { createLogger } from '../observability/index.js'
+
+const logger = createLogger({ serviceName: 'trigger-auth' })
 
 /**
  * Trigger auth configuration (from YAML)
@@ -69,7 +74,7 @@ class SimpleBearerValidator implements AuthValidator {
     return authHeader.substring(7)
   }
 
-  async validate(request: Request, _env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult> {
     const token = this.extractToken(request)
 
     if (!token) {
@@ -80,8 +85,8 @@ class SimpleBearerValidator implements AuthValidator {
       }
     }
 
-    // Simple token comparison (timing-safe)
-    const isValid = this.timingSafeEqual(token, this.secret)
+    // Use shared timing-safe comparison (HMAC-based for constant time)
+    const isValid = await timingSafeEqual(token, this.secret)
 
     if (!isValid) {
       return {
@@ -100,17 +105,6 @@ class SimpleBearerValidator implements AuthValidator {
       },
     }
   }
-
-  private timingSafeEqual(a: string, b: string): boolean {
-    if (a.length !== b.length) {
-      return false
-    }
-    let result = 0
-    for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-    }
-    return result === 0
-  }
 }
 
 /**
@@ -124,7 +118,7 @@ class SimpleBearerValidator implements AuthValidator {
  * @param env - The environment object containing variable values
  * @returns The resolved string, or the original if no env var syntax found
  */
-function resolveEnvSecret(value: string | undefined, env: any): string | undefined {
+function resolveEnvSecret(value: string | undefined, env: ConductorEnv): string | undefined {
   if (!value || typeof value !== 'string') {
     return value
   }
@@ -135,7 +129,7 @@ function resolveEnvSecret(value: string | undefined, env: any): string | undefin
     const varName = shorthandMatch[1]
     const resolved = env?.[varName]
     if (resolved === undefined) {
-      console.warn(`[TriggerAuth] Environment variable '${varName}' not found`)
+      logger.warn(`Environment variable '${varName}' not found`, { varName })
     }
     return resolved ?? value
   }
@@ -146,7 +140,7 @@ function resolveEnvSecret(value: string | undefined, env: any): string | undefin
     const varName = templateMatch[1]
     const resolved = env?.[varName]
     if (resolved === undefined) {
-      console.warn(`[TriggerAuth] Environment variable '${varName}' not found`)
+      logger.warn(`Environment variable '${varName}' not found`, { varName })
     }
     return resolved ?? value
   }
@@ -157,7 +151,7 @@ function resolveEnvSecret(value: string | undefined, env: any): string | undefin
 /**
  * Get the appropriate auth validator based on trigger config
  */
-export function getValidatorForTrigger(config: TriggerAuthConfig, env: any): AuthValidator {
+export function getValidatorForTrigger(config: TriggerAuthConfig, env: ConductorEnv): AuthValidator {
   // Resolve environment variable references in the secret
   const resolvedSecret = resolveEnvSecret(config.secret, env)
 
@@ -205,17 +199,30 @@ export function getValidatorForTrigger(config: TriggerAuthConfig, env: any): Aut
         realm: config.realm,
       })
 
-    case 'apiKey':
-      return new ApiKeyValidator(env)
+    case 'apiKey': {
+      const validator = createApiKeyValidator(env)
+      if (!validator) {
+        throw new Error('API key auth requires API_KEYS KV namespace to be configured')
+      }
+      return validator
+    }
 
-    case 'unkey':
+    case 'unkey': {
       // Unkey validator requires the unkey package
       // For now, fall back to API key validation
       // TODO: Import UnkeyValidator when available
-      return new ApiKeyValidator(env)
+      const validator = createApiKeyValidator(env)
+      if (!validator) {
+        throw new Error('Unkey auth requires API_KEYS KV namespace to be configured')
+      }
+      return validator
+    }
 
-    default:
-      throw new Error(`Unknown trigger auth type: ${(config as any).type}`)
+    default: {
+      // TypeScript's exhaustive check - this handles runtime validation for unexpected types
+      const unknownType: never = config.type
+      throw new Error(`Unknown trigger auth type: ${unknownType}`)
+    }
   }
 }
 
@@ -231,7 +238,7 @@ export function getValidatorForTrigger(config: TriggerAuthConfig, env: any): Aut
  */
 export function createTriggerAuthMiddleware(
   authConfig: TriggerAuthConfig,
-  env: any
+  env: ConductorEnv
 ): (c: any, next: () => Promise<void>) => Promise<Response | void> {
   const validator = getValidatorForTrigger(authConfig, env)
 
@@ -282,7 +289,9 @@ export function createTriggerAuthMiddleware(
       await next()
     } catch (error) {
       // Handle validation errors gracefully
-      console.error('[TriggerAuth] Validation error:', error)
+      logger.error('Validation error', error instanceof Error ? error : undefined, {
+        authType: authConfig.type,
+      })
       return c.json(
         {
           error: 'auth_error',

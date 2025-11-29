@@ -4,7 +4,7 @@
  * Generate unique URL-safe slugs using various strategies.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 interface SlugInput {
   strategy?: 'nanoid' | 'uuid' | 'base62' | 'timestamp'

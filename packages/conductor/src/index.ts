@@ -110,6 +110,23 @@ export type { AgentExecutionContext, AgentResponse } from './agents/base-agent.j
 
 export type { ExecutorConfig, ExecutionResult, ExecutionMetrics } from './runtime/executor.js'
 
+// Branded Types - Type-safe identifiers for domain concepts
+// Exports both type definitions and factory functions (same name by design)
+export {
+  ModelId,
+  AgentName,
+  EnsembleName,
+  ProviderId,
+  PlatformName,
+  BindingName,
+  VersionString,
+  ExecutionId,
+  RequestId,
+  ResumeToken,
+  CacheKey,
+} from './types/branded.js'
+export type { Brand } from './types/branded.js'
+
 export type {
   ExecutionStatus,
   StoredExecutionState,

@@ -17,6 +17,8 @@ import { z } from 'zod';
 import { getInterpolator } from './interpolation/index.js';
 import { Operation } from '../types/constants.js';
 import { EnsembleOutputSchema } from './output-types.js';
+import { createLogger } from '../observability/index.js';
+const logger = createLogger({ serviceName: 'parser' });
 // Import ensemble factory for creating Ensemble instances from parsed config
 import { ensembleFromConfig, Ensemble, isEnsemble } from '../primitives/ensemble.js';
 // Re-export for convenience
@@ -206,6 +208,7 @@ const EnsembleSchema = z.object({
         // MCP tool endpoint (expose ensemble as MCP tool)
         z.object({
             type: z.literal('mcp'),
+            toolName: z.string().optional(), // Custom tool name (defaults to ensemble name)
             auth: z
                 .object({
                 type: z.enum(['bearer', 'oauth']),
@@ -489,6 +492,23 @@ const AgentMetricsSchema = z
         .optional(),
 })
     .optional();
+/**
+ * Security settings for agents
+ * Controls automatic security features like SSRF protection
+ */
+const AgentSecuritySchema = z
+    .object({
+    /**
+     * Enable SSRF protection for fetch requests
+     * When true (default), requests to private IPs, localhost, and metadata services are blocked
+     * @default true
+     */
+    ssrf: z.boolean().optional(),
+    // Future security features can be added here:
+    // inputSanitization: z.boolean().optional(),
+    // rateLimiting: z.boolean().optional(),
+})
+    .optional();
 const AgentSchema = z.object({
     name: z.string().min(1, 'Agent name is required'),
     operation: z.enum([
@@ -519,6 +539,8 @@ const AgentSchema = z.object({
     logging: AgentLoggingSchema,
     /** Agent-level metrics configuration */
     metrics: AgentMetricsSchema,
+    /** Security settings for the agent */
+    security: AgentSecuritySchema,
 });
 export class Parser {
     /**
@@ -541,13 +563,18 @@ export class Parser {
                         ? String(agent.name)
                         : undefined;
                     if (!name) {
-                        console.warn(`[Parser] Skipping agent without name in ensemble "${validated.name}"`);
+                        logger.warn(`Skipping agent without name in ensemble "${validated.name}"`, {
+                            ensembleName: validated.name,
+                        });
                         return null;
                     }
                     return { agent: name };
                 })
                     .filter((step) => step !== null);
-                console.log(`[Parser] Auto-generated sequential flow for ensemble "${validated.name}" with ${validated.flow.length} agent(s)`);
+                logger.debug(`Auto-generated sequential flow for ensemble`, {
+                    ensembleName: validated.name,
+                    agentCount: validated.flow.length,
+                });
             }
             return validated;
         }

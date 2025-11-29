@@ -14,8 +14,8 @@ import { Errors } from '../../errors/error-types.js';
  * Provides structured data access across multiple Hyperdrive-connected databases.
  */
 export class AnalyticalMemory {
-    constructor(env, config) {
-        this.env = env;
+    constructor(_env, // env reserved for future use, databases come from config
+    config) {
         this.config = config;
         this.repositories = new Map();
         this.defaultDatabase = config.defaultDatabase;

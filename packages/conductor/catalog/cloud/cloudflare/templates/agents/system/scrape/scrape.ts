@@ -8,7 +8,7 @@
  * Tier 3: HTML parsing fallback - ~1.5s
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 import { detectBotProtection, isContentSuccessful } from './bot-detection.js'
 import { extractTextFromHTML, extractTitleFromHTML, convertHTMLToMarkdown } from './html-parser.js'
 

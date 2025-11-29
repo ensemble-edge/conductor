@@ -7,3 +7,5 @@ export { NormalizationRegistry, normalizeURL, normalizeDomain, normalizeCompanyN
 export { URLResolver, resolveURL, isURLReachable } from './url-resolver.js';
 // Script loader for bundled scripts (Workers-compatible)
 export { createScriptLoader, parseScriptURI, isScriptReference, setGlobalScriptLoader, getGlobalScriptLoader, hasGlobalScriptLoader, } from './script-loader.js';
+// Safe fetch with SSRF protection
+export { safeFetch, validateURL, isURLSafe } from './safe-fetch.js';

@@ -8,8 +8,11 @@
  * - POST /mcp/tools/{name}     - Invoke a tool (execute ensemble)
  */
 import { Hono } from 'hono';
+import type { ConductorContext } from '../types.js';
+import type { ConductorEnv } from '../../types/env.js';
 declare const app: Hono<{
-    Bindings: Env;
+    Bindings: ConductorEnv;
+    Variables: ConductorContext["var"];
 }, import("hono/types").BlankSchema, "/">;
 export default app;
 //# sourceMappingURL=mcp.d.ts.map

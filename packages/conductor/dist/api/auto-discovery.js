@@ -16,10 +16,25 @@ import { registerBuiltInTriggers } from '../runtime/built-in-triggers.js';
 import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js';
 import { getDocsLoader } from '../docs/index.js';
 const logger = createLogger({ serviceName: 'auto-discovery-api' });
+/**
+ * Type guard to check if output has html property
+ */
+function isHtmlOutput(output) {
+    return (typeof output === 'object' &&
+        output !== null &&
+        'html' in output &&
+        typeof output.html === 'string');
+}
 // Global loaders (initialized once per Worker instance)
 let memberLoader = null;
 let ensembleLoader = null;
 let initialized = false;
+/**
+ * Safely get auth from context, handling the case where it's not set
+ */
+function getAuthFromContext(c) {
+    return c.get('auth');
+}
 /**
  * Register error page handlers
  */
@@ -38,14 +53,16 @@ async function registerErrorPages(app, config, env, ctx) {
             continue;
         }
         // Register an error handler that executes the ensemble
+        // Note: Hono's onError loses generic typing, so we cast to our known type
         app.onError(async (error, c) => {
             // Only handle errors matching this status code
-            const errorStatus = error.status || 500;
+            // HTTPException has a status property, regular Error doesn't
+            const errorStatus = 'status' in error ? error.status : 500;
             if (errorStatus !== code) {
                 return c.text(`Error ${errorStatus}: ${error.message}`, errorStatus);
             }
             try {
-                const auth = c.get('auth');
+                const auth = getAuthFromContext(c);
                 const executor = new Executor({ env, ctx, auth });
                 const agents = memberLoader.getAllMembers();
                 for (const agent of agents) {
@@ -73,7 +90,7 @@ async function registerErrorPages(app, config, env, ctx) {
                 // Return HTML if available, otherwise JSON
                 const executionOutput = result.value;
                 const agentOutput = executionOutput.output;
-                if (agentOutput && agentOutput.html) {
+                if (isHtmlOutput(agentOutput)) {
                     return c.html(agentOutput.html, code);
                 }
                 return c.json(executionOutput.output, code);
@@ -87,13 +104,14 @@ async function registerErrorPages(app, config, env, ctx) {
     }
     // Register catch-all 404 handler if specified
     if (config.errorPages[404]) {
+        // Note: Hono's notFound loses generic typing, so we cast to our known type
         app.notFound(async (c) => {
             const ensemble = ensembleLoader.getEnsemble(config.errorPages[404]);
             if (!ensemble) {
                 return c.text('404 Not Found', 404);
             }
             try {
-                const auth = c.get('auth');
+                const auth = getAuthFromContext(c);
                 const executor = new Executor({ env, ctx, auth });
                 const agents = memberLoader.getAllMembers();
                 for (const agent of agents) {
@@ -116,7 +134,7 @@ async function registerErrorPages(app, config, env, ctx) {
                 }
                 const executionOutput = result.value;
                 const agentOutput = executionOutput.output;
-                if (agentOutput && agentOutput.html) {
+                if (isHtmlOutput(agentOutput)) {
                     return c.html(agentOutput.html, 404);
                 }
                 return c.json(executionOutput.output, 404);
@@ -252,7 +270,7 @@ export function createAutoDiscoveryAPI(config = {}) {
             const allEnsembles = ensembleLoader.getAllEnsembles();
             const matchingEnsembles = allEnsembles.filter((ensemble) => {
                 const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron');
-                return cronTriggers?.some((t) => t.cron === event.cron);
+                return cronTriggers?.some((t) => 'cron' in t && t.cron === event.cron);
             });
             logger.info(`Found ${matchingEnsembles.length} ensembles with matching cron`, {
                 cron: event.cron,
@@ -270,7 +288,7 @@ export function createAutoDiscoveryAPI(config = {}) {
                             executor.registerAgent(agent);
                         }
                     }
-                    const cronTrigger = ensemble.trigger?.find((t) => t.type === 'cron' && t.cron === event.cron);
+                    const cronTrigger = ensemble.trigger?.find((t) => t.type === 'cron' && 'cron' in t && t.cron === event.cron);
                     await executor.executeEnsemble(ensemble, {
                         input: cronTrigger?.input || {},
                         metadata: {

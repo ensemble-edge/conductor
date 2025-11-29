@@ -7,6 +7,14 @@
 import { BaseAIProvider } from './base-provider.js'
 import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider.js'
 import type { ProviderId } from '../../types/branded.js'
+import type { ConductorEnv } from '../../types/env.js'
+
+/** Cloudflare AI response structure */
+interface CloudflareAIResponse {
+  response?: string
+  result?: { response?: string }
+  tokens_used?: number
+}
 
 export class CloudflareProvider extends BaseAIProvider {
   readonly id = 'workers-ai' as ProviderId
@@ -26,11 +34,12 @@ export class CloudflareProvider extends BaseAIProvider {
     const model = config.model || this.defaultModel
 
     // Call Cloudflare AI binding
-    const response = (await env.AI.run(model as any, {
+    // AI.run uses model string and options, returns CloudflareAIResponse
+    const response = (await env.AI.run(model, {
       messages,
       temperature: config.temperature,
       max_tokens: config.maxTokens,
-    })) as any
+    })) as CloudflareAIResponse
 
     return {
       content: response.response || response.result?.response || String(response),
@@ -43,7 +52,7 @@ export class CloudflareProvider extends BaseAIProvider {
     }
   }
 
-  getConfigError(config: AIProviderConfig, env: Env): string | null {
+  getConfigError(_config: AIProviderConfig, env: ConductorEnv): string | null {
     if (!env.AI) {
       return 'Cloudflare AI binding not found. Add [ai] binding = "AI" to wrangler.toml'
     }

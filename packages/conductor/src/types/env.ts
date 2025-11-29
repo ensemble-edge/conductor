@@ -105,6 +105,56 @@ export interface ConductorEnv {
   ENVIRONMENT?: string
 
   /**
+   * Comma-separated list of valid API keys
+   */
+  API_KEYS?: string
+
+  /**
+   * Allow anonymous access (string "true" or "false")
+   */
+  ALLOW_ANONYMOUS?: string
+
+  /**
+   * Disable logging (string "true" or "false")
+   */
+  DISABLE_LOGGING?: string
+
+  /**
+   * Node environment (for compatibility)
+   */
+  NODE_ENV?: string
+
+  /**
+   * Cloudflare Pages branch name (used for production detection)
+   */
+  CF_PAGES_BRANCH?: string
+
+  /**
+   * Serialized docs configuration (JSON string from conductor.config.ts)
+   */
+  CONDUCTOR_DOCS_CONFIG?: string
+
+  /**
+   * Storage type override (filesystem, kv, d1)
+   */
+  CONDUCTOR_STORAGE_TYPE?: 'filesystem' | 'kv' | 'd1'
+
+  /**
+   * JWT secret for authentication
+   */
+  JWT_SECRET?: string
+
+  /**
+   * JWT issuer for token validation
+   */
+  JWT_ISSUER?: string
+
+  /**
+   * JWT audience for token validation
+   */
+  JWT_AUDIENCE?: string
+
+  /**
    * Index signature to allow dynamic access
    */
   [key: string]: any

@@ -7,18 +7,45 @@ import { Result } from '../types/result.js';
 import { Errors } from '../errors/error-types.js';
 import { JSONSerializer } from './repository.js';
 /**
+ * Validate SQL identifier (table/column name) to prevent SQL injection
+ *
+ * SQL identifiers must:
+ * - Start with a letter or underscore
+ * - Contain only letters, numbers, and underscores
+ * - Be no longer than 128 characters (reasonable limit)
+ *
+ * @throws Error if identifier is invalid
+ */
+function validateSqlIdentifier(identifier, type) {
+    if (!identifier || typeof identifier !== 'string') {
+        throw new Error(`Invalid ${type} name: must be a non-empty string`);
+    }
+    if (identifier.length > 128) {
+        throw new Error(`Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`);
+    }
+    // SQL identifier pattern: starts with letter/underscore, contains only alphanumeric/underscore
+    const validIdentifierPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!validIdentifierPattern.test(identifier)) {
+        throw new Error(`Invalid ${type} name "${identifier}": must start with a letter or underscore and contain only letters, numbers, and underscores`);
+    }
+    return identifier;
+}
+/**
  * Repository implementation for Cloudflare D1
  */
 export class D1Repository {
     constructor(binding, config, serializer = new JSONSerializer()) {
         this.binding = binding;
         this.serializer = serializer;
-        this.tableName = config.tableName;
-        this.idColumn = config.idColumn || 'id';
-        this.valueColumn = config.valueColumn || 'value';
-        this.createdAtColumn = config.createdAtColumn || 'created_at';
-        this.updatedAtColumn = config.updatedAtColumn || 'updated_at';
-        this.expirationColumn = config.expirationColumn;
+        // Validate all SQL identifiers at construction time (fail-fast)
+        this.tableName = validateSqlIdentifier(config.tableName, 'table');
+        this.idColumn = validateSqlIdentifier(config.idColumn || 'id', 'column');
+        this.valueColumn = validateSqlIdentifier(config.valueColumn || 'value', 'column');
+        this.createdAtColumn = validateSqlIdentifier(config.createdAtColumn || 'created_at', 'column');
+        this.updatedAtColumn = validateSqlIdentifier(config.updatedAtColumn || 'updated_at', 'column');
+        this.expirationColumn = config.expirationColumn
+            ? validateSqlIdentifier(config.expirationColumn, 'column')
+            : undefined;
     }
     /**
      * Get a value from D1

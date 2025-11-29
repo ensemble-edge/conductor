@@ -107,6 +107,21 @@ describe('Version Primitives', () => {
 				const toolRef = componentRef('tool', 'search', '1.0.0')
 				expect(toolRef.toGitTag()).toBe('tools/search/1.0.0')
 			})
+
+			it('should handle special pluralization for query type', () => {
+				// 'query' should become 'queries' not 'querys'
+				const queryRef = componentRef('query', 'reports/sales', '1.0.0')
+				expect(queryRef.toGitTag()).toBe('queries/reports/sales/1.0.0')
+			})
+
+			it('should handle all component types', () => {
+				// Standard pluralization
+				expect(componentRef('prompt', 'p', '1.0.0').toGitTag()).toBe('prompts/p/1.0.0')
+				expect(componentRef('schema', 's', '1.0.0').toGitTag()).toBe('schemas/s/1.0.0')
+				expect(componentRef('template', 't', '1.0.0').toGitTag()).toBe('templates/t/1.0.0')
+				expect(componentRef('config', 'c', '1.0.0').toGitTag()).toBe('configs/c/1.0.0')
+				expect(componentRef('script', 'x', '1.0.0').toGitTag()).toBe('scripts/x/1.0.0')
+			})
 		})
 
 		describe('toVersionReference()', () => {

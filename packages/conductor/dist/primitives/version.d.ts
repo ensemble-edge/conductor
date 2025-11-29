@@ -71,6 +71,7 @@ export declare class ComponentRef {
     getFullPath(): string;
     /**
      * Convert to Git tag format (edgit format)
+     * Uses type-specific namespaces aligned with Edgit's GitTagManager
      */
     toGitTag(): string;
     /**

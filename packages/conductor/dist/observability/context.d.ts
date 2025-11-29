@@ -8,6 +8,7 @@
 import type { Logger } from './types.js';
 import type { ObservabilityConfig, LogEventType, MetricType } from '../config/types.js';
 import { LogLevel } from './types.js';
+import { type ExecutionId as ExecutionIdType, type RequestId as RequestIdType } from '../types/branded.js';
 /**
  * Default redaction patterns
  */
@@ -16,6 +17,18 @@ export declare const DEFAULT_REDACT_PATTERNS: string[];
  * Default log events to track
  */
 export declare const DEFAULT_LOG_EVENTS: LogEventType[];
+/**
+ * Normalize URL path to reduce cardinality in metrics
+ *
+ * Replaces dynamic segments (IDs, UUIDs, numbers) with placeholders
+ * to prevent metrics explosion from unique paths.
+ *
+ * @example
+ * '/api/users/123' -> '/api/users/:id'
+ * '/api/orders/abc-123-def' -> '/api/orders/:id'
+ * '/api/v1/products/42/reviews' -> '/api/v1/products/:id/reviews'
+ */
+export declare function normalizePathForMetrics(path: string): string;
 /**
  * Default metric types to track
  */
@@ -52,21 +65,23 @@ export interface ResolvedObservabilityConfig {
 export declare function resolveObservabilityConfig(config?: ObservabilityConfig): ResolvedObservabilityConfig;
 /**
  * Generate a unique execution ID
+ * Returns a branded ExecutionId type for type safety
  */
-export declare function generateExecutionId(): string;
+export declare function generateExecutionId(): ExecutionIdType;
 /**
  * Generate a unique request ID
+ * Returns a branded RequestId type for type safety
  */
-export declare function generateRequestId(): string;
+export declare function generateRequestId(): RequestIdType;
 /**
  * Execution context for observability
  * Contains all context needed for logging and metrics
  */
 export interface ExecutionObservabilityContext {
-    /** Unique request ID (from HTTP request) */
-    requestId: string;
-    /** Unique execution ID (for ensemble execution) */
-    executionId: string;
+    /** Unique request ID (from HTTP request) - branded type for safety */
+    requestId: RequestIdType;
+    /** Unique execution ID (for ensemble execution) - branded type for safety */
+    executionId: ExecutionIdType;
     /** Ensemble name being executed */
     ensembleName?: string;
     /** Current agent name */
@@ -134,6 +149,14 @@ export declare class ObservabilityManager {
     private analyticsEngine?;
     constructor(config: ObservabilityConfig | undefined, initialContext: Partial<ExecutionObservabilityContext>, analyticsEngine?: AnalyticsEngineDataset);
     /**
+     * Internal method to set resolved config (used by child managers)
+     */
+    private setResolvedConfig;
+    /**
+     * Create a child manager with inherited config
+     */
+    private static createChild;
+    /**
      * Get the current logger
      */
     getLogger(): Logger;
@@ -164,7 +187,7 @@ export declare class ObservabilityManager {
     /**
      * Create a child manager for an ensemble
      */
-    forEnsemble(ensembleName: string, executionId?: string): ObservabilityManager;
+    forEnsemble(ensembleName: string, executionId?: ExecutionIdType): ObservabilityManager;
     /**
      * Redact sensitive fields from data
      */

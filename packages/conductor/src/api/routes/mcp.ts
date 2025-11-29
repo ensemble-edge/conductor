@@ -9,11 +9,14 @@
  */
 
 import { Hono } from 'hono'
+import type { ConductorContext } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
 import { Parser, type EnsembleConfig } from '../../runtime/parser.js'
 import { Executor } from '../../runtime/executor.js'
 import { createLogger } from '../../observability/index.js'
 
-const app = new Hono<{ Bindings: Env }>()
+// Use full ConductorContext typing for proper variable access
+const app = new Hono<{ Bindings: ConductorEnv; Variables: ConductorContext['var'] }>()
 const logger = createLogger({ serviceName: 'api-mcp' })
 
 /**
@@ -118,7 +121,7 @@ app.post('/tools/:name', async (c) => {
       passThroughOnException: () => {},
     } as ExecutionContext
 
-    const auth = (c as any).get('auth')
+    const auth = c.get('auth')
     const executor = new Executor({ env, ctx, auth })
     const result = await executor.executeEnsemble(ensemble, toolArgs)
 
@@ -164,7 +167,7 @@ app.post('/tools/:name', async (c) => {
 /**
  * Discover all ensembles exposed as MCP tools
  */
-async function discoverExposedEnsembles(env: Env): Promise<any[]> {
+async function discoverExposedEnsembles(env: ConductorEnv): Promise<unknown[]> {
   // TODO: Implement actual discovery from KV/catalog
   // For now, return empty array
   // In production, this would:
@@ -179,7 +182,7 @@ async function discoverExposedEnsembles(env: Env): Promise<any[]> {
 /**
  * Load ensemble YAML from storage
  */
-async function loadEnsembleYAML(name: string, env: Env): Promise<string | null> {
+async function loadEnsembleYAML(name: string, env: ConductorEnv): Promise<string | null> {
   // TODO: Implement actual loading from KV or catalog
   // For now, return null (not found)
   // In production, this would load from:

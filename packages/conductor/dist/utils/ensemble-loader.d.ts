@@ -10,6 +10,8 @@
  * Both authoring paths produce identical Ensemble instances for execution.
  */
 import { type EnsembleConfig, Ensemble } from '../runtime/parser.js';
+import type { ConductorEnv } from '../types/env.js';
+import type { AgentLoader } from './loader.js';
 export interface EnsembleLoaderConfig {
     /**
      * Base directory where ensembles are located
@@ -19,7 +21,7 @@ export interface EnsembleLoaderConfig {
     /**
      * Environment context (passed from Worker)
      */
-    env: Env;
+    env: ConductorEnv;
     /**
      * Execution context (passed from Worker)
      */
@@ -28,7 +30,7 @@ export interface EnsembleLoaderConfig {
      * Agent loader instance for registering inline agents
      * Optional - if provided, inline agents will be automatically registered
      */
-    agentLoader?: any;
+    agentLoader?: AgentLoader;
 }
 export interface LoadedEnsemble {
     /** The original config (for YAML-loaded ensembles) */

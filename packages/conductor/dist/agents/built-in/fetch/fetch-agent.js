@@ -6,6 +6,7 @@
  * - Timeout handling
  * - Custom headers support
  * - Multiple HTTP methods
+ * - SSRF protection (blocks private/internal IPs by default)
  */
 import { BaseAgent } from '../../base-agent.js';
 export class FetchMember extends BaseAgent {
@@ -19,6 +20,7 @@ export class FetchMember extends BaseAgent {
             retry: cfg?.retry !== undefined ? cfg.retry : 3,
             timeout: cfg?.timeout || 30000,
             retryDelay: cfg?.retryDelay || 1000,
+            allowInternalRequests: cfg?.allowInternalRequests ?? false,
         };
     }
     async run(context) {
@@ -30,7 +32,7 @@ export class FetchMember extends BaseAgent {
         const maxRetries = this.fetchConfig.retry || 0;
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                const result = await this.executeRequest(input, attempt);
+                const result = await this.executeRequest(context, input, attempt);
                 return {
                     ...result,
                     duration: Date.now() - startTime,
@@ -49,8 +51,7 @@ export class FetchMember extends BaseAgent {
         }
         throw new Error('Fetch failed: Maximum retries exceeded');
     }
-    async executeRequest(input, attempt) {
-        const url = input.url;
+    async executeRequest(context, input, attempt) {
         const method = this.fetchConfig.method || 'GET';
         const headers = {
             ...this.fetchConfig.headers,
@@ -74,8 +75,13 @@ export class FetchMember extends BaseAgent {
                 options.body = input.body;
             }
         }
-        // Execute request
-        const response = await fetch(url, options);
+        // Use framework-provided SSRF-protected fetch from context
+        // Falls back to global fetch if context.fetch not available (shouldn't happen in production)
+        const fetchFn = context.fetch || fetch;
+        const response = await fetchFn(input.url, {
+            ...options,
+            allowInternalRequests: this.fetchConfig.allowInternalRequests,
+        });
         // Parse response body
         const contentType = response.headers.get('content-type') || '';
         let body;

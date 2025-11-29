@@ -38,6 +38,9 @@ export const TTL = {
   /** Short-lived cache (5 minutes) */
   CACHE_SHORT: 300,
 
+  /** Medium-lived cache (15 minutes) */
+  CACHE_MEDIUM: 900,
+
   /** Long-lived cache (24 hours) */
   CACHE_LONG: 86400,
 
@@ -49,6 +52,15 @@ export const TTL = {
 
   /** Analytical memory cache (5 minutes) */
   ANALYTICAL_CACHE: 300,
+
+  /** Query result cache - analytics queries (1 hour) */
+  QUERY_ANALYTICS: 3600,
+
+  /** Query result cache - lookup queries (15 minutes) */
+  QUERY_LOOKUP: 900,
+
+  /** Query result cache - list queries (5 minutes) */
+  QUERY_LIST: 300,
 } as const
 
 /**

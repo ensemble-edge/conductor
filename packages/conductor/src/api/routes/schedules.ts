@@ -5,11 +5,15 @@
  */
 
 import { Hono } from 'hono'
+import type { ConductorContext } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
+import type { CronTriggerConfig } from '../../runtime/parser.js'
 import { ScheduleManager } from '../../runtime/schedule-manager.js'
 import { CatalogLoader } from '../../runtime/catalog-loader.js'
 import { Executor } from '../../runtime/executor.js'
 
-const app = new Hono<{ Bindings: Env }>()
+// Use full ConductorContext typing for proper variable access
+const app = new Hono<{ Bindings: ConductorEnv; Variables: ConductorContext['var'] }>()
 
 /**
  * List all scheduled ensembles
@@ -117,8 +121,9 @@ app.post('/:ensembleName/trigger', async (c) => {
       )
     }
 
-    // Extract cron triggers
-    const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || []
+    // Extract cron triggers with proper type narrowing
+    const cronTriggers = (ensemble.trigger?.filter((t): t is CronTriggerConfig => t.type === 'cron') ||
+      []) as CronTriggerConfig[]
 
     if (cronTriggers.length === 0) {
       return c.json(
@@ -144,15 +149,15 @@ app.post('/:ensembleName/trigger', async (c) => {
       )
     }
 
-    const schedule = cronTriggers[scheduleIndex] as any
+    const schedule = cronTriggers[scheduleIndex]
 
     // Create execution context
     const ctx = {
-      waitUntil: (promise: Promise<unknown>) => {},
+      waitUntil: (_promise: Promise<unknown>) => {},
       passThroughOnException: () => {},
     } as ExecutionContext
 
-    const auth = (c as any).get('auth')
+    const auth = c.get('auth')
     const executor = new Executor({ env: c.env, ctx, auth })
 
     // Prepare input with schedule metadata

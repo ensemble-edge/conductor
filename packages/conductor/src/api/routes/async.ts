@@ -8,14 +8,17 @@ import { Hono } from 'hono'
 import type { ConductorContext, AsyncExecuteRequest, AsyncExecuteResponse } from '../types.js'
 import { getBuiltInRegistry } from '../../agents/built-in/registry.js'
 import type { AgentExecutionContext } from '../../agents/base-agent.js'
-import { createLogger } from '../../observability/index.js'
+import { createLogger, generateExecutionId } from '../../observability/index.js'
+import { ExecutionId, type ExecutionId as ExecutionIdType } from '../../types/branded.js'
+import type { ConductorEnv } from '../../types/env.js'
 
-const async = new Hono<{ Bindings: Env }>()
+const async = new Hono<{ Bindings: ConductorEnv }>()
 const logger = createLogger({ serviceName: 'api-async' })
 
 // In-memory execution tracking (in production, use Durable Objects or D1)
+// Uses branded ExecutionId keys for type safety
 const executions = new Map<
-  string,
+  ExecutionIdType,
   {
     status: 'queued' | 'running' | 'completed' | 'failed'
     result?: unknown
@@ -31,7 +34,8 @@ const executions = new Map<
  */
 async.post('/', async (c: ConductorContext) => {
   const body = await c.req.json<AsyncExecuteRequest>()
-  const requestId = c.get('requestId') || generateExecutionId()
+  // Generate a unique execution ID for this async request
+  const executionId = generateExecutionId()
 
   // Validate request
   if (!body.agent || !body.input) {
@@ -46,17 +50,17 @@ async.post('/', async (c: ConductorContext) => {
   }
 
   // Store execution request
-  executions.set(requestId, {
+  executions.set(executionId, {
     status: 'queued',
     request: body,
   })
 
   // Queue execution (in background)
-  c.executionCtx.waitUntil(executeAsync(requestId, body, c.env))
+  c.executionCtx.waitUntil(executeAsync(executionId, body, c.env))
 
-  // Return execution ID
+  // Return execution ID (unwrap branded type for JSON response)
   const response: AsyncExecuteResponse = {
-    executionId: requestId,
+    executionId: ExecutionId.unwrap(executionId),
     status: 'queued',
     queuePosition: 0,
     estimatedTime: 5000, // 5 seconds estimate
@@ -69,23 +73,37 @@ async.post('/', async (c: ConductorContext) => {
  * GET /async/:executionId - Get execution status
  */
 async.get('/:executionId', (c: ConductorContext) => {
-  const executionId = c.req.param('executionId')
+  const executionIdParam = c.req.param('executionId')
+
+  // Validate and convert to branded ExecutionId
+  const executionId = ExecutionId.tryCreate(executionIdParam)
+  if (!executionId) {
+    return c.json(
+      {
+        error: 'InvalidRequest',
+        message: `Invalid execution ID format: ${executionIdParam}`,
+        timestamp: Date.now(),
+      },
+      400
+    )
+  }
+
   const execution = executions.get(executionId)
 
   if (!execution) {
     return c.json(
       {
         error: 'NotFound',
-        message: `Execution not found: ${executionId}`,
+        message: `Execution not found: ${executionIdParam}`,
         timestamp: Date.now(),
       },
       404
     )
   }
 
-  // Return status
+  // Return status (unwrap branded type for JSON response)
   return c.json({
-    executionId,
+    executionId: ExecutionId.unwrap(executionId),
     status: execution.status,
     result: execution.status === 'completed' ? execution.result : undefined,
     error: execution.status === 'failed' ? execution.error : undefined,
@@ -102,14 +120,28 @@ async.get('/:executionId', (c: ConductorContext) => {
  * DELETE /async/:executionId - Cancel execution
  */
 async.delete('/:executionId', (c: ConductorContext) => {
-  const executionId = c.req.param('executionId')
+  const executionIdParam = c.req.param('executionId')
+
+  // Validate and convert to branded ExecutionId
+  const executionId = ExecutionId.tryCreate(executionIdParam)
+  if (!executionId) {
+    return c.json(
+      {
+        error: 'InvalidRequest',
+        message: `Invalid execution ID format: ${executionIdParam}`,
+        timestamp: Date.now(),
+      },
+      400
+    )
+  }
+
   const execution = executions.get(executionId)
 
   if (!execution) {
     return c.json(
       {
         error: 'NotFound',
-        message: `Execution not found: ${executionId}`,
+        message: `Execution not found: ${executionIdParam}`,
         timestamp: Date.now(),
       },
       404
@@ -134,7 +166,7 @@ async.delete('/:executionId', (c: ConductorContext) => {
   execution.completedAt = Date.now()
 
   return c.json({
-    executionId,
+    executionId: ExecutionId.unwrap(executionId),
     status: 'cancelled',
     message: 'Execution cancelled successfully',
   })
@@ -144,9 +176,9 @@ async.delete('/:executionId', (c: ConductorContext) => {
  * Execute asynchronously in background
  */
 async function executeAsync(
-  executionId: string,
+  executionId: ExecutionIdType,
   request: AsyncExecuteRequest,
-  env: Env
+  env: ConductorEnv
 ): Promise<void> {
   const execution = executions.get(executionId)
   if (!execution) return
@@ -179,7 +211,7 @@ async function executeAsync(
 
     const agent = await builtInRegistry.create(request.agent, agentConfig, env)
 
-    // Create execution context (simplified - no real ctx available)
+    // Create execution context (security features injected by BaseAgent.execute)
     const memberContext: AgentExecutionContext = {
       input: request.input,
       env: env,
@@ -205,7 +237,7 @@ async function executeAsync(
     // Send webhook if configured
     if (request.callbackUrl) {
       await sendWebhook(request.callbackUrl, {
-        executionId,
+        executionId: ExecutionId.unwrap(executionId),
         status: execution.status,
         result: execution.result,
         error: execution.error,
@@ -221,7 +253,7 @@ async function executeAsync(
     // Send webhook on error
     if (request.callbackUrl) {
       await sendWebhook(request.callbackUrl, {
-        executionId,
+        executionId: ExecutionId.unwrap(executionId),
         status: 'failed',
         error: execution.error,
       })
@@ -247,13 +279,6 @@ async function sendWebhook(url: string, data: unknown): Promise<void> {
       url,
     })
   }
-}
-
-/**
- * Generate cryptographically secure execution ID
- */
-function generateExecutionId(): string {
-  return `exec_${crypto.randomUUID()}`
 }
 
 export default async

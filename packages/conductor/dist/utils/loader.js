@@ -3,6 +3,10 @@
  *
  * Dynamically loads user-created agents from their project directory
  * This runs in the user's project context, not in the conductor package
+ *
+ * Note: tools, validate, autorag agents have been moved to template-based agents.
+ * They now use `operation: code` with handlers like any other agent.
+ * See: catalog/cloud/cloudflare/templates/agents/system/
  */
 import { Parser } from '../runtime/parser.js';
 import { FunctionAgent } from '../agents/function-agent.js';
@@ -15,9 +19,8 @@ import { FormAgent } from '../agents/form/form-agent.js';
 import { HtmlMember } from '../agents/html/html-agent.js';
 import { PdfMember } from '../agents/pdf/pdf-agent.js';
 import { QueueMember } from '../agents/queue/queue-agent.js';
-import { ToolsMember } from '../agents/built-in/tools/tools-agent.js';
-import { ValidateMember } from '../agents/built-in/validate/validate-agent.js';
-import { AutoRAGMember } from '../agents/built-in/autorag/autorag-agent.js';
+import { createLogger } from '../observability/index.js';
+const logger = createLogger({ serviceName: 'agent-loader' });
 /**
  * MemberLoader handles dynamic loading of user-created agents
  *
@@ -66,14 +69,18 @@ export class AgentLoader {
                 }
                 // Register the agent
                 this.registerAgent(config, implementation);
-                console.log(`[MemberLoader] Auto-discovered agent: ${agentDef.name}`);
+                logger.debug(`Auto-discovered agent: ${agentDef.name}`, { agentName: agentDef.name });
             }
             catch (error) {
-                console.error(`[MemberLoader] Failed to load agent "${agentDef.name}":`, error);
+                logger.error(`Failed to load agent "${agentDef.name}"`, error instanceof Error ? error : undefined, {
+                    agentName: agentDef.name,
+                });
                 // Continue with other agents even if one fails
             }
         }
-        console.log(`[MemberLoader] Auto-discovery complete: ${this.loadedMembers.size} agents loaded`);
+        logger.info(`Auto-discovery complete: ${this.loadedMembers.size} agents loaded`, {
+            agentCount: this.loadedMembers.size,
+        });
     }
     /**
      * Register a agent manually
@@ -155,10 +162,6 @@ export class AgentLoader {
                 return new DataAgent(config);
             case 'http':
                 return new APIAgent(config);
-            case 'tools':
-                return new ToolsMember(config, this.config.env);
-            case 'scoring':
-                return new ValidateMember(config, this.config.env);
             case 'email':
                 return new EmailAgent(config);
             case 'sms':
@@ -171,10 +174,11 @@ export class AgentLoader {
                 return new PdfMember(config);
             case 'queue':
                 return new QueueMember(config);
-            case 'autorag':
-                return new AutoRAGMember(config);
             default:
-                throw new Error(`Unknown agent type: ${config.operation}`);
+                throw new Error(`Unknown agent operation type: "${config.operation}". ` +
+                    `If using tools, validate, or autorag, these are now template-based agents. ` +
+                    `Use 'operation: code' with a handler instead. ` +
+                    `See: catalog/cloud/cloudflare/templates/agents/system/`);
         }
     }
     /**

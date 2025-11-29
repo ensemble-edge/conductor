@@ -81,12 +81,18 @@ export class KVRepository {
                 listOptions.cursor = options.cursor;
             }
             const result = await this.binding.list(listOptions);
-            // Fetch all values for the keys
+            // Fetch all values in parallel batches to avoid N+1 queries
+            // Batch size of 10 balances parallelism vs. API rate limits
+            const BATCH_SIZE = 10;
+            const keys = result.keys;
             const values = [];
-            for (const key of result.keys) {
-                const getResult = await this.get(key.name);
-                if (getResult.success) {
-                    values.push(getResult.value);
+            for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+                const batch = keys.slice(i, i + BATCH_SIZE);
+                const batchResults = await Promise.all(batch.map((key) => this.get(key.name)));
+                for (const getResult of batchResults) {
+                    if (getResult.success) {
+                        values.push(getResult.value);
+                    }
                 }
             }
             return Result.ok(values);

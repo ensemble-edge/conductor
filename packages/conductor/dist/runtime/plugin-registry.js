@@ -48,9 +48,7 @@ export class PluginRegistry {
      * ```
      */
     register(name, handler, metadata) {
-        if (this.operations.has(name)) {
-            console.warn(`[PluginRegistry] Overwriting operation: ${name}`);
-        }
+        // Note: Silently allow overwriting - this is a valid use case for plugins
         this.operations.set(name, handler);
         if (metadata) {
             this.metadata.set(name, {
@@ -58,7 +56,6 @@ export class PluginRegistry {
                 contexts: metadata.contexts || ['all'],
             });
         }
-        console.log(`[PluginRegistry] Registered operation: ${name}`);
     }
     /**
      * Get operation handler
@@ -130,9 +127,8 @@ export class PluginRegistry {
     registerBuiltInOperations() {
         // fetch-data: Universal data fetching operation
         this.register('fetch-data', {
-            async execute(operation, context) {
+            async execute(operation, _context) {
                 const { source, collection, query } = operation.config;
-                console.log(`[fetch-data] Fetching from ${source}/${collection}`, query);
                 // TODO: Integrate with actual data sources
                 // - Payload CMS via @conductor/payload plugin
                 // - D1 database
@@ -163,9 +159,8 @@ export class PluginRegistry {
         });
         // transform-data: Universal data transformation operation
         this.register('transform-data', {
-            async execute(operation, context) {
+            async execute(operation, _context) {
                 const { input, transform } = operation.config;
-                console.log('[transform-data] Transforming data', { input, transform });
                 // TODO: Implement actual transformation logic
                 // - JSONata expressions
                 // - JavaScript functions
@@ -192,9 +187,8 @@ export class PluginRegistry {
         });
         // Custom code operation (inline JavaScript/TypeScript)
         this.register('custom-code', {
-            async execute(operation, context) {
+            async execute(operation, _context) {
                 const { code, input } = operation.config;
-                console.log('[custom-code] Executing custom code');
                 // TODO: Implement safe code execution
                 // - Sandbox environment
                 // - Timeout limits
@@ -230,7 +224,6 @@ export class PluginRegistry {
                     throw new Error('[agent] Agent registry not available in operation context. ' +
                         'Make sure agents are registered before using the agent operation.');
                 }
-                console.log(`[agent] Invoking agent: ${agentName}`);
                 // Get agent from registry
                 const agentInstance = context.agentRegistry.get(agentName);
                 if (!agentInstance) {
@@ -248,13 +241,11 @@ export class PluginRegistry {
                     if (result.success === false) {
                         throw new Error(result.error || 'Agent execution failed');
                     }
-                    console.log(`[agent] Agent "${agentName}" completed successfully`);
                     // Return the actual output data (unwrap the AgentResponse)
                     // Agents return { success, data, output, ... } - we want the data/output
                     return result.data || result.output || result;
                 }
                 catch (error) {
-                    console.error(`[agent] Agent "${agentName}" execution failed:`, error);
                     throw new Error(`[agent] Failed to execute agent "${agentName}": ${error instanceof Error ? error.message : String(error)}`);
                 }
             },
@@ -271,7 +262,6 @@ export class PluginRegistry {
                 output: 'any (agent execution result)',
             },
         });
-        console.log('[PluginRegistry] Built-in operations registered');
     }
     /**
      * Unregister an operation (for testing)

@@ -4,6 +4,7 @@
  * Sends email notifications using Cloudflare Email Routing / MailChannels
  */
 import type { NotificationEventData, NotificationDeliveryResult } from './types.js';
+import type { ConductorEnv } from '../../types/env.js';
 export interface EmailNotificationConfig {
     /** Recipient email addresses */
     to: string[];
@@ -20,7 +21,7 @@ export declare class EmailNotifier {
     /**
      * Send email notification
      */
-    send(eventData: NotificationEventData, env: Env): Promise<NotificationDeliveryResult>;
+    send(eventData: NotificationEventData, env: ConductorEnv): Promise<NotificationDeliveryResult>;
     /**
      * Build email data from event
      */

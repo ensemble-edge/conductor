@@ -230,17 +230,17 @@ export class QueryCache {
         const upperSQL = sql.trim().toUpperCase();
         // Analytics queries - longer TTL (1 hour)
         if (/\b(COUNT|SUM|AVG|GROUP BY|AGGREGATE)\b/i.test(upperSQL)) {
-            return 3600;
+            return TTL.QUERY_ANALYTICS;
         }
         // Lookup queries - medium TTL (15 minutes)
         if (/\bWHERE\s+\w+\s*=\s*[$?:\d]/i.test(upperSQL)) {
-            return 900;
+            return TTL.QUERY_LOOKUP;
         }
         // List queries - short TTL (5 minutes)
         if (/\bSELECT\b/i.test(upperSQL)) {
-            return 300;
+            return TTL.QUERY_LIST;
         }
         // Default (5 minutes)
-        return 300;
+        return TTL.QUERY_LIST;
     }
 }

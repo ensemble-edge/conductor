@@ -5,7 +5,7 @@
  * Queries can be loaded from catalog (like prompts) or executed inline.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 // ============================================================================
 // Types

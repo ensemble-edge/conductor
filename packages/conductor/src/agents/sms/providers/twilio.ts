@@ -9,6 +9,17 @@ import { BaseSmsProvider } from './base.js'
 import type { SmsMessage, SmsResult, ValidationResult } from '../types/index.js'
 
 /**
+ * Twilio API response shape
+ */
+interface TwilioApiResponse {
+  sid?: string
+  status?: string
+  message?: string
+  error_code?: number
+  error_message?: string
+}
+
+/**
  * Twilio SMS Provider
  */
 export class TwilioProvider extends BaseSmsProvider {
@@ -108,20 +119,20 @@ export class TwilioProvider extends BaseSmsProvider {
       body: body.toString(),
     })
 
-    const data = (await response.json()) as any
+    const data = (await response.json()) as TwilioApiResponse
 
     if (!response.ok) {
       return {
         messageId: '',
         status: 'failed',
         provider: this.name,
-        error: data?.message || `HTTP ${response.status}`,
+        error: data.message || data.error_message || `HTTP ${response.status}`,
       }
     }
 
     return {
-      messageId: data.sid,
-      status: this.mapTwilioStatus(data.status),
+      messageId: data.sid || '',
+      status: this.mapTwilioStatus(data.status || 'unknown'),
       provider: this.name,
     }
   }

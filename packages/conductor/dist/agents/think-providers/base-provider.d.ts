@@ -5,6 +5,7 @@
  * Follows composition over inheritance for flexible provider management.
  */
 import type { ProviderId } from '../../types/branded.js';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Message format for AI conversations
  */
@@ -31,7 +32,7 @@ export interface AIProviderConfig {
 export interface AIProviderRequest {
     messages: AIMessage[];
     config: AIProviderConfig;
-    env: Env;
+    env: ConductorEnv;
 }
 /**
  * Response from AI provider
@@ -62,11 +63,11 @@ export interface AIProvider {
     /**
      * Validate provider configuration
      */
-    validateConfig(config: AIProviderConfig, env: Env): boolean;
+    validateConfig(config: AIProviderConfig, env: ConductorEnv): boolean;
     /**
      * Get error message for missing configuration
      */
-    getConfigError(config: AIProviderConfig, env: Env): string | null;
+    getConfigError(config: AIProviderConfig, env: ConductorEnv): string | null;
 }
 /**
  * Base AI provider with common functionality
@@ -78,15 +79,15 @@ export declare abstract class BaseAIProvider implements AIProvider {
     /**
      * Default validation checks for API key
      */
-    validateConfig(config: AIProviderConfig, env: Env): boolean;
+    validateConfig(config: AIProviderConfig, env: ConductorEnv): boolean;
     /**
      * Override this to provide specific validation
      */
-    abstract getConfigError(config: AIProviderConfig, env: Env): string | null;
+    abstract getConfigError(config: AIProviderConfig, env: ConductorEnv): string | null;
     /**
      * Helper to get API key from config or env
      */
-    protected getApiKey(config: AIProviderConfig, env: Env, envVarName: string): string | null;
+    protected getApiKey(config: AIProviderConfig, env: ConductorEnv, envVarName: string): string | null;
     /**
      * Helper to make HTTP request
      */

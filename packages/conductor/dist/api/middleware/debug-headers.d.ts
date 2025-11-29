@@ -7,6 +7,7 @@
  * @module api/middleware/debug-headers
  */
 import type { MiddlewareHandler } from 'hono';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Debug headers configuration
  */
@@ -68,5 +69,5 @@ export declare function debugHeaders(config?: DebugHeadersConfig): MiddlewareHan
 /**
  * Check if environment is production
  */
-export declare function isProductionEnvironment(env?: Env): boolean;
+export declare function isProductionEnvironment(env?: ConductorEnv): boolean;
 //# sourceMappingURL=debug-headers.d.ts.map

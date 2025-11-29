@@ -104,14 +104,15 @@ export class DocsDirectoryLoader {
                 let value = line.substring(colonIndex + 1).trim();
                 // Remove quotes
                 value = value.replace(/^["']|["']$/g, '');
-                // Parse booleans
+                // Parse booleans and numbers into proper types
+                let parsedValue = value;
                 if (value === 'true')
-                    value = true;
+                    parsedValue = true;
                 else if (value === 'false')
-                    value = false;
-                // Parse numbers
+                    parsedValue = false;
                 else if (/^\d+$/.test(value))
-                    value = parseInt(value, 10);
+                    parsedValue = parseInt(value, 10);
+                value = parsedValue;
                 frontmatter[key] = value;
             }
             return { frontmatter, body };

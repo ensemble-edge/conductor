@@ -123,10 +123,7 @@ export class PluginRegistry {
    * ```
    */
   register(name: string, handler: OperationHandler, metadata?: OperationMetadata): void {
-    if (this.operations.has(name)) {
-      console.warn(`[PluginRegistry] Overwriting operation: ${name}`)
-    }
-
+    // Note: Silently allow overwriting - this is a valid use case for plugins
     this.operations.set(name, handler)
 
     if (metadata) {
@@ -135,8 +132,6 @@ export class PluginRegistry {
         contexts: metadata.contexts || ['all'],
       })
     }
-
-    console.log(`[PluginRegistry] Registered operation: ${name}`)
   }
 
   /**
@@ -218,9 +213,8 @@ export class PluginRegistry {
     this.register(
       'fetch-data',
       {
-        async execute(operation: OperationConfig, context: OperationContext) {
+        async execute(operation: OperationConfig, _context: OperationContext) {
           const { source, collection, query } = operation.config
-          console.log(`[fetch-data] Fetching from ${source}/${collection}`, query)
 
           // TODO: Integrate with actual data sources
           // - Payload CMS via @conductor/payload plugin
@@ -258,9 +252,8 @@ export class PluginRegistry {
     this.register(
       'transform-data',
       {
-        async execute(operation: OperationConfig, context: OperationContext) {
+        async execute(operation: OperationConfig, _context: OperationContext) {
           const { input, transform } = operation.config
-          console.log('[transform-data] Transforming data', { input, transform })
 
           // TODO: Implement actual transformation logic
           // - JSONata expressions
@@ -294,9 +287,8 @@ export class PluginRegistry {
     this.register(
       'custom-code',
       {
-        async execute(operation: OperationConfig, context: OperationContext) {
+        async execute(operation: OperationConfig, _context: OperationContext) {
           const { code, input } = operation.config
-          console.log('[custom-code] Executing custom code')
 
           // TODO: Implement safe code execution
           // - Sandbox environment
@@ -344,8 +336,6 @@ export class PluginRegistry {
             )
           }
 
-          console.log(`[agent] Invoking agent: ${agentName}`)
-
           // Get agent from registry
           const agentInstance = context.agentRegistry.get(agentName)
           if (!agentInstance) {
@@ -368,13 +358,10 @@ export class PluginRegistry {
               throw new Error(result.error || 'Agent execution failed')
             }
 
-            console.log(`[agent] Agent "${agentName}" completed successfully`)
-
             // Return the actual output data (unwrap the AgentResponse)
             // Agents return { success, data, output, ... } - we want the data/output
             return result.data || result.output || result
           } catch (error) {
-            console.error(`[agent] Agent "${agentName}" execution failed:`, error)
             throw new Error(
               `[agent] Failed to execute agent "${agentName}": ${
                 error instanceof Error ? error.message : String(error)
@@ -397,8 +384,6 @@ export class PluginRegistry {
         },
       }
     )
-
-    console.log('[PluginRegistry] Built-in operations registered')
   }
 
   /**

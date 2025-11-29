@@ -7,6 +7,16 @@ export interface FetchConfig {
     retry?: number;
     timeout?: number;
     retryDelay?: number;
+    /**
+     * Allow requests to private/internal IP addresses
+     *
+     * WARNING: Enabling this bypasses SSRF protection and allows the fetch agent
+     * to access internal network resources, cloud metadata services, and localhost.
+     * Only enable if you trust the input URLs completely.
+     *
+     * @default false
+     */
+    allowInternalRequests?: boolean;
 }
 export interface FetchInput {
     url: string;

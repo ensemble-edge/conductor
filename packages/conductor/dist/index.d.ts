@@ -26,10 +26,12 @@ export type { EnsembleConfig, AgentConfig, FlowStep, ExposeConfig, NotificationC
 export { BuildManager, getBuildManager, resetBuildManager } from './runtime/build-manager.js';
 export type { BuildExecutionResult } from './runtime/build-manager.js';
 export { CLIManager, getCLIManager, resetCLIManager } from './runtime/cli-manager.js';
-export type { CLICommandMetadata, CLIExecutionResult, CLIOption, } from './runtime/cli-manager.js';
+export type { CLICommandMetadata, CLIExecutionResult, CLIOption } from './runtime/cli-manager.js';
 export type { StateConfig, MemberStateConfig, StateContext, AccessReport, } from './runtime/state-manager.js';
 export type { AgentExecutionContext, AgentResponse } from './agents/base-agent.js';
 export type { ExecutorConfig, ExecutionResult, ExecutionMetrics } from './runtime/executor.js';
+export { ModelId, AgentName, EnsembleName, ProviderId, PlatformName, BindingName, VersionString, ExecutionId, RequestId, ResumeToken, CacheKey, } from './types/branded.js';
+export type { Brand } from './types/branded.js';
 export type { ExecutionStatus, StoredExecutionState, ExecutionProgressEvent, ExecutionCompletionEvent, ExecutionEvent, } from './durable-objects/execution-state.js';
 export type { HITLStatus, StoredHITLState, HITLEvent } from './durable-objects/hitl-state.js';
 export type { ConductorPlugin, FunctionalPlugin, LifecyclePlugin, ConductorConfig as PluginConductorConfig, PluginContext, PluginLogger, OperationRegistration, MiddlewareRegistration, AgentRegistration, AuthValidatorRegistration, AuthValidationResult, PluginDependency, PluginMetadata, } from './types/plugin.js';

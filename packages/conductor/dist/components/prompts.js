@@ -209,7 +209,9 @@ function renderLightweightHandlebars(template, context) {
     result = result.replace(/\{\{#if\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/g, (_, path, ifContent, elseContent = '') => {
         const value = getValue(path, context);
         const isTruthy = value !== false && value !== null && value !== undefined && value !== '' && value !== 0;
-        return isTruthy ? renderLightweightHandlebars(ifContent, context) : renderLightweightHandlebars(elseContent, context);
+        return isTruthy
+            ? renderLightweightHandlebars(ifContent, context)
+            : renderLightweightHandlebars(elseContent, context);
     });
     // Process {{#unless condition}}...{{/unless}}
     result = result.replace(/\{\{#unless\s+(\w+(?:\.\w+)*)\}\}([\s\S]*?)\{\{\/unless\}\}/g, (_, path, content) => {

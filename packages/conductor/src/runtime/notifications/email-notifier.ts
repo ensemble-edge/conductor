@@ -10,6 +10,7 @@ import type {
   EmailNotificationData,
 } from './types.js'
 import { createLogger } from '../../observability/index.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 const logger = createLogger({ serviceName: 'email-notifier' })
 
@@ -34,7 +35,7 @@ export class EmailNotifier {
   /**
    * Send email notification
    */
-  async send(eventData: NotificationEventData, env: Env): Promise<NotificationDeliveryResult> {
+  async send(eventData: NotificationEventData, env: ConductorEnv): Promise<NotificationDeliveryResult> {
     const startTime = Date.now()
 
     try {
@@ -234,7 +235,7 @@ export class EmailNotifier {
   /**
    * Send email using MailChannels API
    */
-  private async sendEmail(emailData: EmailNotificationData, env: Env): Promise<void> {
+  private async sendEmail(emailData: EmailNotificationData, _env: ConductorEnv): Promise<void> {
     // Use MailChannels API (free for Cloudflare Workers)
     const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
       method: 'POST',

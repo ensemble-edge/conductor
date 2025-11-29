@@ -31,3 +31,8 @@ export {
 } from './script-loader.js'
 
 export type { ScriptLoader, ScriptHandler } from './script-loader.js'
+
+// Safe fetch with SSRF protection
+export { safeFetch, validateURL, isURLSafe } from './safe-fetch.js'
+
+export type { SafeFetchOptions } from './safe-fetch.js'

@@ -37,8 +37,12 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
     async render(template, context) {
         let result = template;
         // Handle both structured context {data: {...}} and flat context {...}
-        const data = context.data !== undefined ? context.data : context;
-        const helpers = context.helpers;
+        // Type guard for structured context detection
+        const hasDataProperty = 'data' in context && context.data !== undefined;
+        const data = hasDataProperty ? context.data : context;
+        const helpers = 'helpers' in context
+            ? context.helpers
+            : undefined;
         // Process conditionals FIRST (recursively processes content)
         result = await this.processConditionalsRecursive(result, data, context);
         // Process loops SECOND (recursively processes content)
@@ -239,7 +243,11 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
         for (const match of matches) {
             const [fullMatch, partialRef, argsStr] = match;
             // Parse arguments if provided (e.g., {{> header title="My Site"}})
-            const partialData = argsStr ? this.parsePartialArgs(argsStr, context.data) : context.data;
+            // Type guard: context.data is Record<string, unknown> when passed from render()
+            const contextData = 'data' in context && typeof context.data === 'object' && context.data !== null
+                ? context.data
+                : {};
+            const partialData = argsStr ? this.parsePartialArgs(argsStr, contextData) : contextData;
             try {
                 let partialContent;
                 // Check if it's a URI (contains ://)

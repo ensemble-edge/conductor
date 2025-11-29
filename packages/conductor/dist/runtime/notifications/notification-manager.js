@@ -54,34 +54,31 @@ export class NotificationManager {
      */
     static async sendNotification(config, eventData, env) {
         try {
-            if (config.type === 'webhook') {
-                const notifier = new WebhookNotifier({
-                    url: config.url,
-                    secret: config.secret,
-                    retries: config.retries,
-                    timeout: config.timeout,
-                });
-                return await notifier.send(eventData);
+            switch (config.type) {
+                case 'webhook': {
+                    const notifier = new WebhookNotifier({
+                        url: config.url,
+                        secret: config.secret,
+                        retries: config.retries,
+                        timeout: config.timeout,
+                    });
+                    return await notifier.send(eventData);
+                }
+                case 'email': {
+                    const notifier = new EmailNotifier({
+                        to: config.to,
+                        from: config.from,
+                        subject: config.subject,
+                        events: config.events,
+                    });
+                    return await notifier.send(eventData, env);
+                }
+                default: {
+                    // Exhaustive type check - should never reach here with valid configs
+                    const exhaustiveCheck = config;
+                    throw new Error(`Unknown notification type: ${exhaustiveCheck.type}`);
+                }
             }
-            else if (config.type === 'email') {
-                const notifier = new EmailNotifier({
-                    to: config.to,
-                    from: config.from,
-                    subject: config.subject,
-                    events: config.events,
-                });
-                return await notifier.send(eventData, env);
-            }
-            // Unknown notification type (should never happen with discriminated union)
-            const unknownType = config.type || 'unknown';
-            return {
-                success: false,
-                type: unknownType,
-                target: 'unknown',
-                event: eventData.event,
-                duration: 0,
-                error: `Unknown notification type: ${unknownType}`,
-            };
         }
         catch (error) {
             logger.error('Notification failed', error instanceof Error ? error : undefined, {
@@ -89,13 +86,11 @@ export class NotificationManager {
                 event: eventData.event,
             });
             // Determine target based on type
-            let target = 'unknown';
-            if (config.type === 'webhook') {
-                target = config.url;
-            }
-            else if (config.type === 'email') {
-                target = config.to.join(', ');
-            }
+            const target = config.type === 'webhook'
+                ? config.url
+                : config.type === 'email'
+                    ? config.to.join(', ')
+                    : 'unknown';
             return {
                 success: false,
                 type: config.type,

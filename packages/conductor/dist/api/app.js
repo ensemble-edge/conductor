@@ -6,30 +6,31 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { createAuthMiddleware, errorHandler, requestId, timing, securityHeaders, conductorHeader, debugHeaders, apiSecurityPreset, } from './middleware/index.js';
+import { createAuthMiddleware, errorHandler, requestId, timing, securityHeaders, securityConfig as securityConfigMiddleware, conductorHeader, debugHeaders, apiSecurityPreset, } from './middleware/index.js';
 import { execute, agents, ensembles, health, stream, async, webhooks, executions, schedules, mcp, email, callbacks, } from './routes/index.js';
 import { openapi } from './openapi/index.js';
 import { ScheduleManager } from '../runtime/schedule-manager.js';
 import { CatalogLoader } from '../runtime/catalog-loader.js';
 import { createLogger } from '../observability/index.js';
-import { initSecurityConfig } from '../config/security.js';
 const appLogger = createLogger({ serviceName: 'api-app' });
 /**
  * Create Conductor API application
  */
 export function createConductorAPI(config = {}) {
     const app = new Hono();
-    // Initialize security configuration
-    initSecurityConfig({
+    // Build security configuration (to be injected via middleware)
+    const securityConfig = {
         requireAuth: config.auth?.requireAuth ?? true, // SECURE BY DEFAULT
         allowDirectAgentExecution: config.security?.allowDirectAgentExecution ?? true,
         autoPermissions: config.security?.autoPermissions ?? false,
-    });
+    };
     // ==================== Global Middleware ====================
     // Request ID (first, so all logs have it)
     app.use('*', requestId());
     // Timing
     app.use('*', timing());
+    // Security configuration (injected into context for all routes)
+    app.use('*', securityConfigMiddleware(securityConfig));
     // Logger (if enabled)
     if (config.logging !== false) {
         app.use('*', logger());
@@ -171,13 +172,15 @@ async function initializeScheduleManager(env) {
  */
 export default {
     async fetch(request, env, ctx) {
+        // Cast env to ConductorEnv for typed access to environment variables
+        const conductorEnv = env;
         // Create API with config from environment
         const config = {
             auth: {
-                apiKeys: env.API_KEYS ? env.API_KEYS.split(',') : [],
-                allowAnonymous: env.ALLOW_ANONYMOUS === 'true',
+                apiKeys: conductorEnv.API_KEYS ? conductorEnv.API_KEYS.split(',') : [],
+                allowAnonymous: conductorEnv.ALLOW_ANONYMOUS === 'true',
             },
-            logging: env.DISABLE_LOGGING !== 'true',
+            logging: conductorEnv.DISABLE_LOGGING !== 'true',
         };
         const app = createConductorAPI(config);
         return app.fetch(request, env, ctx);

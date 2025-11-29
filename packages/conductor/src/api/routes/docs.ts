@@ -41,17 +41,18 @@ import {
   type DocsTheme,
 } from './docs-templates.js'
 import { getDocsLoader, renderDocsPage, isReservedRoute } from '../../docs/index.js'
+import type { ConductorEnv } from '../../types/env.js'
 
-const docs = new Hono<{ Bindings: Env }>()
+const docs = new Hono<{ Bindings: ConductorEnv }>()
 const logger = createLogger({ serviceName: 'api-docs' })
 
 /**
  * Get docs configuration from environment
  * Config can come from conductor.config.ts or docs.yaml
  */
-function getDocsConfig(env: Env): DocsConfig {
+function getDocsConfig(env: ConductorEnv): DocsConfig {
   // Try to get config from environment (set by config loader)
-  const configStr = (env as any).CONDUCTOR_DOCS_CONFIG
+  const configStr = env.CONDUCTOR_DOCS_CONFIG
   if (configStr) {
     try {
       return JSON.parse(configStr)
@@ -71,7 +72,7 @@ function getDocsConfig(env: Env): DocsConfig {
 /**
  * Get theme from config
  */
-function getTheme(env: Env): DocsTheme {
+function getTheme(env: ConductorEnv): DocsTheme {
   const config = getDocsConfig(env)
   return getThemeFromConfig(config)
 }

@@ -107,85 +107,17 @@ export function getBuiltInRegistry(): BuiltInMemberRegistry {
 /**
  * Register all built-in agents
  * This is called once when the registry is first accessed
+ *
+ * Note: Most agents have been moved to template-based agents that users own and can customize.
+ * See: catalog/cloud/cloudflare/templates/agents/system/
+ *
+ * Only RAG and HITL remain as true built-ins because they require deep framework integration:
+ * - RAG: Tight Cloudflare Vectorize and Workers AI embedding integration
+ * - HITL: Requires Durable Objects runtime coordination for workflow suspension
  */
 function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
   // Import and register each built-in agent
   // This happens lazily, so only loaded when first accessed
-
-  // Scrape agent
-  registry.register(
-    {
-      name: 'scrape',
-      version: '1.0.0',
-      description: '3-tier web scraping with bot protection and fallback strategies',
-      operation: Operation.code,
-      tags: ['web', 'scraping', 'cloudflare', 'browser-rendering'],
-      examples: [
-        {
-          name: 'basic-scrape',
-          description: 'Simple web scraping with balanced strategy',
-          input: { url: 'https://example.com' },
-          config: { strategy: 'balanced', returnFormat: 'markdown' },
-          output: { markdown: '...', tier: 1, duration: 350 },
-        },
-        {
-          name: 'aggressive-scrape',
-          description: 'Aggressive scraping with all fallback tiers',
-          input: { url: 'https://example.com' },
-          config: { strategy: 'aggressive', returnFormat: 'markdown' },
-          output: { markdown: '...', tier: 3, duration: 4500 },
-        },
-      ],
-      documentation: 'https://docs.conductor.dev/built-in-agents/scrape',
-    },
-    async (config, env) => {
-      const { ScrapeMember } = await import('./scrape/index.js')
-      return new ScrapeMember(config, env as any)
-    }
-  )
-
-  // Validate agent
-  registry.register(
-    {
-      name: 'validate',
-      version: '1.0.0',
-      description:
-        'Validation and evaluation with pluggable evaluators (judge, NLP, embedding, rule)',
-      operation: Operation.scoring,
-      tags: ['validation', 'evaluation', 'scoring', 'quality'],
-      examples: [
-        {
-          name: 'rule-validation',
-          description: 'Validate content using custom rules',
-          input: { content: 'Sample content...' },
-          config: {
-            evalType: 'rule',
-            rules: [{ name: 'minLength', check: 'content.length >= 800', weight: 0.5 }],
-            threshold: 0.7,
-          },
-          output: { passed: true, score: 0.85, details: {} },
-        },
-        {
-          name: 'llm-judge',
-          description: 'Evaluate quality using LLM judge',
-          input: { content: 'Sample content...', reference: 'Expected output...' },
-          config: {
-            evalType: 'judge',
-            criteria: [
-              { name: 'accuracy', weight: 0.4 },
-              { name: 'relevance', weight: 0.3 },
-            ],
-            threshold: 0.8,
-          },
-        },
-      ],
-      documentation: 'https://docs.conductor.dev/built-in-agents/validate',
-    },
-    async (config, env) => {
-      const { ValidateMember } = await import('./validate/index.js')
-      return new ValidateMember(config, env as any)
-    }
-  )
 
   // RAG agent
   registry.register(
@@ -227,7 +159,7 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
     },
     async (config, env) => {
       const { RAGMember } = await import('./rag/index.js')
-      return new RAGMember(config, env as any)
+      return new RAGMember(config, env)
     }
   )
 
@@ -265,186 +197,7 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
     },
     async (config, env) => {
       const { HITLMember } = await import('./hitl/index.js')
-      return new HITLMember(config, env as any)
-    }
-  )
-
-  // Fetch agent
-  registry.register(
-    {
-      name: 'fetch',
-      version: '1.0.0',
-      description: 'HTTP client with retry logic and exponential backoff',
-      operation: Operation.code,
-      tags: ['http', 'api', 'fetch', 'retry'],
-      examples: [
-        {
-          name: 'basic-fetch',
-          description: 'Simple HTTP GET request',
-          input: { url: 'https://api.example.com/data' },
-          config: { method: 'GET', retry: 3, timeout: 5000 },
-          output: { status: 200, body: {}, headers: {} },
-        },
-        {
-          name: 'post-with-retry',
-          description: 'POST request with retry logic',
-          input: {
-            url: 'https://api.example.com/submit',
-            body: { data: 'value' },
-          },
-          config: {
-            method: 'POST',
-            retry: 5,
-            timeout: 10000,
-            headers: { 'Content-Type': 'application/json' },
-          },
-        },
-      ],
-      documentation: 'https://docs.conductor.dev/built-in-agents/fetch',
-    },
-    async (config, env) => {
-      const { FetchMember } = await import('./fetch/index.js')
-      return new FetchMember(config, env as any)
-    }
-  )
-
-  // Tools agent (MCP client)
-  registry.register(
-    {
-      name: 'tools',
-      version: '1.0.0',
-      description: 'Invoke external MCP (Model Context Protocol) tools over HTTP',
-      operation: Operation.tools,
-      tags: ['mcp', 'tools', 'integration', 'http'],
-      examples: [
-        {
-          name: 'github-tool',
-          description: 'Get GitHub pull request data',
-          input: {
-            owner: 'anthropics',
-            repo: 'anthropic-sdk-typescript',
-            pull_number: 123,
-          },
-          config: {
-            mcp: 'github',
-            tool: 'get_pull_request',
-          },
-          output: {
-            tool: 'get_pull_request',
-            server: 'github',
-            content: [{ type: 'text', text: 'PR data...' }],
-            duration: 450,
-          },
-        },
-        {
-          name: 'search-tool',
-          description: 'Search the web',
-          input: {
-            query: 'latest AI developments',
-            limit: 10,
-          },
-          config: {
-            mcp: 'search-engine',
-            tool: 'search',
-            timeout: 5000,
-          },
-        },
-      ],
-      documentation: 'https://docs.conductor.dev/built-in-agents/tools',
-    },
-    async (config, env) => {
-      const { ToolsMember } = await import('./tools/index.js')
-      return new ToolsMember(config, env as any)
-    }
-  )
-
-  // Queries agent
-  registry.register(
-    {
-      name: 'queries',
-      version: '1.0.0',
-      description:
-        'Execute SQL queries across Hyperdrive-connected databases with query catalog support',
-      operation: Operation.storage,
-      tags: ['sql', 'database', 'queries', 'hyperdrive', 'analytics'],
-      examples: [
-        {
-          name: 'catalog-query',
-          description: 'Execute query from catalog',
-          input: {
-            queryName: 'user-analytics',
-            input: {
-              startDate: '2024-01-01',
-              endDate: '2024-01-31',
-            },
-          },
-          config: {
-            defaultDatabase: 'analytics',
-            readOnly: true,
-            transform: 'camelCase',
-          },
-          output: {
-            rows: [],
-            count: 25,
-            metadata: {
-              columns: ['date', 'user_count', 'active_users'],
-              executionTime: 150,
-              cached: false,
-              database: 'analytics',
-            },
-          },
-        },
-        {
-          name: 'inline-query',
-          description: 'Execute inline SQL query',
-          input: {
-            sql: 'SELECT * FROM users WHERE created_at > $1 LIMIT 100',
-            input: ['2024-01-01'],
-          },
-          config: {
-            defaultDatabase: 'production',
-            readOnly: true,
-            maxRows: 100,
-          },
-        },
-      ],
-      inputSchema: {
-        type: 'object',
-        properties: {
-          queryName: { type: 'string', description: 'Query name from catalog' },
-          sql: { type: 'string', description: 'Inline SQL query' },
-          input: {
-            oneOf: [{ type: 'object' }, { type: 'array' }],
-            description: 'Query parameters',
-          },
-          database: { type: 'string', description: 'Database alias' },
-        },
-      },
-      outputSchema: {
-        type: 'object',
-        properties: {
-          rows: { type: 'array' },
-          count: { type: 'number' },
-          metadata: { type: 'object' },
-        },
-      },
-      configSchema: {
-        type: 'object',
-        properties: {
-          defaultDatabase: { type: 'string' },
-          cacheTTL: { type: 'number' },
-          maxRows: { type: 'number' },
-          timeout: { type: 'number' },
-          readOnly: { type: 'boolean' },
-          transform: { type: 'string', enum: ['none', 'camelCase', 'snakeCase'] },
-          includeMetadata: { type: 'boolean' },
-        },
-      },
-      documentation: 'https://docs.conductor.dev/built-in-agents/queries',
-    },
-    async (config, env) => {
-      const { QueriesMember } = await import('./queries/index.js')
-      return new QueriesMember(config, env as any)
+      return new HITLMember(config, env)
     }
   )
 }

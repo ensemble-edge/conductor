@@ -18,9 +18,10 @@ import type { AgentExecutionContext } from '../../agents/base-agent.js'
 import { Executor } from '../../runtime/executor.js'
 import { createLogger } from '../../observability/index.js'
 import {
-  getSecurityConfig,
   isDirectAgentExecutionAllowed,
   getRequiredPermission,
+  DEFAULT_SECURITY_CONFIG,
+  type SecurityConfig,
 } from '../../config/security.js'
 import { hasPermission } from '../../auth/permissions.js'
 
@@ -28,16 +29,24 @@ const execute = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-execute' })
 
 /**
+ * Get security config from context, falling back to defaults
+ */
+function getSecurityConfigFromContext(c: ConductorContext): SecurityConfig {
+  return c.get('securityConfig') || DEFAULT_SECURITY_CONFIG
+}
+
+/**
  * Check if user has required permission for resource
  * Returns error response if permission check fails, null if allowed
  */
 function checkPermission(
   c: ConductorContext,
+  securityConfig: SecurityConfig,
   resourceType: 'ensemble' | 'agent',
   resourceName: string,
   requestId: string | undefined
 ): Response | null {
-  const requiredPerm = getRequiredPermission(resourceType, resourceName)
+  const requiredPerm = getRequiredPermission(securityConfig, resourceType, resourceName)
 
   // No auto-permissions configured
   if (!requiredPerm) {
@@ -76,8 +85,11 @@ async function executeEnsemble(
   requestId: string | undefined,
   routePath: string
 ) {
+  // Get security config from context
+  const securityConfig = getSecurityConfigFromContext(c)
+
   // Check permission
-  const permError = checkPermission(c, 'ensemble', ensembleName, requestId)
+  const permError = checkPermission(c, securityConfig, 'ensemble', ensembleName, requestId)
   if (permError) return permError
 
   try {
@@ -212,8 +224,11 @@ async function executeAgent(
   requestId: string | undefined,
   routePath: string
 ): Promise<Response> {
+  // Get security config from context
+  const securityConfig = getSecurityConfigFromContext(c)
+
   // Check if direct agent execution is allowed
-  if (!isDirectAgentExecutionAllowed()) {
+  if (!isDirectAgentExecutionAllowed(securityConfig)) {
     return c.json(
       {
         error: 'Forbidden',
@@ -226,7 +241,7 @@ async function executeAgent(
   }
 
   // Check permission
-  const permError = checkPermission(c, 'agent', agentName, requestId)
+  const permError = checkPermission(c, securityConfig, 'agent', agentName, requestId)
   if (permError) return permError
 
   try {
@@ -294,7 +309,7 @@ async function executeAgent(
       }
     }
 
-    // Create execution context with auth
+    // Create execution context with auth (security features injected by BaseAgent.execute)
     const auth = c.get('auth')
     const memberContext: AgentExecutionContext = {
       input,

@@ -59,6 +59,17 @@ export interface SecurityConfigOptions {
    * @default false
    */
   autoPermissions?: boolean
+
+  /**
+   * Environment names that should be treated as production
+   * In production environments:
+   * - Error messages are sanitized (no internal details leaked)
+   * - Error details are only included for client errors (4xx), not server errors (5xx)
+   *
+   * @default ['production', 'prod']
+   * @example ['production', 'prod', 'live', 'main']
+   */
+  productionEnvironments?: string[]
 }
 
 /**

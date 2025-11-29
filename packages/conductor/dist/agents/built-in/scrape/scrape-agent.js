@@ -9,6 +9,7 @@
  * - Automatic fallback on bot protection detection
  * - Multiple return formats (markdown, html, text)
  * - Configurable strategy (fast, balanced, aggressive)
+ * - SSRF protection (blocks private/internal IPs by default)
  */
 import { BaseAgent } from '../../base-agent.js';
 import { detectBotProtection, isContentSuccessful } from './bot-detection.js';
@@ -26,6 +27,7 @@ export class ScrapeMember extends BaseAgent {
             blockResources: cfg?.blockResources !== false,
             userAgent: cfg?.userAgent,
             timeout: cfg?.timeout || 30000,
+            allowInternalRequests: cfg?.allowInternalRequests ?? false,
         };
     }
     async run(context) {
@@ -37,7 +39,7 @@ export class ScrapeMember extends BaseAgent {
         const strategy = this.scrapeConfig.strategy;
         // Tier 1: Fast browser rendering (domcontentloaded)
         try {
-            const result = await this.tier1Fast(input.url);
+            const result = await this.tier1Fast(context, input.url);
             if (isContentSuccessful(result.html)) {
                 return this.formatResult(result, 1, Date.now() - startTime);
             }
@@ -54,7 +56,7 @@ export class ScrapeMember extends BaseAgent {
         }
         // Tier 2: Slow browser rendering (networkidle2)
         try {
-            const result = await this.tier2Slow(input.url);
+            const result = await this.tier2Slow(context, input.url);
             if (isContentSuccessful(result.html)) {
                 return this.formatResult(result, 2, Date.now() - startTime);
             }
@@ -70,20 +72,22 @@ export class ScrapeMember extends BaseAgent {
             return this.fallbackResult(input.url, Date.now() - startTime);
         }
         // Tier 3: HTML parsing fallback
-        const result = await this.tier3HTMLParsing(input.url);
+        const result = await this.tier3HTMLParsing(context, input.url);
         return this.formatResult(result, 3, Date.now() - startTime);
     }
     /**
      * Tier 1: Fast browser rendering with domcontentloaded
      */
-    async tier1Fast(url) {
-        // TODO: Integrate with Cloudflare Browser Rendering API
-        // For now, use standard fetch as placeholder
-        const response = await fetch(url, {
+    async tier1Fast(context, url) {
+        // Use framework-provided SSRF-protected fetch from context
+        // Falls back to global fetch if not available (shouldn't happen in production)
+        const fetchFn = context.fetch || fetch;
+        const response = await fetchFn(url, {
             headers: {
                 'User-Agent': this.scrapeConfig.userAgent || 'Mozilla/5.0 (compatible; Conductor/1.0)',
             },
             signal: AbortSignal.timeout(this.scrapeConfig.timeout),
+            allowInternalRequests: this.scrapeConfig.allowInternalRequests,
         });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -95,20 +99,23 @@ export class ScrapeMember extends BaseAgent {
     /**
      * Tier 2: Slow browser rendering with networkidle2
      */
-    async tier2Slow(url) {
+    async tier2Slow(context, url) {
         // TODO: Integrate with Cloudflare Browser Rendering API with networkidle2
         // For now, fallback to tier1
-        return await this.tier1Fast(url);
+        return await this.tier1Fast(context, url);
     }
     /**
      * Tier 3: HTML parsing fallback
      */
-    async tier3HTMLParsing(url) {
-        const response = await fetch(url, {
+    async tier3HTMLParsing(context, url) {
+        // Use framework-provided SSRF-protected fetch from context
+        const fetchFn = context.fetch || fetch;
+        const response = await fetchFn(url, {
             headers: {
                 'User-Agent': this.scrapeConfig.userAgent || 'Mozilla/5.0 (compatible; Conductor/1.0)',
             },
             signal: AbortSignal.timeout(this.scrapeConfig.timeout),
+            allowInternalRequests: this.scrapeConfig.allowInternalRequests,
         });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);

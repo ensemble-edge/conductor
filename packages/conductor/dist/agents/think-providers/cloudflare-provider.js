@@ -18,6 +18,7 @@ export class CloudflareProvider extends BaseAIProvider {
         }
         const model = config.model || this.defaultModel;
         // Call Cloudflare AI binding
+        // AI.run uses model string and options, returns CloudflareAIResponse
         const response = (await env.AI.run(model, {
             messages,
             temperature: config.temperature,
@@ -33,7 +34,7 @@ export class CloudflareProvider extends BaseAIProvider {
             },
         };
     }
-    getConfigError(config, env) {
+    getConfigError(_config, env) {
         if (!env.AI) {
             return 'Cloudflare AI binding not found. Add [ai] binding = "AI" to wrangler.toml';
         }

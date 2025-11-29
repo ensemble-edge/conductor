@@ -10,6 +10,7 @@
  * - Custom validator interface
  */
 import type { AuthValidator, AuthValidationResult } from '../types.js';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Stripe Webhook Signature Validator
  */
@@ -17,7 +18,7 @@ export declare class StripeSignatureValidator implements AuthValidator {
     private webhookSecret;
     constructor(webhookSecret: string);
     extractToken(request: Request): string | null;
-    validate(request: Request, env: any): Promise<AuthValidationResult>;
+    validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult>;
     private verifyStripeSignature;
     private computeHMAC;
     private secureCompare;
@@ -29,7 +30,7 @@ export declare class GitHubSignatureValidator implements AuthValidator {
     private webhookSecret;
     constructor(webhookSecret: string);
     extractToken(request: Request): string | null;
-    validate(request: Request, env: any): Promise<AuthValidationResult>;
+    validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult>;
     private verifyGitHubSignature;
     private computeHMAC;
     private secureCompare;
@@ -41,7 +42,7 @@ export declare class TwilioSignatureValidator implements AuthValidator {
     private authToken;
     constructor(authToken: string);
     extractToken(request: Request): string | null;
-    validate(request: Request, env: any): Promise<AuthValidationResult>;
+    validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult>;
     private verifyTwilioSignature;
     private computeHMAC;
     private secureCompare;
@@ -66,10 +67,10 @@ export declare class CustomValidatorRegistry {
     /**
      * Register built-in validators from environment
      */
-    registerBuiltIn(env: any): void;
+    registerBuiltIn(env: ConductorEnv): void;
 }
 /**
  * Create custom validator registry
  */
-export declare function createCustomValidatorRegistry(env: any): CustomValidatorRegistry;
+export declare function createCustomValidatorRegistry(env: ConductorEnv): CustomValidatorRegistry;
 //# sourceMappingURL=custom.d.ts.map

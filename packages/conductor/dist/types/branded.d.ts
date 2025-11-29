@@ -235,5 +235,109 @@ export declare const VersionString: {
      */
     unwrap(versionString: VersionString): string;
 };
+/**
+ * Execution ID validation and creation
+ */
+export declare const ExecutionId: {
+    /**
+     * Create an ExecutionId from a string
+     * @throws {Error} if the execution ID is invalid
+     */
+    create(value: string): ExecutionId;
+    /**
+     * Generate a new unique execution ID
+     */
+    generate(): ExecutionId;
+    /**
+     * Check if a string is a valid ExecutionId
+     */
+    isValid(value: string): boolean;
+    /**
+     * Safely create an ExecutionId, returning null if invalid
+     */
+    tryCreate(value: string): ExecutionId | null;
+    /**
+     * Unwrap an ExecutionId back to a string
+     */
+    unwrap(executionId: ExecutionId): string;
+};
+/**
+ * Request ID validation and creation
+ */
+export declare const RequestId: {
+    /**
+     * Create a RequestId from a string
+     * @throws {Error} if the request ID is invalid
+     */
+    create(value: string): RequestId;
+    /**
+     * Generate a new unique request ID
+     */
+    generate(): RequestId;
+    /**
+     * Check if a string is a valid RequestId
+     */
+    isValid(value: string): boolean;
+    /**
+     * Safely create a RequestId, returning null if invalid
+     */
+    tryCreate(value: string): RequestId | null;
+    /**
+     * Unwrap a RequestId back to a string
+     */
+    unwrap(requestId: RequestId): string;
+};
+/**
+ * Resume Token validation and creation
+ */
+export declare const ResumeToken: {
+    /**
+     * Create a ResumeToken from a string
+     * @throws {Error} if the resume token is invalid
+     */
+    create(value: string): ResumeToken;
+    /**
+     * Generate a new unique resume token
+     */
+    generate(): ResumeToken;
+    /**
+     * Check if a string is a valid ResumeToken
+     */
+    isValid(value: string): boolean;
+    /**
+     * Safely create a ResumeToken, returning null if invalid
+     */
+    tryCreate(value: string): ResumeToken | null;
+    /**
+     * Unwrap a ResumeToken back to a string
+     */
+    unwrap(resumeToken: ResumeToken): string;
+};
+/**
+ * Cache Key validation and creation
+ */
+export declare const CacheKey: {
+    /**
+     * Create a CacheKey from a string
+     * @throws {Error} if the cache key is invalid
+     */
+    create(value: string): CacheKey;
+    /**
+     * Generate a cache key from components
+     */
+    generate(prefix: string, ...parts: string[]): CacheKey;
+    /**
+     * Check if a string is a valid CacheKey
+     */
+    isValid(value: string): boolean;
+    /**
+     * Safely create a CacheKey, returning null if invalid
+     */
+    tryCreate(value: string): CacheKey | null;
+    /**
+     * Unwrap a CacheKey back to a string
+     */
+    unwrap(cacheKey: CacheKey): string;
+};
 export {};
 //# sourceMappingURL=branded.d.ts.map

@@ -9,15 +9,17 @@ import type { Hono } from 'hono';
 import type { z } from 'zod';
 import type { EnsembleConfig } from './parser.js';
 import type { BaseAgent } from '../agents/base-agent.js';
+import type { ConductorEnv } from '../types/env.js';
 /**
  * Trigger handler context provided to trigger handlers
+ * Uses generic Hono to accept any app typing (ConductorApp or bare Hono)
  */
 export interface TriggerHandlerContext {
-    app: Hono;
+    app: Hono<any, any, any>;
     ensemble: EnsembleConfig;
-    trigger: any;
+    trigger: unknown;
     agents: BaseAgent[];
-    env: Env;
+    env: ConductorEnv;
     ctx: ExecutionContext;
 }
 /**
@@ -45,7 +47,7 @@ export interface TriggerMetadata {
      * Zod schema for validating trigger configuration
      * This should be a z.object() schema
      */
-    schema: z.ZodObject<any>;
+    schema: z.ZodObject<z.ZodRawShape, any, any>;
     /**
      * Whether this trigger requires authentication by default
      */
@@ -103,7 +105,7 @@ export declare class TriggerRegistry {
      * Register all triggers for an ensemble
      * Called during auto-discovery initialization
      */
-    registerEnsembleTriggers(app: Hono, ensemble: EnsembleConfig, agents: BaseAgent[], env: Env, ctx: ExecutionContext): Promise<void>;
+    registerEnsembleTriggers(app: Hono<any, any, any>, ensemble: EnsembleConfig, agents: BaseAgent[], env: ConductorEnv, ctx: ExecutionContext): Promise<void>;
 }
 /**
  * Get the global trigger registry instance

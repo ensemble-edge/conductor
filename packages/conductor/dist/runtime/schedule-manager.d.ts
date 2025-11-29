@@ -6,6 +6,7 @@
  */
 import type { EnsembleConfig, ScheduleConfig } from './parser.js';
 import { type Logger } from '../observability/index.js';
+import type { ConductorEnv } from '../types/env.js';
 /**
  * Cloudflare scheduled event
  */
@@ -45,7 +46,7 @@ export declare class ScheduleManager {
      * Handle scheduled execution
      * Called by Cloudflare Workers scheduled() handler
      */
-    handleScheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<ScheduleExecutionResult[]>;
+    handleScheduled(event: ScheduledEvent, env: ConductorEnv, ctx: ExecutionContext): Promise<ScheduleExecutionResult[]>;
     /**
      * Find ensembles with matching cron expression
      */

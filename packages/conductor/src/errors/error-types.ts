@@ -69,8 +69,9 @@ export abstract class ConductorError extends Error {
     this.details = details
 
     // Maintains proper stack trace for where our error was thrown (only available on V8)
-    if ((Error as any).captureStackTrace) {
-      ;(Error as any).captureStackTrace(this, this.constructor)
+    // Use type guard to safely check for V8-specific captureStackTrace
+    if ('captureStackTrace' in Error && typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, this.constructor)
     }
   }
 
@@ -83,6 +84,7 @@ export abstract class ConductorError extends Error {
       code: this.code,
       message: this.message,
       isOperational: this.isOperational,
+      ...(this.details && { details: this.details }),
       stack: this.stack,
     }
   }
@@ -101,6 +103,7 @@ export interface ErrorJSON {
   code: ErrorCode
   message: string
   isOperational: boolean
+  details?: Record<string, unknown>
   stack?: string
 }
 

@@ -204,7 +204,8 @@ export function validateJsonSchema(schema, data, path = '') {
         if (schema.maxItems !== undefined && data.length > schema.maxItems) {
             addError('maxItems', `Array must have at most ${schema.maxItems} items`, schema.maxItems, data.length);
         }
-        if (schema.uniqueItems && new Set(data.map((item) => JSON.stringify(item))).size !== data.length) {
+        if (schema.uniqueItems &&
+            new Set(data.map((item) => JSON.stringify(item))).size !== data.length) {
             addError('uniqueItems', 'Array items must be unique');
         }
         // Validate items
@@ -263,7 +264,7 @@ export function validateJsonSchema(schema, data, path = '') {
             const allowedKeys = Object.keys(schema.properties || {});
             const patternKeys = Object.keys(schema.patternProperties || {});
             for (const key of dataKeys) {
-                if (!allowedKeys.includes(key) && !patternKeys.some(p => new RegExp(p).test(key))) {
+                if (!allowedKeys.includes(key) && !patternKeys.some((p) => new RegExp(p).test(key))) {
                     addError('additionalProperties', `Additional property not allowed: ${key}`, false, key);
                 }
             }
@@ -341,7 +342,7 @@ function deepEqual(a, b) {
     const keysB = Object.keys(b);
     if (keysA.length !== keysB.length)
         return false;
-    return keysA.every(key => key in b && deepEqual(a[key], b[key]));
+    return keysA.every((key) => key in b && deepEqual(a[key], b[key]));
 }
 /**
  * Validate string format
@@ -385,7 +386,7 @@ function validateFormat(value, format) {
             break;
         case 'ipv4':
             if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(value) ||
-                value.split('.').some(n => parseInt(n) > 255)) {
+                value.split('.').some((n) => parseInt(n) > 255)) {
                 return 'Invalid IPv4 address';
             }
             break;
