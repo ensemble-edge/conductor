@@ -17,8 +17,8 @@ import type {
   FormMemberOutput,
   FormField,
 } from '../types/index.js'
-import type { AgentConfig } from '../../../runtime/parser.js'
-import type { AgentExecutionContext } from '../../../runtime/types.js'
+import type { AgentExecutionContext } from '../../base-agent.js'
+import type { AgentConfig } from '../../../types/agent.js'
 
 // Mock KV namespace
 class MockKVNamespace {

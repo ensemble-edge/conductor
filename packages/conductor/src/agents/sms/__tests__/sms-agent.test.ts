@@ -19,7 +19,7 @@ import type {
   SmsMemberOutput,
   BatchSmsOutput,
 } from '../types/index.js'
-import type { AgentExecutionContext } from '../../../runtime/types.js'
+import type { AgentExecutionContext } from '../../base-agent.js'
 
 // Mock SMS Provider for testing
 class MockSmsProvider {

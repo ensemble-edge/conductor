@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { HtmlMember } from '../../../src/agents/html/html-agent.js';
-import type { AgentConfig, AgentExecutionContext } from '../../../src/runtime/types.js';
+import type { AgentExecutionContext } from '../../../src/agents/base-agent.js';
 import type { HtmlMemberOutput } from '../../../src/agents/html/types/index.js';
 
 describe('HtmlMember', () => {

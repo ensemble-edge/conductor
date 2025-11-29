@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PdfMember } from '../../../src/agents/pdf/pdf-agent.js';
-import type { AgentConfig } from '../../../src/runtime/types.js';
+import type { AgentExecutionContext } from '../../../src/agents/base-agent.js';
 import type { PdfMemberOutput } from '../../../src/agents/pdf/types/index.js';
 
 describe('PdfMember', () => {
