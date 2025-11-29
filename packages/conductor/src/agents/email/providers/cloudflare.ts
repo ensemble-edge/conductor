@@ -6,29 +6,13 @@
  */
 
 import { BaseEmailProvider } from './base.js'
-import type { EmailMessage, EmailResult, ValidationResult } from '../types/index.js'
-
-/**
- * Cloudflare Email binding interface
- */
-interface CloudflareEmailBinding {
-  send(message: EmailSendRequest): Promise<EmailSendResponse>
-}
-
-interface EmailSendRequest {
-  from: string | { name?: string; email: string }
-  to: string | string[] | { name?: string; email: string } | { name?: string; email: string }[]
-  subject: string
-  html?: string
-  text?: string
-  headers?: Record<string, string>
-}
-
-interface EmailSendResponse {
-  success: boolean
-  messageId?: string
-  error?: string
-}
+import type {
+  EmailMessage,
+  EmailResult,
+  ValidationResult,
+  CloudflareEmailBinding,
+  CloudflareEmailRequest,
+} from '../types/index.js'
 
 /**
  * Cloudflare Email Provider
@@ -61,7 +45,7 @@ export class CloudflareEmailProvider extends BaseEmailProvider {
 
     try {
       // Build Cloudflare email request
-      const request: EmailSendRequest = {
+      const request: CloudflareEmailRequest = {
         from: message.from || this.defaultFrom,
         to: message.to,
         subject: message.subject,

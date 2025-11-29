@@ -8,6 +8,7 @@
 import type { EnsembleConfig, ScheduleConfig, TriggerConfig } from './parser.js'
 import { Executor } from './executor.js'
 import { createLogger, type Logger } from '../observability/index.js'
+import type { ConductorEnv } from '../types/env.js'
 
 /**
  * Cloudflare scheduled event
@@ -70,7 +71,7 @@ export class ScheduleManager {
    */
   async handleScheduled(
     event: ScheduledEvent,
-    env: Env,
+    env: ConductorEnv,
     ctx: ExecutionContext
   ): Promise<ScheduleExecutionResult[]> {
     const results: ScheduleExecutionResult[] = []

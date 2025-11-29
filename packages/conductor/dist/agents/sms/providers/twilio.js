@@ -99,12 +99,12 @@ export class TwilioProvider extends BaseSmsProvider {
                 messageId: '',
                 status: 'failed',
                 provider: this.name,
-                error: data?.message || `HTTP ${response.status}`,
+                error: data.message || data.error_message || `HTTP ${response.status}`,
             };
         }
         return {
-            messageId: data.sid,
-            status: this.mapTwilioStatus(data.status),
+            messageId: data.sid || '',
+            status: this.mapTwilioStatus(data.status || 'unknown'),
             provider: this.name,
         };
     }

@@ -39,16 +39,92 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
+// src/utils/safe-fetch.ts
+function isPrivateOrInternalIP(hostname) {
+  const cleanHostname = hostname.replace(/^\[|\]$/g, "");
+  if (cleanHostname === "localhost" || cleanHostname.endsWith(".local") || cleanHostname.endsWith(".internal") || cleanHostname.endsWith(".localhost")) {
+    return true;
+  }
+  const ipv4Parts = cleanHostname.split(".").map(Number);
+  if (ipv4Parts.length === 4 && ipv4Parts.every((n) => !isNaN(n) && n >= 0 && n <= 255)) {
+    const [a, b, c] = ipv4Parts;
+    if (a === 127) return true;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 0) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a === 192 && b === 0 && c === 0) return true;
+    if (a === 192 && b === 0 && c === 2 || a === 198 && b === 51 && c === 100 || a === 203 && b === 0 && c === 113)
+      return true;
+    if (a >= 224 && a <= 239) return true;
+    if (a >= 240) return true;
+  }
+  const lowerHostname = cleanHostname.toLowerCase();
+  if (lowerHostname === "::1" || lowerHostname === "0:0:0:0:0:0:0:1") return true;
+  if (lowerHostname.startsWith("fc") || lowerHostname.startsWith("fd")) return true;
+  if (lowerHostname.startsWith("fe8") || lowerHostname.startsWith("fe9") || lowerHostname.startsWith("fea") || lowerHostname.startsWith("feb"))
+    return true;
+  if (lowerHostname === "::" || lowerHostname === "0:0:0:0:0:0:0:0") return true;
+  return false;
+}
+function validateURL(urlString, allowInternal = false) {
+  let url;
+  try {
+    url = new URL(urlString);
+  } catch {
+    throw new Error(`Invalid URL: ${urlString}`);
+  }
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error(`Unsupported protocol: ${url.protocol}. Only HTTP(S) is allowed.`);
+  }
+  if (!allowInternal && isPrivateOrInternalIP(url.hostname)) {
+    throw new Error(
+      `SSRF protection: Blocked request to private/internal address: ${url.hostname}. Use { allowInternalRequests: true } to bypass (not recommended).`
+    );
+  }
+  return url;
+}
+async function safeFetch(input, init) {
+  const { allowInternalRequests = false, ...fetchInit } = init ?? {};
+  let urlString;
+  if (typeof input === "string") {
+    urlString = input;
+  } else if (input instanceof URL) {
+    urlString = input.href;
+  } else if (input instanceof Request) {
+    urlString = input.url;
+  } else {
+    throw new Error("Invalid fetch input: expected string, URL, or Request");
+  }
+  const validatedUrl = validateURL(urlString, allowInternalRequests);
+  return fetch(validatedUrl.href, fetchInit);
+}
+var init_safe_fetch = __esm({
+  "src/utils/safe-fetch.ts"() {
+    "use strict";
+  }
+});
+
 // src/agents/base-agent.ts
-var BaseAgent;
+var DEFAULT_SECURITY_SETTINGS, BaseAgent;
 var init_base_agent = __esm({
   "src/agents/base-agent.ts"() {
     "use strict";
+    init_safe_fetch();
+    DEFAULT_SECURITY_SETTINGS = {
+      ssrf: true
+    };
     BaseAgent = class {
       constructor(config) {
         this.config = config;
         this.name = config.name;
         this.type = config.operation;
+        this.security = {
+          ...DEFAULT_SECURITY_SETTINGS,
+          ...config.security
+        };
       }
       /**
        * Execute the agent with given input and context
@@ -57,14 +133,34 @@ var init_base_agent = __esm({
        */
       async execute(context) {
         const startTime = Date.now();
+        const enrichedContext = this.enrichContext(context);
         try {
-          const result = await this.run(context);
+          const result = await this.run(enrichedContext);
           const executionTime = Date.now() - startTime;
           return this.wrapSuccess(result, executionTime, false);
         } catch (error) {
           const executionTime = Date.now() - startTime;
           return this.wrapError(error, executionTime);
         }
+      }
+      /**
+       * Enrich the execution context with automatic security features
+       *
+       * This method injects security utilities into the context based on
+       * the agent's security settings. Developers don't need to remember
+       * to add these - they're automatic.
+       *
+       * @param context - Original execution context
+       * @returns Enriched context with security features
+       */
+      enrichContext(context) {
+        const enriched = { ...context };
+        if (this.security.ssrf && !context.fetch) {
+          enriched.fetch = safeFetch;
+        } else if (!this.security.ssrf && !context.fetch) {
+          enriched.fetch = fetch;
+        }
+        return enriched;
       }
       /**
        * Wrap successful execution result
@@ -170,1185 +266,6 @@ var init_base_agent = __esm({
         return this.type;
       }
     };
-  }
-});
-
-// src/agents/built-in/scrape/bot-detection.ts
-function detectBotProtection(content) {
-  const reasons = [];
-  const lowercaseContent = content.toLowerCase();
-  if (content.length < MIN_CONTENT_LENGTH) {
-    reasons.push(`Content too short (${content.length} < ${MIN_CONTENT_LENGTH})`);
-  }
-  for (const keyword of BOT_PROTECTION_KEYWORDS) {
-    if (lowercaseContent.includes(keyword)) {
-      reasons.push(`Contains bot protection keyword: "${keyword}"`);
-    }
-  }
-  return {
-    detected: reasons.length > 0,
-    reasons
-  };
-}
-function isContentSuccessful(content) {
-  const result = detectBotProtection(content);
-  return !result.detected;
-}
-var BOT_PROTECTION_KEYWORDS, MIN_CONTENT_LENGTH;
-var init_bot_detection = __esm({
-  "src/agents/built-in/scrape/bot-detection.ts"() {
-    "use strict";
-    BOT_PROTECTION_KEYWORDS = [
-      "cloudflare",
-      "just a moment",
-      "checking your browser",
-      "please wait",
-      "access denied",
-      "captcha",
-      "recaptcha",
-      "challenge",
-      "verify you are human",
-      "attention required",
-      "enable javascript",
-      "blocked"
-    ];
-    MIN_CONTENT_LENGTH = 800;
-  }
-});
-
-// src/agents/built-in/scrape/html-parser.ts
-function extractTextFromHTML(html) {
-  let text = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-  text = text.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
-  text = text.replace(/<[^>]+>/g, " ");
-  text = text.replace(/&nbsp;/g, " ");
-  text = text.replace(/&amp;/g, "&");
-  text = text.replace(/&lt;/g, "<");
-  text = text.replace(/&gt;/g, ">");
-  text = text.replace(/&quot;/g, '"');
-  text = text.replace(/&#39;/g, "'");
-  text = text.replace(/\s+/g, " ");
-  text = text.trim();
-  return text;
-}
-function extractTitleFromHTML(html) {
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch && titleMatch[1]) {
-    return titleMatch[1].trim();
-  }
-  return "";
-}
-function convertHTMLToMarkdown(html) {
-  let markdown = html;
-  const title = extractTitleFromHTML(html);
-  markdown = markdown.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-  markdown = markdown.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
-  markdown = markdown.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, "\n# $1\n");
-  markdown = markdown.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, "\n## $1\n");
-  markdown = markdown.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, "\n### $1\n");
-  markdown = markdown.replace(/<h4[^>]*>([^<]+)<\/h4>/gi, "\n#### $1\n");
-  markdown = markdown.replace(/<h5[^>]*>([^<]+)<\/h5>/gi, "\n##### $1\n");
-  markdown = markdown.replace(/<h6[^>]*>([^<]+)<\/h6>/gi, "\n###### $1\n");
-  markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>([^<]+)<\/a>/gi, "[$2]($1)");
-  markdown = markdown.replace(/<(strong|b)[^>]*>([^<]+)<\/(strong|b)>/gi, "**$2**");
-  markdown = markdown.replace(/<(em|i)[^>]*>([^<]+)<\/(em|i)>/gi, "*$2*");
-  markdown = markdown.replace(/<li[^>]*>([^<]+)<\/li>/gi, "- $1\n");
-  markdown = markdown.replace(/<p[^>]*>([^<]+)<\/p>/gi, "\n$1\n");
-  markdown = markdown.replace(/<[^>]+>/g, "");
-  markdown = markdown.replace(/&nbsp;/g, " ");
-  markdown = markdown.replace(/&amp;/g, "&");
-  markdown = markdown.replace(/&lt;/g, "<");
-  markdown = markdown.replace(/&gt;/g, ">");
-  markdown = markdown.replace(/&quot;/g, '"');
-  markdown = markdown.replace(/&#39;/g, "'");
-  markdown = markdown.replace(/\n{3,}/g, "\n\n");
-  markdown = markdown.replace(/[ \t]+/g, " ");
-  markdown = markdown.trim();
-  if (title) {
-    markdown = `# ${title}
-
-${markdown}`;
-  }
-  return markdown;
-}
-var init_html_parser = __esm({
-  "src/agents/built-in/scrape/html-parser.ts"() {
-    "use strict";
-  }
-});
-
-// src/observability/types.ts
-var init_types = __esm({
-  "src/observability/types.ts"() {
-    "use strict";
-  }
-});
-
-// src/observability/logger.ts
-function createLogger(config = {}, analyticsEngine) {
-  return new ConductorLogger(config, analyticsEngine);
-}
-var LOG_LEVEL_PRIORITY, ConductorLogger;
-var init_logger = __esm({
-  "src/observability/logger.ts"() {
-    "use strict";
-    init_types();
-    LOG_LEVEL_PRIORITY = {
-      ["debug" /* DEBUG */]: 0,
-      ["info" /* INFO */]: 1,
-      ["warn" /* WARN */]: 2,
-      ["error" /* ERROR */]: 3
-    };
-    ConductorLogger = class _ConductorLogger {
-      constructor(config = {}, analyticsEngine, baseContext = {}) {
-        const isDebug = config.debug ?? (typeof process !== "undefined" && process.env?.DEBUG === "true" || typeof globalThis !== "undefined" && globalThis.DEBUG === true);
-        this.config = {
-          level: config.level ?? (isDebug ? "debug" /* DEBUG */ : "info" /* INFO */),
-          serviceName: config.serviceName ?? "conductor",
-          environment: config.environment ?? "production",
-          debug: isDebug,
-          enableAnalytics: config.enableAnalytics ?? true,
-          baseContext: config.baseContext ?? {}
-        };
-        this.baseContext = Object.freeze({ ...this.config.baseContext, ...baseContext });
-        this.analyticsEngine = analyticsEngine;
-      }
-      /**
-       * Check if a log level should be output
-       */
-      shouldLog(level) {
-        return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this.config.level];
-      }
-      /**
-       * Create structured log entry
-       */
-      createLogEntry(level, message, context, error) {
-        const entry = {
-          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-          level,
-          message,
-          ...Object.keys({ ...this.baseContext, ...context }).length > 0 && {
-            context: { ...this.baseContext, ...context }
-          }
-        };
-        if (error) {
-          entry.error = {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-            // Include ConductorError specific fields
-            ...this.isConductorError(error) && {
-              code: error.code,
-              details: error.details
-            }
-          };
-        }
-        return entry;
-      }
-      /**
-       * Type guard for ConductorError
-       */
-      isConductorError(error) {
-        return "code" in error && "toJSON" in error;
-      }
-      /**
-       * Output log entry via console
-       *
-       * Cloudflare Workers Logs automatically captures console output
-       * and indexes JSON fields for querying in the dashboard.
-       */
-      log(entry) {
-        if (!this.shouldLog(entry.level)) {
-          return;
-        }
-        const logOutput = JSON.stringify(entry);
-        switch (entry.level) {
-          case "debug" /* DEBUG */:
-            console.debug(logOutput);
-            break;
-          case "info" /* INFO */:
-            console.info(logOutput);
-            break;
-          case "warn" /* WARN */:
-            console.warn(logOutput);
-            break;
-          case "error" /* ERROR */:
-            console.error(logOutput);
-            break;
-        }
-      }
-      /**
-       * Log debug information
-       *
-       * Only output when DEBUG=true or log level is DEBUG.
-       * Useful for development and troubleshooting.
-       */
-      debug(message, context) {
-        const entry = this.createLogEntry("debug" /* DEBUG */, message, context);
-        this.log(entry);
-      }
-      /**
-       * Log informational message
-       *
-       * Use for normal operational events worth tracking.
-       */
-      info(message, context) {
-        const entry = this.createLogEntry("info" /* INFO */, message, context);
-        this.log(entry);
-      }
-      /**
-       * Log warning
-       *
-       * Use for concerning but non-critical issues.
-       */
-      warn(message, context) {
-        const entry = this.createLogEntry("warn" /* WARN */, message, context);
-        this.log(entry);
-      }
-      /**
-       * Log error
-       *
-       * Use for errors that need attention.
-       * Includes full error details and stack trace.
-       */
-      error(message, error, context) {
-        const entry = this.createLogEntry("error" /* ERROR */, message, context, error);
-        this.log(entry);
-      }
-      /**
-       * Create child logger with additional context
-       *
-       * Useful for adding request-specific or execution-specific context
-       * that applies to all logs within a scope.
-       *
-       * @example
-       * const requestLogger = logger.child({ requestId: '123', userId: 'alice' });
-       * requestLogger.info('Processing request'); // Includes requestId and userId
-       */
-      child(context) {
-        return new _ConductorLogger(this.config, this.analyticsEngine, {
-          ...this.baseContext,
-          ...context
-        });
-      }
-      /**
-       * Record metric to Analytics Engine
-       *
-       * Analytics Engine provides unlimited-cardinality analytics at scale.
-       * Use for high-volume metrics that need SQL querying.
-       *
-       * @example
-       * logger.metric('ensemble.execution', {
-       *   blobs: ['user-workflow', 'completed'],
-       *   doubles: [1234], // duration in ms
-       *   indexes: ['ensemble.execution']
-       * });
-       */
-      metric(name, data) {
-        if (!this.config.enableAnalytics || !this.analyticsEngine) {
-          return;
-        }
-        try {
-          this.analyticsEngine.writeDataPoint({
-            blobs: data.blobs ?? [],
-            doubles: data.doubles ?? [],
-            indexes: data.indexes ?? [name]
-          });
-        } catch (error) {
-          this.warn("Failed to write metric", {
-            metricName: name,
-            error: error instanceof Error ? error.message : "Unknown error"
-          });
-        }
-      }
-    };
-  }
-});
-
-// src/observability/opentelemetry.ts
-var init_opentelemetry = __esm({
-  "src/observability/opentelemetry.ts"() {
-    "use strict";
-    init_types();
-  }
-});
-
-// src/observability/context.ts
-function resolveObservabilityConfig(config) {
-  let loggingConfig;
-  if (config?.logging === false) {
-    loggingConfig = { enabled: false };
-  } else if (config?.logging === true || config?.logging === void 0) {
-    loggingConfig = { enabled: true };
-  } else {
-    loggingConfig = config.logging;
-  }
-  let metricsConfig;
-  if (config?.metrics === false) {
-    metricsConfig = { enabled: false };
-  } else if (config?.metrics === true || config?.metrics === void 0) {
-    metricsConfig = { enabled: true };
-  } else {
-    metricsConfig = config.metrics;
-  }
-  return {
-    logging: {
-      enabled: loggingConfig.enabled !== false,
-      level: stringToLogLevel(loggingConfig.level ?? "info"),
-      format: loggingConfig.format ?? "json",
-      context: loggingConfig.context ?? ["requestId", "executionId", "ensembleName", "agentName"],
-      redact: loggingConfig.redact ?? DEFAULT_REDACT_PATTERNS,
-      events: new Set(loggingConfig.events ?? DEFAULT_LOG_EVENTS)
-    },
-    metrics: {
-      enabled: metricsConfig.enabled !== false,
-      binding: metricsConfig.binding ?? "ANALYTICS",
-      track: new Set(metricsConfig.track ?? DEFAULT_METRIC_TYPES),
-      dimensions: metricsConfig.dimensions ?? []
-    },
-    opentelemetry: {
-      enabled: config?.opentelemetry?.enabled ?? false,
-      endpoint: config?.opentelemetry?.endpoint,
-      headers: config?.opentelemetry?.headers,
-      samplingRate: config?.opentelemetry?.samplingRate ?? 1
-    },
-    trackTokenUsage: config?.trackTokenUsage ?? true
-  };
-}
-function stringToLogLevel(level) {
-  switch (level.toLowerCase()) {
-    case "debug":
-      return "debug" /* DEBUG */;
-    case "info":
-      return "info" /* INFO */;
-    case "warn":
-      return "warn" /* WARN */;
-    case "error":
-      return "error" /* ERROR */;
-    default:
-      return "info" /* INFO */;
-  }
-}
-function generateExecutionId() {
-  return `exec_${crypto.randomUUID()}`;
-}
-function generateRequestId() {
-  return `req_${crypto.randomUUID()}`;
-}
-function createMetricsRecorder(analyticsEngine, config, baseContext) {
-  const shouldTrack = (type) => {
-    return config.metrics.enabled && config.metrics.track.has(type);
-  };
-  const writeMetric = (data) => {
-    if (!analyticsEngine || !config.metrics.enabled) return;
-    try {
-      analyticsEngine.writeDataPoint({
-        blobs: data.blobs ?? [],
-        doubles: data.doubles ?? [],
-        indexes: data.indexes ?? []
-      });
-    } catch {
-    }
-  };
-  return {
-    record(name, value, dimensions) {
-      writeMetric({
-        blobs: [name, ...dimensions ? Object.values(dimensions) : []],
-        doubles: [value],
-        indexes: [name]
-      });
-    },
-    recordEnsembleExecution(ensembleName, durationMs, success) {
-      if (!shouldTrack("ensemble:execution")) return;
-      writeMetric({
-        blobs: [
-          ensembleName,
-          success ? "success" : "failure",
-          baseContext.environment ?? "unknown"
-        ],
-        doubles: [durationMs, success ? 1 : 0],
-        indexes: ["ensemble.execution"]
-      });
-    },
-    recordAgentExecution(agentName, durationMs, success, cached = false) {
-      if (!shouldTrack("agent:execution")) return;
-      writeMetric({
-        blobs: [
-          agentName,
-          success ? "success" : "failure",
-          cached ? "cached" : "executed",
-          baseContext.ensembleName ?? "unknown"
-        ],
-        doubles: [durationMs, success ? 1 : 0, cached ? 1 : 0],
-        indexes: ["agent.execution"]
-      });
-    },
-    recordHttpRequest(method, path9, statusCode, durationMs) {
-      if (!shouldTrack("http:request")) return;
-      const statusCategory = statusCode < 400 ? "success" : statusCode < 500 ? "client_error" : "server_error";
-      writeMetric({
-        blobs: [method, path9, statusCategory, String(statusCode)],
-        doubles: [durationMs, 1],
-        indexes: ["http.request"]
-      });
-    },
-    recordError(errorType, errorCode) {
-      if (!shouldTrack("error")) return;
-      writeMetric({
-        blobs: [
-          errorType,
-          errorCode ?? "unknown",
-          baseContext.ensembleName ?? "unknown",
-          baseContext.agentName ?? "unknown"
-        ],
-        doubles: [1],
-        indexes: ["error"]
-      });
-    },
-    recordCachePerformance(hit, agentName) {
-      if (!shouldTrack("cache:performance")) return;
-      writeMetric({
-        blobs: [
-          hit ? "hit" : "miss",
-          agentName ?? "unknown",
-          baseContext.ensembleName ?? "unknown"
-        ],
-        doubles: [1],
-        indexes: ["cache.performance"]
-      });
-    }
-  };
-}
-function redactSensitiveFields(obj, patterns) {
-  const result = {};
-  for (const [key, value] of Object.entries(obj)) {
-    const shouldRedact = patterns.some((pattern) => {
-      const lowerKey = key.toLowerCase();
-      const lowerPattern = pattern.toLowerCase();
-      return lowerKey.includes(lowerPattern) || lowerKey === lowerPattern;
-    });
-    if (shouldRedact) {
-      result[key] = "[REDACTED]";
-    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      result[key] = redactSensitiveFields(value, patterns);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-function createScopedLogger(config, context, analyticsEngine) {
-  if (!config.logging.enabled) {
-    return {
-      debug: () => {
-      },
-      info: () => {
-      },
-      warn: () => {
-      },
-      error: () => {
-      },
-      child: () => createScopedLogger(config, context, analyticsEngine),
-      metric: () => {
-      }
-    };
-  }
-  const baseContext = {};
-  for (const field of config.logging.context) {
-    if (field in context && context[field] !== void 0) {
-      baseContext[field] = context[field];
-    }
-  }
-  return new ConductorLogger(
-    {
-      level: config.logging.level,
-      serviceName: "conductor",
-      enableAnalytics: config.metrics.enabled,
-      baseContext
-    },
-    analyticsEngine,
-    baseContext
-  );
-}
-function createObservabilityManager(config, initialContext, analyticsEngine) {
-  return new ObservabilityManager(config, initialContext ?? {}, analyticsEngine);
-}
-var DEFAULT_REDACT_PATTERNS, DEFAULT_LOG_EVENTS, DEFAULT_METRIC_TYPES, ObservabilityManager;
-var init_context = __esm({
-  "src/observability/context.ts"() {
-    "use strict";
-    init_logger();
-    init_types();
-    DEFAULT_REDACT_PATTERNS = [
-      "password",
-      "apiKey",
-      "api_key",
-      "token",
-      "authorization",
-      "secret",
-      "creditCard",
-      "credit_card",
-      "ssn",
-      "socialSecurityNumber"
-    ];
-    DEFAULT_LOG_EVENTS = [
-      "request",
-      "response",
-      "agent:start",
-      "agent:complete",
-      "agent:error"
-    ];
-    DEFAULT_METRIC_TYPES = [
-      "ensemble:execution",
-      "agent:execution",
-      "http:request",
-      "error"
-    ];
-    ObservabilityManager = class _ObservabilityManager {
-      constructor(config, initialContext, analyticsEngine) {
-        this.config = resolveObservabilityConfig(config);
-        this.analyticsEngine = analyticsEngine;
-        this.context = {
-          requestId: initialContext.requestId ?? generateRequestId(),
-          executionId: initialContext.executionId ?? generateExecutionId(),
-          ...initialContext
-        };
-        this.logger = createScopedLogger(this.config, this.context, analyticsEngine);
-        this.metrics = createMetricsRecorder(analyticsEngine, this.config, this.context);
-      }
-      /**
-       * Get the current logger
-       */
-      getLogger() {
-        return this.logger;
-      }
-      /**
-       * Get the metrics recorder
-       */
-      getMetrics() {
-        return this.metrics;
-      }
-      /**
-       * Get the current execution context
-       */
-      getContext() {
-        return { ...this.context };
-      }
-      /**
-       * Get the resolved config
-       */
-      getConfig() {
-        return this.config;
-      }
-      /**
-       * Check if a log event should be logged
-       */
-      shouldLogEvent(event) {
-        return this.config.logging.enabled && this.config.logging.events.has(event);
-      }
-      /**
-       * Check if a metric type should be tracked
-       */
-      shouldTrackMetric(type) {
-        return this.config.metrics.enabled && this.config.metrics.track.has(type);
-      }
-      /**
-       * Create a child manager with additional context (e.g., for an agent)
-       */
-      forAgent(agentName, stepIndex) {
-        const childContext = {
-          ...this.context,
-          agentName,
-          stepIndex
-        };
-        const manager = new _ObservabilityManager(
-          void 0,
-          // Will use resolved config
-          childContext,
-          this.analyticsEngine
-        );
-        manager.config = this.config;
-        return manager;
-      }
-      /**
-       * Create a child manager for an ensemble
-       */
-      forEnsemble(ensembleName, executionId) {
-        const childContext = {
-          ...this.context,
-          ensembleName,
-          executionId: executionId ?? generateExecutionId()
-        };
-        const manager = new _ObservabilityManager(void 0, childContext, this.analyticsEngine);
-        manager.config = this.config;
-        return manager;
-      }
-      /**
-       * Redact sensitive fields from data
-       */
-      redact(data) {
-        return redactSensitiveFields(data, this.config.logging.redact);
-      }
-    };
-  }
-});
-
-// src/observability/index.ts
-var init_observability = __esm({
-  "src/observability/index.ts"() {
-    "use strict";
-    init_types();
-    init_logger();
-    init_opentelemetry();
-    init_context();
-  }
-});
-
-// src/agents/built-in/scrape/scrape-agent.ts
-var logger, ScrapeMember;
-var init_scrape_agent = __esm({
-  "src/agents/built-in/scrape/scrape-agent.ts"() {
-    "use strict";
-    init_base_agent();
-    init_bot_detection();
-    init_html_parser();
-    init_observability();
-    logger = createLogger({ serviceName: "scrape-agent" });
-    ScrapeMember = class extends BaseAgent {
-      constructor(config, env) {
-        super(config);
-        this.env = env;
-        const cfg = config.config;
-        this.scrapeConfig = {
-          strategy: cfg?.strategy || "balanced",
-          returnFormat: cfg?.returnFormat || "markdown",
-          blockResources: cfg?.blockResources !== false,
-          userAgent: cfg?.userAgent,
-          timeout: cfg?.timeout || 3e4
-        };
-      }
-      async run(context) {
-        const input = context.input;
-        if (!input.url) {
-          throw new Error('Scrape agent requires "url" in input');
-        }
-        const startTime = Date.now();
-        const strategy = this.scrapeConfig.strategy;
-        try {
-          const result2 = await this.tier1Fast(input.url);
-          if (isContentSuccessful(result2.html)) {
-            return this.formatResult(result2, 1, Date.now() - startTime);
-          }
-        } catch (error) {
-          logger.debug("Tier 1 fast scrape failed, trying Tier 2", {
-            url: input.url,
-            error: error instanceof Error ? error.message : "Unknown error"
-          });
-        }
-        if (strategy === "fast") {
-          return this.fallbackResult(input.url, Date.now() - startTime);
-        }
-        try {
-          const result2 = await this.tier2Slow(input.url);
-          if (isContentSuccessful(result2.html)) {
-            return this.formatResult(result2, 2, Date.now() - startTime);
-          }
-        } catch (error) {
-          logger.debug("Tier 2 slow scrape failed, trying Tier 3", {
-            url: input.url,
-            error: error instanceof Error ? error.message : "Unknown error"
-          });
-        }
-        if (strategy === "balanced") {
-          return this.fallbackResult(input.url, Date.now() - startTime);
-        }
-        const result = await this.tier3HTMLParsing(input.url);
-        return this.formatResult(result, 3, Date.now() - startTime);
-      }
-      /**
-       * Tier 1: Fast browser rendering with domcontentloaded
-       */
-      async tier1Fast(url) {
-        const response = await fetch(url, {
-          headers: {
-            "User-Agent": this.scrapeConfig.userAgent || "Mozilla/5.0 (compatible; Conductor/1.0)"
-          },
-          signal: AbortSignal.timeout(this.scrapeConfig.timeout)
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        const html = await response.text();
-        const title = extractTitleFromHTML(html);
-        return { html, title };
-      }
-      /**
-       * Tier 2: Slow browser rendering with networkidle2
-       */
-      async tier2Slow(url) {
-        return await this.tier1Fast(url);
-      }
-      /**
-       * Tier 3: HTML parsing fallback
-       */
-      async tier3HTMLParsing(url) {
-        const response = await fetch(url, {
-          headers: {
-            "User-Agent": this.scrapeConfig.userAgent || "Mozilla/5.0 (compatible; Conductor/1.0)"
-          },
-          signal: AbortSignal.timeout(this.scrapeConfig.timeout)
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        const html = await response.text();
-        const title = extractTitleFromHTML(html);
-        return { html, title };
-      }
-      /**
-       * Format the result based on configured return format
-       */
-      formatResult(data, tier, duration) {
-        const botProtection = detectBotProtection(data.html);
-        const format = this.scrapeConfig.returnFormat;
-        const result = {
-          url: "",
-          tier,
-          duration,
-          botProtectionDetected: botProtection.detected,
-          contentLength: data.html.length,
-          title: data.title
-        };
-        if (format === "html" || format === "markdown") {
-          result.html = data.html;
-        }
-        if (format === "markdown") {
-          result.markdown = convertHTMLToMarkdown(data.html);
-        }
-        if (format === "text") {
-          result.text = extractTextFromHTML(data.html);
-        }
-        return result;
-      }
-      /**
-       * Return a fallback result when all tiers fail
-       */
-      fallbackResult(url, duration) {
-        return {
-          url,
-          tier: 3,
-          duration,
-          botProtectionDetected: true,
-          contentLength: 0,
-          markdown: "",
-          html: "",
-          text: ""
-        };
-      }
-    };
-  }
-});
-
-// src/agents/built-in/scrape/index.ts
-var scrape_exports = {};
-__export(scrape_exports, {
-  ScrapeMember: () => ScrapeMember,
-  convertHTMLToMarkdown: () => convertHTMLToMarkdown,
-  detectBotProtection: () => detectBotProtection,
-  extractTextFromHTML: () => extractTextFromHTML,
-  extractTitleFromHTML: () => extractTitleFromHTML,
-  isContentSuccessful: () => isContentSuccessful
-});
-var init_scrape = __esm({
-  "src/agents/built-in/scrape/index.ts"() {
-    "use strict";
-    init_scrape_agent();
-    init_bot_detection();
-    init_html_parser();
-  }
-});
-
-// src/agents/built-in/validate/evaluators/base-evaluator.ts
-var BaseEvaluator;
-var init_base_evaluator = __esm({
-  "src/agents/built-in/validate/evaluators/base-evaluator.ts"() {
-    "use strict";
-    BaseEvaluator = class {
-      /**
-       * Normalize score to 0-1 range
-       */
-      normalizeScore(score, min = 0, max = 1) {
-        return Math.max(min, Math.min(max, score));
-      }
-      /**
-       * Calculate weighted average of scores
-       */
-      calculateWeightedAverage(scores, weights) {
-        let totalWeight = 0;
-        let weightedSum = 0;
-        for (const [key, score] of Object.entries(scores)) {
-          const weight = weights[key] || 1;
-          weightedSum += score * weight;
-          totalWeight += weight;
-        }
-        return totalWeight > 0 ? weightedSum / totalWeight : 0;
-      }
-    };
-  }
-});
-
-// src/agents/built-in/validate/evaluators/rule-evaluator.ts
-var RuleEvaluator;
-var init_rule_evaluator = __esm({
-  "src/agents/built-in/validate/evaluators/rule-evaluator.ts"() {
-    "use strict";
-    init_base_evaluator();
-    RuleEvaluator = class extends BaseEvaluator {
-      async evaluate(content, config) {
-        const rules = config.rules || [];
-        if (rules.length === 0) {
-          throw new Error("Rule evaluator requires at least one rule in config");
-        }
-        const breakdown = {};
-        const weights = {};
-        const details = {};
-        for (const rule of rules) {
-          try {
-            const context = {
-              content,
-              length: content.length,
-              wordCount: content.split(/\s+/).length,
-              lineCount: content.split("\n").length
-            };
-            const result = this.evaluateRule(rule.check, context);
-            const score = result ? 1 : 0;
-            breakdown[rule.name] = score;
-            weights[rule.name] = rule.weight;
-            details[rule.name] = {
-              passed: result,
-              rule: rule.check,
-              description: rule.description
-            };
-          } catch (error) {
-            breakdown[rule.name] = 0;
-            weights[rule.name] = rule.weight;
-            details[rule.name] = {
-              passed: false,
-              error: error instanceof Error ? error.message : "Unknown error"
-            };
-          }
-        }
-        const average = this.calculateWeightedAverage(breakdown, weights);
-        return {
-          average,
-          breakdown,
-          details
-        };
-      }
-      /**
-       * Safely evaluate a rule expression
-       */
-      evaluateRule(expression, context) {
-        let evalExpression = expression;
-        evalExpression = evalExpression.replace(/content\.length/g, String(context.content.length));
-        evalExpression = evalExpression.replace(/content\.wordCount/g, String(context.wordCount));
-        evalExpression = evalExpression.replace(/content\.lineCount/g, String(context.lineCount));
-        evalExpression = evalExpression.replace(
-          /content\.includes\(['"]([^'"]+)['"]\)/g,
-          (match, keyword) => {
-            return String(context.content.toLowerCase().includes(keyword.toLowerCase()));
-          }
-        );
-        try {
-          const fn = new Function("return (" + evalExpression + ")");
-          return Boolean(fn());
-        } catch (error) {
-          return false;
-        }
-      }
-    };
-  }
-});
-
-// src/agents/built-in/validate/evaluators/judge-evaluator.ts
-var JudgeEvaluator;
-var init_judge_evaluator = __esm({
-  "src/agents/built-in/validate/evaluators/judge-evaluator.ts"() {
-    "use strict";
-    init_base_evaluator();
-    JudgeEvaluator = class extends BaseEvaluator {
-      async evaluate(content, config) {
-        const criteria = config.criteria || [];
-        const model = config.model || "claude-3-5-haiku-20241022";
-        if (criteria.length === 0) {
-          throw new Error("Judge evaluator requires at least one criterion in config");
-        }
-        const breakdown = {};
-        const weights = {};
-        for (const criterion of criteria) {
-          breakdown[criterion.name] = 0.75;
-          weights[criterion.name] = criterion.weight;
-        }
-        const average = this.calculateWeightedAverage(breakdown, weights);
-        return {
-          average,
-          breakdown,
-          details: {
-            model,
-            criteria: criteria.map((c) => c.name),
-            note: "LLM-based evaluation not yet implemented"
-          }
-        };
-      }
-    };
-  }
-});
-
-// src/agents/built-in/validate/evaluators/nlp-evaluator.ts
-var NLPEvaluator;
-var init_nlp_evaluator = __esm({
-  "src/agents/built-in/validate/evaluators/nlp-evaluator.ts"() {
-    "use strict";
-    init_base_evaluator();
-    NLPEvaluator = class extends BaseEvaluator {
-      async evaluate(content, config) {
-        const reference = config.reference;
-        if (!reference) {
-          throw new Error('NLP evaluator requires "reference" text in config');
-        }
-        const metrics = config.metrics || ["bleu", "rouge"];
-        const breakdown = {};
-        for (const metric of metrics) {
-          switch (metric.toLowerCase()) {
-            case "bleu":
-              breakdown.bleu = this.calculateBLEU(content, reference);
-              break;
-            case "rouge":
-              breakdown.rouge = this.calculateROUGE(content, reference);
-              break;
-            case "length-ratio":
-              breakdown.lengthRatio = this.calculateLengthRatio(content, reference);
-              break;
-            default:
-              breakdown[metric] = 0;
-          }
-        }
-        const average = Object.values(breakdown).reduce((sum, score) => sum + score, 0) / Object.keys(breakdown).length;
-        return {
-          average,
-          breakdown,
-          details: {
-            reference: reference.substring(0, 100) + "...",
-            contentLength: content.length,
-            referenceLength: reference.length
-          }
-        };
-      }
-      /**
-       * Calculate BLEU score (simplified unigram)
-       */
-      calculateBLEU(candidate, reference) {
-        const candidateWords = candidate.toLowerCase().split(/\s+/);
-        const referenceWords = reference.toLowerCase().split(/\s+/);
-        const referenceSet = new Set(referenceWords);
-        let matches = 0;
-        for (const word of candidateWords) {
-          if (referenceSet.has(word)) {
-            matches++;
-          }
-        }
-        const precision = candidateWords.length > 0 ? matches / candidateWords.length : 0;
-        return this.normalizeScore(precision);
-      }
-      /**
-       * Calculate ROUGE-L score (longest common subsequence)
-       */
-      calculateROUGE(candidate, reference) {
-        const candidateWords = candidate.toLowerCase().split(/\s+/);
-        const referenceWords = reference.toLowerCase().split(/\s+/);
-        const lcs = this.longestCommonSubsequence(candidateWords, referenceWords);
-        const recall = referenceWords.length > 0 ? lcs / referenceWords.length : 0;
-        const precision = candidateWords.length > 0 ? lcs / candidateWords.length : 0;
-        const f1 = recall + precision > 0 ? 2 * recall * precision / (recall + precision) : 0;
-        return this.normalizeScore(f1);
-      }
-      /**
-       * Calculate length ratio (how close the lengths are)
-       */
-      calculateLengthRatio(candidate, reference) {
-        const ratio = Math.min(candidate.length, reference.length) / Math.max(candidate.length, reference.length);
-        return this.normalizeScore(ratio);
-      }
-      /**
-       * Calculate longest common subsequence length
-       */
-      longestCommonSubsequence(arr1, arr2) {
-        const m = arr1.length;
-        const n = arr2.length;
-        const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-        for (let i = 1; i <= m; i++) {
-          for (let j = 1; j <= n; j++) {
-            if (arr1[i - 1] === arr2[j - 1]) {
-              dp[i][j] = dp[i - 1][j - 1] + 1;
-            } else {
-              dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-            }
-          }
-        }
-        return dp[m][n];
-      }
-    };
-  }
-});
-
-// src/agents/built-in/validate/evaluators/embedding-evaluator.ts
-var EmbeddingEvaluator;
-var init_embedding_evaluator = __esm({
-  "src/agents/built-in/validate/evaluators/embedding-evaluator.ts"() {
-    "use strict";
-    init_base_evaluator();
-    EmbeddingEvaluator = class extends BaseEvaluator {
-      async evaluate(content, config) {
-        const reference = config.reference;
-        if (!reference) {
-          throw new Error('Embedding evaluator requires "reference" text in config');
-        }
-        const model = config.model || "@cf/baai/bge-base-en-v1.5";
-        const similarity = this.calculateSimpleTextSimilarity(content, reference);
-        return {
-          average: similarity,
-          breakdown: {
-            semanticSimilarity: similarity
-          },
-          details: {
-            model,
-            note: "Using simple text similarity as placeholder for embedding-based similarity"
-          }
-        };
-      }
-      /**
-       * Calculate simple text similarity (placeholder for actual embeddings)
-       */
-      calculateSimpleTextSimilarity(text1, text2) {
-        const words1 = new Set(text1.toLowerCase().split(/\s+/));
-        const words2 = new Set(text2.toLowerCase().split(/\s+/));
-        const intersection = new Set([...words1].filter((x) => words2.has(x)));
-        const union = /* @__PURE__ */ new Set([...words1, ...words2]);
-        return union.size > 0 ? intersection.size / union.size : 0;
-      }
-      /**
-       * Calculate cosine similarity between two vectors
-       */
-      cosineSimilarity(vec1, vec2) {
-        if (vec1.length !== vec2.length) {
-          throw new Error("Vectors must have the same length");
-        }
-        let dotProduct = 0;
-        let norm1 = 0;
-        let norm2 = 0;
-        for (let i = 0; i < vec1.length; i++) {
-          dotProduct += vec1[i] * vec2[i];
-          norm1 += vec1[i] * vec1[i];
-          norm2 += vec2[i] * vec2[i];
-        }
-        norm1 = Math.sqrt(norm1);
-        norm2 = Math.sqrt(norm2);
-        if (norm1 === 0 || norm2 === 0) {
-          return 0;
-        }
-        return dotProduct / (norm1 * norm2);
-      }
-    };
-  }
-});
-
-// src/agents/built-in/validate/validate-agent.ts
-var ValidateMember;
-var init_validate_agent = __esm({
-  "src/agents/built-in/validate/validate-agent.ts"() {
-    "use strict";
-    init_base_agent();
-    init_rule_evaluator();
-    init_judge_evaluator();
-    init_nlp_evaluator();
-    init_embedding_evaluator();
-    ValidateMember = class extends BaseAgent {
-      constructor(config, env) {
-        super(config);
-        this.env = env;
-        const cfg = config.config;
-        this.validateConfig = {
-          evalType: cfg?.evalType || "rule",
-          threshold: cfg?.threshold !== void 0 ? cfg.threshold : 0.7,
-          rules: cfg?.rules,
-          criteria: cfg?.criteria,
-          metrics: cfg?.metrics,
-          reference: cfg?.reference,
-          model: cfg?.model
-        };
-      }
-      async run(context) {
-        const input = context.input;
-        if (!input.content) {
-          throw new Error('Validate agent requires "content" in input');
-        }
-        const evalType = this.validateConfig.evalType;
-        const evaluator = this.getEvaluator(evalType);
-        const evalConfig = {
-          ...this.validateConfig,
-          reference: input.reference || this.validateConfig.reference
-        };
-        const scores = await evaluator.evaluate(input.content, evalConfig);
-        const threshold = this.validateConfig.threshold;
-        const passed = scores.average >= threshold;
-        return {
-          passed,
-          score: scores.average,
-          scores: scores.breakdown,
-          details: scores.details || {},
-          evalType
-        };
-      }
-      /**
-       * Get the appropriate evaluator based on type
-       */
-      getEvaluator(type) {
-        switch (type) {
-          case "rule":
-            return new RuleEvaluator();
-          case "judge":
-            return new JudgeEvaluator();
-          case "nlp":
-            return new NLPEvaluator();
-          case "embedding":
-            return new EmbeddingEvaluator();
-          default:
-            throw new Error(`Unknown evaluator type: ${type}`);
-        }
-      }
-    };
-  }
-});
-
-// src/agents/built-in/validate/index.ts
-var validate_exports = {};
-__export(validate_exports, {
-  BaseEvaluator: () => BaseEvaluator,
-  EmbeddingEvaluator: () => EmbeddingEvaluator,
-  JudgeEvaluator: () => JudgeEvaluator,
-  NLPEvaluator: () => NLPEvaluator,
-  RuleEvaluator: () => RuleEvaluator,
-  ValidateMember: () => ValidateMember
-});
-var init_validate = __esm({
-  "src/agents/built-in/validate/index.ts"() {
-    "use strict";
-    init_validate_agent();
-    init_base_evaluator();
-    init_rule_evaluator();
-    init_judge_evaluator();
-    init_nlp_evaluator();
-    init_embedding_evaluator();
   }
 });
 
@@ -1605,14 +522,665 @@ var init_rag = __esm({
   }
 });
 
+// src/observability/types.ts
+var init_types = __esm({
+  "src/observability/types.ts"() {
+    "use strict";
+  }
+});
+
+// src/observability/logger.ts
+function createLogger(config = {}, analyticsEngine) {
+  return new ConductorLogger(config, analyticsEngine);
+}
+var LOG_LEVEL_PRIORITY, ConductorLogger;
+var init_logger = __esm({
+  "src/observability/logger.ts"() {
+    "use strict";
+    init_types();
+    LOG_LEVEL_PRIORITY = {
+      ["debug" /* DEBUG */]: 0,
+      ["info" /* INFO */]: 1,
+      ["warn" /* WARN */]: 2,
+      ["error" /* ERROR */]: 3
+    };
+    ConductorLogger = class _ConductorLogger {
+      constructor(config = {}, analyticsEngine, baseContext = {}) {
+        const globalDebug = typeof globalThis !== "undefined" && "DEBUG" in globalThis ? globalThis.DEBUG === true : false;
+        const isDebug = config.debug ?? (typeof process !== "undefined" && process.env?.DEBUG === "true" || globalDebug);
+        this.config = {
+          level: config.level ?? (isDebug ? "debug" /* DEBUG */ : "info" /* INFO */),
+          serviceName: config.serviceName ?? "conductor",
+          environment: config.environment ?? "production",
+          debug: isDebug,
+          enableAnalytics: config.enableAnalytics ?? true,
+          baseContext: config.baseContext ?? {}
+        };
+        this.baseContext = Object.freeze({ ...this.config.baseContext, ...baseContext });
+        this.analyticsEngine = analyticsEngine;
+      }
+      /**
+       * Check if a log level should be output
+       */
+      shouldLog(level) {
+        return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this.config.level];
+      }
+      /**
+       * Create structured log entry
+       */
+      createLogEntry(level, message, context, error) {
+        const entry = {
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          level,
+          message,
+          ...Object.keys({ ...this.baseContext, ...context }).length > 0 && {
+            context: { ...this.baseContext, ...context }
+          }
+        };
+        if (error) {
+          entry.error = {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            // Include ConductorError specific fields
+            ...this.isConductorError(error) && {
+              code: error.code,
+              details: error.details
+            }
+          };
+        }
+        return entry;
+      }
+      /**
+       * Type guard for ConductorError
+       */
+      isConductorError(error) {
+        return "code" in error && "toJSON" in error;
+      }
+      /**
+       * Output log entry via console
+       *
+       * Cloudflare Workers Logs automatically captures console output
+       * and indexes JSON fields for querying in the dashboard.
+       */
+      log(entry) {
+        if (!this.shouldLog(entry.level)) {
+          return;
+        }
+        const logOutput = JSON.stringify(entry);
+        switch (entry.level) {
+          case "debug" /* DEBUG */:
+            console.debug(logOutput);
+            break;
+          case "info" /* INFO */:
+            console.info(logOutput);
+            break;
+          case "warn" /* WARN */:
+            console.warn(logOutput);
+            break;
+          case "error" /* ERROR */:
+            console.error(logOutput);
+            break;
+        }
+      }
+      /**
+       * Log debug information
+       *
+       * Only output when DEBUG=true or log level is DEBUG.
+       * Useful for development and troubleshooting.
+       */
+      debug(message, context) {
+        const entry = this.createLogEntry("debug" /* DEBUG */, message, context);
+        this.log(entry);
+      }
+      /**
+       * Log informational message
+       *
+       * Use for normal operational events worth tracking.
+       */
+      info(message, context) {
+        const entry = this.createLogEntry("info" /* INFO */, message, context);
+        this.log(entry);
+      }
+      /**
+       * Log warning
+       *
+       * Use for concerning but non-critical issues.
+       */
+      warn(message, context) {
+        const entry = this.createLogEntry("warn" /* WARN */, message, context);
+        this.log(entry);
+      }
+      /**
+       * Log error
+       *
+       * Use for errors that need attention.
+       * Includes full error details and stack trace.
+       */
+      error(message, error, context) {
+        const entry = this.createLogEntry("error" /* ERROR */, message, context, error);
+        this.log(entry);
+      }
+      /**
+       * Create child logger with additional context
+       *
+       * Useful for adding request-specific or execution-specific context
+       * that applies to all logs within a scope.
+       *
+       * @example
+       * const requestLogger = logger.child({ requestId: '123', userId: 'alice' });
+       * requestLogger.info('Processing request'); // Includes requestId and userId
+       */
+      child(context) {
+        return new _ConductorLogger(this.config, this.analyticsEngine, {
+          ...this.baseContext,
+          ...context
+        });
+      }
+      /**
+       * Record metric to Analytics Engine
+       *
+       * Analytics Engine provides unlimited-cardinality analytics at scale.
+       * Use for high-volume metrics that need SQL querying.
+       *
+       * @example
+       * logger.metric('ensemble.execution', {
+       *   blobs: ['user-workflow', 'completed'],
+       *   doubles: [1234], // duration in ms
+       *   indexes: ['ensemble.execution']
+       * });
+       */
+      metric(name, data) {
+        if (!this.config.enableAnalytics || !this.analyticsEngine) {
+          return;
+        }
+        try {
+          this.analyticsEngine.writeDataPoint({
+            blobs: data.blobs ?? [],
+            doubles: data.doubles ?? [],
+            indexes: data.indexes ?? [name]
+          });
+        } catch (error) {
+          this.warn("Failed to write metric", {
+            metricName: name,
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
+        }
+      }
+    };
+  }
+});
+
+// src/observability/opentelemetry.ts
+var init_opentelemetry = __esm({
+  "src/observability/opentelemetry.ts"() {
+    "use strict";
+    init_types();
+  }
+});
+
+// src/types/branded.ts
+var ExecutionId, RequestId;
+var init_branded = __esm({
+  "src/types/branded.ts"() {
+    "use strict";
+    ExecutionId = {
+      /**
+       * Create an ExecutionId from a string
+       * @throws {Error} if the execution ID is invalid
+       */
+      create(value) {
+        if (!value || value.trim().length === 0) {
+          throw new Error("Execution ID cannot be empty");
+        }
+        const normalized = value.trim();
+        if (!normalized.startsWith("exec_")) {
+          throw new Error(
+            `Invalid execution ID format: "${value}" (must start with 'exec_')`
+          );
+        }
+        return normalized;
+      },
+      /**
+       * Generate a new unique execution ID
+       */
+      generate() {
+        return `exec_${crypto.randomUUID()}`;
+      },
+      /**
+       * Check if a string is a valid ExecutionId
+       */
+      isValid(value) {
+        return !!value && value.trim().startsWith("exec_");
+      },
+      /**
+       * Safely create an ExecutionId, returning null if invalid
+       */
+      tryCreate(value) {
+        try {
+          return ExecutionId.create(value);
+        } catch {
+          return null;
+        }
+      },
+      /**
+       * Unwrap an ExecutionId back to a string
+       */
+      unwrap(executionId) {
+        return executionId;
+      }
+    };
+    RequestId = {
+      /**
+       * Create a RequestId from a string
+       * @throws {Error} if the request ID is invalid
+       */
+      create(value) {
+        if (!value || value.trim().length === 0) {
+          throw new Error("Request ID cannot be empty");
+        }
+        const normalized = value.trim();
+        if (!normalized.startsWith("req_")) {
+          throw new Error(
+            `Invalid request ID format: "${value}" (must start with 'req_')`
+          );
+        }
+        return normalized;
+      },
+      /**
+       * Generate a new unique request ID
+       */
+      generate() {
+        return `req_${crypto.randomUUID()}`;
+      },
+      /**
+       * Check if a string is a valid RequestId
+       */
+      isValid(value) {
+        return !!value && value.trim().startsWith("req_");
+      },
+      /**
+       * Safely create a RequestId, returning null if invalid
+       */
+      tryCreate(value) {
+        try {
+          return RequestId.create(value);
+        } catch {
+          return null;
+        }
+      },
+      /**
+       * Unwrap a RequestId back to a string
+       */
+      unwrap(requestId) {
+        return requestId;
+      }
+    };
+  }
+});
+
+// src/observability/context.ts
+function normalizePathForMetrics(path9) {
+  const pathOnly = path9.split("?")[0].split("#")[0];
+  return pathOnly.split("/").map((segment) => {
+    if (!segment) return segment;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment)) {
+      return ":uuid";
+    }
+    if (/^\d+$/.test(segment)) {
+      return ":id";
+    }
+    if (/^[a-zA-Z0-9_-]+$/.test(segment) && /\d/.test(segment) && segment.length <= 36) {
+      return ":id";
+    }
+    return segment;
+  }).join("/");
+}
+function resolveObservabilityConfig(config) {
+  let loggingConfig;
+  if (config?.logging === false) {
+    loggingConfig = { enabled: false };
+  } else if (config?.logging === true || config?.logging === void 0) {
+    loggingConfig = { enabled: true };
+  } else {
+    loggingConfig = config.logging;
+  }
+  let metricsConfig;
+  if (config?.metrics === false) {
+    metricsConfig = { enabled: false };
+  } else if (config?.metrics === true || config?.metrics === void 0) {
+    metricsConfig = { enabled: true };
+  } else {
+    metricsConfig = config.metrics;
+  }
+  return {
+    logging: {
+      enabled: loggingConfig.enabled !== false,
+      level: stringToLogLevel(loggingConfig.level ?? "info"),
+      format: loggingConfig.format ?? "json",
+      context: loggingConfig.context ?? ["requestId", "executionId", "ensembleName", "agentName"],
+      redact: loggingConfig.redact ?? DEFAULT_REDACT_PATTERNS,
+      events: new Set(loggingConfig.events ?? DEFAULT_LOG_EVENTS)
+    },
+    metrics: {
+      enabled: metricsConfig.enabled !== false,
+      binding: metricsConfig.binding ?? "ANALYTICS",
+      track: new Set(metricsConfig.track ?? DEFAULT_METRIC_TYPES),
+      dimensions: metricsConfig.dimensions ?? []
+    },
+    opentelemetry: {
+      enabled: config?.opentelemetry?.enabled ?? false,
+      endpoint: config?.opentelemetry?.endpoint,
+      headers: config?.opentelemetry?.headers,
+      samplingRate: config?.opentelemetry?.samplingRate ?? 1
+    },
+    trackTokenUsage: config?.trackTokenUsage ?? true
+  };
+}
+function stringToLogLevel(level) {
+  switch (level.toLowerCase()) {
+    case "debug":
+      return "debug" /* DEBUG */;
+    case "info":
+      return "info" /* INFO */;
+    case "warn":
+      return "warn" /* WARN */;
+    case "error":
+      return "error" /* ERROR */;
+    default:
+      return "info" /* INFO */;
+  }
+}
+function generateExecutionId() {
+  return ExecutionId.generate();
+}
+function generateRequestId() {
+  return RequestId.generate();
+}
+function createMetricsRecorder(analyticsEngine, config, baseContext) {
+  const shouldTrack = (type) => {
+    return config.metrics.enabled && config.metrics.track.has(type);
+  };
+  const writeMetric = (data) => {
+    if (!analyticsEngine || !config.metrics.enabled) return;
+    try {
+      analyticsEngine.writeDataPoint({
+        blobs: data.blobs ?? [],
+        doubles: data.doubles ?? [],
+        indexes: data.indexes ?? []
+      });
+    } catch {
+    }
+  };
+  return {
+    record(name, value, dimensions) {
+      writeMetric({
+        blobs: [name, ...dimensions ? Object.values(dimensions) : []],
+        doubles: [value],
+        indexes: [name]
+      });
+    },
+    recordEnsembleExecution(ensembleName, durationMs, success) {
+      if (!shouldTrack("ensemble:execution")) return;
+      writeMetric({
+        blobs: [
+          ensembleName,
+          success ? "success" : "failure",
+          baseContext.environment ?? "unknown"
+        ],
+        doubles: [durationMs, success ? 1 : 0],
+        indexes: ["ensemble.execution"]
+      });
+    },
+    recordAgentExecution(agentName, durationMs, success, cached = false) {
+      if (!shouldTrack("agent:execution")) return;
+      writeMetric({
+        blobs: [
+          agentName,
+          success ? "success" : "failure",
+          cached ? "cached" : "executed",
+          baseContext.ensembleName ?? "unknown"
+        ],
+        doubles: [durationMs, success ? 1 : 0, cached ? 1 : 0],
+        indexes: ["agent.execution"]
+      });
+    },
+    recordHttpRequest(method, path9, statusCode, durationMs) {
+      if (!shouldTrack("http:request")) return;
+      const statusCategory = statusCode < 400 ? "success" : statusCode < 500 ? "client_error" : "server_error";
+      const normalizedPath = normalizePathForMetrics(path9);
+      writeMetric({
+        blobs: [method, normalizedPath, statusCategory, String(statusCode)],
+        doubles: [durationMs, 1],
+        indexes: ["http.request"]
+      });
+    },
+    recordError(errorType, errorCode) {
+      if (!shouldTrack("error")) return;
+      writeMetric({
+        blobs: [
+          errorType,
+          errorCode ?? "unknown",
+          baseContext.ensembleName ?? "unknown",
+          baseContext.agentName ?? "unknown"
+        ],
+        doubles: [1],
+        indexes: ["error"]
+      });
+    },
+    recordCachePerformance(hit, agentName) {
+      if (!shouldTrack("cache:performance")) return;
+      writeMetric({
+        blobs: [
+          hit ? "hit" : "miss",
+          agentName ?? "unknown",
+          baseContext.ensembleName ?? "unknown"
+        ],
+        doubles: [1],
+        indexes: ["cache.performance"]
+      });
+    }
+  };
+}
+function redactSensitiveFields(obj, patterns) {
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const shouldRedact = patterns.some((pattern) => {
+      const lowerKey = key.toLowerCase();
+      const lowerPattern = pattern.toLowerCase();
+      return lowerKey.includes(lowerPattern) || lowerKey === lowerPattern;
+    });
+    if (shouldRedact) {
+      result[key] = "[REDACTED]";
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      result[key] = redactSensitiveFields(value, patterns);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+function createScopedLogger(config, context, analyticsEngine) {
+  if (!config.logging.enabled) {
+    return {
+      debug: () => {
+      },
+      info: () => {
+      },
+      warn: () => {
+      },
+      error: () => {
+      },
+      child: () => createScopedLogger(config, context, analyticsEngine),
+      metric: () => {
+      }
+    };
+  }
+  const baseContext = {};
+  for (const field of config.logging.context) {
+    if (field in context && context[field] !== void 0) {
+      baseContext[field] = context[field];
+    }
+  }
+  return new ConductorLogger(
+    {
+      level: config.logging.level,
+      serviceName: "conductor",
+      enableAnalytics: config.metrics.enabled,
+      baseContext
+    },
+    analyticsEngine,
+    baseContext
+  );
+}
+function createObservabilityManager(config, initialContext, analyticsEngine) {
+  return new ObservabilityManager(config, initialContext ?? {}, analyticsEngine);
+}
+var DEFAULT_REDACT_PATTERNS, DEFAULT_LOG_EVENTS, DEFAULT_METRIC_TYPES, ObservabilityManager;
+var init_context = __esm({
+  "src/observability/context.ts"() {
+    "use strict";
+    init_logger();
+    init_types();
+    init_branded();
+    DEFAULT_REDACT_PATTERNS = [
+      "password",
+      "apiKey",
+      "api_key",
+      "token",
+      "authorization",
+      "secret",
+      "creditCard",
+      "credit_card",
+      "ssn",
+      "socialSecurityNumber"
+    ];
+    DEFAULT_LOG_EVENTS = [
+      "request",
+      "response",
+      "agent:start",
+      "agent:complete",
+      "agent:error"
+    ];
+    DEFAULT_METRIC_TYPES = [
+      "ensemble:execution",
+      "agent:execution",
+      "http:request",
+      "error"
+    ];
+    ObservabilityManager = class _ObservabilityManager {
+      constructor(config, initialContext, analyticsEngine) {
+        this.config = resolveObservabilityConfig(config);
+        this.analyticsEngine = analyticsEngine;
+        this.context = {
+          requestId: initialContext.requestId ?? generateRequestId(),
+          executionId: initialContext.executionId ?? generateExecutionId(),
+          ...initialContext
+        };
+        this.logger = createScopedLogger(this.config, this.context, analyticsEngine);
+        this.metrics = createMetricsRecorder(analyticsEngine, this.config, this.context);
+      }
+      /**
+       * Internal method to set resolved config (used by child managers)
+       */
+      setResolvedConfig(resolvedConfig) {
+        this.config = resolvedConfig;
+      }
+      /**
+       * Create a child manager with inherited config
+       */
+      static createChild(resolvedConfig, context, analyticsEngine) {
+        const manager = new _ObservabilityManager(void 0, context, analyticsEngine);
+        manager.setResolvedConfig(resolvedConfig);
+        return manager;
+      }
+      /**
+       * Get the current logger
+       */
+      getLogger() {
+        return this.logger;
+      }
+      /**
+       * Get the metrics recorder
+       */
+      getMetrics() {
+        return this.metrics;
+      }
+      /**
+       * Get the current execution context
+       */
+      getContext() {
+        return { ...this.context };
+      }
+      /**
+       * Get the resolved config
+       */
+      getConfig() {
+        return this.config;
+      }
+      /**
+       * Check if a log event should be logged
+       */
+      shouldLogEvent(event) {
+        return this.config.logging.enabled && this.config.logging.events.has(event);
+      }
+      /**
+       * Check if a metric type should be tracked
+       */
+      shouldTrackMetric(type) {
+        return this.config.metrics.enabled && this.config.metrics.track.has(type);
+      }
+      /**
+       * Create a child manager with additional context (e.g., for an agent)
+       */
+      forAgent(agentName, stepIndex) {
+        const childContext = {
+          ...this.context,
+          agentName,
+          stepIndex
+        };
+        return _ObservabilityManager.createChild(this.config, childContext, this.analyticsEngine);
+      }
+      /**
+       * Create a child manager for an ensemble
+       */
+      forEnsemble(ensembleName, executionId) {
+        const childContext = {
+          ...this.context,
+          ensembleName,
+          executionId: executionId ?? generateExecutionId()
+        };
+        return _ObservabilityManager.createChild(this.config, childContext, this.analyticsEngine);
+      }
+      /**
+       * Redact sensitive fields from data
+       */
+      redact(data) {
+        return redactSensitiveFields(data, this.config.logging.redact);
+      }
+    };
+  }
+});
+
+// src/observability/index.ts
+var init_observability = __esm({
+  "src/observability/index.ts"() {
+    "use strict";
+    init_types();
+    init_logger();
+    init_opentelemetry();
+    init_context();
+  }
+});
+
 // src/agents/built-in/hitl/hitl-agent.ts
-var logger2, HITLMember;
+var logger, HITLMember;
 var init_hitl_agent = __esm({
   "src/agents/built-in/hitl/hitl-agent.ts"() {
     "use strict";
     init_base_agent();
     init_observability();
-    logger2 = createLogger({ serviceName: "hitl-agent" });
+    logger = createLogger({ serviceName: "hitl-agent" });
     HITLMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
@@ -1802,7 +1370,7 @@ var init_hitl_agent = __esm({
        * Send email notification
        */
       async sendEmailNotification(executionId, approvalData, config) {
-        logger2.debug("Email notification not yet implemented", {
+        logger.debug("Email notification not yet implemented", {
           executionId
         });
       }
@@ -1852,490 +1420,6 @@ var init_hitl = __esm({
   "src/agents/built-in/hitl/index.ts"() {
     "use strict";
     init_hitl_agent();
-  }
-});
-
-// src/agents/built-in/fetch/fetch-agent.ts
-var FetchMember;
-var init_fetch_agent = __esm({
-  "src/agents/built-in/fetch/fetch-agent.ts"() {
-    "use strict";
-    init_base_agent();
-    FetchMember = class extends BaseAgent {
-      constructor(config, env) {
-        super(config);
-        this.env = env;
-        const cfg = config.config;
-        this.fetchConfig = {
-          method: cfg?.method || "GET",
-          headers: cfg?.headers || {},
-          retry: cfg?.retry !== void 0 ? cfg.retry : 3,
-          timeout: cfg?.timeout || 3e4,
-          retryDelay: cfg?.retryDelay || 1e3
-        };
-      }
-      async run(context) {
-        const input = context.input;
-        if (!input.url) {
-          throw new Error('Fetch agent requires "url" in input');
-        }
-        const startTime = Date.now();
-        const maxRetries = this.fetchConfig.retry || 0;
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-          try {
-            const result = await this.executeRequest(input, attempt);
-            return {
-              ...result,
-              duration: Date.now() - startTime,
-              attempt: attempt + 1
-            };
-          } catch (error) {
-            if (attempt === maxRetries) {
-              throw new Error(
-                `Fetch failed after ${attempt + 1} attempts: ${error instanceof Error ? error.message : "Unknown error"}`
-              );
-            }
-            const delay = this.fetchConfig.retryDelay * Math.pow(2, attempt);
-            await this.sleep(delay);
-          }
-        }
-        throw new Error("Fetch failed: Maximum retries exceeded");
-      }
-      async executeRequest(input, attempt) {
-        const url = input.url;
-        const method = this.fetchConfig.method || "GET";
-        const headers = {
-          ...this.fetchConfig.headers,
-          ...input.headers
-        };
-        const options = {
-          method,
-          headers,
-          signal: AbortSignal.timeout(this.fetchConfig.timeout)
-        };
-        if (input.body && ["POST", "PUT", "PATCH"].includes(method)) {
-          if (typeof input.body === "object") {
-            options.body = JSON.stringify(input.body);
-            if (!headers["Content-Type"]) {
-              headers["Content-Type"] = "application/json";
-            }
-          } else {
-            options.body = input.body;
-          }
-        }
-        const response = await fetch(url, options);
-        const contentType = response.headers.get("content-type") || "";
-        let body;
-        if (contentType.includes("application/json")) {
-          body = await response.json();
-        } else if (contentType.includes("text/")) {
-          body = await response.text();
-        } else {
-          body = await response.text();
-        }
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return {
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries()),
-          body
-        };
-      }
-      sleep(ms) {
-        return new Promise((resolve5) => setTimeout(resolve5, ms));
-      }
-    };
-  }
-});
-
-// src/agents/built-in/fetch/index.ts
-var fetch_exports = {};
-__export(fetch_exports, {
-  FetchMember: () => FetchMember
-});
-var init_fetch = __esm({
-  "src/agents/built-in/fetch/index.ts"() {
-    "use strict";
-    init_fetch_agent();
-  }
-});
-
-// src/agents/built-in/tools/mcp-client.ts
-var MCPClient;
-var init_mcp_client = __esm({
-  "src/agents/built-in/tools/mcp-client.ts"() {
-    "use strict";
-    MCPClient = class {
-      constructor(config) {
-        this.config = config;
-      }
-      /**
-       * Discover available tools from MCP server
-       */
-      async listTools() {
-        const url = `${this.config.url}/tools`;
-        const response = await this.request(url, {
-          method: "GET"
-        });
-        return response;
-      }
-      /**
-       * Invoke a tool on the MCP server
-       */
-      async invokeTool(toolName, args) {
-        const url = `${this.config.url}/tools/${encodeURIComponent(toolName)}`;
-        const body = {
-          name: toolName,
-          arguments: args
-        };
-        const response = await this.request(url, {
-          method: "POST",
-          body: JSON.stringify(body),
-          headers: {
-            "Content-Type": "application/json"
-          }
-        });
-        return response;
-      }
-      /**
-       * Make an authenticated HTTP request to MCP server
-       */
-      async request(url, options) {
-        const headers = {
-          ...options.headers
-        };
-        if (this.config.auth) {
-          if (this.config.auth.type === "bearer" && this.config.auth.token) {
-            headers["Authorization"] = `Bearer ${this.config.auth.token}`;
-          } else if (this.config.auth.type === "oauth" && this.config.auth.accessToken) {
-            headers["Authorization"] = `Bearer ${this.config.auth.accessToken}`;
-          }
-        }
-        const timeout = this.config.timeout || 3e4;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        try {
-          const response = await fetch(url, {
-            ...options,
-            headers,
-            signal: controller.signal
-          });
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            throw new Error(
-              `MCP server error: ${response.status} ${response.statusText} - ${errorText}`
-            );
-          }
-          const data = await response.json();
-          return data;
-        } catch (error) {
-          if (error instanceof Error) {
-            if (error.name === "AbortError") {
-              throw new Error(`MCP request timeout after ${timeout}ms`);
-            }
-            throw error;
-          }
-          throw new Error("Unknown MCP client error");
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      }
-    };
-  }
-});
-
-// src/agents/built-in/tools/tools-agent.ts
-var ToolsMember;
-var init_tools_agent = __esm({
-  "src/agents/built-in/tools/tools-agent.ts"() {
-    "use strict";
-    init_base_agent();
-    init_mcp_client();
-    ToolsMember = class extends BaseAgent {
-      constructor(config, env) {
-        super(config);
-        this.env = env;
-        this.mcpServerConfig = null;
-        const cfg = config.config;
-        if (!cfg || !cfg.mcp || !cfg.tool) {
-          throw new Error('Tools agent requires "mcp" (server name) and "tool" (tool name) in config');
-        }
-        this.toolsConfig = {
-          mcp: cfg.mcp,
-          tool: cfg.tool,
-          timeout: cfg.timeout,
-          cacheDiscovery: cfg.cacheDiscovery ?? true,
-          cacheTTL: cfg.cacheTTL || 3600
-        };
-      }
-      async run(context) {
-        const input = context.input;
-        const startTime = Date.now();
-        try {
-          const serverConfig = await this.loadMCPServerConfig();
-          const client = new MCPClient(serverConfig);
-          const response = await client.invokeTool(this.toolsConfig.tool, input);
-          return {
-            tool: this.toolsConfig.tool,
-            server: this.toolsConfig.mcp,
-            content: response.content,
-            duration: Date.now() - startTime,
-            isError: response.isError
-          };
-        } catch (error) {
-          throw new Error(
-            `Failed to invoke tool "${this.toolsConfig.tool}" on MCP server "${this.toolsConfig.mcp}": ${error instanceof Error ? error.message : "Unknown error"}`
-          );
-        }
-      }
-      /**
-       * Load MCP server configuration from conductor config
-       */
-      async loadMCPServerConfig() {
-        const mcpServers = this.env.MCP_SERVERS;
-        if (!mcpServers) {
-          throw new Error(
-            "MCP servers not configured. Add MCP_SERVERS binding or configure in conductor.config.ts"
-          );
-        }
-        const serverConfig = mcpServers[this.toolsConfig.mcp];
-        if (!serverConfig) {
-          throw new Error(
-            `MCP server "${this.toolsConfig.mcp}" not found in configuration. Available servers: ${Object.keys(mcpServers).join(", ")}`
-          );
-        }
-        if (this.toolsConfig.timeout) {
-          serverConfig.timeout = this.toolsConfig.timeout;
-        }
-        return serverConfig;
-      }
-      /**
-       * Discover available tools from MCP server (for AI agent tool access)
-       */
-      async discoverTools() {
-        const serverConfig = await this.loadMCPServerConfig();
-        const client = new MCPClient(serverConfig);
-        if (this.toolsConfig.cacheDiscovery) {
-          const cached = await this.getCachedTools(this.toolsConfig.mcp);
-          if (cached) {
-            return cached;
-          }
-        }
-        const response = await client.listTools();
-        if (this.toolsConfig.cacheDiscovery) {
-          await this.cacheTools(this.toolsConfig.mcp, response.tools);
-        }
-        return response.tools;
-      }
-      /**
-       * Get cached tools from KV
-       */
-      async getCachedTools(serverName) {
-        try {
-          const kv = this.env.MCP_CACHE;
-          if (!kv) return null;
-          const cacheKey = `mcp:tools:${serverName}`;
-          const cached = await kv.get(cacheKey, "json");
-          return cached;
-        } catch (error) {
-          return null;
-        }
-      }
-      /**
-       * Cache tools in KV
-       */
-      async cacheTools(serverName, tools) {
-        try {
-          const kv = this.env.MCP_CACHE;
-          if (!kv) return;
-          const cacheKey = `mcp:tools:${serverName}`;
-          await kv.put(cacheKey, JSON.stringify(tools), {
-            expirationTtl: this.toolsConfig.cacheTTL
-          });
-        } catch (error) {
-        }
-      }
-    };
-  }
-});
-
-// src/agents/built-in/tools/index.ts
-var tools_exports = {};
-__export(tools_exports, {
-  MCPClient: () => MCPClient,
-  ToolsMember: () => ToolsMember
-});
-var init_tools = __esm({
-  "src/agents/built-in/tools/index.ts"() {
-    "use strict";
-    init_tools_agent();
-    init_mcp_client();
-  }
-});
-
-// src/agents/built-in/queries/queries-agent.ts
-var QueriesMember;
-var init_queries_agent = __esm({
-  "src/agents/built-in/queries/queries-agent.ts"() {
-    "use strict";
-    init_base_agent();
-    QueriesMember = class extends BaseAgent {
-      constructor(config, env) {
-        super(config);
-        this.env = env;
-        const cfg = config.config;
-        this.queriesConfig = {
-          defaultDatabase: cfg?.defaultDatabase,
-          cacheTTL: cfg?.cacheTTL,
-          maxRows: cfg?.maxRows,
-          timeout: cfg?.timeout,
-          readOnly: cfg?.readOnly !== void 0 ? cfg.readOnly : false,
-          transform: cfg?.transform || "none",
-          includeMetadata: cfg?.includeMetadata !== void 0 ? cfg.includeMetadata : true
-        };
-      }
-      async run(context) {
-        const input = context.input;
-        if (!input.queryName && !input.sql) {
-          throw new Error("Either queryName or sql must be provided");
-        }
-        if (input.queryName && input.sql) {
-          throw new Error("Cannot specify both queryName and sql");
-        }
-        const query = input.queryName ? await this.loadQueryFromCatalog(input.queryName) : { sql: input.sql, params: {}, database: input.database };
-        const database = input.database || query.database || this.queriesConfig.defaultDatabase;
-        if (!database) {
-          throw new Error("No database specified and no default database configured");
-        }
-        const hyperdrive = this.env[database];
-        if (!hyperdrive) {
-          throw new Error(`Hyperdrive binding not found: ${database}`);
-        }
-        if (this.queriesConfig.readOnly && this.isWriteQuery(query.sql)) {
-          throw new Error("Write operations not allowed in read-only mode");
-        }
-        const { sql, params } = this.prepareQuery(query.sql, input.input || query.params || {});
-        const startTime = Date.now();
-        const result = await this.executeQuery(hyperdrive, sql, params);
-        const executionTime = Date.now() - startTime;
-        let rows = result.rows;
-        if (this.queriesConfig.transform === "camelCase") {
-          rows = this.toCamelCase(rows);
-        } else if (this.queriesConfig.transform === "snakeCase") {
-          rows = this.toSnakeCase(rows);
-        }
-        if (this.queriesConfig.maxRows && rows.length > this.queriesConfig.maxRows) {
-          rows = rows.slice(0, this.queriesConfig.maxRows);
-        }
-        const output = {
-          rows,
-          count: rows.length,
-          metadata: {
-            columns: result.columns || [],
-            executionTime,
-            cached: false,
-            // TODO: Implement caching
-            database,
-            ...this.queriesConfig.includeMetadata && { query: sql }
-          }
-        };
-        return output;
-      }
-      /**
-       * Load query from catalog
-       */
-      async loadQueryFromCatalog(queryName) {
-        throw new Error(
-          `Query catalog not yet implemented. Use inline SQL with 'sql' parameter instead of 'queryName'.`
-        );
-      }
-      /**
-       * Prepare query with parameters
-       */
-      prepareQuery(sql, input) {
-        if (Array.isArray(input)) {
-          return { sql, params: input };
-        }
-        const params = [];
-        let paramIndex = 1;
-        const convertedSql = sql.replace(/:(\w+)/g, (match, paramName) => {
-          if (!(paramName in input)) {
-            throw new Error(`Missing parameter: ${paramName}`);
-          }
-          params.push(input[paramName]);
-          return `$${paramIndex++}`;
-        });
-        return { sql: convertedSql, params };
-      }
-      /**
-       * Execute query via Hyperdrive/D1
-       */
-      async executeQuery(hyperdrive, sql, params) {
-        let stmt = hyperdrive.prepare(sql);
-        if (params.length > 0) {
-          stmt = stmt.bind(...params);
-        }
-        const executePromise = stmt.all();
-        const result = this.queriesConfig.timeout ? await Promise.race([
-          executePromise,
-          new Promise(
-            (_, reject) => setTimeout(() => reject(new Error("Query timeout")), this.queriesConfig.timeout)
-          )
-        ]) : await executePromise;
-        const columns = result.results.length > 0 ? Object.keys(result.results[0]) : result.meta?.columns ? result.meta.columns.map((c) => c.name) : [];
-        return {
-          rows: result.results,
-          columns
-        };
-      }
-      /**
-       * Check if query is a write operation
-       */
-      isWriteQuery(sql) {
-        const upperSQL = sql.trim().toUpperCase();
-        return /^(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|REPLACE)/i.test(upperSQL);
-      }
-      /**
-       * Transform object keys to camelCase
-       */
-      toCamelCase(rows) {
-        return rows.map((row) => {
-          const transformed = {};
-          for (const [key, value] of Object.entries(row)) {
-            const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-            transformed[camelKey] = value;
-          }
-          return transformed;
-        });
-      }
-      /**
-       * Transform object keys to snake_case
-       */
-      toSnakeCase(rows) {
-        return rows.map((row) => {
-          const transformed = {};
-          for (const [key, value] of Object.entries(row)) {
-            const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-            transformed[snakeKey] = value;
-          }
-          return transformed;
-        });
-      }
-    };
-  }
-});
-
-// src/agents/built-in/queries/index.ts
-var queries_exports = {};
-__export(queries_exports, {
-  QueriesMember: () => QueriesMember
-});
-var init_queries = __esm({
-  "src/agents/built-in/queries/index.ts"() {
-    "use strict";
-    init_queries_agent();
   }
 });
 
@@ -2957,8 +2041,7 @@ var init_error_types = __esm({
         super(message);
         this.name = this.constructor.name;
         this.details = details;
-        if (Error.captureStackTrace) {
-          ;
+        if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
           Error.captureStackTrace(this, this.constructor);
         }
       }
@@ -2971,6 +2054,7 @@ var init_error_types = __esm({
           code: this.code,
           message: this.message,
           isOperational: this.isOperational,
+          ...this.details && { details: this.details },
           stack: this.stack
         };
       }
@@ -3719,13 +2803,13 @@ var require_logger = __commonJS({
     "use strict";
     exports.__esModule = true;
     var _utils = require_utils();
-    var logger7 = {
+    var logger8 = {
       methodMap: ["debug", "info", "warn", "error"],
       level: "info",
       // Maps a given level value to the `methodMap` indexes above.
       lookupLevel: function lookupLevel(level) {
         if (typeof level === "string") {
-          var levelMap = _utils.indexOf(logger7.methodMap, level.toLowerCase());
+          var levelMap = _utils.indexOf(logger8.methodMap, level.toLowerCase());
           if (levelMap >= 0) {
             level = levelMap;
           } else {
@@ -3736,9 +2820,9 @@ var require_logger = __commonJS({
       },
       // Can be overridden in the host environment
       log: function log(level) {
-        level = logger7.lookupLevel(level);
-        if (typeof console !== "undefined" && logger7.lookupLevel(logger7.level) <= level) {
-          var method = logger7.methodMap[level];
+        level = logger8.lookupLevel(level);
+        if (typeof console !== "undefined" && logger8.lookupLevel(logger8.level) <= level) {
+          var method = logger8.methodMap[level];
           if (!console[method]) {
             method = "log";
           }
@@ -3749,7 +2833,7 @@ var require_logger = __commonJS({
         }
       }
     };
-    exports["default"] = logger7;
+    exports["default"] = logger8;
     module.exports = exports["default"];
   }
 });
@@ -9525,76 +8609,6 @@ function getBuiltInRegistry() {
 function registerAllBuiltInMembers(registry2) {
   registry2.register(
     {
-      name: "scrape",
-      version: "1.0.0",
-      description: "3-tier web scraping with bot protection and fallback strategies",
-      operation: "code" /* code */,
-      tags: ["web", "scraping", "cloudflare", "browser-rendering"],
-      examples: [
-        {
-          name: "basic-scrape",
-          description: "Simple web scraping with balanced strategy",
-          input: { url: "https://example.com" },
-          config: { strategy: "balanced", returnFormat: "markdown" },
-          output: { markdown: "...", tier: 1, duration: 350 }
-        },
-        {
-          name: "aggressive-scrape",
-          description: "Aggressive scraping with all fallback tiers",
-          input: { url: "https://example.com" },
-          config: { strategy: "aggressive", returnFormat: "markdown" },
-          output: { markdown: "...", tier: 3, duration: 4500 }
-        }
-      ],
-      documentation: "https://docs.conductor.dev/built-in-agents/scrape"
-    },
-    async (config, env) => {
-      const { ScrapeMember: ScrapeMember2 } = await Promise.resolve().then(() => (init_scrape(), scrape_exports));
-      return new ScrapeMember2(config, env);
-    }
-  );
-  registry2.register(
-    {
-      name: "validate",
-      version: "1.0.0",
-      description: "Validation and evaluation with pluggable evaluators (judge, NLP, embedding, rule)",
-      operation: "scoring" /* scoring */,
-      tags: ["validation", "evaluation", "scoring", "quality"],
-      examples: [
-        {
-          name: "rule-validation",
-          description: "Validate content using custom rules",
-          input: { content: "Sample content..." },
-          config: {
-            evalType: "rule",
-            rules: [{ name: "minLength", check: "content.length >= 800", weight: 0.5 }],
-            threshold: 0.7
-          },
-          output: { passed: true, score: 0.85, details: {} }
-        },
-        {
-          name: "llm-judge",
-          description: "Evaluate quality using LLM judge",
-          input: { content: "Sample content...", reference: "Expected output..." },
-          config: {
-            evalType: "judge",
-            criteria: [
-              { name: "accuracy", weight: 0.4 },
-              { name: "relevance", weight: 0.3 }
-            ],
-            threshold: 0.8
-          }
-        }
-      ],
-      documentation: "https://docs.conductor.dev/built-in-agents/validate"
-    },
-    async (config, env) => {
-      const { ValidateMember: ValidateMember2 } = await Promise.resolve().then(() => (init_validate(), validate_exports));
-      return new ValidateMember2(config, env);
-    }
-  );
-  registry2.register(
-    {
       name: "rag",
       version: "1.0.0",
       description: "RAG system using Cloudflare Vectorize and AI embeddings",
@@ -9669,178 +8683,6 @@ function registerAllBuiltInMembers(registry2) {
     async (config, env) => {
       const { HITLMember: HITLMember2 } = await Promise.resolve().then(() => (init_hitl(), hitl_exports));
       return new HITLMember2(config, env);
-    }
-  );
-  registry2.register(
-    {
-      name: "fetch",
-      version: "1.0.0",
-      description: "HTTP client with retry logic and exponential backoff",
-      operation: "code" /* code */,
-      tags: ["http", "api", "fetch", "retry"],
-      examples: [
-        {
-          name: "basic-fetch",
-          description: "Simple HTTP GET request",
-          input: { url: "https://api.example.com/data" },
-          config: { method: "GET", retry: 3, timeout: 5e3 },
-          output: { status: 200, body: {}, headers: {} }
-        },
-        {
-          name: "post-with-retry",
-          description: "POST request with retry logic",
-          input: {
-            url: "https://api.example.com/submit",
-            body: { data: "value" }
-          },
-          config: {
-            method: "POST",
-            retry: 5,
-            timeout: 1e4,
-            headers: { "Content-Type": "application/json" }
-          }
-        }
-      ],
-      documentation: "https://docs.conductor.dev/built-in-agents/fetch"
-    },
-    async (config, env) => {
-      const { FetchMember: FetchMember2 } = await Promise.resolve().then(() => (init_fetch(), fetch_exports));
-      return new FetchMember2(config, env);
-    }
-  );
-  registry2.register(
-    {
-      name: "tools",
-      version: "1.0.0",
-      description: "Invoke external MCP (Model Context Protocol) tools over HTTP",
-      operation: "tools" /* tools */,
-      tags: ["mcp", "tools", "integration", "http"],
-      examples: [
-        {
-          name: "github-tool",
-          description: "Get GitHub pull request data",
-          input: {
-            owner: "anthropics",
-            repo: "anthropic-sdk-typescript",
-            pull_number: 123
-          },
-          config: {
-            mcp: "github",
-            tool: "get_pull_request"
-          },
-          output: {
-            tool: "get_pull_request",
-            server: "github",
-            content: [{ type: "text", text: "PR data..." }],
-            duration: 450
-          }
-        },
-        {
-          name: "search-tool",
-          description: "Search the web",
-          input: {
-            query: "latest AI developments",
-            limit: 10
-          },
-          config: {
-            mcp: "search-engine",
-            tool: "search",
-            timeout: 5e3
-          }
-        }
-      ],
-      documentation: "https://docs.conductor.dev/built-in-agents/tools"
-    },
-    async (config, env) => {
-      const { ToolsMember: ToolsMember2 } = await Promise.resolve().then(() => (init_tools(), tools_exports));
-      return new ToolsMember2(config, env);
-    }
-  );
-  registry2.register(
-    {
-      name: "queries",
-      version: "1.0.0",
-      description: "Execute SQL queries across Hyperdrive-connected databases with query catalog support",
-      operation: "storage" /* storage */,
-      tags: ["sql", "database", "queries", "hyperdrive", "analytics"],
-      examples: [
-        {
-          name: "catalog-query",
-          description: "Execute query from catalog",
-          input: {
-            queryName: "user-analytics",
-            input: {
-              startDate: "2024-01-01",
-              endDate: "2024-01-31"
-            }
-          },
-          config: {
-            defaultDatabase: "analytics",
-            readOnly: true,
-            transform: "camelCase"
-          },
-          output: {
-            rows: [],
-            count: 25,
-            metadata: {
-              columns: ["date", "user_count", "active_users"],
-              executionTime: 150,
-              cached: false,
-              database: "analytics"
-            }
-          }
-        },
-        {
-          name: "inline-query",
-          description: "Execute inline SQL query",
-          input: {
-            sql: "SELECT * FROM users WHERE created_at > $1 LIMIT 100",
-            input: ["2024-01-01"]
-          },
-          config: {
-            defaultDatabase: "production",
-            readOnly: true,
-            maxRows: 100
-          }
-        }
-      ],
-      inputSchema: {
-        type: "object",
-        properties: {
-          queryName: { type: "string", description: "Query name from catalog" },
-          sql: { type: "string", description: "Inline SQL query" },
-          input: {
-            oneOf: [{ type: "object" }, { type: "array" }],
-            description: "Query parameters"
-          },
-          database: { type: "string", description: "Database alias" }
-        }
-      },
-      outputSchema: {
-        type: "object",
-        properties: {
-          rows: { type: "array" },
-          count: { type: "number" },
-          metadata: { type: "object" }
-        }
-      },
-      configSchema: {
-        type: "object",
-        properties: {
-          defaultDatabase: { type: "string" },
-          cacheTTL: { type: "number" },
-          maxRows: { type: "number" },
-          timeout: { type: "number" },
-          readOnly: { type: "boolean" },
-          transform: { type: "string", enum: ["none", "camelCase", "snakeCase"] },
-          includeMetadata: { type: "boolean" }
-        }
-      },
-      documentation: "https://docs.conductor.dev/built-in-agents/queries"
-    },
-    async (config, env) => {
-      const { QueriesMember: QueriesMember2 } = await Promise.resolve().then(() => (init_queries(), queries_exports));
-      return new QueriesMember2(config, env);
     }
   );
 }
@@ -14627,6 +13469,9 @@ function normalizeOutput(output) {
   return [{ body: output }];
 }
 
+// src/runtime/parser.ts
+init_observability();
+
 // src/primitives/ensemble.ts
 var Ensemble = class {
   constructor(options) {
@@ -14716,6 +13561,7 @@ function ensembleFromConfig(config) {
 }
 
 // src/runtime/parser.ts
+var logger2 = createLogger({ serviceName: "parser" });
 var AgentFlowStepSchema = external_exports.object({
   agent: external_exports.string().min(1, "Agent name is required"),
   id: external_exports.string().optional(),
@@ -14860,6 +13706,8 @@ var EnsembleSchema = external_exports.object({
       // MCP tool endpoint (expose ensemble as MCP tool)
       external_exports.object({
         type: external_exports.literal("mcp"),
+        toolName: external_exports.string().optional(),
+        // Custom tool name (defaults to ensemble name)
         auth: external_exports.object({
           type: external_exports.enum(["bearer", "oauth"]),
           secret: external_exports.string().optional()
@@ -15117,6 +13965,17 @@ var AgentMetricsSchema = external_exports.object({
     })
   ).optional()
 }).optional();
+var AgentSecuritySchema = external_exports.object({
+  /**
+   * Enable SSRF protection for fetch requests
+   * When true (default), requests to private IPs, localhost, and metadata services are blocked
+   * @default true
+   */
+  ssrf: external_exports.boolean().optional()
+  // Future security features can be added here:
+  // inputSanitization: z.boolean().optional(),
+  // rateLimiting: z.boolean().optional(),
+}).optional();
 var AgentSchema = external_exports.object({
   name: external_exports.string().min(1, "Agent name is required"),
   operation: external_exports.enum([
@@ -15144,7 +14003,9 @@ var AgentSchema = external_exports.object({
   /** Agent-level logging configuration */
   logging: AgentLoggingSchema,
   /** Agent-level metrics configuration */
-  metrics: AgentMetricsSchema
+  metrics: AgentMetricsSchema,
+  /** Security settings for the agent */
+  security: AgentSecuritySchema
 });
 var Parser = class {
   static {
@@ -15164,14 +14025,17 @@ var Parser = class {
         validated.flow = validated.agents.map((agent) => {
           const name = typeof agent === "object" && agent !== null && "name" in agent ? String(agent.name) : void 0;
           if (!name) {
-            console.warn(`[Parser] Skipping agent without name in ensemble "${validated.name}"`);
+            logger2.warn(`Skipping agent without name in ensemble "${validated.name}"`, {
+              ensembleName: validated.name
+            });
             return null;
           }
           return { agent: name };
         }).filter((step) => step !== null);
-        console.log(
-          `[Parser] Auto-generated sequential flow for ensemble "${validated.name}" with ${validated.flow.length} agent(s)`
-        );
+        logger2.debug(`Auto-generated sequential flow for ensemble`, {
+          ensembleName: validated.name,
+          agentCount: validated.flow.length
+        });
       }
       return validated;
     } catch (error) {
@@ -15918,13 +14782,192 @@ ${errors.join("\n")}`));
 // src/config/loader-workers.ts
 init_result();
 
-// src/config/security.ts
-var DEFAULT_SECURITY_CONFIG = {
-  requireAuth: true,
-  allowDirectAgentExecution: true,
-  autoPermissions: false
-};
-var securityConfig = { ...DEFAULT_SECURITY_CONFIG };
+// src/config/schemas.ts
+var RateLimitConfigSchema = external_exports.object({
+  requests: external_exports.number().int().positive().describe("Number of requests allowed"),
+  window: external_exports.number().int().positive().describe("Time window in seconds"),
+  keyBy: external_exports.enum(["ip", "user", "apiKey"]).describe("Key to use for rate limiting")
+});
+var AuthFailureSchema = external_exports.object({
+  action: external_exports.enum(["error", "redirect", "page"]).optional(),
+  redirectTo: external_exports.string().optional(),
+  page: external_exports.string().optional(),
+  preserveReturn: external_exports.boolean().optional()
+});
+var AuthRuleSchema = external_exports.object({
+  requirement: external_exports.enum(["public", "optional", "required"]).optional(),
+  methods: external_exports.array(external_exports.enum(["bearer", "apiKey", "cookie", "custom"])).optional(),
+  customValidator: external_exports.string().optional(),
+  roles: external_exports.array(external_exports.string()).optional(),
+  permissions: external_exports.array(external_exports.string()).optional(),
+  onFailure: AuthFailureSchema.optional(),
+  rateLimit: RateLimitConfigSchema.optional()
+});
+var PathAuthRuleSchema = external_exports.object({
+  pattern: external_exports.string().min(1).describe("Path pattern (supports wildcards)"),
+  auth: AuthRuleSchema.optional(),
+  priority: external_exports.number().int().optional()
+});
+var AuthConfigSchema = external_exports.object({
+  defaults: external_exports.object({
+    pages: AuthRuleSchema.optional(),
+    api: AuthRuleSchema.optional(),
+    webhooks: AuthRuleSchema.optional(),
+    forms: AuthRuleSchema.optional(),
+    docs: AuthRuleSchema.optional()
+  }).optional(),
+  rules: external_exports.array(PathAuthRuleSchema).optional()
+});
+var SecurityConfigOptionsSchema = external_exports.object({
+  requireAuth: external_exports.boolean().optional().describe("Require authentication on /api/* routes"),
+  allowDirectAgentExecution: external_exports.boolean().optional().describe("Allow direct agent execution via API"),
+  autoPermissions: external_exports.boolean().optional().describe("Automatically require resource-specific permissions"),
+  productionEnvironments: external_exports.array(external_exports.string()).optional().describe("Environment names treated as production")
+});
+var RoutingConfigSchema = external_exports.object({
+  autoDiscover: external_exports.boolean().optional().describe("Auto-discover pages from directory structure"),
+  basePath: external_exports.string().optional().describe("Base path for all routes"),
+  auth: AuthConfigSchema.optional()
+});
+var DocsUIFrameworkSchema = external_exports.enum([
+  "stoplight",
+  "redoc",
+  "swagger",
+  "scalar",
+  "rapidoc"
+]);
+var DocsThemeSchema = external_exports.object({
+  primaryColor: external_exports.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color (e.g., #3B82F6)").optional(),
+  customCss: external_exports.string().optional(),
+  darkMode: external_exports.boolean().optional()
+});
+var DocsAISchema = external_exports.object({
+  enabled: external_exports.boolean().optional(),
+  model: external_exports.string().optional(),
+  provider: external_exports.enum(["cloudflare", "openai", "anthropic"]).optional(),
+  temperature: external_exports.number().min(0).max(1).optional()
+});
+var DocsCacheSchema = external_exports.object({
+  enabled: external_exports.boolean().optional(),
+  ttl: external_exports.number().int().positive().optional()
+});
+var ServerUrlSchema = external_exports.object({
+  url: external_exports.string().url("Must be a valid URL"),
+  description: external_exports.string().optional()
+});
+var DocsConfigSchema = external_exports.object({
+  // Branding
+  title: external_exports.string().optional(),
+  description: external_exports.string().optional(),
+  logo: external_exports.string().url().optional(),
+  favicon: external_exports.string().url().optional(),
+  // UI Framework
+  ui: DocsUIFrameworkSchema.optional(),
+  theme: DocsThemeSchema.optional(),
+  // Access Control
+  auth: external_exports.object({
+    requirement: external_exports.enum(["public", "optional", "required"]).optional(),
+    redirectTo: external_exports.string().optional()
+  }).optional(),
+  // AI Enhancement
+  ai: DocsAISchema.optional(),
+  // Content Filtering
+  include: external_exports.array(external_exports.string()).optional(),
+  exclude: external_exports.array(external_exports.string()).optional(),
+  includeExamples: external_exports.boolean().optional(),
+  includeSecurity: external_exports.boolean().optional(),
+  // Caching
+  cache: DocsCacheSchema.optional(),
+  // Output
+  outputDir: external_exports.string().optional(),
+  format: external_exports.enum(["yaml", "json"]).optional(),
+  // Server URLs
+  servers: external_exports.array(ServerUrlSchema).optional(),
+  // Legacy (deprecated)
+  useAI: external_exports.boolean().optional(),
+  aiAgent: external_exports.string().optional()
+});
+var CoverageThresholdsSchema = external_exports.object({
+  lines: external_exports.number().min(0).max(100).optional(),
+  functions: external_exports.number().min(0).max(100).optional(),
+  branches: external_exports.number().min(0).max(100).optional(),
+  statements: external_exports.number().min(0).max(100).optional()
+});
+var TestingConfigSchema = external_exports.object({
+  coverage: CoverageThresholdsSchema.optional(),
+  timeout: external_exports.number().int().positive().optional(),
+  environment: external_exports.enum(["node", "jsdom", "edge-runtime"]).optional(),
+  setupFiles: external_exports.array(external_exports.string()).optional(),
+  globals: external_exports.boolean().optional()
+});
+var LogEventTypeSchema = external_exports.enum([
+  "request",
+  "response",
+  "agent:start",
+  "agent:complete",
+  "agent:error",
+  "ensemble:start",
+  "ensemble:complete",
+  "ensemble:error",
+  "cache:hit",
+  "cache:miss"
+]);
+var MetricTypeSchema = external_exports.enum([
+  "ensemble:execution",
+  "agent:execution",
+  "http:request",
+  "cache:performance",
+  "error"
+]);
+var LoggingConfigSchema = external_exports.object({
+  enabled: external_exports.boolean().optional(),
+  level: external_exports.enum(["debug", "info", "warn", "error"]).optional(),
+  format: external_exports.enum(["json", "pretty"]).optional(),
+  context: external_exports.array(external_exports.string()).optional(),
+  redact: external_exports.array(external_exports.string()).optional(),
+  events: external_exports.array(LogEventTypeSchema).optional()
+});
+var MetricsConfigSchema = external_exports.object({
+  enabled: external_exports.boolean().optional(),
+  binding: external_exports.string().optional(),
+  track: external_exports.array(MetricTypeSchema).optional(),
+  dimensions: external_exports.array(external_exports.string()).optional()
+});
+var OpenTelemetryConfigSchema = external_exports.object({
+  enabled: external_exports.boolean().optional(),
+  endpoint: external_exports.string().url().optional(),
+  headers: external_exports.record(external_exports.string()).optional(),
+  samplingRate: external_exports.number().min(0).max(1).optional()
+});
+var ObservabilityConfigSchema = external_exports.object({
+  logging: external_exports.union([external_exports.boolean(), LoggingConfigSchema]).optional(),
+  metrics: external_exports.union([external_exports.boolean(), MetricsConfigSchema]).optional(),
+  opentelemetry: OpenTelemetryConfigSchema.optional(),
+  trackTokenUsage: external_exports.boolean().optional()
+});
+var ExecutionConfigSchema = external_exports.object({
+  defaultTimeout: external_exports.number().int().positive().optional(),
+  trackHistory: external_exports.boolean().optional(),
+  maxHistoryEntries: external_exports.number().int().positive().optional(),
+  storeStateSnapshots: external_exports.boolean().optional()
+});
+var StorageConfigSchema = external_exports.object({
+  type: external_exports.enum(["filesystem", "d1", "kv"]).optional(),
+  path: external_exports.string().optional(),
+  d1Binding: external_exports.string().optional(),
+  kvBinding: external_exports.string().optional()
+});
+var ConductorConfigSchema = external_exports.object({
+  name: external_exports.string().optional(),
+  version: external_exports.string().optional(),
+  security: SecurityConfigOptionsSchema.optional(),
+  routing: RoutingConfigSchema.optional(),
+  docs: DocsConfigSchema.optional(),
+  testing: TestingConfigSchema.optional(),
+  observability: ObservabilityConfigSchema.optional(),
+  execution: ExecutionConfigSchema.optional(),
+  storage: StorageConfigSchema.optional()
+});
 
 // src/cli/commands/docs.ts
 import * as fs4 from "fs/promises";
@@ -18333,7 +17376,8 @@ var FunctionAgent = class _FunctionAgent extends BaseAgent {
    * Supports test-style handlers: (input, context?) => result
    */
   static fromConfig(config) {
-    const handler = config.config?.handler;
+    const agentConfig = config.config;
+    const handler = agentConfig?.handler;
     if (typeof handler === "function") {
       const implementation = async (context) => {
         return await handler(context.input, context);
@@ -18487,7 +17531,8 @@ var BaseAIProvider = class {
    * Helper to get API key from config or env
    */
   getApiKey(config, env, envVarName) {
-    return config.apiKey || env[envVarName] || null;
+    const envRecord = env;
+    return config.apiKey || envRecord[envVarName] || null;
   }
   /**
    * Helper to make HTTP request
@@ -18649,7 +17694,7 @@ var CloudflareProvider = class extends BaseAIProvider {
       }
     };
   }
-  getConfigError(config, env) {
+  getConfigError(_config, env) {
     if (!env.AI) {
       return 'Cloudflare AI binding not found. Add [ai] binding = "AI" to wrangler.toml';
     }
@@ -18689,7 +17734,7 @@ var CustomProvider = class extends BaseAIProvider {
       metadata: data
     };
   }
-  getConfigError(config, env) {
+  getConfigError(config, _env) {
     if (!config.apiEndpoint) {
       return "Custom provider requires apiEndpoint in config";
     }
@@ -18752,6 +17797,8 @@ function getProviderRegistry() {
 }
 
 // src/utils/component-resolver.ts
+init_observability();
+var logger3 = createLogger({ serviceName: "component-resolver" });
 function isComponentReference(value) {
   const componentPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i;
   return componentPattern.test(value);
@@ -18841,7 +17888,7 @@ async function resolveComponentRef(ref, context) {
         }
       }
     } catch (error) {
-      console.warn(`Failed to fetch from Edgit: ${edgitPath}`, error);
+      logger3.warn(`Failed to fetch from Edgit: ${edgitPath}`, { error: String(error) });
     }
   }
   if (context.env?.COMPONENTS) {
@@ -18856,7 +17903,7 @@ async function resolveComponentRef(ref, context) {
         }
       }
     } catch (error) {
-      console.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, error);
+      logger3.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, { error: String(error) });
     }
   }
   throw new Error(
@@ -18968,8 +18015,9 @@ var SimpleTemplateEngine = class extends BaseTemplateEngine {
    */
   async render(template, context) {
     let result = template;
-    const data = context.data !== void 0 ? context.data : context;
-    const helpers = context.helpers;
+    const hasDataProperty = "data" in context && context.data !== void 0;
+    const data = hasDataProperty ? context.data : context;
+    const helpers = "helpers" in context ? context.helpers : void 0;
     result = await this.processConditionalsRecursive(result, data, context);
     result = await this.processLoopsRecursive(result, data, context);
     result = await this.processPartials(result, { ...context, data });
@@ -19145,7 +18193,8 @@ var SimpleTemplateEngine = class extends BaseTemplateEngine {
     let result = template;
     for (const match of matches) {
       const [fullMatch, partialRef, argsStr] = match;
-      const partialData = argsStr ? this.parsePartialArgs(argsStr, context.data) : context.data;
+      const contextData = "data" in context && typeof context.data === "object" && context.data !== null ? context.data : {};
+      const partialData = argsStr ? this.parsePartialArgs(argsStr, contextData) : contextData;
       try {
         let partialContent;
         if (partialRef.includes("://")) {
@@ -19243,7 +18292,8 @@ var LiquidTemplateEngine = class extends BaseTemplateEngine {
         compiledTemplate = this.liquid.parse(template);
         this.compiledTemplates.set(template, compiledTemplate);
       }
-      const data = context.data !== void 0 ? context.data : context;
+      const hasDataProperty = "data" in context && context.data !== void 0;
+      const data = hasDataProperty ? context.data : context;
       return await this.liquid.render(compiledTemplate, data);
     } catch (error) {
       throw new Error(
@@ -19442,8 +18492,11 @@ var ThinkAgent = class extends BaseAgent {
     const { input, env } = context;
     await this.resolvePrompt(env);
     if (this.thinkConfig.systemPrompt) {
-      console.log("[ThinkAgent] BEFORE template rendering:", this.thinkConfig.systemPrompt);
-      console.log("[ThinkAgent] Input data:", JSON.stringify(input));
+      const logger8 = context.logger;
+      logger8?.debug("Template rendering started", {
+        agentName: this.getName(),
+        templateLength: this.thinkConfig.systemPrompt.length
+      });
       try {
         this.thinkConfig.systemPrompt = await this.templateEngine.render(
           this.thinkConfig.systemPrompt,
@@ -19453,9 +18506,14 @@ var ThinkAgent = class extends BaseAgent {
             context
           }
         );
-        console.log("[ThinkAgent] AFTER template rendering:", this.thinkConfig.systemPrompt);
+        logger8?.debug("Template rendering completed", {
+          agentName: this.getName(),
+          renderedLength: this.thinkConfig.systemPrompt.length
+        });
       } catch (error) {
-        console.error("[ThinkAgent] Template rendering error:", error);
+        logger8?.error("Template rendering failed", error instanceof Error ? error : void 0, {
+          agentName: this.getName()
+        });
         throw new Error(
           `Failed to render systemPrompt template: ${error instanceof Error ? error.message : String(error)}`
         );
@@ -19741,11 +18799,16 @@ var KVRepository = class {
         listOptions.cursor = options.cursor;
       }
       const result = await this.binding.list(listOptions);
+      const BATCH_SIZE = 10;
+      const keys = result.keys;
       const values = [];
-      for (const key of result.keys) {
-        const getResult = await this.get(key.name);
-        if (getResult.success) {
-          values.push(getResult.value);
+      for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+        const batch = keys.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(batch.map((key) => this.get(key.name)));
+        for (const getResult of batchResults) {
+          if (getResult.success) {
+            values.push(getResult.value);
+          }
         }
       }
       return Result.ok(values);
@@ -19799,16 +18862,31 @@ var KVRepository = class {
 // src/storage/d1-repository.ts
 init_result();
 init_error_types();
+function validateSqlIdentifier(identifier, type) {
+  if (!identifier || typeof identifier !== "string") {
+    throw new Error(`Invalid ${type} name: must be a non-empty string`);
+  }
+  if (identifier.length > 128) {
+    throw new Error(`Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`);
+  }
+  const validIdentifierPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+  if (!validIdentifierPattern.test(identifier)) {
+    throw new Error(
+      `Invalid ${type} name "${identifier}": must start with a letter or underscore and contain only letters, numbers, and underscores`
+    );
+  }
+  return identifier;
+}
 var D1Repository = class {
   constructor(binding, config, serializer = new JSONSerializer()) {
     this.binding = binding;
     this.serializer = serializer;
-    this.tableName = config.tableName;
-    this.idColumn = config.idColumn || "id";
-    this.valueColumn = config.valueColumn || "value";
-    this.createdAtColumn = config.createdAtColumn || "created_at";
-    this.updatedAtColumn = config.updatedAtColumn || "updated_at";
-    this.expirationColumn = config.expirationColumn;
+    this.tableName = validateSqlIdentifier(config.tableName, "table");
+    this.idColumn = validateSqlIdentifier(config.idColumn || "id", "column");
+    this.valueColumn = validateSqlIdentifier(config.valueColumn || "value", "column");
+    this.createdAtColumn = validateSqlIdentifier(config.createdAtColumn || "created_at", "column");
+    this.updatedAtColumn = validateSqlIdentifier(config.updatedAtColumn || "updated_at", "column");
+    this.expirationColumn = config.expirationColumn ? validateSqlIdentifier(config.expirationColumn, "column") : void 0;
   }
   /**
    * Get a value from D1
@@ -20073,19 +19151,33 @@ var R2Repository = class {
         listOptions.cursor = options.cursor;
       }
       const result = await this.binding.list(listOptions);
-      const values = [];
+      const now = Date.now();
+      const validObjects = [];
+      const expiredKeys = [];
       for (const object of result.objects) {
-        const getResult = await this.get(object.key);
-        if (getResult.success) {
-          const expiration = object.customMetadata?.["x-expiration"];
-          if (expiration) {
-            const expirationTime = parseInt(expiration, 10);
-            if (expirationTime < Date.now()) {
-              await this.delete(object.key);
-              continue;
-            }
+        const expiration = object.customMetadata?.["x-expiration"];
+        if (expiration) {
+          const expirationTime = parseInt(expiration, 10);
+          if (expirationTime < now) {
+            expiredKeys.push(object.key);
+            continue;
           }
-          values.push(getResult.value);
+        }
+        validObjects.push(object);
+      }
+      if (expiredKeys.length > 0) {
+        Promise.all(expiredKeys.map((key) => this.binding.delete(key))).catch(() => {
+        });
+      }
+      const BATCH_SIZE = 10;
+      const values = [];
+      for (let i = 0; i < validObjects.length; i += BATCH_SIZE) {
+        const batch = validObjects.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(batch.map((obj) => this.get(obj.key)));
+        for (const getResult of batchResults) {
+          if (getResult.success) {
+            values.push(getResult.value);
+          }
         }
       }
       return Result.ok(values);
@@ -22116,12 +21208,12 @@ var TwilioProvider = class extends BaseSmsProvider {
         messageId: "",
         status: "failed",
         provider: this.name,
-        error: data?.message || `HTTP ${response.status}`
+        error: data.message || data.error_message || `HTTP ${response.status}`
       };
     }
     return {
-      messageId: data.sid,
-      status: this.mapTwilioStatus(data.status),
+      messageId: data.sid || "",
+      status: this.mapTwilioStatus(data.status || "unknown"),
       provider: this.name
     };
   }
@@ -22391,7 +21483,8 @@ async function validateField(field, value, allData, context) {
     }
   }
   if (validation.custom) {
-    const customValidator = context.input?.validators?.[validation.custom];
+    const input = context.input;
+    const customValidator = input?.validators?.[validation.custom];
     if (typeof customValidator === "function") {
       const customResult = await customValidator(value, allData, field);
       if (customResult !== true) {
@@ -24010,12 +23103,13 @@ var PdfMember = class extends BaseAgent {
       htmlSize = html.length;
     } else if (htmlSource?.fromMember) {
       const memberOutput = context.previousOutputs?.[htmlSource.fromMember];
-      if (!memberOutput?.output?.html) {
+      const output = memberOutput?.output;
+      if (!output?.html) {
         throw new Error(
           `Agent "${htmlSource.fromMember}" did not produce HTML output. Make sure it's an HTML agent and executed before this PDF agent.`
         );
       }
-      html = memberOutput.output.html;
+      html = output.html;
       htmlSize = html.length;
     } else if (htmlSource?.template) {
       const htmlMemberConfig = {
@@ -24042,7 +23136,11 @@ var PdfMember = class extends BaseAgent {
       if (!htmlResponse.success) {
         throw new Error(`HTML rendering failed: ${htmlResponse.error}`);
       }
-      html = htmlResponse.data.html;
+      const htmlData = htmlResponse.data;
+      if (!htmlData.html) {
+        throw new Error("HTML rendering succeeded but no HTML content was produced");
+      }
+      html = htmlData.html;
       htmlSize = html.length;
     } else {
       throw new Error(
@@ -24057,7 +23155,7 @@ var PdfMember = class extends BaseAgent {
         headerFooter: renderedHeaderFooter,
         metadata
       },
-      context.env
+      { BROWSER: context.env.BROWSER }
     );
     let r2Key;
     let url;
@@ -24108,7 +23206,7 @@ init_error_types();
 // src/runtime/scoring/scoring-executor.ts
 init_error_types();
 init_observability();
-var logger3 = createLogger({ serviceName: "scoring-executor" });
+var logger4 = createLogger({ serviceName: "scoring-executor" });
 var ScoringExecutor = class {
   /**
    * Execute a agent with scoring and retry logic
@@ -24158,7 +23256,7 @@ var ScoringExecutor = class {
             }
             break;
           case "continue":
-            logger3.warn("Score below threshold, continuing anyway", {
+            logger4.warn("Score below threshold, continuing anyway", {
               score: score.score,
               threshold: config.thresholds?.minimum,
               attempts
@@ -24457,7 +23555,7 @@ init_observability();
 
 // src/runtime/notifications/webhook-notifier.ts
 init_observability();
-var logger4 = createLogger({ serviceName: "webhook-notifier" });
+var logger5 = createLogger({ serviceName: "webhook-notifier" });
 var WebhookNotifier = class {
   constructor(config) {
     this.config = {
@@ -24485,7 +23583,7 @@ var WebhookNotifier = class {
           attempts: attempt + 1
         };
       } catch (error) {
-        logger4.error("Webhook notification failed", error instanceof Error ? error : void 0, {
+        logger5.error("Webhook notification failed", error instanceof Error ? error : void 0, {
           url: this.config.url,
           attempt: attempt + 1,
           maxRetries: maxRetries + 1
@@ -24589,7 +23687,7 @@ var WebhookNotifier = class {
 
 // src/runtime/notifications/email-notifier.ts
 init_observability();
-var logger5 = createLogger({ serviceName: "email-notifier" });
+var logger6 = createLogger({ serviceName: "email-notifier" });
 var EmailNotifier = class {
   constructor(config) {
     this.config = config;
@@ -24602,7 +23700,7 @@ var EmailNotifier = class {
     try {
       const emailData = this.buildEmailData(eventData);
       await this.sendEmail(emailData, env);
-      logger5.info("Email notification sent", {
+      logger6.info("Email notification sent", {
         to: emailData.to,
         event: eventData.event
       });
@@ -24614,7 +23712,7 @@ var EmailNotifier = class {
         duration: Date.now() - startTime
       };
     } catch (error) {
-      logger5.error("Email notification failed", error instanceof Error ? error : void 0, {
+      logger6.error("Email notification failed", error instanceof Error ? error : void 0, {
         to: this.config.to,
         event: eventData.event
       });
@@ -24776,7 +23874,7 @@ var EmailNotifier = class {
   /**
    * Send email using MailChannels API
    */
-  async sendEmail(emailData, env) {
+  async sendEmail(emailData, _env) {
     const response = await fetch("https://api.mailchannels.net/tx/v1/send", {
       method: "POST",
       headers: {
@@ -24814,7 +23912,7 @@ var EmailNotifier = class {
 
 // src/runtime/notifications/notification-manager.ts
 init_observability();
-var logger6 = createLogger({ serviceName: "notification-manager" });
+var logger7 = createLogger({ serviceName: "notification-manager" });
 var NotificationManager = class {
   /**
    * Send notifications for an event
@@ -24837,7 +23935,7 @@ var NotificationManager = class {
     if (relevantNotifications.length === 0) {
       return [];
     }
-    logger6.info("Sending notifications", {
+    logger7.info("Sending notifications", {
       ensemble: ensemble.name,
       event,
       count: relevantNotifications.length
@@ -24849,7 +23947,7 @@ var NotificationManager = class {
     );
     const successful = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
-    logger6.info("Notifications sent", {
+    logger7.info("Notifications sent", {
       ensemble: ensemble.name,
       event,
       total: results.length,
@@ -24863,43 +23961,36 @@ var NotificationManager = class {
    */
   static async sendNotification(config, eventData, env) {
     try {
-      if (config.type === "webhook") {
-        const notifier = new WebhookNotifier({
-          url: config.url,
-          secret: config.secret,
-          retries: config.retries,
-          timeout: config.timeout
-        });
-        return await notifier.send(eventData);
-      } else if (config.type === "email") {
-        const notifier = new EmailNotifier({
-          to: config.to,
-          from: config.from,
-          subject: config.subject,
-          events: config.events
-        });
-        return await notifier.send(eventData, env);
+      switch (config.type) {
+        case "webhook": {
+          const notifier = new WebhookNotifier({
+            url: config.url,
+            secret: config.secret,
+            retries: config.retries,
+            timeout: config.timeout
+          });
+          return await notifier.send(eventData);
+        }
+        case "email": {
+          const notifier = new EmailNotifier({
+            to: config.to,
+            from: config.from,
+            subject: config.subject,
+            events: config.events
+          });
+          return await notifier.send(eventData, env);
+        }
+        default: {
+          const exhaustiveCheck = config;
+          throw new Error(`Unknown notification type: ${exhaustiveCheck.type}`);
+        }
       }
-      const unknownType2 = config.type || "unknown";
-      return {
-        success: false,
-        type: unknownType2,
-        target: "unknown",
-        event: eventData.event,
-        duration: 0,
-        error: `Unknown notification type: ${unknownType2}`
-      };
     } catch (error) {
-      logger6.error("Notification failed", error instanceof Error ? error : void 0, {
+      logger7.error("Notification failed", error instanceof Error ? error : void 0, {
         type: config.type,
         event: eventData.event
       });
-      let target = "unknown";
-      if (config.type === "webhook") {
-        target = config.url;
-      } else if (config.type === "email") {
-        target = config.to.join(", ");
-      }
+      const target = config.type === "webhook" ? config.url : config.type === "email" ? config.to.join(", ") : "unknown";
       return {
         success: false,
         type: config.type,
@@ -25107,10 +24198,20 @@ function validateJsonSchema(schema, data, path9 = "") {
   }
   if (typeof data === "string") {
     if (schema.minLength !== void 0 && data.length < schema.minLength) {
-      addError("minLength", `String must be at least ${schema.minLength} characters`, schema.minLength, data.length);
+      addError(
+        "minLength",
+        `String must be at least ${schema.minLength} characters`,
+        schema.minLength,
+        data.length
+      );
     }
     if (schema.maxLength !== void 0 && data.length > schema.maxLength) {
-      addError("maxLength", `String must be at most ${schema.maxLength} characters`, schema.maxLength, data.length);
+      addError(
+        "maxLength",
+        `String must be at most ${schema.maxLength} characters`,
+        schema.maxLength,
+        data.length
+      );
     }
     if (schema.pattern !== void 0) {
       const regex = new RegExp(schema.pattern);
@@ -25133,21 +24234,46 @@ function validateJsonSchema(schema, data, path9 = "") {
       addError("maximum", `Number must be <= ${schema.maximum}`, schema.maximum, data);
     }
     if (schema.exclusiveMinimum !== void 0 && data <= schema.exclusiveMinimum) {
-      addError("exclusiveMinimum", `Number must be > ${schema.exclusiveMinimum}`, schema.exclusiveMinimum, data);
+      addError(
+        "exclusiveMinimum",
+        `Number must be > ${schema.exclusiveMinimum}`,
+        schema.exclusiveMinimum,
+        data
+      );
     }
     if (schema.exclusiveMaximum !== void 0 && data >= schema.exclusiveMaximum) {
-      addError("exclusiveMaximum", `Number must be < ${schema.exclusiveMaximum}`, schema.exclusiveMaximum, data);
+      addError(
+        "exclusiveMaximum",
+        `Number must be < ${schema.exclusiveMaximum}`,
+        schema.exclusiveMaximum,
+        data
+      );
     }
     if (schema.multipleOf !== void 0 && data % schema.multipleOf !== 0) {
-      addError("multipleOf", `Number must be a multiple of ${schema.multipleOf}`, schema.multipleOf, data);
+      addError(
+        "multipleOf",
+        `Number must be a multiple of ${schema.multipleOf}`,
+        schema.multipleOf,
+        data
+      );
     }
   }
   if (Array.isArray(data)) {
     if (schema.minItems !== void 0 && data.length < schema.minItems) {
-      addError("minItems", `Array must have at least ${schema.minItems} items`, schema.minItems, data.length);
+      addError(
+        "minItems",
+        `Array must have at least ${schema.minItems} items`,
+        schema.minItems,
+        data.length
+      );
     }
     if (schema.maxItems !== void 0 && data.length > schema.maxItems) {
-      addError("maxItems", `Array must have at most ${schema.maxItems} items`, schema.maxItems, data.length);
+      addError(
+        "maxItems",
+        `Array must have at most ${schema.maxItems} items`,
+        schema.maxItems,
+        data.length
+      );
     }
     if (schema.uniqueItems && new Set(data.map((item) => JSON.stringify(item))).size !== data.length) {
       addError("uniqueItems", "Array items must be unique");
@@ -25171,10 +24297,20 @@ function validateJsonSchema(schema, data, path9 = "") {
   if (typeof data === "object" && data !== null && !Array.isArray(data)) {
     const dataKeys = Object.keys(data);
     if (schema.minProperties !== void 0 && dataKeys.length < schema.minProperties) {
-      addError("minProperties", `Object must have at least ${schema.minProperties} properties`, schema.minProperties, dataKeys.length);
+      addError(
+        "minProperties",
+        `Object must have at least ${schema.minProperties} properties`,
+        schema.minProperties,
+        dataKeys.length
+      );
     }
     if (schema.maxProperties !== void 0 && dataKeys.length > schema.maxProperties) {
-      addError("maxProperties", `Object must have at most ${schema.maxProperties} properties`, schema.maxProperties, dataKeys.length);
+      addError(
+        "maxProperties",
+        `Object must have at most ${schema.maxProperties} properties`,
+        schema.maxProperties,
+        dataKeys.length
+      );
     }
     if (schema.required) {
       for (const req of schema.required) {
@@ -25219,7 +24355,9 @@ function validateJsonSchema(schema, data, path9 = "") {
     }
   }
   if (schema.oneOf) {
-    const matchCount = schema.oneOf.filter((s) => validateJsonSchema(s, data, path9).valid).length;
+    const matchCount = schema.oneOf.filter(
+      (s) => validateJsonSchema(s, data, path9).valid
+    ).length;
     if (matchCount !== 1) {
       addError("oneOf", `Data must match exactly one schema in oneOf (matched ${matchCount})`);
     }
@@ -25655,7 +24793,10 @@ function deepMerge(target, source) {
     const sourceValue = source[key];
     const targetValue = target[key];
     if (sourceValue !== null && typeof sourceValue === "object" && !Array.isArray(sourceValue) && targetValue !== null && typeof targetValue === "object" && !Array.isArray(targetValue)) {
-      result[key] = deepMerge(targetValue, sourceValue);
+      result[key] = deepMerge(
+        targetValue,
+        sourceValue
+      );
     } else if (sourceValue !== void 0) {
       result[key] = sourceValue;
     }
@@ -26184,6 +25325,23 @@ function parseValue(value) {
 function isAgentStep2(step) {
   return "agent" in step && typeof step.agent === "string";
 }
+var DEFAULT_AGENT_TIMEOUT_MS = 3e4;
+async function withTimeout(promise, timeoutMs, agentName) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new AgentExecutionError(agentName, `Agent execution timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    return result;
+  } finally {
+    if (timeoutId !== void 0) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 var Executor = class {
   constructor(config) {
     this.env = config.env;
@@ -26192,6 +25350,7 @@ var Executor = class {
     this.observabilityConfig = config.observability;
     this.requestId = config.requestId;
     this.auth = config.auth;
+    this.defaultTimeout = config.defaultTimeout ?? DEFAULT_AGENT_TIMEOUT_MS;
     this.logger = config.logger || createLogger({ serviceName: "executor" }, this.env.ANALYTICS);
   }
   /**
@@ -26307,36 +25466,189 @@ var Executor = class {
     }
   }
   /**
-   * Execute a single flow step with all associated logic
-   * Only handles AgentFlowStep - control flow steps should use GraphExecutor
+   * Resolve input for a step based on explicit mapping, previous output, or ensemble input
    * @private
    */
-  async executeStep(step, flowContext, stepIndex) {
-    const {
-      ensemble,
-      executionContext,
-      metrics,
-      stateManager,
-      scoringState,
-      ensembleScorer,
-      scoringExecutor
-    } = flowContext;
-    const agentStartTime = Date.now();
-    let resolvedInput;
+  resolveStepInput(step, flowContext, stepIndex) {
+    const { ensemble, executionContext } = flowContext;
     if (step.input) {
-      resolvedInput = Parser.resolveInterpolation(step.input, executionContext);
+      return Parser.resolveInterpolation(step.input, executionContext);
     } else if (stepIndex > 0 && ensemble.flow) {
       const previousStep = ensemble.flow[stepIndex - 1];
       const previousAgentName = isAgentStep2(previousStep) ? previousStep.agent : void 0;
       if (previousAgentName) {
         const previousResult = executionContext[previousAgentName];
-        resolvedInput = previousResult?.output || {};
-      } else {
-        resolvedInput = executionContext.input || {};
+        return previousResult?.output || {};
       }
-    } else {
-      resolvedInput = executionContext.input || {};
     }
+    return executionContext.input || {};
+  }
+  /**
+   * Build the agent execution context with all necessary dependencies
+   * @private
+   */
+  buildAgentContext(resolvedInput, flowContext, agentLogger, agentMetrics, agentConfig) {
+    return {
+      input: resolvedInput,
+      env: this.env,
+      ctx: this.ctx,
+      previousOutputs: flowContext.executionContext,
+      logger: agentLogger,
+      metrics: agentMetrics,
+      executionId: flowContext.executionId,
+      requestId: this.requestId,
+      auth: this.auth,
+      // Component registries for TypeScript handlers
+      schemas: flowContext.componentRegistry.schemas,
+      prompts: flowContext.componentRegistry.prompts,
+      configs: flowContext.componentRegistry.configs,
+      queries: flowContext.componentRegistry.queries,
+      scripts: flowContext.componentRegistry.scripts,
+      templates: flowContext.componentRegistry.templates,
+      // Discovery registries for agents and ensembles
+      agentRegistry: flowContext.agentRegistry,
+      ensembleRegistry: flowContext.ensembleRegistry,
+      // Agent-specific config from ensemble definition
+      config: agentConfig
+    };
+  }
+  /**
+   * Execute agent with scoring/retry logic
+   * @private
+   */
+  async executeAgentWithScoring(stepContext) {
+    const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext;
+    const { ensemble, executionContext, scoringState, ensembleScorer, scoringExecutor, stateManager } = flowContext;
+    const agentTimeout = step.timeout ?? this.defaultTimeout;
+    const scoringConfig = step.scoring;
+    const scoredResult = await scoringExecutor.executeWithScoring(
+      // Agent execution function (with timeout)
+      async () => {
+        const resp = await withTimeout(
+          agent.execute(agentContext),
+          agentTimeout,
+          step.agent
+        );
+        if (stateManager && getPendingUpdates) {
+          const { updates, newLog } = getPendingUpdates();
+          flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
+        }
+        return resp;
+      },
+      // Evaluator function
+      async (output, attempt, previousScore) => {
+        const evaluatorResult = await this.resolveAgent(scoringConfig.evaluator);
+        if (!evaluatorResult.success) {
+          throw new Error(`Failed to resolve evaluator agent: ${evaluatorResult.error.message}`);
+        }
+        const evaluator = evaluatorResult.value;
+        const evalContext = {
+          input: {
+            output: output.success ? output.data : null,
+            attempt,
+            previousScore,
+            criteria: scoringConfig.criteria || ensemble.scoring?.criteria
+          },
+          env: this.env,
+          ctx: this.ctx,
+          previousOutputs: executionContext
+        };
+        const evalResponse = await evaluator.execute(evalContext);
+        if (!evalResponse.success) {
+          throw new Error(`Evaluator failed: ${evalResponse.error || "Unknown error"}`);
+        }
+        const evalData = evalResponse.data;
+        const score = typeof evalData === "number" ? evalData : typeof evalData === "object" && evalData !== null && "score" in evalData ? evalData.score : typeof evalData === "object" && evalData !== null && "value" in evalData ? evalData.value : 0;
+        const threshold = scoringConfig.thresholds?.minimum || ensemble.scoring?.defaultThresholds?.minimum || 0.7;
+        return {
+          score,
+          passed: score >= threshold,
+          feedback: typeof evalData === "object" && evalData !== null && "feedback" in evalData ? String(evalData.feedback) : typeof evalData === "object" && evalData !== null && "message" in evalData ? String(evalData.message) : "",
+          breakdown: typeof evalData === "object" && evalData !== null && "breakdown" in evalData ? evalData.breakdown : {},
+          metadata: {
+            attempt,
+            evaluator: scoringConfig.evaluator,
+            timestamp: Date.now()
+          }
+        };
+      },
+      scoringConfig
+    );
+    const scoringResult = scoredResult.score;
+    if (scoringState && ensembleScorer) {
+      scoringState.scoreHistory.push({
+        agent: step.agent,
+        score: scoringResult.score,
+        passed: scoringResult.passed,
+        feedback: scoringResult.feedback,
+        breakdown: scoringResult.breakdown,
+        timestamp: Date.now(),
+        attempt: scoredResult.attempts
+      });
+      scoringState.retryCount[step.agent] = scoredResult.attempts - 1;
+      if (scoredResult.status === "max_retries_exceeded") {
+        this.logger.warn("Agent exceeded max retries", {
+          agentName: step.agent,
+          score: scoringResult.score,
+          attempts: scoredResult.attempts,
+          ensembleName: ensemble.name
+        });
+      }
+    }
+    return { response: scoredResult.output, scoringResult };
+  }
+  /**
+   * Execute agent without scoring (normal path)
+   * @private
+   */
+  async executeAgentDirect(stepContext) {
+    const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext;
+    const { stateManager } = flowContext;
+    const agentTimeout = step.timeout ?? this.defaultTimeout;
+    const response = await withTimeout(
+      agent.execute(agentContext),
+      agentTimeout,
+      step.agent
+    );
+    if (stateManager && getPendingUpdates) {
+      const { updates, newLog } = getPendingUpdates();
+      flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
+    }
+    return response;
+  }
+  /**
+   * Record agent execution metrics
+   * @private
+   */
+  recordAgentMetrics(stepContext, response, agentStartTime) {
+    const { step, flowContext, agentMetrics } = stepContext;
+    const agentDuration = Date.now() - agentStartTime;
+    flowContext.metrics.agents.push({
+      name: step.agent,
+      duration: agentDuration,
+      cached: response.cached,
+      success: response.success
+    });
+    if (response.cached) {
+      flowContext.metrics.cacheHits++;
+      if (flowContext.observability.shouldLogEvent("cache:hit")) {
+        stepContext.agentLogger.debug("Cache hit", { agentName: step.agent });
+      }
+      agentMetrics.recordCachePerformance(true, step.agent);
+    } else {
+      agentMetrics.recordCachePerformance(false, step.agent);
+    }
+    agentMetrics.recordAgentExecution(step.agent, agentDuration, response.success, response.cached);
+  }
+  /**
+   * Execute a single flow step with all associated logic
+   * Only handles AgentFlowStep - control flow steps should use GraphExecutor
+   * @private
+   */
+  async executeStep(step, flowContext, stepIndex) {
+    const { ensemble, executionContext, stateManager, scoringState, ensembleScorer } = flowContext;
+    const agentStartTime = Date.now();
+    const resolvedInput = this.resolveStepInput(step, flowContext, stepIndex);
     const agentResult = await this.resolveAgent(step.agent);
     if (!agentResult.success) {
       return Result.err(new EnsembleExecutionError(ensemble.name, step.agent, agentResult.error));
@@ -26356,29 +25668,13 @@ var Executor = class {
       (a) => a.name === step.agent
     );
     const agentConfig = agentDef?.config || void 0;
-    const agentContext = {
-      input: resolvedInput,
-      env: this.env,
-      ctx: this.ctx,
-      previousOutputs: executionContext,
-      logger: agentLogger,
-      metrics: agentMetrics,
-      executionId: flowContext.executionId,
-      requestId: this.requestId,
-      auth: this.auth,
-      // Component registries for TypeScript handlers
-      schemas: flowContext.componentRegistry.schemas,
-      prompts: flowContext.componentRegistry.prompts,
-      configs: flowContext.componentRegistry.configs,
-      queries: flowContext.componentRegistry.queries,
-      scripts: flowContext.componentRegistry.scripts,
-      templates: flowContext.componentRegistry.templates,
-      // Discovery registries for agents and ensembles
-      agentRegistry: flowContext.agentRegistry,
-      ensembleRegistry: flowContext.ensembleRegistry,
-      // Agent-specific config from ensemble definition
-      config: agentConfig
-    };
+    const agentContext = this.buildAgentContext(
+      resolvedInput,
+      flowContext,
+      agentLogger,
+      agentMetrics,
+      agentConfig
+    );
     let getPendingUpdates = null;
     if (stateManager && step.state) {
       const { context, getPendingUpdates: getUpdates } = stateManager.getStateForAgent(
@@ -26389,104 +25685,27 @@ var Executor = class {
       agentContext.setState = context.setState;
       getPendingUpdates = getUpdates;
     }
+    const stepContext = {
+      step,
+      flowContext,
+      stepIndex,
+      agent,
+      resolvedInput,
+      agentLogger,
+      agentMetrics,
+      agentContext,
+      getPendingUpdates
+    };
     let response;
-    let scoringResult;
     if (step.scoring && scoringState && ensembleScorer) {
-      const scoringConfig = step.scoring;
-      const scoredResult = await scoringExecutor.executeWithScoring(
-        // Agent execution function
-        async () => {
-          const resp = await agent.execute(agentContext);
-          if (stateManager && getPendingUpdates) {
-            const { updates, newLog } = getPendingUpdates();
-            flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
-          }
-          return resp;
-        },
-        // Evaluator function
-        async (output, attempt, previousScore) => {
-          const evaluatorResult = await this.resolveAgent(scoringConfig.evaluator);
-          if (!evaluatorResult.success) {
-            throw new Error(`Failed to resolve evaluator agent: ${evaluatorResult.error.message}`);
-          }
-          const evaluator = evaluatorResult.value;
-          const evalContext = {
-            input: {
-              output: output.success ? output.data : null,
-              attempt,
-              previousScore,
-              criteria: scoringConfig.criteria || ensemble.scoring?.criteria
-            },
-            env: this.env,
-            ctx: this.ctx,
-            previousOutputs: executionContext
-          };
-          const evalResponse = await evaluator.execute(evalContext);
-          if (!evalResponse.success) {
-            throw new Error(`Evaluator failed: ${evalResponse.error || "Unknown error"}`);
-          }
-          const evalData = evalResponse.data;
-          const score = typeof evalData === "number" ? evalData : typeof evalData === "object" && evalData !== null && "score" in evalData ? evalData.score : typeof evalData === "object" && evalData !== null && "value" in evalData ? evalData.value : 0;
-          const threshold = scoringConfig.thresholds?.minimum || ensemble.scoring?.defaultThresholds?.minimum || 0.7;
-          return {
-            score,
-            passed: score >= threshold,
-            feedback: typeof evalData === "object" && evalData !== null && "feedback" in evalData ? String(evalData.feedback) : typeof evalData === "object" && evalData !== null && "message" in evalData ? String(evalData.message) : "",
-            breakdown: typeof evalData === "object" && evalData !== null && "breakdown" in evalData ? evalData.breakdown : {},
-            metadata: {
-              attempt,
-              evaluator: scoringConfig.evaluator,
-              timestamp: Date.now()
-            }
-          };
-        },
-        scoringConfig
-      );
-      response = scoredResult.output;
-      scoringResult = scoredResult.score;
-      scoringState.scoreHistory.push({
-        agent: step.agent,
-        score: scoringResult.score,
-        passed: scoringResult.passed,
-        feedback: scoringResult.feedback,
-        breakdown: scoringResult.breakdown,
-        timestamp: Date.now(),
-        attempt: scoredResult.attempts
-      });
-      scoringState.retryCount[step.agent] = scoredResult.attempts - 1;
-      if (scoredResult.status === "max_retries_exceeded") {
-        this.logger.warn("Agent exceeded max retries", {
-          agentName: step.agent,
-          score: scoringResult.score,
-          attempts: scoredResult.attempts,
-          ensembleName: ensemble.name
-        });
-      }
+      const result = await this.executeAgentWithScoring(stepContext);
+      response = result.response;
     } else {
-      response = await agent.execute(agentContext);
-      if (stateManager && getPendingUpdates) {
-        const { updates, newLog } = getPendingUpdates();
-        flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
-      }
+      response = await this.executeAgentDirect(stepContext);
     }
-    const agentDuration = Date.now() - agentStartTime;
-    metrics.agents.push({
-      name: step.agent,
-      duration: agentDuration,
-      cached: response.cached,
-      success: response.success
-    });
-    if (response.cached) {
-      metrics.cacheHits++;
-      if (flowContext.observability.shouldLogEvent("cache:hit")) {
-        agentLogger.debug("Cache hit", { agentName: step.agent });
-      }
-      agentMetrics.recordCachePerformance(true, step.agent);
-    } else {
-      agentMetrics.recordCachePerformance(false, step.agent);
-    }
-    agentMetrics.recordAgentExecution(step.agent, agentDuration, response.success, response.cached);
+    this.recordAgentMetrics(stepContext, response, agentStartTime);
     if (!response.success) {
+      const agentDuration = Date.now() - agentStartTime;
       if (flowContext.observability.shouldLogEvent("agent:error")) {
         agentLogger.error("Agent execution failed", new Error(response.error || "Unknown error"), {
           agentName: step.agent,
@@ -26500,6 +25719,7 @@ var Executor = class {
       );
     }
     if (flowContext.observability.shouldLogEvent("agent:complete")) {
+      const agentDuration = Date.now() - agentStartTime;
       agentLogger.info("Agent execution completed", {
         agentName: step.agent,
         durationMs: agentDuration,
@@ -26962,9 +26182,9 @@ Script loader not initialized. For Cloudflare Workers:
 // src/runtime/build-manager.ts
 init_observability();
 var BuildManager = class {
-  constructor(logger7) {
+  constructor(logger8) {
     this.ensembles = /* @__PURE__ */ new Map();
-    this.logger = logger7 || createLogger({ serviceName: "build-manager" });
+    this.logger = logger8 || createLogger({ serviceName: "build-manager" });
   }
   /**
    * Register ensemble with build triggers
@@ -27004,9 +26224,7 @@ var BuildManager = class {
     });
     const executor = new Executor({ env, ctx });
     for (const ensemble of ensemblesToRun) {
-      const buildTriggers = ensemble.trigger?.filter(
-        (t) => t.type === "build"
-      ) || [];
+      const buildTriggers = ensemble.trigger?.filter((t) => t.type === "build") || [];
       for (const trigger of buildTriggers) {
         if (trigger.enabled === false) {
           this.logger.debug(`Skipping disabled build trigger for ${ensemble.name}`);
@@ -27095,9 +26313,7 @@ var BuildManager = class {
   listBuildEnsembles() {
     const buildEnsembles = [];
     for (const ensemble of this.ensembles.values()) {
-      const buildTriggers = ensemble.trigger?.filter(
-        (t) => t.type === "build"
-      ) || [];
+      const buildTriggers = ensemble.trigger?.filter((t) => t.type === "build") || [];
       if (buildTriggers.length > 0) {
         buildEnsembles.push({
           ensembleName: ensemble.name,
@@ -27410,17 +26626,15 @@ import chalk14 from "chalk";
 // src/runtime/cli-manager.ts
 init_observability();
 var CLIManager = class {
-  constructor(logger7) {
+  constructor(logger8) {
     this.commands = /* @__PURE__ */ new Map();
-    this.logger = logger7 || createLogger({ serviceName: "cli-manager" });
+    this.logger = logger8 || createLogger({ serviceName: "cli-manager" });
   }
   /**
    * Register ensemble with CLI triggers
    */
   register(ensemble) {
-    const cliTriggers = ensemble.trigger?.filter(
-      (t) => t.type === "cli"
-    ) || [];
+    const cliTriggers = ensemble.trigger?.filter((t) => t.type === "cli") || [];
     for (const trigger of cliTriggers) {
       if (trigger.enabled === false) continue;
       if (this.commands.has(trigger.command)) {
@@ -27667,7 +26881,9 @@ function createRunCommand() {
                 const required = opt.required ? chalk14.red("*") : "";
                 const defaultVal = opt.default !== void 0 ? ` (default: ${opt.default})` : "";
                 console.log(
-                  chalk14.dim(`      --${opt.name}${required} [${opt.type || "string"}]${defaultVal}`)
+                  chalk14.dim(
+                    `      --${opt.name}${required} [${opt.type || "string"}]${defaultVal}`
+                  )
                 );
                 if (opt.description) {
                   console.log(chalk14.dim(`        ${opt.description}`));
@@ -27803,7 +27019,7 @@ function createLocalContext2() {
 }
 
 // src/cli/index.ts
-var version = "0.4.5";
+var version = "0.4.7";
 var program = new Command15();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

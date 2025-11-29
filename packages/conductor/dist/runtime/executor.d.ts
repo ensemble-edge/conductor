@@ -13,6 +13,7 @@ import { type ConductorError } from '../errors/error-types.js';
 import { type ScoringState } from './scoring/index.js';
 import { type SuspendedExecutionState } from './resumption-manager.js';
 import { type Logger } from '../observability/index.js';
+import type { RequestId } from '../types/branded.js';
 import type { ObservabilityConfig } from '../config/types.js';
 import type { AuthContext } from '../auth/types.js';
 export interface ExecutorConfig {
@@ -21,10 +22,12 @@ export interface ExecutorConfig {
     logger?: Logger;
     /** Observability configuration from conductor.config.ts */
     observability?: ObservabilityConfig;
-    /** Request ID from incoming HTTP request (for tracing) */
-    requestId?: string;
+    /** Request ID from incoming HTTP request (for tracing) - branded type for type safety */
+    requestId?: RequestId;
     /** Authentication context from the request */
     auth?: AuthContext;
+    /** Default timeout for agent execution in milliseconds (default: 30000) */
+    defaultTimeout?: number;
 }
 /**
  * Response metadata for HTTP responses
@@ -88,6 +91,7 @@ export declare class Executor {
     private observabilityConfig?;
     private requestId?;
     private auth?;
+    private defaultTimeout;
     constructor(config: ExecutorConfig);
     /**
      * Register an agent for use in ensembles
@@ -111,6 +115,31 @@ export declare class Executor {
      * Used for dynamically loading agents from Edgit
      */
     private createAgentFromConfig;
+    /**
+     * Resolve input for a step based on explicit mapping, previous output, or ensemble input
+     * @private
+     */
+    private resolveStepInput;
+    /**
+     * Build the agent execution context with all necessary dependencies
+     * @private
+     */
+    private buildAgentContext;
+    /**
+     * Execute agent with scoring/retry logic
+     * @private
+     */
+    private executeAgentWithScoring;
+    /**
+     * Execute agent without scoring (normal path)
+     * @private
+     */
+    private executeAgentDirect;
+    /**
+     * Record agent execution metrics
+     * @private
+     */
+    private recordAgentMetrics;
     /**
      * Execute a single flow step with all associated logic
      * Only handles AgentFlowStep - control flow steps should use GraphExecutor

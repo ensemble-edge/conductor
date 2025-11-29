@@ -13,6 +13,7 @@
  * @see https://docs.ensemble.ai/conductor/building/security-authentication
  */
 import type { AuthValidator, AuthValidationResult } from '../types.js';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Basic auth configuration
  */
@@ -44,7 +45,7 @@ export declare class BasicAuthValidator implements AuthValidator {
     /**
      * Validate basic auth credentials
      */
-    validate(request: Request, _env: any): Promise<AuthValidationResult>;
+    validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult>;
     /**
      * Get WWW-Authenticate header value for 401 responses
      */

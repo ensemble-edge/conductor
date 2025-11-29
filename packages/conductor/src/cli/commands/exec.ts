@@ -169,7 +169,7 @@ async function executeLocal(
 
   const agent = await registry.create(agentName, agentConfig, mockEnv)
 
-  // Create execution context
+  // Create execution context (security features injected by BaseAgent.execute)
   const context: AgentExecutionContext = {
     input,
     env: mockEnv,

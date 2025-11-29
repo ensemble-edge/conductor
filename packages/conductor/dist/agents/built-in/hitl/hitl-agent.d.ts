@@ -11,10 +11,11 @@
 import { BaseAgent, type AgentExecutionContext } from '../../base-agent.js';
 import type { AgentConfig } from '../../../runtime/parser.js';
 import type { HITLResult } from './types.js';
+import type { ConductorEnv } from '../../../types/env.js';
 export declare class HITLMember extends BaseAgent {
     private readonly env;
     private hitlConfig;
-    constructor(config: AgentConfig, env: Env);
+    constructor(config: AgentConfig, env: ConductorEnv);
     protected run(context: AgentExecutionContext): Promise<HITLResult>;
     /**
      * Suspend execution and wait for approval

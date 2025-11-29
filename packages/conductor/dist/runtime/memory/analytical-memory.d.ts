@@ -84,12 +84,12 @@ export interface FederatedQuery {
  * Provides structured data access across multiple Hyperdrive-connected databases.
  */
 export declare class AnalyticalMemory {
-    private readonly env;
     private readonly config;
     private repositories;
     private defaultDatabase?;
     private cache?;
-    constructor(env: Env, config: AnalyticalMemoryConfig);
+    constructor(_env: unknown, // env reserved for future use, databases come from config
+    config: AnalyticalMemoryConfig);
     /**
      * Query a specific database
      */

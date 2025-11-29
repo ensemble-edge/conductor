@@ -7,6 +7,7 @@ import { Hono } from 'hono';
 import { ScheduleManager } from '../../runtime/schedule-manager.js';
 import { CatalogLoader } from '../../runtime/catalog-loader.js';
 import { Executor } from '../../runtime/executor.js';
+// Use full ConductorContext typing for proper variable access
 const app = new Hono();
 /**
  * List all scheduled ensembles
@@ -89,8 +90,9 @@ app.post('/:ensembleName/trigger', async (c) => {
                 ensembleName,
             }, 404);
         }
-        // Extract cron triggers
-        const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron') || [];
+        // Extract cron triggers with proper type narrowing
+        const cronTriggers = (ensemble.trigger?.filter((t) => t.type === 'cron') ||
+            []);
         if (cronTriggers.length === 0) {
             return c.json({
                 error: 'Ensemble has no schedules configured',
@@ -109,7 +111,7 @@ app.post('/:ensembleName/trigger', async (c) => {
         const schedule = cronTriggers[scheduleIndex];
         // Create execution context
         const ctx = {
-            waitUntil: (promise) => { },
+            waitUntil: (_promise) => { },
             passThroughOnException: () => { },
         };
         const auth = c.get('auth');

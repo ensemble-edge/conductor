@@ -1,89 +1,39 @@
 {
-  "_worker-entry-nX3RBBEi.js": {
-    "file": "worker-entry-nX3RBBEi.js",
+  "_worker-entry-BpsEbIVj.js": {
+    "file": "worker-entry-BpsEbIVj.js",
     "name": "worker-entry",
     "dynamicImports": [
       "src/cache/cache.ts",
       "src/cache/cache.ts",
-      "src/agents/built-in/scrape/index.ts",
-      "src/agents/built-in/validate/index.ts",
       "src/agents/built-in/rag/index.ts",
-      "src/agents/built-in/hitl/index.ts",
-      "src/agents/built-in/fetch/index.ts",
-      "src/agents/built-in/tools/index.ts",
-      "src/agents/built-in/queries/index.ts"
-    ]
-  },
-  "src/agents/built-in/fetch/index.ts": {
-    "file": "index-DT8T9OTh.js",
-    "name": "index",
-    "src": "src/agents/built-in/fetch/index.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_worker-entry-nX3RBBEi.js"
+      "src/agents/built-in/hitl/index.ts"
     ]
   },
   "src/agents/built-in/hitl/index.ts": {
-    "file": "index-CB3124CW.js",
+    "file": "index-DD6ZSvN1.js",
     "name": "index",
     "src": "src/agents/built-in/hitl/index.ts",
     "isDynamicEntry": true,
     "imports": [
-      "_worker-entry-nX3RBBEi.js"
-    ]
-  },
-  "src/agents/built-in/queries/index.ts": {
-    "file": "index-lJon9uWJ.js",
-    "name": "index",
-    "src": "src/agents/built-in/queries/index.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_worker-entry-nX3RBBEi.js"
+      "_worker-entry-BpsEbIVj.js"
     ]
   },
   "src/agents/built-in/rag/index.ts": {
-    "file": "index-CJe-pIGh.js",
+    "file": "index-Cqnjix58.js",
     "name": "index",
     "src": "src/agents/built-in/rag/index.ts",
     "isDynamicEntry": true,
     "imports": [
-      "_worker-entry-nX3RBBEi.js"
-    ]
-  },
-  "src/agents/built-in/scrape/index.ts": {
-    "file": "index-nU1p69i8.js",
-    "name": "index",
-    "src": "src/agents/built-in/scrape/index.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_worker-entry-nX3RBBEi.js"
-    ]
-  },
-  "src/agents/built-in/tools/index.ts": {
-    "file": "index-3R6s4N25.js",
-    "name": "index",
-    "src": "src/agents/built-in/tools/index.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_worker-entry-nX3RBBEi.js"
-    ]
-  },
-  "src/agents/built-in/validate/index.ts": {
-    "file": "index-DiW4oUCK.js",
-    "name": "index",
-    "src": "src/agents/built-in/validate/index.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_worker-entry-nX3RBBEi.js"
+      "_worker-entry-BpsEbIVj.js"
     ]
   },
   "src/cache/cache.ts": {
-    "file": "cache-BC07zoPu.js",
+    "file": "cache-D4IHugO7.js",
     "name": "cache",
     "src": "src/cache/cache.ts",
     "isDynamicEntry": true,
     "imports": [
-      "_worker-entry-nX3RBBEi.js"
+      "_worker-entry-BpsEbIVj.js"
     ]
   },
   "virtual:cloudflare/worker-entry": {
@@ -92,7 +42,7 @@
     "src": "virtual:cloudflare/worker-entry",
     "isEntry": true,
     "imports": [
-      "_worker-entry-nX3RBBEi.js"
+      "_worker-entry-BpsEbIVj.js"
     ]
   }
 }

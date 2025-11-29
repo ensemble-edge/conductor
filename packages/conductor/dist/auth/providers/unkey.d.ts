@@ -14,6 +14,7 @@
  * @see https://unkey.dev
  */
 import type { AuthValidator, AuthValidationResult } from '../types.js';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Unkey configuration
  */
@@ -49,10 +50,10 @@ export declare class UnkeyValidator implements AuthValidator {
     /**
      * Validate with Unkey API
      */
-    validate(request: Request, env: any): Promise<AuthValidationResult>;
+    validate(request: Request, env: ConductorEnv): Promise<AuthValidationResult>;
 }
 /**
  * Create Unkey validator from environment
  */
-export declare function createUnkeyValidator(env: any): UnkeyValidator | null;
+export declare function createUnkeyValidator(env: ConductorEnv): UnkeyValidator | null;
 //# sourceMappingURL=unkey.d.ts.map

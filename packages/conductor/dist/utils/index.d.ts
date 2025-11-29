@@ -9,4 +9,6 @@ export { URLResolver, resolveURL, isURLReachable } from './url-resolver.js';
 export type { URLResolverOptions, URLResolution } from './url-resolver.js';
 export { createScriptLoader, parseScriptURI, isScriptReference, setGlobalScriptLoader, getGlobalScriptLoader, hasGlobalScriptLoader, } from './script-loader.js';
 export type { ScriptLoader, ScriptHandler } from './script-loader.js';
+export { safeFetch, validateURL, isURLSafe } from './safe-fetch.js';
+export type { SafeFetchOptions } from './safe-fetch.js';
 //# sourceMappingURL=index.d.ts.map

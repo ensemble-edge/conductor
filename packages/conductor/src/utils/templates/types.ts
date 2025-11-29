@@ -12,9 +12,19 @@ export type TemplateEngine = 'simple' | 'liquid'
 
 /**
  * Template context data
+ * Note: Uses index signature for flexible template data binding
  */
 export interface TemplateContext {
-  [key: string]: any
+  [key: string]: unknown
+}
+
+/**
+ * Structured template context with explicit data and helpers
+ * Used when wrapping context for template engines
+ */
+export interface StructuredTemplateContext extends TemplateContext {
+  data?: TemplateContext
+  helpers?: Record<string, (...args: unknown[]) => unknown>
 }
 
 /**

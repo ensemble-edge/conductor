@@ -167,8 +167,7 @@ export class CLIManager {
                     result[def.name] = num;
                     break;
                 case 'boolean':
-                    result[def.name] =
-                        value === true || value === 'true' || value === '1' || value === 'yes';
+                    result[def.name] = value === true || value === 'true' || value === '1' || value === 'yes';
                     break;
                 default:
                     result[def.name] = String(value);

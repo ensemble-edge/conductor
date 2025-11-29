@@ -12,6 +12,8 @@
  *
  * @see https://developers.cloudflare.com/kv
  */
+import { createLogger } from '../../observability/index.js';
+const logger = createLogger({ serviceName: 'auth-cookie' });
 /**
  * Cookie Session Validator
  */
@@ -69,7 +71,7 @@ export class CookieValidator {
         // Get KV namespace
         const kv = env[this.config.kvNamespace];
         if (!kv) {
-            console.error(`KV namespace "${this.config.kvNamespace}" not found in env`);
+            logger.error(`KV namespace "${this.config.kvNamespace}" not found in env`);
             return {
                 valid: false,
                 error: 'unknown',
@@ -121,7 +123,7 @@ export class CookieValidator {
             };
         }
         catch (error) {
-            console.error('Cookie session validation error:', error);
+            logger.error('Cookie session validation error', error);
             return {
                 valid: false,
                 error: 'unknown',

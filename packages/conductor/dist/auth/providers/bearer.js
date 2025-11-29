@@ -4,14 +4,19 @@
  * JWT token validation for APIs and authenticated services
  *
  * Features:
- * - JWT token validation
+ * - Cryptographic JWT signature verification using jose
+ * - Support for HMAC (HS256/384/512) and RSA (RS256/384/512) algorithms
  * - Issuer/audience verification
  * - Expiration checking
  * - Custom claims extraction
- * - Multiple algorithm support
+ * - JWKS (JSON Web Key Set) support for key rotation
  *
  * @see https://jwt.io
+ * @see https://github.com/panva/jose
  */
+import * as jose from 'jose';
+// Cache JWKS for performance (refreshed automatically by jose)
+const jwksCache = new Map();
 /**
  * Bearer Token Validator
  */
@@ -30,25 +35,38 @@ export class BearerValidator {
         return authHeader.substring(7);
     }
     /**
-     * Decode JWT token (simple base64 decode, no verification yet)
+     * Get JWKS key resolver for RSA/EC algorithms
      */
-    decodeToken(token) {
-        try {
-            const parts = token.split('.');
-            if (parts.length !== 3) {
-                return null;
-            }
-            // Decode payload (middle part)
-            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-            return payload;
-        }
-        catch (error) {
+    getJWKS() {
+        if (!this.config.jwksUrl) {
             return null;
         }
+        // Use cached JWKS or create new one
+        let jwks = jwksCache.get(this.config.jwksUrl);
+        if (!jwks) {
+            jwks = jose.createRemoteJWKSet(new URL(this.config.jwksUrl));
+            jwksCache.set(this.config.jwksUrl, jwks);
+        }
+        return jwks;
     }
     /**
-     * Verify JWT token
-     * Note: This is a simplified implementation. In production, use a proper JWT library.
+     * Get HMAC secret key for HS256/384/512 algorithms
+     */
+    getSecretKey() {
+        if (!this.config.secret) {
+            return null;
+        }
+        return new TextEncoder().encode(this.config.secret);
+    }
+    /**
+     * Verify JWT token with cryptographic signature verification
+     *
+     * Uses the jose library to properly verify:
+     * 1. Signature integrity (HMAC or RSA/EC)
+     * 2. Expiration time (exp claim)
+     * 3. Not-before time (nbf claim)
+     * 4. Issuer (iss claim) if configured
+     * 5. Audience (aud claim) if configured
      */
     async verifyToken(token) {
         // If custom decoder provided, use it
@@ -56,34 +74,53 @@ export class BearerValidator {
             try {
                 return await this.config.customDecoder(token);
             }
-            catch (error) {
+            catch {
                 return null;
             }
         }
-        // Simple decode (not cryptographically verified)
-        // In production, use @cloudflare/workers-jwt or similar
-        const payload = this.decodeToken(token);
-        if (!payload) {
+        try {
+            // Build verification options
+            const options = {};
+            if (this.config.issuer) {
+                options.issuer = this.config.issuer;
+            }
+            if (this.config.audience) {
+                options.audience = this.config.audience;
+            }
+            if (this.config.algorithms) {
+                options.algorithms = this.config.algorithms;
+            }
+            // Try JWKS first (for RSA/EC), then fall back to secret (for HMAC)
+            const jwks = this.getJWKS();
+            if (jwks) {
+                const { payload } = await jose.jwtVerify(token, jwks, options);
+                return payload;
+            }
+            const secretKey = this.getSecretKey();
+            if (secretKey) {
+                const { payload } = await jose.jwtVerify(token, secretKey, options);
+                return payload;
+            }
+            throw new Error('No JWT secret or JWKS URL configured');
+        }
+        catch (error) {
+            // Log verification failures for debugging (but don't expose details to caller)
+            if (error instanceof jose.errors.JWTExpired) {
+                // Token expired - expected failure, no need to log
+            }
+            else if (error instanceof jose.errors.JWTClaimValidationFailed) {
+                // Claim validation failed (issuer, audience, etc.)
+            }
+            else if (error instanceof jose.errors.JWSSignatureVerificationFailed) {
+                // Signature invalid - potential attack, could log this
+            }
             return null;
         }
-        // Check expiration
-        if (payload.exp && Date.now() / 1000 > payload.exp) {
-            return null;
-        }
-        // Check issuer
-        if (this.config.issuer && payload.iss !== this.config.issuer) {
-            return null;
-        }
-        // Check audience
-        if (this.config.audience && payload.aud !== this.config.audience) {
-            return null;
-        }
-        return payload;
     }
     /**
      * Validate bearer token
      */
-    async validate(request, env) {
+    async validate(request, _env) {
         const token = this.extractToken(request);
         // No token provided
         if (!token) {
@@ -131,17 +168,26 @@ export class BearerValidator {
 }
 /**
  * Create Bearer validator from environment
+ *
+ * Environment variables:
+ * - JWT_SECRET: HMAC secret for HS256/384/512 algorithms
+ * - JWT_JWKS_URL: URL to JWKS endpoint for RSA/EC algorithms (supports key rotation)
+ * - JWT_ISSUER: Expected issuer claim
+ * - JWT_AUDIENCE: Expected audience claim
+ * - JWT_ALGORITHMS: Comma-separated list of allowed algorithms
  */
 export function createBearerValidator(env) {
-    // JWT secret or config must be present
-    if (!env.JWT_SECRET && !env.JWT_PUBLIC_KEY_URL) {
+    // JWT secret or JWKS URL must be present
+    if (!env.JWT_SECRET && !env.JWT_JWKS_URL) {
         return null;
     }
     return new BearerValidator({
         secret: env.JWT_SECRET,
-        publicKeyUrl: env.JWT_PUBLIC_KEY_URL,
+        jwksUrl: env.JWT_JWKS_URL,
         issuer: env.JWT_ISSUER,
         audience: env.JWT_AUDIENCE,
-        algorithms: env.JWT_ALGORITHMS ? env.JWT_ALGORITHMS.split(',') : ['HS256', 'RS256'],
+        algorithms: env.JWT_ALGORITHMS
+            ? env.JWT_ALGORITHMS.split(',')
+            : undefined,
     });
 }

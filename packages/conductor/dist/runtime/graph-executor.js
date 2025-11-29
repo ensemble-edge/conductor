@@ -270,12 +270,14 @@ export class GraphExecutor {
         const onTimeout = step.onTimeout;
         return (await Promise.race([
             this.executeStep(step, context, results),
-            new Promise((_, reject) => setTimeout(() => {
+            new Promise((resolve, reject) => setTimeout(() => {
                 if (onTimeout?.error === false && onTimeout.fallback !== undefined) {
-                    // Return fallback instead of error
-                    return onTimeout.fallback;
+                    // Resolve with fallback value instead of rejecting with error
+                    resolve(onTimeout.fallback);
                 }
-                reject(new Error(`Step timeout after ${timeout}ms`));
+                else {
+                    reject(new Error(`Step timeout after ${timeout}ms`));
+                }
             }, timeout)),
         ]));
     }

@@ -5,7 +5,7 @@
  * and single-use (magic) links. Stores data in Cloudflare KV.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 // ============================================================================
 // Types

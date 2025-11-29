@@ -7,8 +7,12 @@
  * This is the recommended way to use Conductor for most projects.
  */
 
-import type { Hono } from 'hono'
-import { createConductorAPI, type APIConfig } from './app.js'
+import type { Hono, Context } from 'hono'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
+import type { HTTPException } from 'hono/http-exception'
+import type { ConductorContext, AuthContext } from './types.js'
+import type { ConductorEnv } from '../types/env.js'
+import { createConductorAPI, type APIConfig, type ConductorApp } from './app.js'
 import { AgentLoader } from '../utils/loader.js'
 import { EnsembleLoader } from '../utils/ensemble-loader.js'
 import { Executor } from '../runtime/executor.js'
@@ -19,6 +23,18 @@ import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js'
 import { getDocsLoader } from '../docs/index.js'
 
 const logger = createLogger({ serviceName: 'auto-discovery-api' })
+
+/**
+ * Type guard to check if output has html property
+ */
+function isHtmlOutput(output: unknown): output is { html: string } {
+  return (
+    typeof output === 'object' &&
+    output !== null &&
+    'html' in output &&
+    typeof (output as { html: unknown }).html === 'string'
+  )
+}
 
 export interface AutoDiscoveryAPIConfig extends APIConfig {
   /**
@@ -80,12 +96,25 @@ let ensembleLoader: EnsembleLoader | null = null
 let initialized = false
 
 /**
+ * Type for Hono context in error/notFound handlers
+ * These handlers lose generic typing, so we define explicit accessor
+ */
+type ErrorHandlerContext = Context<{ Bindings: ConductorEnv; Variables: ConductorContext['var'] }>
+
+/**
+ * Safely get auth from context, handling the case where it's not set
+ */
+function getAuthFromContext(c: ErrorHandlerContext): AuthContext | undefined {
+  return c.get('auth')
+}
+
+/**
  * Register error page handlers
  */
 async function registerErrorPages(
-  app: Hono,
+  app: ConductorApp,
   config: AutoDiscoveryAPIConfig,
-  env: Env,
+  env: ConductorEnv,
   ctx: ExecutionContext
 ): Promise<void> {
   if (!config.errorPages || !ensembleLoader || !memberLoader) {
@@ -106,15 +135,17 @@ async function registerErrorPages(
     }
 
     // Register an error handler that executes the ensemble
+    // Note: Hono's onError loses generic typing, so we cast to our known type
     app.onError(async (error, c) => {
       // Only handle errors matching this status code
-      const errorStatus = (error as any).status || 500
+      // HTTPException has a status property, regular Error doesn't
+      const errorStatus = 'status' in error ? (error as HTTPException).status : 500
       if (errorStatus !== code) {
         return c.text(`Error ${errorStatus}: ${error.message}`, errorStatus)
       }
 
       try {
-        const auth = (c as any).get('auth')
+        const auth = getAuthFromContext(c as ErrorHandlerContext)
         const executor = new Executor({ env, ctx, auth })
         const agents = memberLoader!.getAllMembers()
         for (const agent of agents) {
@@ -139,22 +170,22 @@ async function registerErrorPages(
 
         if (!result.success) {
           logger.error(`[Auto-Discovery] Error page execution failed: ${result.error.message}`)
-          return c.text(`Error ${code}: ${error.message}`, code as any)
+          return c.text(`Error ${code}: ${error.message}`, code as ContentfulStatusCode)
         }
 
         // Return HTML if available, otherwise JSON
         const executionOutput = result.value
-        const agentOutput = executionOutput.output as any
-        if (agentOutput && agentOutput.html) {
-          return c.html(agentOutput.html, code as any)
+        const agentOutput = executionOutput.output
+        if (isHtmlOutput(agentOutput)) {
+          return c.html(agentOutput.html, code as ContentfulStatusCode)
         }
-        return c.json(executionOutput.output, code as any)
+        return c.json(executionOutput.output, code as ContentfulStatusCode)
       } catch (executionError) {
         logger.error(
           `[Auto-Discovery] Failed to execute error page ensemble: ${ensembleName}`,
           executionError instanceof Error ? executionError : undefined
         )
-        return c.text(`Error ${code}: ${error.message}`, code as any)
+        return c.text(`Error ${code}: ${error.message}`, code as ContentfulStatusCode)
       }
     })
 
@@ -163,6 +194,7 @@ async function registerErrorPages(
 
   // Register catch-all 404 handler if specified
   if (config.errorPages[404]) {
+    // Note: Hono's notFound loses generic typing, so we cast to our known type
     app.notFound(async (c) => {
       const ensemble = ensembleLoader!.getEnsemble(config.errorPages![404])
       if (!ensemble) {
@@ -170,7 +202,7 @@ async function registerErrorPages(
       }
 
       try {
-        const auth = (c as any).get('auth')
+        const auth = getAuthFromContext(c as ErrorHandlerContext)
         const executor = new Executor({ env, ctx, auth })
         const agents = memberLoader!.getAllMembers()
         for (const agent of agents) {
@@ -195,8 +227,8 @@ async function registerErrorPages(
         }
 
         const executionOutput = result.value
-        const agentOutput = executionOutput.output as any
-        if (agentOutput && agentOutput.html) {
+        const agentOutput = executionOutput.output
+        if (isHtmlOutput(agentOutput)) {
           return c.html(agentOutput.html, 404)
         }
         return c.json(executionOutput.output, 404)
@@ -217,7 +249,7 @@ async function registerErrorPages(
  * Initialize loaders with auto-discovered agents and ensembles
  */
 async function initializeLoaders(
-  env: Env,
+  env: ConductorEnv,
   ctx: ExecutionContext,
   config: AutoDiscoveryAPIConfig
 ): Promise<void> {
@@ -317,11 +349,11 @@ async function initializeLoaders(
  * ```
  */
 export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
-  const app = createConductorAPI(config) as Hono
+  const app: ConductorApp = createConductorAPI(config)
 
   // Return a Worker export with auto-discovery initialization
   return {
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    async fetch(request: Request, env: ConductorEnv, ctx: ExecutionContext): Promise<Response> {
       // Lazy initialization on first request
       if (!initialized) {
         await initializeLoaders(env, ctx, config)
@@ -347,7 +379,7 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
       return app.fetch(request, env, ctx)
     },
 
-    async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
+    async scheduled(event: ScheduledEvent, env: ConductorEnv, ctx: ExecutionContext): Promise<void> {
       // Lazy initialization
       if (!initialized) {
         await initializeLoaders(env, ctx, config)
@@ -365,7 +397,7 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
       const allEnsembles = ensembleLoader.getAllEnsembles()
       const matchingEnsembles = allEnsembles.filter((ensemble) => {
         const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron')
-        return cronTriggers?.some((t: any) => t.cron === event.cron)
+        return cronTriggers?.some((t) => 'cron' in t && t.cron === event.cron)
       })
 
       logger.info(`Found ${matchingEnsembles.length} ensembles with matching cron`, {
@@ -388,8 +420,9 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
           }
 
           const cronTrigger = ensemble.trigger?.find(
-            (t: any) => t.type === 'cron' && t.cron === event.cron
-          ) as any
+            (t): t is { type: 'cron'; cron: string; input?: Record<string, unknown>; metadata?: Record<string, unknown> } =>
+              t.type === 'cron' && 'cron' in t && t.cron === event.cron
+          )
 
           await executor.executeEnsemble(ensemble, {
             input: cronTrigger?.input || {},

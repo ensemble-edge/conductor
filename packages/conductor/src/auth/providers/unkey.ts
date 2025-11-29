@@ -15,6 +15,10 @@
  */
 
 import type { AuthValidator, AuthValidationResult, AuthContext } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
+import { createLogger } from '../../observability/index.js'
+
+const logger = createLogger({ serviceName: 'auth-unkey' })
 
 /**
  * Unkey configuration
@@ -109,7 +113,7 @@ export class UnkeyValidator implements AuthValidator {
   /**
    * Validate with Unkey API
    */
-  async validate(request: Request, env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, env: ConductorEnv): Promise<AuthValidationResult> {
     const apiKey = this.extractToken(request)
 
     // No API key provided
@@ -145,7 +149,10 @@ export class UnkeyValidator implements AuthValidator {
       })
 
       if (!response.ok) {
-        console.error('Unkey API error:', response.status, response.statusText)
+        logger.error('Unkey API error', undefined, {
+          status: response.status,
+          statusText: response.statusText,
+        })
         return {
           valid: false,
           error: 'unknown',
@@ -202,7 +209,7 @@ export class UnkeyValidator implements AuthValidator {
         ratelimit: result.ratelimit,
       }
     } catch (error) {
-      console.error('Unkey validation error:', error)
+      logger.error('Unkey validation error', error as Error)
       return {
         valid: false,
         error: 'unknown',
@@ -215,7 +222,7 @@ export class UnkeyValidator implements AuthValidator {
 /**
  * Create Unkey validator from environment
  */
-export function createUnkeyValidator(env: any): UnkeyValidator | null {
+export function createUnkeyValidator(env: ConductorEnv): UnkeyValidator | null {
   if (!env.UNKEY_ROOT_KEY) {
     return null
   }

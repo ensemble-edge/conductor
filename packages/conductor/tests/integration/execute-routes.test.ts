@@ -10,15 +10,19 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Hono } from 'hono'
 import execute from '../../src/api/routes/execute.js'
-import { initSecurityConfig } from '../../src/config/security.js'
+import { createSecurityConfig, type SecurityConfig } from '../../src/config/security.js'
 
-// Create a test app
-function createTestApp() {
+// Create a test app with configurable security settings
+function createTestApp(securityOverrides: Partial<SecurityConfig> = {}) {
   const app = new Hono()
 
-  // Mock requestId middleware
+  // Create security config
+  const securityConfig = createSecurityConfig(securityOverrides)
+
+  // Mock requestId middleware and inject security config
   app.use('*', async (c, next) => {
     c.set('requestId', 'test-request-id')
+    c.set('securityConfig', securityConfig)
     await next()
   })
 
@@ -32,9 +36,8 @@ describe('Execute Routes', () => {
   let app: ReturnType<typeof createTestApp>
 
   beforeEach(() => {
-    app = createTestApp()
-    // Reset security config to defaults
-    initSecurityConfig({
+    // Create app with default security settings
+    app = createTestApp({
       requireAuth: true,
       allowDirectAgentExecution: true,
       autoPermissions: false,
@@ -80,9 +83,10 @@ describe('Execute Routes', () => {
     })
 
     it('should return 403 when direct agent execution is disabled', async () => {
-      initSecurityConfig({ allowDirectAgentExecution: false })
+      // Create app with direct agent execution disabled
+      const restrictedApp = createTestApp({ allowDirectAgentExecution: false })
 
-      const res = await app.request('/api/v1/execute/agent/http', {
+      const res = await restrictedApp.request('/api/v1/execute/agent/http', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: { url: 'https://example.com' } }),

@@ -16,6 +16,12 @@ import type {
   MetricType,
 } from '../config/types.js'
 import { LogLevel } from './types.js'
+import {
+  ExecutionId,
+  RequestId,
+  type ExecutionId as ExecutionIdType,
+  type RequestId as RequestIdType,
+} from '../types/branded.js'
 
 /**
  * Default redaction patterns
@@ -43,6 +49,48 @@ export const DEFAULT_LOG_EVENTS: LogEventType[] = [
   'agent:complete',
   'agent:error',
 ]
+
+/**
+ * Normalize URL path to reduce cardinality in metrics
+ *
+ * Replaces dynamic segments (IDs, UUIDs, numbers) with placeholders
+ * to prevent metrics explosion from unique paths.
+ *
+ * @example
+ * '/api/users/123' -> '/api/users/:id'
+ * '/api/orders/abc-123-def' -> '/api/orders/:id'
+ * '/api/v1/products/42/reviews' -> '/api/v1/products/:id/reviews'
+ */
+export function normalizePathForMetrics(path: string): string {
+  // Remove query string and hash
+  const pathOnly = path.split('?')[0].split('#')[0]
+
+  // Split into segments and normalize each
+  return pathOnly
+    .split('/')
+    .map((segment) => {
+      if (!segment) return segment
+
+      // UUID pattern (8-4-4-4-12)
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment)) {
+        return ':uuid'
+      }
+
+      // Numeric ID
+      if (/^\d+$/.test(segment)) {
+        return ':id'
+      }
+
+      // Alphanumeric ID with hyphens/underscores (common slug patterns)
+      // Only normalize if it looks like an ID (contains numbers and is reasonably short)
+      if (/^[a-zA-Z0-9_-]+$/.test(segment) && /\d/.test(segment) && segment.length <= 36) {
+        return ':id'
+      }
+
+      return segment
+    })
+    .join('/')
+}
 
 /**
  * Default metric types to track
@@ -152,16 +200,18 @@ function stringToLogLevel(level: string): LogLevel {
 
 /**
  * Generate a unique execution ID
+ * Returns a branded ExecutionId type for type safety
  */
-export function generateExecutionId(): string {
-  return `exec_${crypto.randomUUID()}`
+export function generateExecutionId(): ExecutionIdType {
+  return ExecutionId.generate()
 }
 
 /**
  * Generate a unique request ID
+ * Returns a branded RequestId type for type safety
  */
-export function generateRequestId(): string {
-  return `req_${crypto.randomUUID()}`
+export function generateRequestId(): RequestIdType {
+  return RequestId.generate()
 }
 
 /**
@@ -169,10 +219,10 @@ export function generateRequestId(): string {
  * Contains all context needed for logging and metrics
  */
 export interface ExecutionObservabilityContext {
-  /** Unique request ID (from HTTP request) */
-  requestId: string
-  /** Unique execution ID (for ensemble execution) */
-  executionId: string
+  /** Unique request ID (from HTTP request) - branded type for safety */
+  requestId: RequestIdType
+  /** Unique execution ID (for ensemble execution) - branded type for safety */
+  executionId: ExecutionIdType
   /** Ensemble name being executed */
   ensembleName?: string
   /** Current agent name */
@@ -304,8 +354,11 @@ export function createMetricsRecorder(
       const statusCategory =
         statusCode < 400 ? 'success' : statusCode < 500 ? 'client_error' : 'server_error'
 
+      // Normalize path to reduce cardinality (replace IDs with placeholders)
+      const normalizedPath = normalizePathForMetrics(path)
+
       writeMetric({
-        blobs: [method, path, statusCategory, String(statusCode)],
+        blobs: [method, normalizedPath, statusCategory, String(statusCode)],
         doubles: [durationMs, 1],
         indexes: ['http.request'],
       })
@@ -440,6 +493,26 @@ export class ObservabilityManager {
   }
 
   /**
+   * Internal method to set resolved config (used by child managers)
+   */
+  private setResolvedConfig(resolvedConfig: ResolvedObservabilityConfig): void {
+    this.config = resolvedConfig
+  }
+
+  /**
+   * Create a child manager with inherited config
+   */
+  private static createChild(
+    resolvedConfig: ResolvedObservabilityConfig,
+    context: Partial<ExecutionObservabilityContext>,
+    analyticsEngine?: AnalyticsEngineDataset
+  ): ObservabilityManager {
+    const manager = new ObservabilityManager(undefined, context, analyticsEngine)
+    manager.setResolvedConfig(resolvedConfig)
+    return manager
+  }
+
+  /**
    * Get the current logger
    */
   getLogger(): Logger {
@@ -491,33 +564,20 @@ export class ObservabilityManager {
       stepIndex,
     }
 
-    const manager = new ObservabilityManager(
-      undefined, // Will use resolved config
-      childContext,
-      this.analyticsEngine
-    )
-
-    // Copy over the resolved config
-    ;(manager as any).config = this.config
-
-    return manager
+    return ObservabilityManager.createChild(this.config, childContext, this.analyticsEngine)
   }
 
   /**
    * Create a child manager for an ensemble
    */
-  forEnsemble(ensembleName: string, executionId?: string): ObservabilityManager {
+  forEnsemble(ensembleName: string, executionId?: ExecutionIdType): ObservabilityManager {
     const childContext = {
       ...this.context,
       ensembleName,
       executionId: executionId ?? generateExecutionId(),
     }
 
-    const manager = new ObservabilityManager(undefined, childContext, this.analyticsEngine)
-
-    ;(manager as any).config = this.config
-
-    return manager
+    return ObservabilityManager.createChild(this.config, childContext, this.analyticsEngine)
   }
 
   /**

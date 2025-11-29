@@ -10,6 +10,7 @@
  */
 
 import type { Context } from 'hono'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import type { ConductorContext } from './types.js'
 
 // ==================== Response Shapes ====================
@@ -116,7 +117,7 @@ export function success<T>(
     ...(requestId && { requestId }),
   }
 
-  return c.json(body, status as any)
+  return c.json(body, status as ContentfulStatusCode)
 }
 
 /**
@@ -158,7 +159,7 @@ export function error(
   if (options?.details) body.details = options.details
   if (requestId) body.requestId = requestId
 
-  return c.json(body, status as any)
+  return c.json(body, status as ContentfulStatusCode)
 }
 
 /**
@@ -219,7 +220,7 @@ export function health(
       timestamp: new Date().toISOString(),
       ...(details && { details }),
     },
-    httpStatus as any
+    httpStatus as ContentfulStatusCode
   )
 }
 

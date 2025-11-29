@@ -4,7 +4,7 @@
  * Invoke external MCP (Model Context Protocol) tools over HTTP.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 import { MCPClient } from './mcp-client.js'
 
 // ============================================================================

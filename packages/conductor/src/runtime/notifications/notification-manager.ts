@@ -13,6 +13,7 @@ import type {
 import { WebhookNotifier } from './webhook-notifier.js'
 import { EmailNotifier } from './email-notifier.js'
 import { createLogger } from '../../observability/index.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 const logger = createLogger({ serviceName: 'notification-manager' })
 
@@ -24,7 +25,7 @@ export class NotificationManager {
     ensemble: EnsembleConfig,
     event: NotificationEvent,
     eventData: Record<string, unknown>,
-    env: Env
+    env: ConductorEnv
   ): Promise<NotificationDeliveryResult[]> {
     // Check if ensemble has notifications configured
     if (!ensemble.notifications || ensemble.notifications.length === 0) {
@@ -84,38 +85,35 @@ export class NotificationManager {
   private static async sendNotification(
     config: NotificationConfig,
     eventData: NotificationEventData,
-    env: Env
+    env: ConductorEnv
   ): Promise<NotificationDeliveryResult> {
     try {
-      if (config.type === 'webhook') {
-        const notifier = new WebhookNotifier({
-          url: config.url,
-          secret: config.secret,
-          retries: config.retries,
-          timeout: config.timeout,
-        })
+      switch (config.type) {
+        case 'webhook': {
+          const notifier = new WebhookNotifier({
+            url: config.url,
+            secret: config.secret,
+            retries: config.retries,
+            timeout: config.timeout,
+          })
+          return await notifier.send(eventData)
+        }
 
-        return await notifier.send(eventData)
-      } else if (config.type === 'email') {
-        const notifier = new EmailNotifier({
-          to: config.to,
-          from: config.from,
-          subject: config.subject,
-          events: config.events,
-        })
+        case 'email': {
+          const notifier = new EmailNotifier({
+            to: config.to,
+            from: config.from,
+            subject: config.subject,
+            events: config.events,
+          })
+          return await notifier.send(eventData, env)
+        }
 
-        return await notifier.send(eventData, env)
-      }
-
-      // Unknown notification type (should never happen with discriminated union)
-      const unknownType = (config as any).type || 'unknown'
-      return {
-        success: false,
-        type: unknownType as any,
-        target: 'unknown',
-        event: eventData.event,
-        duration: 0,
-        error: `Unknown notification type: ${unknownType}`,
+        default: {
+          // Exhaustive type check - should never reach here with valid configs
+          const exhaustiveCheck: never = config
+          throw new Error(`Unknown notification type: ${(exhaustiveCheck as { type: string }).type}`)
+        }
       }
     } catch (error) {
       logger.error('Notification failed', error instanceof Error ? error : undefined, {
@@ -124,16 +122,16 @@ export class NotificationManager {
       })
 
       // Determine target based on type
-      let target = 'unknown'
-      if (config.type === 'webhook') {
-        target = config.url
-      } else if (config.type === 'email') {
-        target = config.to.join(', ')
-      }
+      const target =
+        config.type === 'webhook'
+          ? config.url
+          : config.type === 'email'
+            ? config.to.join(', ')
+            : 'unknown'
 
       return {
         success: false,
-        type: config.type as any,
+        type: config.type,
         target,
         event: eventData.event,
         duration: 0,
@@ -149,7 +147,7 @@ export class NotificationManager {
     ensemble: EnsembleConfig,
     executionId: string,
     input: Record<string, unknown>,
-    env: Env
+    env: ConductorEnv
   ): Promise<NotificationDeliveryResult[]> {
     return this.notify(
       ensemble,
@@ -167,7 +165,7 @@ export class NotificationManager {
     executionId: string,
     output: unknown,
     duration: number,
-    env: Env
+    env: ConductorEnv
   ): Promise<NotificationDeliveryResult[]> {
     return this.notify(
       ensemble,
@@ -187,7 +185,7 @@ export class NotificationManager {
     executionId: string,
     error: Error,
     duration: number,
-    env: Env
+    env: ConductorEnv
   ): Promise<NotificationDeliveryResult[]> {
     return this.notify(
       ensemble,
@@ -210,7 +208,7 @@ export class NotificationManager {
     executionId: string,
     duration: number,
     timeout: number,
-    env: Env
+    env: ConductorEnv
   ): Promise<NotificationDeliveryResult[]> {
     return this.notify(
       ensemble,

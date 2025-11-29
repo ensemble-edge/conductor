@@ -15,7 +15,10 @@
 import { BearerValidator } from './providers/bearer.js';
 import { createSignatureValidator, signaturePresets, } from './providers/signature.js';
 import { BasicAuthValidator, createBasicValidator } from './providers/basic.js';
-import { ApiKeyValidator } from './providers/apikey.js';
+import { createApiKeyValidator } from './providers/apikey.js';
+import { timingSafeEqual } from './utils/crypto.js';
+import { createLogger } from '../observability/index.js';
+const logger = createLogger({ serviceName: 'trigger-auth' });
 /**
  * Simple Bearer Token Validator
  *
@@ -42,8 +45,8 @@ class SimpleBearerValidator {
                 message: 'Missing or invalid Authorization header. Expected: Bearer <token>',
             };
         }
-        // Simple token comparison (timing-safe)
-        const isValid = this.timingSafeEqual(token, this.secret);
+        // Use shared timing-safe comparison (HMAC-based for constant time)
+        const isValid = await timingSafeEqual(token, this.secret);
         if (!isValid) {
             return {
                 valid: false,
@@ -59,16 +62,6 @@ class SimpleBearerValidator {
                 token,
             },
         };
-    }
-    timingSafeEqual(a, b) {
-        if (a.length !== b.length) {
-            return false;
-        }
-        let result = 0;
-        for (let i = 0; i < a.length; i++) {
-            result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-        }
-        return result === 0;
     }
 }
 /**
@@ -92,7 +85,7 @@ function resolveEnvSecret(value, env) {
         const varName = shorthandMatch[1];
         const resolved = env?.[varName];
         if (resolved === undefined) {
-            console.warn(`[TriggerAuth] Environment variable '${varName}' not found`);
+            logger.warn(`Environment variable '${varName}' not found`, { varName });
         }
         return resolved ?? value;
     }
@@ -102,7 +95,7 @@ function resolveEnvSecret(value, env) {
         const varName = templateMatch[1];
         const resolved = env?.[varName];
         if (resolved === undefined) {
-            console.warn(`[TriggerAuth] Environment variable '${varName}' not found`);
+            logger.warn(`Environment variable '${varName}' not found`, { varName });
         }
         return resolved ?? value;
     }
@@ -153,15 +146,28 @@ export function getValidatorForTrigger(config, env) {
                 credentials: resolvedSecret,
                 realm: config.realm,
             });
-        case 'apiKey':
-            return new ApiKeyValidator(env);
-        case 'unkey':
+        case 'apiKey': {
+            const validator = createApiKeyValidator(env);
+            if (!validator) {
+                throw new Error('API key auth requires API_KEYS KV namespace to be configured');
+            }
+            return validator;
+        }
+        case 'unkey': {
             // Unkey validator requires the unkey package
             // For now, fall back to API key validation
             // TODO: Import UnkeyValidator when available
-            return new ApiKeyValidator(env);
-        default:
-            throw new Error(`Unknown trigger auth type: ${config.type}`);
+            const validator = createApiKeyValidator(env);
+            if (!validator) {
+                throw new Error('Unkey auth requires API_KEYS KV namespace to be configured');
+            }
+            return validator;
+        }
+        default: {
+            // TypeScript's exhaustive check - this handles runtime validation for unexpected types
+            const unknownType = config.type;
+            throw new Error(`Unknown trigger auth type: ${unknownType}`);
+        }
     }
 }
 /**
@@ -215,7 +221,9 @@ export function createTriggerAuthMiddleware(authConfig, env) {
         }
         catch (error) {
             // Handle validation errors gracefully
-            console.error('[TriggerAuth] Validation error:', error);
+            logger.error('Validation error', error instanceof Error ? error : undefined, {
+                authType: authConfig.type,
+            });
             return c.json({
                 error: 'auth_error',
                 message: error instanceof Error ? error.message : 'Authentication error',

@@ -41,9 +41,8 @@ export function debugHeaders(config) {
     return async (c, next) => {
         await next();
         // Determine if debug headers should be added
-        // Cast env to check for ENVIRONMENT/NODE_ENV vars
-        const envAny = c.env;
-        const isProduction = envAny?.ENVIRONMENT === 'production' || envAny?.NODE_ENV === 'production';
+        // Access typed environment variables from ConductorEnv
+        const isProduction = c.env?.ENVIRONMENT === 'production' || c.env?.NODE_ENV === 'production';
         const enabled = config?.enabled ?? !isProduction;
         if (!enabled)
             return;

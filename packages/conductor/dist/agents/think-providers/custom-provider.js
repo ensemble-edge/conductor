@@ -36,7 +36,7 @@ export class CustomProvider extends BaseAIProvider {
             metadata: data,
         };
     }
-    getConfigError(config, env) {
+    getConfigError(config, _env) {
         if (!config.apiEndpoint) {
             return 'Custom provider requires apiEndpoint in config';
         }

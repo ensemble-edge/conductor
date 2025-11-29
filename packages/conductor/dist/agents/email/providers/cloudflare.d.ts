@@ -5,35 +5,7 @@
  * https://developers.cloudflare.com/email-routing/email-workers/
  */
 import { BaseEmailProvider } from './base.js';
-import type { EmailMessage, EmailResult, ValidationResult } from '../types/index.js';
-/**
- * Cloudflare Email binding interface
- */
-interface CloudflareEmailBinding {
-    send(message: EmailSendRequest): Promise<EmailSendResponse>;
-}
-interface EmailSendRequest {
-    from: string | {
-        name?: string;
-        email: string;
-    };
-    to: string | string[] | {
-        name?: string;
-        email: string;
-    } | {
-        name?: string;
-        email: string;
-    }[];
-    subject: string;
-    html?: string;
-    text?: string;
-    headers?: Record<string, string>;
-}
-interface EmailSendResponse {
-    success: boolean;
-    messageId?: string;
-    error?: string;
-}
+import type { EmailMessage, EmailResult, ValidationResult, CloudflareEmailBinding } from '../types/index.js';
 /**
  * Cloudflare Email Provider
  */
@@ -52,5 +24,4 @@ export declare class CloudflareEmailProvider extends BaseEmailProvider {
      */
     validateConfig(): Promise<ValidationResult>;
 }
-export {};
 //# sourceMappingURL=cloudflare.d.ts.map

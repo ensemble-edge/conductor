@@ -270,7 +270,9 @@ export class QueueMember extends BaseAgent {
     const dlqBinding = context.env[dlqName as keyof typeof context.env]
 
     if (dlqBinding && typeof dlqBinding === 'object' && 'send' in dlqBinding) {
-      await (dlqBinding as any).send({
+      // Type-safe queue send - Cloudflare Queue binding
+      const queue = dlqBinding as { send: (message: unknown) => Promise<void> }
+      await queue.send({
         originalMessage: message,
         failedAt: new Date().toISOString(),
         attempts: message.attempts,

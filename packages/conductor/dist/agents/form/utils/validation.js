@@ -104,8 +104,8 @@ export async function validateField(field, value, allData, context) {
     }
     // Custom validation function
     if (validation.custom) {
-        // Custom validation would be provided in context
-        const customValidator = context.input?.validators?.[validation.custom];
+        const input = context.input;
+        const customValidator = input?.validators?.[validation.custom];
         if (typeof customValidator === 'function') {
             const customResult = await customValidator(value, allData, field);
             if (customResult !== true) {

@@ -4,6 +4,8 @@
  * Config loading strategies that work in Cloudflare Workers environment.
  * No filesystem dependencies - uses environment variables, direct objects,
  * KV storage, or bundled imports.
+ *
+ * Uses Zod schemas for runtime validation with detailed error messages.
  */
 import type { ConductorConfig } from './types.js';
 import { Result } from '../types/result.js';

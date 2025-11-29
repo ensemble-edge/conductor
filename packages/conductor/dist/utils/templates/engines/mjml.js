@@ -112,6 +112,7 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
     }
     /**
      * Register a Handlebars helper
+     * Uses Handlebars.HelperDelegate signature for type safety
      */
     registerHelper(name, fn) {
         this.handlebars.registerHelper(name, fn);
@@ -146,7 +147,9 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
                     }
                     else {
                         // Create nested object
-                        current[part] = current[part] || {};
+                        if (!current[part] || typeof current[part] !== 'object') {
+                            current[part] = {};
+                        }
                         current = current[part];
                     }
                 }

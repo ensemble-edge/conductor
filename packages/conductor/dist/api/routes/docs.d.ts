@@ -24,8 +24,9 @@
  *   - Navigation auto-generated from file structure + frontmatter
  */
 import { Hono } from 'hono';
+import type { ConductorEnv } from '../../types/env.js';
 declare const docs: Hono<{
-    Bindings: Env;
+    Bindings: ConductorEnv;
 }, import("hono/types").BlankSchema, "/">;
 export default docs;
 //# sourceMappingURL=docs.d.ts.map

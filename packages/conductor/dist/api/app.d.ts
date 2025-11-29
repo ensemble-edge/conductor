@@ -4,8 +4,10 @@
  * Main Hono application with routes and middleware.
  */
 import { Hono } from 'hono';
+import type { ConductorContext } from './types.js';
 import { type SecurityHeadersConfig } from './middleware/index.js';
 import { type ScheduledEvent } from '../runtime/schedule-manager.js';
+import type { ConductorEnv } from '../types/env.js';
 export interface APIConfig {
     /**
      * Authentication configuration
@@ -98,10 +100,15 @@ export interface APIConfig {
         debugHeaders?: boolean;
     };
 }
+/** Typed Hono app with Conductor context */
+export type ConductorApp = Hono<{
+    Bindings: ConductorEnv;
+    Variables: ConductorContext['var'];
+}>;
 /**
  * Create Conductor API application
  */
-export declare function createConductorAPI(config?: APIConfig): Hono;
+export declare function createConductorAPI(config?: APIConfig): ConductorApp;
 /**
  * Default export for Cloudflare Workers
  */

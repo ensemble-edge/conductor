@@ -72,15 +72,22 @@ function normalizePathConfigs(trigger, defaultPath) {
  * HTTP Trigger Handler
  */
 async function handleHTTPTrigger(context) {
-    const { app, ensemble, trigger, agents, env, ctx } = context;
+    const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context;
+    // Cast to typed trigger config
+    const trigger = rawTrigger;
     // Normalize to array of path configurations
     const pathConfigs = normalizePathConfigs(trigger, `/${ensemble.name}`);
     logger.info(`[HTTP] Registering ${pathConfigs.length} path(s) for ${ensemble.name}: ${pathConfigs.map((p) => `${p.methods.join(',')} ${p.path}`).join(', ')}`);
-    // Build middleware chain
+    // Build middleware chain - uses MiddlewareHandler from Hono
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const middlewareChain = [];
-    // CORS
+    // CORS - provide default origin if not specified
     if (trigger.cors) {
-        middlewareChain.push(cors(trigger.cors));
+        const corsConfig = {
+            ...trigger.cors,
+            origin: trigger.cors.origin ?? '*', // Default to allow all origins
+        };
+        middlewareChain.push(cors(corsConfig));
     }
     // Rate limiting
     if (trigger.rateLimit) {
@@ -165,7 +172,9 @@ async function handleHTTPTrigger(context) {
  * - POST /mcp/tools/:toolName - Invoke a specific tool
  */
 async function handleMCPTrigger(context) {
-    const { app, ensemble, trigger, agents, env, ctx } = context;
+    const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context;
+    // Cast to typed trigger config
+    const trigger = rawTrigger;
     // MCP tool name defaults to ensemble name (kebab-case recommended)
     const toolName = trigger.toolName || ensemble.name;
     logger.info(`[MCP] Registering tool: ${toolName} → ${ensemble.name}`);
@@ -324,7 +333,9 @@ function buildInputSchema(ensemble) {
  * Simpler than HTTP - just POST endpoints
  */
 async function handleWebhookTrigger(context) {
-    const { app, ensemble, trigger, agents, env, ctx } = context;
+    const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context;
+    // Cast to typed trigger config
+    const trigger = rawTrigger;
     const path = trigger.path || `/${ensemble.name}`;
     const methods = trigger.methods || ['POST'];
     logger.info(`[Webhook] Registering: ${methods.join(',')} ${path} → ${ensemble.name}`);
@@ -463,8 +474,9 @@ function renderResponse(c, executionOutput, trigger) {
     // HTML rendering
     if (trigger.responses?.html?.enabled && accept.includes('text/html')) {
         // Check if output has HTML (from html agent)
-        if (output && output.html) {
-            return c.html(output.html);
+        const htmlOutput = output;
+        if (htmlOutput && typeof htmlOutput === 'object' && 'html' in htmlOutput && htmlOutput.html) {
+            return c.html(htmlOutput.html);
         }
         // Fallback: check if output itself is a string (might be HTML)
         if (typeof output === 'string') {
@@ -487,43 +499,10 @@ function renderResponse(c, executionOutput, trigger) {
 /**
  * Apply HTTP Cache-Control headers from trigger configuration
  *
- * Supports both new `httpCache` config and legacy `cache` config for backwards compatibility.
- * httpCache controls HTTP response caching (CDN/browser), separate from agent internal caching.
+ * Uses the cache config from the trigger to set HTTP response caching headers.
  */
 function applyHttpCacheHeaders(c, trigger) {
-    // New httpCache config takes precedence
-    if (trigger.httpCache) {
-        const hc = trigger.httpCache;
-        const directives = [];
-        if (hc.public)
-            directives.push('public');
-        if (hc.private)
-            directives.push('private');
-        if (hc.noCache)
-            directives.push('no-cache');
-        if (hc.noStore)
-            directives.push('no-store');
-        if (hc.maxAge !== undefined)
-            directives.push(`max-age=${hc.maxAge}`);
-        if (hc.staleWhileRevalidate)
-            directives.push(`stale-while-revalidate=${hc.staleWhileRevalidate}`);
-        if (hc.staleIfError)
-            directives.push(`stale-if-error=${hc.staleIfError}`);
-        if (hc.custom)
-            directives.push(hc.custom);
-        if (directives.length > 0) {
-            c.header('Cache-Control', directives.join(', '));
-        }
-        // Merge Vary headers (trigger config + any added by auth middleware)
-        if (hc.vary?.length) {
-            const existingVary = c.res?.headers?.get('Vary');
-            const varySet = new Set(existingVary ? existingVary.split(',').map((v) => v.trim()) : []);
-            hc.vary.forEach((v) => varySet.add(v));
-            c.header('Vary', Array.from(varySet).join(', '));
-        }
-    }
-    // Backwards compatibility: map old cache: to HTTP cache headers
-    else if (trigger.cache?.enabled && trigger.cache.ttl) {
+    if (trigger.cache?.enabled && trigger.cache.ttl) {
         c.header('Cache-Control', `public, max-age=${trigger.cache.ttl}`);
         if (trigger.cache.vary?.length) {
             c.header('Vary', trigger.cache.vary.join(', '));

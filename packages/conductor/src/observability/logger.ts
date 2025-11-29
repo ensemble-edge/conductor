@@ -49,10 +49,14 @@ export class ConductorLogger implements Logger {
     baseContext: LogContext = {}
   ) {
     // Detect debug mode from environment or config
+    // Use type-safe access to globalThis DEBUG flag
+    const globalDebug =
+      typeof globalThis !== 'undefined' && 'DEBUG' in globalThis
+        ? (globalThis as { DEBUG?: boolean }).DEBUG === true
+        : false
     const isDebug =
       config.debug ??
-      ((typeof process !== 'undefined' && process.env?.DEBUG === 'true') ||
-        (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG === true))
+      ((typeof process !== 'undefined' && process.env?.DEBUG === 'true') || globalDebug)
 
     this.config = {
       level: config.level ?? (isDebug ? LogLevelEnum.DEBUG : LogLevelEnum.INFO),

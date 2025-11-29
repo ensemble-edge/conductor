@@ -21,7 +21,7 @@ export function createEmailProvider(config: EmailProviderConfig): EmailProvider 
         throw new Error('Cloudflare Email binding is required')
       }
       return new CloudflareEmailProvider(
-        config.cloudflare.binding as any,
+        config.cloudflare.binding,
         from,
         config.cloudflare.dkim ?? true
       )

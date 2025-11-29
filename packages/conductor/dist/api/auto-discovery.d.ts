@@ -6,6 +6,7 @@
  *
  * This is the recommended way to use Conductor for most projects.
  */
+import type { ConductorEnv } from '../types/env.js';
 import { type APIConfig } from './app.js';
 import { AgentLoader } from '../utils/loader.js';
 import { EnsembleLoader } from '../utils/ensemble-loader.js';
@@ -84,8 +85,8 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
  * ```
  */
 export declare function createAutoDiscoveryAPI(config?: AutoDiscoveryAPIConfig): {
-    fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response>;
-    scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void>;
+    fetch(request: Request, env: ConductorEnv, ctx: ExecutionContext): Promise<Response>;
+    scheduled(event: ScheduledEvent, env: ConductorEnv, ctx: ExecutionContext): Promise<void>;
 };
 /**
  * Get the initialized MemberLoader instance

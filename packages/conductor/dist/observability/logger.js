@@ -29,9 +29,12 @@ const LOG_LEVEL_PRIORITY = {
 export class ConductorLogger {
     constructor(config = {}, analyticsEngine, baseContext = {}) {
         // Detect debug mode from environment or config
+        // Use type-safe access to globalThis DEBUG flag
+        const globalDebug = typeof globalThis !== 'undefined' && 'DEBUG' in globalThis
+            ? globalThis.DEBUG === true
+            : false;
         const isDebug = config.debug ??
-            ((typeof process !== 'undefined' && process.env?.DEBUG === 'true') ||
-                (typeof globalThis !== 'undefined' && globalThis.DEBUG === true));
+            ((typeof process !== 'undefined' && process.env?.DEBUG === 'true') || globalDebug);
         this.config = {
             level: config.level ?? (isDebug ? LogLevelEnum.DEBUG : LogLevelEnum.INFO),
             serviceName: config.serviceName ?? 'conductor',

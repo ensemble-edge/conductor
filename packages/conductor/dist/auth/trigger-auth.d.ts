@@ -13,6 +13,7 @@
  * @see https://docs.ensemble.ai/conductor/building/security-authentication
  */
 import type { AuthValidator, AuthValidationResult, AuthContext } from './types.js';
+import type { ConductorEnv } from '../types/env.js';
 /**
  * Trigger auth configuration (from YAML)
  */
@@ -37,7 +38,7 @@ export interface TriggerAuthConfig {
 /**
  * Get the appropriate auth validator based on trigger config
  */
-export declare function getValidatorForTrigger(config: TriggerAuthConfig, env: any): AuthValidator;
+export declare function getValidatorForTrigger(config: TriggerAuthConfig, env: ConductorEnv): AuthValidator;
 /**
  * Create auth middleware for triggers using the unified provider system
  *
@@ -48,7 +49,7 @@ export declare function getValidatorForTrigger(config: TriggerAuthConfig, env: a
  * @param env - Environment bindings (for KV, secrets, etc.)
  * @returns Hono middleware function
  */
-export declare function createTriggerAuthMiddleware(authConfig: TriggerAuthConfig, env: any): (c: any, next: () => Promise<void>) => Promise<Response | void>;
+export declare function createTriggerAuthMiddleware(authConfig: TriggerAuthConfig, env: ConductorEnv): (c: any, next: () => Promise<void>) => Promise<Response | void>;
 /**
  * Validate trigger auth config
  *

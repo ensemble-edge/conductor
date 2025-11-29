@@ -14,6 +14,8 @@
  */
 
 import type { AuthValidator, AuthValidationResult, AuthContext } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
+import { timingSafeEqual } from '../utils/crypto.js'
 
 /**
  * Basic auth configuration
@@ -38,21 +40,6 @@ export interface BasicAuthConfig {
 interface Credentials {
   username: string
   password: string
-}
-
-/**
- * Timing-safe string comparison to prevent timing attacks
- */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false
-  }
-
-  let result = 0
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return result === 0
 }
 
 /**
@@ -112,7 +99,7 @@ export class BasicAuthValidator implements AuthValidator {
   /**
    * Validate basic auth credentials
    */
-  async validate(request: Request, _env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult> {
     const token = this.extractToken(request)
 
     if (!token) {
@@ -145,12 +132,15 @@ export class BasicAuthValidator implements AuthValidator {
       }
     }
 
-    // Check against all valid credentials
+    // Check against all valid credentials using timing-safe comparison
     let matchedUsername: string | null = null
     for (const valid of this.credentials) {
       // Use timing-safe comparison for both username and password
-      const usernameMatch = timingSafeEqual(provided.username, valid.username)
-      const passwordMatch = timingSafeEqual(provided.password, valid.password)
+      // The async version uses HMAC for constant-time comparison
+      const [usernameMatch, passwordMatch] = await Promise.all([
+        timingSafeEqual(provided.username, valid.username),
+        timingSafeEqual(provided.password, valid.password),
+      ])
 
       if (usernameMatch && passwordMatch) {
         matchedUsername = valid.username

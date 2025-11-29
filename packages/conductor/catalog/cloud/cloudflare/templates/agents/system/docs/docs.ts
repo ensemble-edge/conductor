@@ -6,7 +6,7 @@
  * and OpenAPI specification generation.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 // ============================================================================
 // Types

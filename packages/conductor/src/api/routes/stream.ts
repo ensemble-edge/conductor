@@ -80,7 +80,7 @@ stream.post('/', (c: ConductorContext) => {
 
       const agent = await builtInRegistry.create(body.agent, agentConfig, c.env)
 
-      // Create execution context
+      // Create execution context (security features injected by BaseAgent.execute)
       const memberContext: AgentExecutionContext = {
         input: body.input,
         env: c.env,

@@ -349,7 +349,8 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error.message).toContain('Invalid docs.format');
+				// Zod provides path-specific error messages
+				expect(result.error.message).toContain('docs.format');
 			}
 		});
 
@@ -367,7 +368,8 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error.message).toContain('Invalid testing.coverage.lines');
+				// Zod provides path and constraint info
+				expect(result.error.message).toContain('testing.coverage.lines');
 			}
 		});
 
@@ -385,7 +387,9 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error.message).toContain('Invalid observability.logging.level');
+				// Zod provides path-specific error messages
+				// For union types (boolean | LoggingConfig), Zod reports at the union level
+				expect(result.error.message).toContain('observability.logging');
 			}
 		});
 
@@ -401,7 +405,9 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error.message).toContain('Invalid execution.defaultTimeout');
+				// Zod provides path-specific error messages
+				expect(result.error.message).toContain('execution.defaultTimeout');
+				expect(result.error.message).toContain('greater than 0');
 			}
 		});
 
@@ -417,7 +423,8 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error.message).toContain('Invalid storage.type');
+				// Zod provides enum validation messages
+				expect(result.error.message).toContain('storage.type');
 			}
 		});
 
@@ -436,8 +443,9 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(false);
 			if (!result.success) {
-				expect(result.error.message).toContain('Invalid docs.format');
-				expect(result.error.message).toContain('Invalid execution.defaultTimeout');
+				// Zod validates all fields and reports all errors
+				expect(result.error.message).toContain('docs.format');
+				expect(result.error.message).toContain('execution.defaultTimeout');
 			}
 		});
 	});

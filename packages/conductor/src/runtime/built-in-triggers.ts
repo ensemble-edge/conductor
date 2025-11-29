@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod'
+import type { Context } from 'hono'
 import { getTriggerRegistry } from './trigger-registry.js'
 import type { TriggerHandlerContext } from './trigger-registry.js'
 import { Executor } from './executor.js'
@@ -13,6 +14,12 @@ import { createLogger } from '../observability/index.js'
 import { cors } from 'hono/cors'
 import { getHttpMiddlewareRegistry } from './http-middleware-registry.js'
 import { createTriggerAuthMiddleware, type TriggerAuthConfig } from '../auth/trigger-auth.js'
+import type {
+  HTTPTriggerConfig,
+  WebhookTriggerConfig,
+  EmailTriggerConfig,
+  MCPTriggerConfig,
+} from './parser.js'
 
 const logger = createLogger({ serviceName: 'built-in-triggers' })
 
@@ -70,10 +77,10 @@ interface PathConfig {
  *         - path: /api/users/:id
  *           methods: [GET, PUT, DELETE]
  */
-function normalizePathConfigs(trigger: any, defaultPath: string): PathConfig[] {
+function normalizePathConfigs(trigger: HTTPTriggerConfig, defaultPath: string): PathConfig[] {
   // Multi-path format takes precedence
   if (trigger.paths && Array.isArray(trigger.paths)) {
-    return trigger.paths.map((p: any) => ({
+    return trigger.paths.map((p: { path: string; methods?: string[] }) => ({
       path: p.path,
       methods: p.methods || trigger.methods || ['GET'],
     }))
@@ -92,7 +99,9 @@ function normalizePathConfigs(trigger: any, defaultPath: string): PathConfig[] {
  * HTTP Trigger Handler
  */
 async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> {
-  const { app, ensemble, trigger, agents, env, ctx } = context
+  const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context
+  // Cast to typed trigger config
+  const trigger = rawTrigger as HTTPTriggerConfig
 
   // Normalize to array of path configurations
   const pathConfigs = normalizePathConfigs(trigger, `/${ensemble.name}`)
@@ -101,12 +110,17 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
     `[HTTP] Registering ${pathConfigs.length} path(s) for ${ensemble.name}: ${pathConfigs.map((p) => `${p.methods.join(',')} ${p.path}`).join(', ')}`
   )
 
-  // Build middleware chain
+  // Build middleware chain - uses MiddlewareHandler from Hono
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const middlewareChain: any[] = []
 
-  // CORS
+  // CORS - provide default origin if not specified
   if (trigger.cors) {
-    middlewareChain.push(cors(trigger.cors))
+    const corsConfig = {
+      ...trigger.cors,
+      origin: trigger.cors.origin ?? '*', // Default to allow all origins
+    }
+    middlewareChain.push(cors(corsConfig))
   }
 
   // Rate limiting
@@ -128,7 +142,9 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
   // Custom middleware
   if (trigger.middleware) {
     const middlewareRegistry = getHttpMiddlewareRegistry()
-    const resolved = middlewareRegistry.resolve(trigger.middleware)
+    // Cast middleware array - schema uses loose z.function() but middleware should be MiddlewareHandler
+    type MiddlewareHandler = Parameters<typeof middlewareRegistry.resolve>[0][number]
+    const resolved = middlewareRegistry.resolve(trigger.middleware as (string | MiddlewareHandler)[])
     middlewareChain.push(...resolved)
   }
 
@@ -208,7 +224,9 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
  * - POST /mcp/tools/:toolName - Invoke a specific tool
  */
 async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
-  const { app, ensemble, trigger, agents, env, ctx } = context
+  const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context
+  // Cast to typed trigger config
+  const trigger = rawTrigger as MCPTriggerConfig
 
   // MCP tool name defaults to ensemble name (kebab-case recommended)
   const toolName = trigger.toolName || ensemble.name
@@ -347,11 +365,18 @@ function buildInputSchema(ensemble: any): any {
     required: [],
   }
 
+  // Type for input definition objects
+  interface InputDefinition {
+    type?: string
+    description?: string
+    required?: boolean
+  }
+
   // If ensemble has explicit input definition
   if (ensemble.input) {
     for (const [key, value] of Object.entries(ensemble.input)) {
       if (typeof value === 'object' && value !== null) {
-        const inputDef = value as any
+        const inputDef = value as InputDefinition
         schema.properties[key] = {
           type: inputDef.type || 'string',
           description: inputDef.description || key,
@@ -377,7 +402,7 @@ function buildInputSchema(ensemble: any): any {
   if (ensemble.inputs) {
     for (const [key, value] of Object.entries(ensemble.inputs)) {
       if (typeof value === 'object' && value !== null) {
-        const inputDef = value as any
+        const inputDef = value as InputDefinition
         schema.properties[key] = {
           type: inputDef.type || 'string',
           description: inputDef.description || key,
@@ -397,7 +422,9 @@ function buildInputSchema(ensemble: any): any {
  * Simpler than HTTP - just POST endpoints
  */
 async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<void> {
-  const { app, ensemble, trigger, agents, env, ctx } = context
+  const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context
+  // Cast to typed trigger config
+  const trigger = rawTrigger as WebhookTriggerConfig
 
   const path = trigger.path || `/${ensemble.name}`
   const methods = trigger.methods || ['POST']
@@ -545,13 +572,18 @@ async function extractInput(c: any): Promise<any> {
   }
 }
 
+/** Type for output that may contain HTML */
+interface HtmlOutput {
+  html?: string
+}
+
 /**
  * Render HTTP response
  * Handles ExecutionOutput from the executor
  */
-function renderResponse(c: any, executionOutput: any, trigger: any): Response {
+function renderResponse(c: Context, executionOutput: { output: unknown }, trigger: HTTPTriggerConfig): Response {
   const accept = c.req.header('accept') || ''
-  const output = executionOutput.output as any
+  const output = executionOutput.output
 
   // Apply HTTP cache headers from trigger config
   applyHttpCacheHeaders(c, trigger)
@@ -559,8 +591,9 @@ function renderResponse(c: any, executionOutput: any, trigger: any): Response {
   // HTML rendering
   if (trigger.responses?.html?.enabled && accept.includes('text/html')) {
     // Check if output has HTML (from html agent)
-    if (output && output.html) {
-      return c.html(output.html)
+    const htmlOutput = output as HtmlOutput | null
+    if (htmlOutput && typeof htmlOutput === 'object' && 'html' in htmlOutput && htmlOutput.html) {
+      return c.html(htmlOutput.html)
     }
     // Fallback: check if output itself is a string (might be HTML)
     if (typeof output === 'string') {
@@ -590,41 +623,10 @@ function renderResponse(c: any, executionOutput: any, trigger: any): Response {
 /**
  * Apply HTTP Cache-Control headers from trigger configuration
  *
- * Supports both new `httpCache` config and legacy `cache` config for backwards compatibility.
- * httpCache controls HTTP response caching (CDN/browser), separate from agent internal caching.
+ * Uses the cache config from the trigger to set HTTP response caching headers.
  */
-function applyHttpCacheHeaders(c: any, trigger: any): void {
-  // New httpCache config takes precedence
-  if (trigger.httpCache) {
-    const hc = trigger.httpCache
-    const directives: string[] = []
-
-    if (hc.public) directives.push('public')
-    if (hc.private) directives.push('private')
-    if (hc.noCache) directives.push('no-cache')
-    if (hc.noStore) directives.push('no-store')
-    if (hc.maxAge !== undefined) directives.push(`max-age=${hc.maxAge}`)
-    if (hc.staleWhileRevalidate)
-      directives.push(`stale-while-revalidate=${hc.staleWhileRevalidate}`)
-    if (hc.staleIfError) directives.push(`stale-if-error=${hc.staleIfError}`)
-    if (hc.custom) directives.push(hc.custom)
-
-    if (directives.length > 0) {
-      c.header('Cache-Control', directives.join(', '))
-    }
-
-    // Merge Vary headers (trigger config + any added by auth middleware)
-    if (hc.vary?.length) {
-      const existingVary = c.res?.headers?.get('Vary')
-      const varySet = new Set(
-        existingVary ? existingVary.split(',').map((v: string) => v.trim()) : []
-      )
-      hc.vary.forEach((v: string) => varySet.add(v))
-      c.header('Vary', Array.from(varySet).join(', '))
-    }
-  }
-  // Backwards compatibility: map old cache: to HTTP cache headers
-  else if (trigger.cache?.enabled && trigger.cache.ttl) {
+function applyHttpCacheHeaders(c: Context, trigger: HTTPTriggerConfig): void {
+  if (trigger.cache?.enabled && trigger.cache.ttl) {
     c.header('Cache-Control', `public, max-age=${trigger.cache.ttl}`)
     if (trigger.cache.vary?.length) {
       c.header('Vary', trigger.cache.vary.join(', '))
@@ -664,7 +666,7 @@ export function registerBuiltInTriggers(): void {
         .optional(),
       templateEngine: z.enum(['handlebars', 'liquid', 'simple']).optional(),
       middleware: z.array(z.any()).optional(),
-    }) as any,
+    }),
     requiresAuth: false,
     tags: ['http', 'web', 'routing'],
   })
@@ -682,7 +684,7 @@ export function registerBuiltInTriggers(): void {
         .object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() })
         .optional(),
       public: z.boolean().optional(),
-    }) as any,
+    }),
     requiresAuth: false,
     tags: ['webhook', 'api'],
   })
@@ -699,7 +701,7 @@ export function registerBuiltInTriggers(): void {
         .object({ type: z.enum(['bearer', 'signature', 'basic']), secret: z.string() })
         .optional(),
       public: z.boolean().optional(),
-    }) as any,
+    }),
     requiresAuth: false,
     tags: ['mcp', 'ai', 'tools'],
   })

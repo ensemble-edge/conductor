@@ -61,6 +61,7 @@ import {
   generateExecutionId,
   type MetricsRecorder,
 } from '../observability/index.js'
+import type { ExecutionId, RequestId } from '../types/branded.js'
 import type { ObservabilityConfig } from '../config/types.js'
 import { NotificationManager } from './notifications/index.js'
 import { createComponentLoader, type ComponentLoader } from './component-loader.js'
@@ -82,16 +83,51 @@ import { resolveOutput, type EnsembleOutput } from './output-resolver.js'
 
 import type { AuthContext } from '../auth/types.js'
 
+/** Default timeout for agent execution (30 seconds) */
+const DEFAULT_AGENT_TIMEOUT_MS = 30000
+
 export interface ExecutorConfig {
   env: ConductorEnv
   ctx: ExecutionContext
   logger?: Logger
   /** Observability configuration from conductor.config.ts */
   observability?: ObservabilityConfig
-  /** Request ID from incoming HTTP request (for tracing) */
-  requestId?: string
+  /** Request ID from incoming HTTP request (for tracing) - branded type for type safety */
+  requestId?: RequestId
   /** Authentication context from the request */
   auth?: AuthContext
+  /** Default timeout for agent execution in milliseconds (default: 30000) */
+  defaultTimeout?: number
+}
+
+/**
+ * Execute a promise with a timeout
+ * @param promise - The promise to execute
+ * @param timeoutMs - Timeout in milliseconds
+ * @param agentName - Agent name for error messages
+ * @returns The promise result or throws a timeout error
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  agentName: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new AgentExecutionError(agentName, `Agent execution timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+  })
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise])
+    return result
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+    }
+  }
 }
 
 /**
@@ -182,14 +218,30 @@ interface FlowExecutionContext {
   startTime: number
   /** Observability manager for this execution */
   observability: ObservabilityManager
-  /** Execution ID for tracing */
-  executionId: string
+  /** Execution ID for tracing - branded type for type safety */
+  executionId: ExecutionId
   /** Component registry for schemas, prompts, configs */
   componentRegistry: ComponentRegistry
   /** Agent registry for discovering available agents */
   agentRegistry: AgentRegistry
   /** Ensemble registry for discovering available ensembles */
   ensembleRegistry: EnsembleRegistry
+}
+
+/**
+ * Context passed to agent execution
+ * Used internally by executeStep helper methods
+ */
+interface StepExecutionContext {
+  step: AgentFlowStep
+  flowContext: FlowExecutionContext
+  stepIndex: number
+  agent: BaseAgent
+  resolvedInput: unknown
+  agentLogger: Logger
+  agentMetrics: MetricsRecorder
+  agentContext: AgentExecutionContext
+  getPendingUpdates: (() => { updates: Record<string, unknown>; newLog: AccessLogEntry[] }) | null
 }
 
 /**
@@ -201,8 +253,9 @@ export class Executor {
   private agentRegistry: Map<string, BaseAgent>
   private logger: Logger
   private observabilityConfig?: ObservabilityConfig
-  private requestId?: string
+  private requestId?: RequestId
   private auth?: AuthContext
+  private defaultTimeout: number
 
   constructor(config: ExecutorConfig) {
     this.env = config.env
@@ -211,6 +264,7 @@ export class Executor {
     this.observabilityConfig = config.observability
     this.requestId = config.requestId
     this.auth = config.auth
+    this.defaultTimeout = config.defaultTimeout ?? DEFAULT_AGENT_TIMEOUT_MS
     this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS)
   }
 
@@ -360,31 +414,19 @@ export class Executor {
   }
 
   /**
-   * Execute a single flow step with all associated logic
-   * Only handles AgentFlowStep - control flow steps should use GraphExecutor
+   * Resolve input for a step based on explicit mapping, previous output, or ensemble input
    * @private
    */
-  private async executeStep(
+  private resolveStepInput(
     step: AgentFlowStep,
     flowContext: FlowExecutionContext,
     stepIndex: number
-  ): AsyncResult<void, ConductorError> {
-    const {
-      ensemble,
-      executionContext,
-      metrics,
-      stateManager,
-      scoringState,
-      ensembleScorer,
-      scoringExecutor,
-    } = flowContext
-    const agentStartTime = Date.now()
+  ): unknown {
+    const { ensemble, executionContext } = flowContext
 
-    // Resolve input interpolations
-    let resolvedInput: unknown
     if (step.input) {
       // User specified explicit input mapping
-      resolvedInput = Parser.resolveInterpolation(step.input, executionContext)
+      return Parser.resolveInterpolation(step.input, executionContext)
     } else if (stepIndex > 0 && ensemble.flow) {
       // Default to previous agent's output for chaining
       const previousStep = ensemble.flow[stepIndex - 1]
@@ -393,49 +435,29 @@ export class Executor {
         const previousResult = executionContext[previousAgentName] as
           | AgentExecutionResult
           | undefined
-        resolvedInput = previousResult?.output || {}
-      } else {
-        resolvedInput = executionContext.input || {}
+        return previousResult?.output || {}
       }
-    } else {
-      // First step with no input - use original ensemble input
-      resolvedInput = executionContext.input || {}
     }
+    // First step with no input - use original ensemble input
+    return executionContext.input || {}
+  }
 
-    // Resolve agent - error handling is explicit
-    const agentResult = await this.resolveAgent(step.agent)
-    if (!agentResult.success) {
-      return Result.err(new EnsembleExecutionError(ensemble.name, step.agent, agentResult.error))
-    }
-    const agent = agentResult.value
-
-    // Create scoped observability for this agent
-    const agentObservability = flowContext.observability.forAgent(step.agent, stepIndex)
-    const agentLogger = agentObservability.getLogger()
-    const agentMetrics = agentObservability.getMetrics()
-
-    // Log agent start if configured
-    if (flowContext.observability.shouldLogEvent('agent:start')) {
-      agentLogger.info('Agent execution started', {
-        agentName: step.agent,
-        stepIndex,
-        ensembleName: ensemble.name,
-      })
-    }
-
-    // Find agent config from ensemble definition (if any)
-    // Agents can be defined inline in the ensemble's agents array
-    const agentDef = ensemble.agents?.find(
-      (a) => (a as Record<string, unknown>).name === step.agent
-    ) as Record<string, unknown> | undefined
-    const agentConfig = (agentDef?.config as Record<string, any>) || undefined
-
-    // Create agent execution context with observability and component registries
-    const agentContext: AgentExecutionContext = {
+  /**
+   * Build the agent execution context with all necessary dependencies
+   * @private
+   */
+  private buildAgentContext(
+    resolvedInput: unknown,
+    flowContext: FlowExecutionContext,
+    agentLogger: Logger,
+    agentMetrics: MetricsRecorder,
+    agentConfig: Record<string, any> | undefined
+  ): AgentExecutionContext {
+    return {
       input: resolvedInput as Record<string, any>,
       env: this.env,
       ctx: this.ctx,
-      previousOutputs: executionContext,
+      previousOutputs: flowContext.executionContext,
       logger: agentLogger,
       metrics: agentMetrics,
       executionId: flowContext.executionId,
@@ -454,8 +476,243 @@ export class Executor {
       // Agent-specific config from ensemble definition
       config: agentConfig,
     }
+  }
 
-    // Add state context if available and track updates
+  /**
+   * Execute agent with scoring/retry logic
+   * @private
+   */
+  private async executeAgentWithScoring(
+    stepContext: StepExecutionContext
+  ): Promise<{ response: AgentResponse; scoringResult?: ScoringResult }> {
+    const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext
+    const { ensemble, executionContext, scoringState, ensembleScorer, scoringExecutor, stateManager } = flowContext
+
+    const agentTimeout = step.timeout ?? this.defaultTimeout
+    const scoringConfig = step.scoring as AgentScoringConfig
+
+    const scoredResult = await scoringExecutor.executeWithScoring(
+      // Agent execution function (with timeout)
+      async () => {
+        const resp = await withTimeout(
+          agent.execute(agentContext),
+          agentTimeout,
+          step.agent
+        )
+        // Apply state updates after each attempt
+        if (stateManager && getPendingUpdates) {
+          const { updates, newLog } = getPendingUpdates()
+          flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog)
+        }
+        return resp
+      },
+      // Evaluator function
+      async (output, attempt, previousScore) => {
+        // Resolve the evaluator agent
+        const evaluatorResult = await this.resolveAgent(scoringConfig.evaluator)
+        if (!evaluatorResult.success) {
+          throw new Error(`Failed to resolve evaluator agent: ${evaluatorResult.error.message}`)
+        }
+
+        const evaluator = evaluatorResult.value
+
+        // Create evaluation context with the output to score
+        const evalContext: AgentExecutionContext = {
+          input: {
+            output: output.success ? output.data : null,
+            attempt,
+            previousScore,
+            criteria: scoringConfig.criteria || ensemble.scoring?.criteria,
+          },
+          env: this.env,
+          ctx: this.ctx,
+          previousOutputs: executionContext,
+        }
+
+        // Execute evaluator
+        const evalResponse = await evaluator.execute(evalContext)
+
+        if (!evalResponse.success) {
+          throw new Error(`Evaluator failed: ${evalResponse.error || 'Unknown error'}`)
+        }
+
+        // Parse evaluator output as ScoringResult
+        const evalData = evalResponse.data as Record<string, unknown> | number
+        const score =
+          typeof evalData === 'number'
+            ? evalData
+            : typeof evalData === 'object' && evalData !== null && 'score' in evalData
+              ? (evalData.score as number)
+              : typeof evalData === 'object' && evalData !== null && 'value' in evalData
+                ? (evalData.value as number)
+                : 0
+
+        const threshold =
+          scoringConfig.thresholds?.minimum || ensemble.scoring?.defaultThresholds?.minimum || 0.7
+
+        return {
+          score,
+          passed: score >= threshold,
+          feedback:
+            typeof evalData === 'object' && evalData !== null && 'feedback' in evalData
+              ? String(evalData.feedback)
+              : typeof evalData === 'object' && evalData !== null && 'message' in evalData
+                ? String(evalData.message)
+                : '',
+          breakdown:
+            typeof evalData === 'object' && evalData !== null && 'breakdown' in evalData
+              ? (evalData.breakdown as Record<string, number>)
+              : {},
+          metadata: {
+            attempt,
+            evaluator: scoringConfig.evaluator,
+            timestamp: Date.now(),
+          },
+        }
+      },
+      scoringConfig
+    )
+
+    // Update scoring state
+    const scoringResult = scoredResult.score
+    if (scoringState && ensembleScorer) {
+      scoringState.scoreHistory.push({
+        agent: step.agent,
+        score: scoringResult.score,
+        passed: scoringResult.passed,
+        feedback: scoringResult.feedback,
+        breakdown: scoringResult.breakdown,
+        timestamp: Date.now(),
+        attempt: scoredResult.attempts,
+      })
+      scoringState.retryCount[step.agent] = scoredResult.attempts - 1
+
+      // Handle scoring status
+      if (scoredResult.status === 'max_retries_exceeded') {
+        this.logger.warn('Agent exceeded max retries', {
+          agentName: step.agent,
+          score: scoringResult.score,
+          attempts: scoredResult.attempts,
+          ensembleName: ensemble.name,
+        })
+      }
+    }
+
+    return { response: scoredResult.output, scoringResult }
+  }
+
+  /**
+   * Execute agent without scoring (normal path)
+   * @private
+   */
+  private async executeAgentDirect(
+    stepContext: StepExecutionContext
+  ): Promise<AgentResponse> {
+    const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext
+    const { stateManager } = flowContext
+
+    const agentTimeout = step.timeout ?? this.defaultTimeout
+
+    const response = await withTimeout(
+      agent.execute(agentContext),
+      agentTimeout,
+      step.agent
+    )
+
+    // Apply pending state updates
+    if (stateManager && getPendingUpdates) {
+      const { updates, newLog } = getPendingUpdates()
+      flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog)
+    }
+
+    return response
+  }
+
+  /**
+   * Record agent execution metrics
+   * @private
+   */
+  private recordAgentMetrics(
+    stepContext: StepExecutionContext,
+    response: AgentResponse,
+    agentStartTime: number
+  ): void {
+    const { step, flowContext, agentMetrics } = stepContext
+    const agentDuration = Date.now() - agentStartTime
+
+    flowContext.metrics.agents.push({
+      name: step.agent,
+      duration: agentDuration,
+      cached: response.cached,
+      success: response.success,
+    })
+
+    if (response.cached) {
+      flowContext.metrics.cacheHits++
+      if (flowContext.observability.shouldLogEvent('cache:hit')) {
+        stepContext.agentLogger.debug('Cache hit', { agentName: step.agent })
+      }
+      agentMetrics.recordCachePerformance(true, step.agent)
+    } else {
+      agentMetrics.recordCachePerformance(false, step.agent)
+    }
+
+    agentMetrics.recordAgentExecution(step.agent, agentDuration, response.success, response.cached)
+  }
+
+  /**
+   * Execute a single flow step with all associated logic
+   * Only handles AgentFlowStep - control flow steps should use GraphExecutor
+   * @private
+   */
+  private async executeStep(
+    step: AgentFlowStep,
+    flowContext: FlowExecutionContext,
+    stepIndex: number
+  ): AsyncResult<void, ConductorError> {
+    const { ensemble, executionContext, stateManager, scoringState, ensembleScorer } = flowContext
+    const agentStartTime = Date.now()
+
+    // 1. Resolve input for this step
+    const resolvedInput = this.resolveStepInput(step, flowContext, stepIndex)
+
+    // 2. Resolve agent - error handling is explicit
+    const agentResult = await this.resolveAgent(step.agent)
+    if (!agentResult.success) {
+      return Result.err(new EnsembleExecutionError(ensemble.name, step.agent, agentResult.error))
+    }
+    const agent = agentResult.value
+
+    // 3. Create scoped observability for this agent
+    const agentObservability = flowContext.observability.forAgent(step.agent, stepIndex)
+    const agentLogger = agentObservability.getLogger()
+    const agentMetrics = agentObservability.getMetrics()
+
+    // Log agent start if configured
+    if (flowContext.observability.shouldLogEvent('agent:start')) {
+      agentLogger.info('Agent execution started', {
+        agentName: step.agent,
+        stepIndex,
+        ensembleName: ensemble.name,
+      })
+    }
+
+    // 4. Find agent config from ensemble definition (if any)
+    const agentDef = ensemble.agents?.find(
+      (a) => (a as Record<string, unknown>).name === step.agent
+    ) as Record<string, unknown> | undefined
+    const agentConfig = (agentDef?.config as Record<string, any>) || undefined
+
+    // 5. Build agent execution context using helper
+    const agentContext = this.buildAgentContext(
+      resolvedInput,
+      flowContext,
+      agentLogger,
+      agentMetrics,
+      agentConfig
+    )
+
+    // 6. Add state context if available and track updates
     let getPendingUpdates:
       | (() => { updates: Record<string, unknown>; newLog: AccessLogEntry[] })
       | null = null
@@ -469,157 +726,34 @@ export class Executor {
       getPendingUpdates = getUpdates
     }
 
-    // Execute agent (with scoring if configured)
+    // 7. Build step context for helper methods
+    const stepContext: StepExecutionContext = {
+      step,
+      flowContext,
+      stepIndex,
+      agent,
+      resolvedInput,
+      agentLogger,
+      agentMetrics,
+      agentContext,
+      getPendingUpdates,
+    }
+
+    // 8. Execute agent (with scoring if configured, or direct)
     let response: AgentResponse
-    let scoringResult: ScoringResult | undefined
-
     if (step.scoring && scoringState && ensembleScorer) {
-      // Execute with scoring and retry logic
-      const scoringConfig = step.scoring as AgentScoringConfig
-      const scoredResult = await scoringExecutor.executeWithScoring(
-        // Agent execution function
-        async () => {
-          const resp = await agent.execute(agentContext)
-          // Apply state updates after each attempt
-          if (stateManager && getPendingUpdates) {
-            const { updates, newLog } = getPendingUpdates()
-            flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog)
-          }
-          return resp
-        },
-        // Evaluator function
-        async (output, attempt, previousScore) => {
-          // Resolve the evaluator agent
-          const evaluatorResult = await this.resolveAgent(scoringConfig.evaluator)
-          if (!evaluatorResult.success) {
-            throw new Error(`Failed to resolve evaluator agent: ${evaluatorResult.error.message}`)
-          }
-
-          const evaluator = evaluatorResult.value
-
-          // Create evaluation context with the output to score
-          const evalContext: AgentExecutionContext = {
-            input: {
-              output: output.success ? output.data : null,
-              attempt,
-              previousScore,
-              criteria: scoringConfig.criteria || ensemble.scoring?.criteria,
-            },
-            env: this.env,
-            ctx: this.ctx,
-            previousOutputs: executionContext,
-          }
-
-          // Execute evaluator
-          const evalResponse = await evaluator.execute(evalContext)
-
-          if (!evalResponse.success) {
-            throw new Error(`Evaluator failed: ${evalResponse.error || 'Unknown error'}`)
-          }
-
-          // Parse evaluator output as ScoringResult
-          const evalData = evalResponse.data as Record<string, unknown> | number
-          const score =
-            typeof evalData === 'number'
-              ? evalData
-              : typeof evalData === 'object' && evalData !== null && 'score' in evalData
-                ? (evalData.score as number)
-                : typeof evalData === 'object' && evalData !== null && 'value' in evalData
-                  ? (evalData.value as number)
-                  : 0
-
-          const threshold =
-            scoringConfig.thresholds?.minimum || ensemble.scoring?.defaultThresholds?.minimum || 0.7
-
-          return {
-            score,
-            passed: score >= threshold,
-            feedback:
-              typeof evalData === 'object' && evalData !== null && 'feedback' in evalData
-                ? String(evalData.feedback)
-                : typeof evalData === 'object' && evalData !== null && 'message' in evalData
-                  ? String(evalData.message)
-                  : '',
-            breakdown:
-              typeof evalData === 'object' && evalData !== null && 'breakdown' in evalData
-                ? (evalData.breakdown as Record<string, number>)
-                : {},
-            metadata: {
-              attempt,
-              evaluator: scoringConfig.evaluator,
-              timestamp: Date.now(),
-            },
-          }
-        },
-        scoringConfig
-      )
-
-      // Extract response and scoring result
-      response = scoredResult.output
-      scoringResult = scoredResult.score
-
-      // Update scoring state
-      scoringState.scoreHistory.push({
-        agent: step.agent,
-        score: scoringResult.score,
-        passed: scoringResult.passed,
-        feedback: scoringResult.feedback,
-        breakdown: scoringResult.breakdown,
-        timestamp: Date.now(),
-        attempt: scoredResult.attempts,
-      })
-
-      // Track retry count
-      scoringState.retryCount[step.agent] = scoredResult.attempts - 1
-
-      // Handle scoring status
-      if (scoredResult.status === 'max_retries_exceeded') {
-        this.logger.warn('Agent exceeded max retries', {
-          agentName: step.agent,
-          score: scoringResult.score,
-          attempts: scoredResult.attempts,
-          ensembleName: ensemble.name,
-        })
-      }
+      const result = await this.executeAgentWithScoring(stepContext)
+      response = result.response
     } else {
-      // Normal execution without scoring
-      response = await agent.execute(agentContext)
-
-      // Apply pending state updates
-      if (stateManager && getPendingUpdates) {
-        const { updates, newLog } = getPendingUpdates()
-        flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog)
-      }
+      response = await this.executeAgentDirect(stepContext)
     }
 
-    // Track metrics
-    const agentDuration = Date.now() - agentStartTime
-    metrics.agents.push({
-      name: step.agent,
-      duration: agentDuration,
-      cached: response.cached,
-      success: response.success,
-    })
+    // 9. Record metrics
+    this.recordAgentMetrics(stepContext, response, agentStartTime)
 
-    if (response.cached) {
-      metrics.cacheHits++
-      // Log cache hit if configured
-      if (flowContext.observability.shouldLogEvent('cache:hit')) {
-        agentLogger.debug('Cache hit', { agentName: step.agent })
-      }
-      // Record cache metric
-      agentMetrics.recordCachePerformance(true, step.agent)
-    } else {
-      // Record cache miss metric
-      agentMetrics.recordCachePerformance(false, step.agent)
-    }
-
-    // Record agent execution metric
-    agentMetrics.recordAgentExecution(step.agent, agentDuration, response.success, response.cached)
-
-    // Handle agent execution errors explicitly
+    // 10. Handle agent execution errors explicitly
     if (!response.success) {
-      // Log agent error if configured
+      const agentDuration = Date.now() - agentStartTime
       if (flowContext.observability.shouldLogEvent('agent:error')) {
         agentLogger.error('Agent execution failed', new Error(response.error || 'Unknown error'), {
           agentName: step.agent,
@@ -627,7 +761,6 @@ export class Executor {
           stepIndex,
         })
       }
-      // Record error metric
       agentMetrics.recordError('AgentExecutionError', step.agent)
 
       return Result.err(
@@ -635,8 +768,9 @@ export class Executor {
       )
     }
 
-    // Log agent completion if configured
+    // 11. Log agent completion if configured
     if (flowContext.observability.shouldLogEvent('agent:complete')) {
+      const agentDuration = Date.now() - agentStartTime
       agentLogger.info('Agent execution completed', {
         agentName: step.agent,
         durationMs: agentDuration,
@@ -645,19 +779,18 @@ export class Executor {
       })
     }
 
-    // Store agent output in context for future interpolations
-    // Use step ID if provided, otherwise use agent name
+    // 12. Store agent output in context for future interpolations
     const contextKey = step.id || step.agent
     executionContext[contextKey] = {
       output: response.data,
     }
 
-    // Update state context with new state from immutable StateManager
+    // 13. Update state context with new state from immutable StateManager
     if (flowContext.stateManager) {
       executionContext.state = flowContext.stateManager.getState()
     }
 
-    // Update scoring context for interpolations
+    // 14. Update scoring context for interpolations
     if (scoringState) {
       executionContext.scoring = scoringState
     }
@@ -953,7 +1086,7 @@ export class Executor {
         requestId: this.requestId,
         executionId,
         ensembleName: ensemble.name,
-        environment: (this.env as any).ENVIRONMENT,
+        environment: this.env.ENVIRONMENT,
       },
       this.env.ANALYTICS
     )
@@ -1218,7 +1351,7 @@ export class Executor {
         requestId: this.requestId,
         executionId,
         ensembleName: ensemble.name,
-        environment: (this.env as any).ENVIRONMENT,
+        environment: this.env.ENVIRONMENT,
       },
       this.env.ANALYTICS
     )

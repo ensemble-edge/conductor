@@ -18,9 +18,9 @@ export class BaseAIProvider {
      * Helper to get API key from config or env
      */
     getApiKey(config, env, envVarName) {
-        return (config.apiKey ||
-            env[envVarName] ||
-            null);
+        // Access env as Record for dynamic key lookup
+        const envRecord = env;
+        return config.apiKey || envRecord[envVarName] || null;
     }
     /**
      * Helper to make HTTP request

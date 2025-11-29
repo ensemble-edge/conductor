@@ -61,6 +61,7 @@ export interface ErrorJSON {
     code: ErrorCode;
     message: string;
     isOperational: boolean;
+    details?: Record<string, unknown>;
     stack?: string;
 }
 /**

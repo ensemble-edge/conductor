@@ -427,3 +427,221 @@ export const VersionString = {
     return versionString as string
   },
 }
+
+/**
+ * Execution ID validation and creation
+ */
+export const ExecutionId = {
+  /**
+   * Create an ExecutionId from a string
+   * @throws {Error} if the execution ID is invalid
+   */
+  create(value: string): ExecutionId {
+    if (!value || value.trim().length === 0) {
+      throw new Error('Execution ID cannot be empty')
+    }
+
+    const normalized = value.trim()
+    if (!normalized.startsWith('exec_')) {
+      throw new Error(
+        `Invalid execution ID format: "${value}" (must start with 'exec_')`
+      )
+    }
+
+    return normalized as ExecutionId
+  },
+
+  /**
+   * Generate a new unique execution ID
+   */
+  generate(): ExecutionId {
+    return `exec_${crypto.randomUUID()}` as ExecutionId
+  },
+
+  /**
+   * Check if a string is a valid ExecutionId
+   */
+  isValid(value: string): boolean {
+    return !!value && value.trim().startsWith('exec_')
+  },
+
+  /**
+   * Safely create an ExecutionId, returning null if invalid
+   */
+  tryCreate(value: string): ExecutionId | null {
+    try {
+      return ExecutionId.create(value)
+    } catch {
+      return null
+    }
+  },
+
+  /**
+   * Unwrap an ExecutionId back to a string
+   */
+  unwrap(executionId: ExecutionId): string {
+    return executionId as string
+  },
+}
+
+/**
+ * Request ID validation and creation
+ */
+export const RequestId = {
+  /**
+   * Create a RequestId from a string
+   * @throws {Error} if the request ID is invalid
+   */
+  create(value: string): RequestId {
+    if (!value || value.trim().length === 0) {
+      throw new Error('Request ID cannot be empty')
+    }
+
+    const normalized = value.trim()
+    if (!normalized.startsWith('req_')) {
+      throw new Error(
+        `Invalid request ID format: "${value}" (must start with 'req_')`
+      )
+    }
+
+    return normalized as RequestId
+  },
+
+  /**
+   * Generate a new unique request ID
+   */
+  generate(): RequestId {
+    return `req_${crypto.randomUUID()}` as RequestId
+  },
+
+  /**
+   * Check if a string is a valid RequestId
+   */
+  isValid(value: string): boolean {
+    return !!value && value.trim().startsWith('req_')
+  },
+
+  /**
+   * Safely create a RequestId, returning null if invalid
+   */
+  tryCreate(value: string): RequestId | null {
+    try {
+      return RequestId.create(value)
+    } catch {
+      return null
+    }
+  },
+
+  /**
+   * Unwrap a RequestId back to a string
+   */
+  unwrap(requestId: RequestId): string {
+    return requestId as string
+  },
+}
+
+/**
+ * Resume Token validation and creation
+ */
+export const ResumeToken = {
+  /**
+   * Create a ResumeToken from a string
+   * @throws {Error} if the resume token is invalid
+   */
+  create(value: string): ResumeToken {
+    if (!value || value.trim().length === 0) {
+      throw new Error('Resume token cannot be empty')
+    }
+
+    const normalized = value.trim()
+    if (!normalized.startsWith('resume_')) {
+      throw new Error(
+        `Invalid resume token format: "${value}" (must start with 'resume_')`
+      )
+    }
+
+    return normalized as ResumeToken
+  },
+
+  /**
+   * Generate a new unique resume token
+   */
+  generate(): ResumeToken {
+    return `resume_${crypto.randomUUID()}` as ResumeToken
+  },
+
+  /**
+   * Check if a string is a valid ResumeToken
+   */
+  isValid(value: string): boolean {
+    return !!value && value.trim().startsWith('resume_')
+  },
+
+  /**
+   * Safely create a ResumeToken, returning null if invalid
+   */
+  tryCreate(value: string): ResumeToken | null {
+    try {
+      return ResumeToken.create(value)
+    } catch {
+      return null
+    }
+  },
+
+  /**
+   * Unwrap a ResumeToken back to a string
+   */
+  unwrap(resumeToken: ResumeToken): string {
+    return resumeToken as string
+  },
+}
+
+/**
+ * Cache Key validation and creation
+ */
+export const CacheKey = {
+  /**
+   * Create a CacheKey from a string
+   * @throws {Error} if the cache key is invalid
+   */
+  create(value: string): CacheKey {
+    if (!value || value.trim().length === 0) {
+      throw new Error('Cache key cannot be empty')
+    }
+
+    return value.trim() as CacheKey
+  },
+
+  /**
+   * Generate a cache key from components
+   */
+  generate(prefix: string, ...parts: string[]): CacheKey {
+    const key = [prefix, ...parts].join(':')
+    return key as CacheKey
+  },
+
+  /**
+   * Check if a string is a valid CacheKey
+   */
+  isValid(value: string): boolean {
+    return !!value && value.trim().length > 0
+  },
+
+  /**
+   * Safely create a CacheKey, returning null if invalid
+   */
+  tryCreate(value: string): CacheKey | null {
+    try {
+      return CacheKey.create(value)
+    } catch {
+      return null
+    }
+  },
+
+  /**
+   * Unwrap a CacheKey back to a string
+   */
+  unwrap(cacheKey: CacheKey): string {
+    return cacheKey as string
+  },
+}

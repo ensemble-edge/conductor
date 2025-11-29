@@ -10,7 +10,7 @@
  * - embedding: Semantic similarity via embeddings
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 import { RuleEvaluator } from './evaluators/rule-evaluator.js'
 import { JudgeEvaluator } from './evaluators/judge-evaluator.js'
 import { NLPEvaluator } from './evaluators/nlp-evaluator.js'

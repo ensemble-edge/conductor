@@ -11,6 +11,10 @@
  */
 
 import type { AuthValidator, AuthValidationResult, AuthContext } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
+import { createLogger } from '../../observability/index.js'
+
+const logger = createLogger({ serviceName: 'auth-custom' })
 
 /**
  * Stripe Webhook Signature Validator
@@ -22,7 +26,7 @@ export class StripeSignatureValidator implements AuthValidator {
     return request.headers.get('stripe-signature')
   }
 
-  async validate(request: Request, env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult> {
     const signature = this.extractToken(request)
     if (!signature) {
       return {
@@ -88,7 +92,7 @@ export class StripeSignatureValidator implements AuthValidator {
       // Compare signatures
       return signatures.some((sig) => this.secureCompare(sig, expectedSignature))
     } catch (error) {
-      console.error('Stripe signature verification error:', error)
+      logger.error('Stripe signature verification error', error instanceof Error ? error : undefined)
       return false
     }
   }
@@ -133,7 +137,7 @@ export class GitHubSignatureValidator implements AuthValidator {
     return request.headers.get('x-hub-signature-256')
   }
 
-  async validate(request: Request, env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult> {
     const signature = this.extractToken(request)
     if (!signature) {
       return {
@@ -179,7 +183,7 @@ export class GitHubSignatureValidator implements AuthValidator {
 
       return this.secureCompare(receivedSignature, expectedSignature)
     } catch (error) {
-      console.error('GitHub signature verification error:', error)
+      logger.error('GitHub signature verification error', error instanceof Error ? error : undefined)
       return false
     }
   }
@@ -224,7 +228,7 @@ export class TwilioSignatureValidator implements AuthValidator {
     return request.headers.get('x-twilio-signature')
   }
 
-  async validate(request: Request, env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult> {
     const signature = this.extractToken(request)
     if (!signature) {
       return {
@@ -278,7 +282,7 @@ export class TwilioSignatureValidator implements AuthValidator {
 
       return this.secureCompare(signature, expectedSignature)
     } catch (error) {
-      console.error('Twilio signature verification error:', error)
+      logger.error('Twilio signature verification error', error instanceof Error ? error : undefined)
       return false
     }
   }
@@ -348,7 +352,7 @@ export class CustomValidatorRegistry {
   /**
    * Register built-in validators from environment
    */
-  registerBuiltIn(env: any): void {
+  registerBuiltIn(env: ConductorEnv): void {
     // Stripe
     if (env.STRIPE_WEBHOOK_SECRET) {
       this.register('stripe-signature', new StripeSignatureValidator(env.STRIPE_WEBHOOK_SECRET))
@@ -369,7 +373,7 @@ export class CustomValidatorRegistry {
 /**
  * Create custom validator registry
  */
-export function createCustomValidatorRegistry(env: any): CustomValidatorRegistry {
+export function createCustomValidatorRegistry(env: ConductorEnv): CustomValidatorRegistry {
   const registry = new CustomValidatorRegistry()
   registry.registerBuiltIn(env)
   return registry

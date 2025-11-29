@@ -41,6 +41,9 @@ export { UnifiedRouter } from './routing/router.js';
 // Build and CLI Managers
 export { BuildManager, getBuildManager, resetBuildManager } from './runtime/build-manager.js';
 export { CLIManager, getCLIManager, resetCLIManager } from './runtime/cli-manager.js';
+// Branded Types - Type-safe identifiers for domain concepts
+// Exports both type definitions and factory functions (same name by design)
+export { ModelId, AgentName, EnsembleName, ProviderId, PlatformName, BindingName, VersionString, ExecutionId, RequestId, ResumeToken, CacheKey, } from './types/branded.js';
 export { isLifecyclePlugin, isFunctionalPlugin, buildPlugin } from './types/plugin.js';
 // Docs - First-class component support for markdown documentation
 export { DocsManager, getGlobalDocsManager } from './docs/index.js';

@@ -10,11 +10,12 @@
 import { BaseAgent, type AgentExecutionContext } from '../../base-agent.js';
 import type { AgentConfig } from '../../../runtime/parser.js';
 import type { RAGResult } from './types.js';
+import type { ConductorEnv } from '../../../types/env.js';
 export declare class RAGMember extends BaseAgent {
     private readonly env;
     private ragConfig;
     private chunker;
-    constructor(config: AgentConfig, env: Env);
+    constructor(config: AgentConfig, env: ConductorEnv);
     protected run(context: AgentExecutionContext): Promise<RAGResult>;
     /**
      * Index content into vector database

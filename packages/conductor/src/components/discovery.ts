@@ -163,7 +163,7 @@ export function createAgentRegistry(agents: Map<string, BaseAgent>): AgentRegist
  * Extract metadata from a BaseAgent instance
  */
 function extractAgentMetadata(name: string, agent: BaseAgent): AgentMetadata {
-  const config = agent.getConfig?.() || ({} as any)
+  const config = agent.getConfig?.() || {}
   return {
     name,
     operation: agent.getType?.() || config.operation || 'unknown',

@@ -7,6 +7,7 @@
 import { BaseAIProvider } from './base-provider.js'
 import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider.js'
 import type { ProviderId } from '../../types/branded.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 export class OpenAIProvider extends BaseAIProvider {
   readonly id = 'openai' as ProviderId
@@ -51,7 +52,7 @@ export class OpenAIProvider extends BaseAIProvider {
     }
   }
 
-  getConfigError(config: AIProviderConfig, env: Env): string | null {
+  getConfigError(config: AIProviderConfig, env: ConductorEnv): string | null {
     const apiKey = this.getApiKey(config, env, 'OPENAI_API_KEY')
     if (!apiKey) {
       return 'OpenAI API key not found. Set OPENAI_API_KEY in env or config.apiKey'

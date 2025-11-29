@@ -136,9 +136,10 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
 
   /**
    * Register a Handlebars helper
+   * Uses Handlebars.HelperDelegate signature for type safety
    */
-  registerHelper(name: string, fn: (...args: unknown[]) => unknown): void {
-    this.handlebars.registerHelper(name, fn as any)
+  registerHelper(name: string, fn: import('handlebars').HelperDelegate): void {
+    this.handlebars.registerHelper(name, fn)
   }
 
   /**
@@ -153,7 +154,7 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
    * Extracts variable names from template and provides dummy values
    */
   private createDummyContext(template: string): TemplateContext {
-    const context: TemplateContext = {}
+    const context: Record<string, unknown> = {}
 
     // Find all {{variable}} patterns
     const varRegex = /\{\{([^}#/]+)\}\}/g
@@ -165,7 +166,7 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
       if (!varName.startsWith('#') && !varName.startsWith('/') && !varName.startsWith('!')) {
         // Handle nested variables (e.g., user.name)
         const parts = varName.split('.')
-        let current = context
+        let current: Record<string, unknown> = context
 
         for (let i = 0; i < parts.length; i++) {
           const part = parts[i]
@@ -174,8 +175,10 @@ export class MJMLTemplateEngine extends BaseTemplateEngine {
             current[part] = 'test'
           } else {
             // Create nested object
-            current[part] = current[part] || {}
-            current = current[part]
+            if (!current[part] || typeof current[part] !== 'object') {
+              current[part] = {}
+            }
+            current = current[part] as Record<string, unknown>
           }
         }
       }

@@ -9,6 +9,15 @@ export interface ScrapeConfig {
     blockResources?: boolean;
     userAgent?: string;
     timeout?: number;
+    /**
+     * Allow requests to private/internal IP addresses
+     *
+     * WARNING: Enabling this bypasses SSRF protection and allows scraping
+     * internal network resources. Only enable if you trust the input URLs.
+     *
+     * @default false
+     */
+    allowInternalRequests?: boolean;
 }
 export interface ScrapeInput {
     url: string;

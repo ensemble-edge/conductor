@@ -70,11 +70,13 @@ export class PdfMember extends BaseAgent {
         else if (htmlSource?.fromMember) {
             // Get HTML from previous agent output
             const memberOutput = context.previousOutputs?.[htmlSource.fromMember];
-            if (!memberOutput?.output?.html) {
+            // Type guard for HTML output structure
+            const output = memberOutput?.output;
+            if (!output?.html) {
                 throw new Error(`Agent "${htmlSource.fromMember}" did not produce HTML output. ` +
                     `Make sure it's an HTML agent and executed before this PDF agent.`);
             }
-            html = memberOutput.output.html;
+            html = output.html;
             htmlSize = html.length;
         }
         else if (htmlSource?.template) {
@@ -93,6 +95,7 @@ export class PdfMember extends BaseAgent {
                 },
             };
             const htmlMember = new HtmlMember(htmlMemberConfig);
+            // Create child context (security features injected by BaseAgent.execute)
             const htmlContext = {
                 input: { data: htmlSource.data || {} },
                 env: context.env,
@@ -103,7 +106,12 @@ export class PdfMember extends BaseAgent {
             if (!htmlResponse.success) {
                 throw new Error(`HTML rendering failed: ${htmlResponse.error}`);
             }
-            html = htmlResponse.data.html;
+            // Type-safe access to HTML output
+            const htmlData = htmlResponse.data;
+            if (!htmlData.html) {
+                throw new Error('HTML rendering succeeded but no HTML content was produced');
+            }
+            html = htmlData.html;
             htmlSize = html.length;
         }
         else {
@@ -111,13 +119,13 @@ export class PdfMember extends BaseAgent {
         }
         // Render header/footer templates if they contain variables
         const renderedHeaderFooter = await this.renderHeaderFooter(headerFooter);
-        // Generate PDF
+        // Generate PDF - pass env with BROWSER binding if available
         const pdfResult = await generatePdf({
             html,
             page: pageConfig,
             headerFooter: renderedHeaderFooter,
             metadata,
-        }, context.env);
+        }, { BROWSER: context.env.BROWSER });
         // Store to R2 if configured
         let r2Key;
         let url;

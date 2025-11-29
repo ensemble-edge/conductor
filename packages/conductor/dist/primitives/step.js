@@ -215,7 +215,7 @@ export function thinkStep(name, prompt, options = {}) {
  * })
  * ```
  */
-export function storageStep(name, action, options = {}) {
+export function storageStep(name, action, options = { binding: '' }) {
     const { binding, type, key, value, prefix, ...stepOptions } = options;
     return step(name, {
         ...stepOptions,
@@ -248,7 +248,7 @@ export function storageStep(name, action, options = {}) {
  * })
  * ```
  */
-export function dataStep(name, query, options = {}) {
+export function dataStep(name, query, options = { binding: '' }) {
     const { binding, type, params, ...stepOptions } = options;
     return step(name, {
         ...stepOptions,

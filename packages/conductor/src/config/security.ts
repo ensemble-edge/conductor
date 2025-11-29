@@ -3,6 +3,9 @@
  *
  * Centralized security settings for Conductor API.
  * Controls authentication requirements and execution permissions.
+ *
+ * This module is designed to be stateless - configuration is passed
+ * through Hono context, not stored in global state.
  */
 
 /**
@@ -29,6 +32,17 @@ export interface SecurityConfig {
    * When false, any authenticated user can execute any resource
    */
   autoPermissions: boolean
+
+  /**
+   * Environment names that should be treated as production
+   * In production environments:
+   * - Error messages are sanitized (no internal details leaked)
+   * - Error details are only included for client errors (4xx), not server errors (5xx)
+   *
+   * @default ['production', 'prod']
+   * @example ['production', 'prod', 'live', 'main']
+   */
+  productionEnvironments: string[]
 }
 
 /**
@@ -39,48 +53,38 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   requireAuth: true,
   allowDirectAgentExecution: true,
   autoPermissions: false,
+  productionEnvironments: ['production', 'prod'],
 }
 
-// Global security config (set at startup)
-let securityConfig: SecurityConfig = { ...DEFAULT_SECURITY_CONFIG }
-
 /**
- * Initialize security configuration
- * Called during app startup with config from environment/file
+ * Create a security configuration by merging with defaults
  */
-export function initSecurityConfig(config: Partial<SecurityConfig> = {}): void {
-  securityConfig = {
+export function createSecurityConfig(config: Partial<SecurityConfig> = {}): SecurityConfig {
+  return {
     ...DEFAULT_SECURITY_CONFIG,
     ...config,
   }
 }
 
 /**
- * Get current security configuration
- */
-export function getSecurityConfig(): SecurityConfig {
-  return securityConfig
-}
-
-/**
  * Check if authentication is required for API routes
  */
-export function isAuthRequired(): boolean {
-  return securityConfig.requireAuth
+export function isAuthRequired(config: SecurityConfig): boolean {
+  return config.requireAuth
 }
 
 /**
  * Check if direct agent execution is allowed
  */
-export function isDirectAgentExecutionAllowed(): boolean {
-  return securityConfig.allowDirectAgentExecution
+export function isDirectAgentExecutionAllowed(config: SecurityConfig): boolean {
+  return config.allowDirectAgentExecution
 }
 
 /**
  * Check if auto-permissions are enabled
  */
-export function isAutoPermissionsEnabled(): boolean {
-  return securityConfig.autoPermissions
+export function isAutoPermissionsEnabled(config: SecurityConfig): boolean {
+  return config.autoPermissions
 }
 
 /**
@@ -88,12 +92,48 @@ export function isAutoPermissionsEnabled(): boolean {
  * Returns null if auto-permissions are disabled
  */
 export function getRequiredPermission(
+  config: SecurityConfig,
   resourceType: 'ensemble' | 'agent',
   resourceName: string,
   action: string = 'execute'
 ): string | null {
-  if (!securityConfig.autoPermissions) {
+  if (!config.autoPermissions) {
     return null
   }
   return `${resourceType}:${resourceName}:${action}`
+}
+
+/**
+ * Check if the given environment name is considered a production environment
+ *
+ * @param config - Security configuration
+ * @param environmentName - The environment name to check (e.g., from ENVIRONMENT env var)
+ * @returns true if this environment should be treated as production
+ *
+ * @example
+ * ```typescript
+ * // In error handler
+ * const config = c.get('securityConfig')
+ * const isProduction = isProductionEnvironment(config, env.ENVIRONMENT)
+ * if (isProduction) {
+ *   // Sanitize error messages
+ * }
+ * ```
+ */
+export function isProductionEnvironment(
+  config: SecurityConfig,
+  environmentName: string | undefined
+): boolean {
+  if (!environmentName) {
+    // If no environment is set, default to production behavior (secure by default)
+    return true
+  }
+  return config.productionEnvironments.includes(environmentName.toLowerCase())
+}
+
+/**
+ * Get the list of environment names treated as production
+ */
+export function getProductionEnvironments(config: SecurityConfig): string[] {
+  return config.productionEnvironments
 }

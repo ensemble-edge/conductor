@@ -5,11 +5,12 @@
  */
 import type { EnsembleConfig } from '../parser.js';
 import type { NotificationEvent, NotificationDeliveryResult } from './types.js';
+import type { ConductorEnv } from '../../types/env.js';
 export declare class NotificationManager {
     /**
      * Send notifications for an event
      */
-    static notify(ensemble: EnsembleConfig, event: NotificationEvent, eventData: Record<string, unknown>, env: Env): Promise<NotificationDeliveryResult[]>;
+    static notify(ensemble: EnsembleConfig, event: NotificationEvent, eventData: Record<string, unknown>, env: ConductorEnv): Promise<NotificationDeliveryResult[]>;
     /**
      * Send a single notification
      */
@@ -17,10 +18,10 @@ export declare class NotificationManager {
     /**
      * Emit an event (convenience method for common events)
      */
-    static emitExecutionStarted(ensemble: EnsembleConfig, executionId: string, input: Record<string, unknown>, env: Env): Promise<NotificationDeliveryResult[]>;
-    static emitExecutionCompleted(ensemble: EnsembleConfig, executionId: string, output: unknown, duration: number, env: Env): Promise<NotificationDeliveryResult[]>;
-    static emitExecutionFailed(ensemble: EnsembleConfig, executionId: string, error: Error, duration: number, env: Env): Promise<NotificationDeliveryResult[]>;
-    static emitExecutionTimeout(ensemble: EnsembleConfig, executionId: string, duration: number, timeout: number, env: Env): Promise<NotificationDeliveryResult[]>;
+    static emitExecutionStarted(ensemble: EnsembleConfig, executionId: string, input: Record<string, unknown>, env: ConductorEnv): Promise<NotificationDeliveryResult[]>;
+    static emitExecutionCompleted(ensemble: EnsembleConfig, executionId: string, output: unknown, duration: number, env: ConductorEnv): Promise<NotificationDeliveryResult[]>;
+    static emitExecutionFailed(ensemble: EnsembleConfig, executionId: string, error: Error, duration: number, env: ConductorEnv): Promise<NotificationDeliveryResult[]>;
+    static emitExecutionTimeout(ensemble: EnsembleConfig, executionId: string, duration: number, timeout: number, env: ConductorEnv): Promise<NotificationDeliveryResult[]>;
     static emitAgentCompleted(ensemble: EnsembleConfig, executionId: string, agentName: string, output: unknown, duration: number, env: Env): Promise<NotificationDeliveryResult[]>;
     static emitStateUpdated(ensemble: EnsembleConfig, executionId: string, state: Record<string, unknown>, env: Env): Promise<NotificationDeliveryResult[]>;
 }

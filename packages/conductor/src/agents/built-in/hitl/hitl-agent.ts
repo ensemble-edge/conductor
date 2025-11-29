@@ -22,6 +22,7 @@ import type {
   HITLResumeResult,
   ApprovalState,
 } from './types.js'
+import type { ConductorEnv } from '../../../types/env.js'
 
 const logger = createLogger({ serviceName: 'hitl-agent' })
 
@@ -30,7 +31,7 @@ export class HITLMember extends BaseAgent {
 
   constructor(
     config: AgentConfig,
-    private readonly env: Env
+    private readonly env: ConductorEnv
   ) {
     super(config)
 

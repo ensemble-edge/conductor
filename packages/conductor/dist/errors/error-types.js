@@ -54,8 +54,8 @@ export class ConductorError extends Error {
         this.name = this.constructor.name;
         this.details = details;
         // Maintains proper stack trace for where our error was thrown (only available on V8)
-        if (Error.captureStackTrace) {
-            ;
+        // Use type guard to safely check for V8-specific captureStackTrace
+        if ('captureStackTrace' in Error && typeof Error.captureStackTrace === 'function') {
             Error.captureStackTrace(this, this.constructor);
         }
     }
@@ -68,6 +68,7 @@ export class ConductorError extends Error {
             code: this.code,
             message: this.message,
             isOperational: this.isOperational,
+            ...(this.details && { details: this.details }),
             stack: this.stack,
         };
     }

@@ -17,6 +17,11 @@ import {
   isEnsemble,
   ensembleFromConfig,
 } from '../runtime/parser.js'
+import type { ConductorEnv } from '../types/env.js'
+import type { AgentLoader } from './loader.js'
+import { createLogger } from '../observability/index.js'
+
+const logger = createLogger({ serviceName: 'ensemble-loader' })
 
 export interface EnsembleLoaderConfig {
   /**
@@ -28,7 +33,7 @@ export interface EnsembleLoaderConfig {
   /**
    * Environment context (passed from Worker)
    */
-  env: Env
+  env: ConductorEnv
 
   /**
    * Execution context (passed from Worker)
@@ -39,7 +44,7 @@ export interface EnsembleLoaderConfig {
    * Agent loader instance for registering inline agents
    * Optional - if provided, inline agents will be automatically registered
    */
-  agentLoader?: any
+  agentLoader?: AgentLoader
 }
 
 export interface LoadedEnsemble {
@@ -107,26 +112,22 @@ export class EnsembleLoader {
         if (ensembleDef.instance && isEnsemble(ensembleDef.instance)) {
           // TypeScript ensemble - register directly
           this.registerEnsembleInstance(ensembleDef.instance)
-          console.log(`[EnsembleLoader] Auto-discovered TypeScript ensemble: ${ensembleDef.name}`)
+          logger.debug(`Auto-discovered TypeScript ensemble: ${ensembleDef.name}`)
         } else if (ensembleDef.config) {
           // YAML ensemble - parse and register
           const config = Parser.parseEnsemble(ensembleDef.config)
           this.registerEnsemble(config)
-          console.log(`[EnsembleLoader] Auto-discovered YAML ensemble: ${ensembleDef.name}`)
+          logger.debug(`Auto-discovered YAML ensemble: ${ensembleDef.name}`)
         } else {
-          console.warn(
-            `[EnsembleLoader] Skipping ensemble "${ensembleDef.name}": no config or instance`
-          )
+          logger.warn(`Skipping ensemble "${ensembleDef.name}": no config or instance`)
         }
       } catch (error) {
-        console.error(`[EnsembleLoader] Failed to load ensemble "${ensembleDef.name}":`, error)
+        logger.error(`Failed to load ensemble "${ensembleDef.name}"`, error as Error)
         // Continue with other ensembles even if one fails
       }
     }
 
-    console.log(
-      `[EnsembleLoader] Auto-discovery complete: ${this.loadedEnsembles.size} ensembles loaded`
-    )
+    logger.info(`Auto-discovery complete: ${this.loadedEnsembles.size} ensembles loaded`)
   }
 
   /**
@@ -154,18 +155,17 @@ export class EnsembleLoader {
     if (config.agents && config.agents.length > 0 && this.config.agentLoader) {
       for (const agentDef of config.agents) {
         try {
-          // Register inline agent with the agent loader
-          this.config.agentLoader.registerMember({
-            name: String(agentDef.name),
-            config: agentDef,
-          })
-          console.log(
-            `[EnsembleLoader] Registered inline agent "${agentDef.name}" from ensemble "${config.name}"`
+          // Inline agents are validated AgentConfig objects from the ensemble YAML
+          // Cast to AgentConfig since they follow the same schema
+          const agentConfig = agentDef as import('../runtime/parser.js').AgentConfig
+          this.config.agentLoader.registerAgent(agentConfig)
+          logger.debug(
+            `Registered inline agent "${agentConfig.name}" from ensemble "${config.name}"`
           )
         } catch (error) {
-          console.error(
-            `[EnsembleLoader] Failed to register inline agent "${agentDef.name}":`,
-            error
+          logger.error(
+            `Failed to register inline agent "${(agentDef as {name?: string}).name}"`,
+            error as Error
           )
         }
       }
@@ -210,18 +210,14 @@ export class EnsembleLoader {
     if (ensemble.agents && ensemble.agents.length > 0 && this.config.agentLoader) {
       for (const agentDef of ensemble.agents) {
         try {
-          this.config.agentLoader.registerMember({
-            name: agentDef.name,
-            config: agentDef,
-          })
-          console.log(
-            `[EnsembleLoader] Registered inline agent "${agentDef.name}" from TypeScript ensemble "${ensemble.name}"`
+          // TypeScript ensemble agents follow InlineAgentConfig which is compatible with AgentConfig
+          const agentConfig = agentDef as unknown as import('../runtime/parser.js').AgentConfig
+          this.config.agentLoader.registerAgent(agentConfig)
+          logger.debug(
+            `Registered inline agent "${agentConfig.name}" from TypeScript ensemble "${ensemble.name}"`
           )
         } catch (error) {
-          console.error(
-            `[EnsembleLoader] Failed to register inline agent "${agentDef.name}":`,
-            error
-          )
+          logger.error(`Failed to register inline agent "${agentDef.name}"`, error as Error)
         }
       }
     }

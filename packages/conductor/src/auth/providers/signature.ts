@@ -14,6 +14,8 @@
  */
 
 import type { AuthValidator, AuthValidationResult, AuthContext } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
+import { timingSafeEqual, computeHMAC } from '../utils/crypto.js'
 
 /**
  * Signature validation configuration
@@ -42,59 +44,6 @@ export interface SignatureConfig {
 
   /** Custom payload builder function */
   customPayloadBuilder?: (timestamp: string, body: string) => string
-}
-
-/**
- * Compute HMAC signature using Web Crypto API (Cloudflare Workers compatible)
- */
-async function computeHMAC(
-  message: string,
-  secret: string,
-  algorithm: string = 'sha256'
-): Promise<string> {
-  const encoder = new TextEncoder()
-  const keyData = encoder.encode(secret)
-  const messageData = encoder.encode(message)
-
-  // Map algorithm names to Web Crypto format
-  const algoMap: Record<string, string> = {
-    sha256: 'SHA-256',
-    sha1: 'SHA-1',
-    sha384: 'SHA-384',
-    sha512: 'SHA-512',
-  }
-
-  const cryptoAlgorithm = algoMap[algorithm.toLowerCase()] || 'SHA-256'
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: cryptoAlgorithm },
-    false,
-    ['sign']
-  )
-
-  const signature = await crypto.subtle.sign('HMAC', key, messageData)
-
-  // Convert to hex string
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-/**
- * Timing-safe string comparison to prevent timing attacks
- */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false
-  }
-
-  let result = 0
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  }
-  return result === 0
 }
 
 /**
@@ -148,7 +97,7 @@ export class SignatureValidator implements AuthValidator {
   /**
    * Validate the webhook signature
    */
-  async validate(request: Request, _env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult> {
     const signature = this.extractToken(request)
     const timestamp = request.headers.get(this.config.timestampHeader)
 
@@ -217,8 +166,12 @@ export class SignatureValidator implements AuthValidator {
     // Compute expected signature
     const expectedSignature = await computeHMAC(payload, this.config.secret, this.config.algorithm)
 
-    // Compare signatures (timing-safe)
-    if (!timingSafeEqual(signature.toLowerCase(), expectedSignature.toLowerCase())) {
+    // Compare signatures using timing-safe HMAC comparison
+    const signaturesMatch = await timingSafeEqual(
+      signature.toLowerCase(),
+      expectedSignature.toLowerCase()
+    )
+    if (!signaturesMatch) {
       return {
         valid: false,
         error: 'invalid_token',

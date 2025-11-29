@@ -106,6 +106,35 @@ export interface ValidationResult {
 }
 
 /**
+ * Cloudflare Email binding interface
+ * Matches the Cloudflare Email Workers binding API
+ */
+export interface CloudflareEmailBinding {
+  send(message: CloudflareEmailRequest): Promise<CloudflareEmailResponse>
+}
+
+/**
+ * Cloudflare Email request format
+ */
+export interface CloudflareEmailRequest {
+  from: string | { name?: string; email: string }
+  to: string | string[] | { name?: string; email: string } | { name?: string; email: string }[]
+  subject: string
+  html?: string
+  text?: string
+  headers?: Record<string, string>
+}
+
+/**
+ * Cloudflare Email response format
+ */
+export interface CloudflareEmailResponse {
+  success: boolean
+  messageId?: string
+  error?: string
+}
+
+/**
  * Email provider configuration
  */
 export interface EmailProviderConfig {
@@ -114,8 +143,11 @@ export interface EmailProviderConfig {
 
   /** Cloudflare Email config */
   cloudflare?: {
-    /** Email binding name */
-    binding?: string
+    /**
+     * Email binding - the actual Cloudflare Email Workers binding object
+     * From env bindings e.g., env.EMAIL
+     */
+    binding?: CloudflareEmailBinding
     /** Enable DKIM */
     dkim?: boolean
   }

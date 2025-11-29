@@ -113,7 +113,7 @@ describe('PluginRegistry', () => {
       expect(retrievedMetadata).toEqual(metadata)
     })
 
-    it('should warn when overwriting existing operation', () => {
+    it('should silently allow overwriting existing operations (valid plugin use case)', () => {
       const handler1: OperationHandler = {
         async execute() {
           return { v: 1 }
@@ -125,14 +125,12 @@ describe('PluginRegistry', () => {
         },
       }
 
-      const consoleSpy = vi.spyOn(console, 'warn')
-
+      // Overwriting operations is a valid use case for plugins
+      // (e.g., a plugin overriding a built-in operation)
       registry.register('dup:op', handler1)
       registry.register('dup:op', handler2)
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[PluginRegistry] Overwriting operation: dup:op'
-      )
+      // Second handler should replace the first
       expect(registry.get('dup:op')).toBe(handler2)
     })
   })

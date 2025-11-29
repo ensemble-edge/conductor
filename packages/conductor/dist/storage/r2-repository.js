@@ -91,22 +91,38 @@ export class R2Repository {
                 listOptions.cursor = options.cursor;
             }
             const result = await this.binding.list(listOptions);
-            // Fetch all objects
-            const values = [];
+            // Filter out expired objects first (using metadata from list, no extra API calls)
+            const now = Date.now();
+            const validObjects = [];
+            const expiredKeys = [];
             for (const object of result.objects) {
-                const getResult = await this.get(object.key);
-                if (getResult.success) {
-                    // Check expiration from custom metadata
-                    const expiration = object.customMetadata?.['x-expiration'];
-                    if (expiration) {
-                        const expirationTime = parseInt(expiration, 10);
-                        if (expirationTime < Date.now()) {
-                            // Expired - skip
-                            await this.delete(object.key);
-                            continue;
-                        }
+                const expiration = object.customMetadata?.['x-expiration'];
+                if (expiration) {
+                    const expirationTime = parseInt(expiration, 10);
+                    if (expirationTime < now) {
+                        expiredKeys.push(object.key);
+                        continue;
                     }
-                    values.push(getResult.value);
+                }
+                validObjects.push(object);
+            }
+            // Clean up expired objects in background (don't await - fire and forget)
+            if (expiredKeys.length > 0) {
+                Promise.all(expiredKeys.map((key) => this.binding.delete(key))).catch(() => {
+                    // Ignore cleanup failures - they'll be retried on next list
+                });
+            }
+            // Fetch all valid objects in parallel batches to avoid N+1 queries
+            // Batch size of 10 balances parallelism vs. API rate limits
+            const BATCH_SIZE = 10;
+            const values = [];
+            for (let i = 0; i < validObjects.length; i += BATCH_SIZE) {
+                const batch = validObjects.slice(i, i + BATCH_SIZE);
+                const batchResults = await Promise.all(batch.map((obj) => this.get(obj.key)));
+                for (const getResult of batchResults) {
+                    if (getResult.success) {
+                        values.push(getResult.value);
+                    }
                 }
             }
             return Result.ok(values);

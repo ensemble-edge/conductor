@@ -7,6 +7,7 @@ export { createAuthMiddleware, requireAuth, type ExtendedAuthConfig } from './au
 export { errorHandler } from './error-handler.js'
 export { requestId } from './request-id.js'
 export { timing } from './timing.js'
+export { securityConfig } from './security-config.js'
 
 // Security & headers middleware
 export {

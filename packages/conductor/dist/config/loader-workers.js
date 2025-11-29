@@ -4,9 +4,12 @@
  * Config loading strategies that work in Cloudflare Workers environment.
  * No filesystem dependencies - uses environment variables, direct objects,
  * KV storage, or bundled imports.
+ *
+ * Uses Zod schemas for runtime validation with detailed error messages.
  */
 import { DEFAULT_CONFIG } from './types.js';
 import { Result } from '../types/result.js';
+import { ConductorConfigSchema, formatValidationErrors, } from './schemas.js';
 /**
  * Create configuration from source (Workers-compatible)
  *
@@ -144,8 +147,12 @@ function configFromEnv(env) {
     }
     // Storage config
     if (env.CONDUCTOR_STORAGE_TYPE) {
-        config.storage = config.storage || {};
-        config.storage.type = env.CONDUCTOR_STORAGE_TYPE;
+        const storageType = env.CONDUCTOR_STORAGE_TYPE;
+        // Validate storage type at runtime
+        if (['filesystem', 'kv', 'd1'].includes(storageType)) {
+            config.storage = config.storage || {};
+            config.storage.type = storageType;
+        }
     }
     if (env.CONDUCTOR_STORAGE_PATH) {
         config.storage = config.storage || {};
@@ -196,61 +203,18 @@ function mergeConfig(defaults, user) {
     };
 }
 /**
- * Validate configuration
+ * Validate configuration using Zod schema
+ *
+ * Provides detailed, path-specific error messages for invalid configs.
  */
 function validateConfig(config) {
-    const errors = [];
-    // Validate docs config
-    if (config.docs?.format && !['yaml', 'json'].includes(config.docs.format)) {
-        errors.push(`Invalid docs.format: ${config.docs.format}. Must be 'yaml' or 'json'`);
+    const result = ConductorConfigSchema.safeParse(config);
+    if (result.success) {
+        return Result.ok(result.data);
     }
-    // Validate testing config
-    if (config.testing?.coverage) {
-        const c = config.testing.coverage;
-        if (c.lines !== undefined && (c.lines < 0 || c.lines > 100)) {
-            errors.push(`Invalid testing.coverage.lines: ${c.lines}. Must be between 0 and 100`);
-        }
-        if (c.functions !== undefined && (c.functions < 0 || c.functions > 100)) {
-            errors.push(`Invalid testing.coverage.functions: ${c.functions}. Must be between 0 and 100`);
-        }
-        if (c.branches !== undefined && (c.branches < 0 || c.branches > 100)) {
-            errors.push(`Invalid testing.coverage.branches: ${c.branches}. Must be between 0 and 100`);
-        }
-        if (c.statements !== undefined && (c.statements < 0 || c.statements > 100)) {
-            errors.push(`Invalid testing.coverage.statements: ${c.statements}. Must be between 0 and 100`);
-        }
-    }
-    // Validate observability config
-    if (config.observability?.logging && typeof config.observability.logging === 'object') {
-        const logLevel = config.observability.logging.level;
-        if (logLevel) {
-            const validLevels = ['debug', 'info', 'warn', 'error'];
-            if (!validLevels.includes(logLevel)) {
-                errors.push(`Invalid observability.logging.level: ${logLevel}. Must be one of: ${validLevels.join(', ')}`);
-            }
-        }
-    }
-    // Validate execution config
-    if (config.execution) {
-        if (config.execution.defaultTimeout !== undefined && config.execution.defaultTimeout < 0) {
-            errors.push(`Invalid execution.defaultTimeout: ${config.execution.defaultTimeout}. Must be >= 0`);
-        }
-        if (config.execution.maxHistoryEntries !== undefined &&
-            config.execution.maxHistoryEntries < 0) {
-            errors.push(`Invalid execution.maxHistoryEntries: ${config.execution.maxHistoryEntries}. Must be >= 0`);
-        }
-    }
-    // Validate storage config
-    if (config.storage?.type) {
-        const validTypes = ['filesystem', 'd1', 'kv'];
-        if (!validTypes.includes(config.storage.type)) {
-            errors.push(`Invalid storage.type: ${config.storage.type}. Must be one of: ${validTypes.join(', ')}`);
-        }
-    }
-    if (errors.length > 0) {
-        return Result.err(new Error(`Configuration validation failed:\n${errors.join('\n')}`));
-    }
-    return Result.ok(undefined);
+    // Format validation errors for user-friendly display
+    const errorMessages = formatValidationErrors(result.error);
+    return Result.err(new Error(`Configuration validation failed:\n${errorMessages.join('\n')}`));
 }
 /**
  * Get config value with type safety

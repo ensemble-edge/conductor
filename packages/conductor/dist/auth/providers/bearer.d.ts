@@ -4,29 +4,33 @@
  * JWT token validation for APIs and authenticated services
  *
  * Features:
- * - JWT token validation
+ * - Cryptographic JWT signature verification using jose
+ * - Support for HMAC (HS256/384/512) and RSA (RS256/384/512) algorithms
  * - Issuer/audience verification
  * - Expiration checking
  * - Custom claims extraction
- * - Multiple algorithm support
+ * - JWKS (JSON Web Key Set) support for key rotation
  *
  * @see https://jwt.io
+ * @see https://github.com/panva/jose
  */
+import * as jose from 'jose';
 import type { AuthValidator, AuthValidationResult, TokenPayload } from '../types.js';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Bearer token configuration
  */
 export interface BearerConfig {
-    /** JWT secret or public key */
+    /** JWT secret for HMAC algorithms (HS256, HS384, HS512) */
     secret?: string;
-    /** JWT public key URL (for RS256, etc.) */
-    publicKeyUrl?: string;
-    /** Expected issuer */
+    /** JWKS URL for RSA/EC algorithms - enables automatic key rotation */
+    jwksUrl?: string;
+    /** Expected issuer (validates 'iss' claim) */
     issuer?: string;
-    /** Expected audience */
+    /** Expected audience (validates 'aud' claim) */
     audience?: string;
-    /** Allowed algorithms */
-    algorithms?: string[];
+    /** Allowed algorithms (defaults to ['HS256', 'RS256']) */
+    algorithms?: jose.JWTVerifyOptions['algorithms'];
     /** Custom token decoder (if not using standard JWT) */
     customDecoder?: (token: string) => Promise<TokenPayload>;
 }
@@ -41,21 +45,38 @@ export declare class BearerValidator implements AuthValidator {
      */
     extractToken(request: Request): string | null;
     /**
-     * Decode JWT token (simple base64 decode, no verification yet)
+     * Get JWKS key resolver for RSA/EC algorithms
      */
-    private decodeToken;
+    private getJWKS;
     /**
-     * Verify JWT token
-     * Note: This is a simplified implementation. In production, use a proper JWT library.
+     * Get HMAC secret key for HS256/384/512 algorithms
+     */
+    private getSecretKey;
+    /**
+     * Verify JWT token with cryptographic signature verification
+     *
+     * Uses the jose library to properly verify:
+     * 1. Signature integrity (HMAC or RSA/EC)
+     * 2. Expiration time (exp claim)
+     * 3. Not-before time (nbf claim)
+     * 4. Issuer (iss claim) if configured
+     * 5. Audience (aud claim) if configured
      */
     private verifyToken;
     /**
      * Validate bearer token
      */
-    validate(request: Request, env: any): Promise<AuthValidationResult>;
+    validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult>;
 }
 /**
  * Create Bearer validator from environment
+ *
+ * Environment variables:
+ * - JWT_SECRET: HMAC secret for HS256/384/512 algorithms
+ * - JWT_JWKS_URL: URL to JWKS endpoint for RSA/EC algorithms (supports key rotation)
+ * - JWT_ISSUER: Expected issuer claim
+ * - JWT_AUDIENCE: Expected audience claim
+ * - JWT_ALGORITHMS: Comma-separated list of allowed algorithms
  */
-export declare function createBearerValidator(env: any): BearerValidator | null;
+export declare function createBearerValidator(env: ConductorEnv): BearerValidator | null;
 //# sourceMappingURL=bearer.d.ts.map

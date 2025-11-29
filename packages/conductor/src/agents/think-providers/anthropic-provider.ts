@@ -7,6 +7,7 @@
 import { BaseAIProvider } from './base-provider.js'
 import type { AIProviderConfig, AIProviderRequest, AIProviderResponse } from './base-provider.js'
 import type { ProviderId } from '../../types/branded.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 export class AnthropicProvider extends BaseAIProvider {
   readonly id = 'anthropic' as ProviderId
@@ -80,7 +81,7 @@ export class AnthropicProvider extends BaseAIProvider {
     }
   }
 
-  getConfigError(config: AIProviderConfig, env: Env): string | null {
+  getConfigError(config: AIProviderConfig, env: ConductorEnv): string | null {
     const apiKey = this.getApiKey(config, env, 'ANTHROPIC_API_KEY')
     if (!apiKey) {
       return 'Anthropic API key not found. Set ANTHROPIC_API_KEY in env or config.apiKey'

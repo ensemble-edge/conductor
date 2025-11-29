@@ -14,6 +14,10 @@
  */
 
 import type { AuthValidator, AuthValidationResult, AuthContext, SessionData } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
+import { createLogger } from '../../observability/index.js'
+
+const logger = createLogger({ serviceName: 'auth-cookie' })
 
 /**
  * Cookie session configuration
@@ -84,7 +88,7 @@ export class CookieValidator implements AuthValidator {
   /**
    * Validate cookie session
    */
-  async validate(request: Request, env: any): Promise<AuthValidationResult> {
+  async validate(request: Request, env: ConductorEnv): Promise<AuthValidationResult> {
     const sessionToken = this.extractToken(request)
 
     // No session token provided
@@ -108,7 +112,7 @@ export class CookieValidator implements AuthValidator {
     // Get KV namespace
     const kv = env[this.config.kvNamespace]
     if (!kv) {
-      console.error(`KV namespace "${this.config.kvNamespace}" not found in env`)
+      logger.error(`KV namespace "${this.config.kvNamespace}" not found in env`)
       return {
         valid: false,
         error: 'unknown',
@@ -164,7 +168,7 @@ export class CookieValidator implements AuthValidator {
         context,
       }
     } catch (error) {
-      console.error('Cookie session validation error:', error)
+      logger.error('Cookie session validation error', error as Error)
       return {
         valid: false,
         error: 'unknown',
@@ -249,7 +253,7 @@ export class CookieValidator implements AuthValidator {
 /**
  * Create Cookie validator from environment
  */
-export function createCookieValidator(env: any): CookieValidator | null {
+export function createCookieValidator(env: ConductorEnv): CookieValidator | null {
   // KV namespace must be configured
   const kvNamespace = env.SESSION_KV_NAMESPACE || 'SESSIONS'
 

@@ -172,12 +172,12 @@ function getNestedValue(obj: any, path: string): any {
  * @param source - Object with overrides
  * @returns New merged object
  */
-function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-  const result = { ...target }
+function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
+  const result = { ...target } as Record<string, unknown>
 
   for (const key of Object.keys(source)) {
-    const sourceValue = source[key]
-    const targetValue = target[key]
+    const sourceValue = source[key as keyof typeof source]
+    const targetValue = target[key as keyof T]
 
     if (
       sourceValue !== null &&
@@ -188,12 +188,15 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
       !Array.isArray(targetValue)
     ) {
       // Recursively merge objects
-      ;(result as any)[key] = deepMerge(targetValue, sourceValue)
+      result[key] = deepMerge(
+        targetValue as Record<string, unknown>,
+        sourceValue as Partial<Record<string, unknown>>
+      )
     } else if (sourceValue !== undefined) {
       // Override with source value
-      ;(result as any)[key] = sourceValue
+      result[key] = sourceValue
     }
   }
 
-  return result
+  return result as T
 }

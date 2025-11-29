@@ -39,7 +39,8 @@ export class LiquidTemplateEngine extends BaseTemplateEngine {
             }
             // Handle both structured context {data: {...}} and flat context {...}
             // This ensures compatibility with how the HTML agent passes context
-            const data = context.data !== undefined ? context.data : context;
+            const hasDataProperty = 'data' in context && context.data !== undefined;
+            const data = hasDataProperty ? context.data : context;
             return await this.liquid.render(compiledTemplate, data);
         }
         catch (error) {

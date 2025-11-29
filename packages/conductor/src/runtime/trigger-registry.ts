@@ -11,18 +11,21 @@ import type { z } from 'zod'
 import type { EnsembleConfig } from './parser.js'
 import type { BaseAgent } from '../agents/base-agent.js'
 import { createLogger } from '../observability/index.js'
+import type { ConductorEnv } from '../types/env.js'
 
 const logger = createLogger({ serviceName: 'trigger-registry' })
 
 /**
  * Trigger handler context provided to trigger handlers
+ * Uses generic Hono to accept any app typing (ConductorApp or bare Hono)
  */
 export interface TriggerHandlerContext {
-  app: Hono
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app: Hono<any, any, any>
   ensemble: EnsembleConfig
-  trigger: any // The specific trigger config (typed by handler)
+  trigger: unknown // The specific trigger config (typed by handler)
   agents: BaseAgent[]
-  env: Env
+  env: ConductorEnv
   ctx: ExecutionContext
 }
 
@@ -55,7 +58,8 @@ export interface TriggerMetadata {
    * Zod schema for validating trigger configuration
    * This should be a z.object() schema
    */
-  schema: z.ZodObject<any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: z.ZodObject<z.ZodRawShape, any, any>
 
   /**
    * Whether this trigger requires authentication by default
@@ -162,10 +166,11 @@ export class TriggerRegistry {
    * Called during auto-discovery initialization
    */
   async registerEnsembleTriggers(
-    app: Hono,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    app: Hono<any, any, any>,
     ensemble: EnsembleConfig,
     agents: BaseAgent[],
-    env: Env,
+    env: ConductorEnv,
     ctx: ExecutionContext
   ): Promise<void> {
     if (!ensemble.trigger || ensemble.trigger.length === 0) {

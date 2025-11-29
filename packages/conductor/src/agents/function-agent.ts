@@ -80,7 +80,10 @@ export class FunctionAgent extends BaseAgent {
    */
   static fromConfig(config: AgentConfig): FunctionAgent | null {
     // Check if config has an inline handler function
-    const handler = (config.config as any)?.handler
+    // Handler signature: (input: unknown, context?: AgentExecutionContext) => Promise<unknown> | unknown
+    type InlineHandler = (input: unknown, context?: AgentExecutionContext) => Promise<unknown> | unknown
+    const agentConfig = config.config as { handler?: InlineHandler } | undefined
+    const handler = agentConfig?.handler
 
     if (typeof handler === 'function') {
       // Wrap the handler to match FunctionImplementation signature

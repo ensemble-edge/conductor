@@ -104,10 +104,22 @@ export class ComponentRef {
 
   /**
    * Convert to Git tag format (edgit format)
+   * Uses type-specific namespaces aligned with Edgit's GitTagManager
    */
   toGitTag(): string {
     // Map component types to edgit tag namespaces
-    const namespace = this.type === 'agent' ? 'agents' : `${this.type}s`
+    // Handles special cases: agent → agents, query → queries
+    let namespace: string
+    switch (this.type) {
+      case 'agent':
+        namespace = 'agents'
+        break
+      case 'query':
+        namespace = 'queries' // Special pluralization
+        break
+      default:
+        namespace = `${this.type}s`
+    }
     return `${namespace}/${this.path}/${this.version}`
   }
 

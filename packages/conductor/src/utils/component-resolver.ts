@@ -14,6 +14,10 @@
  * @module component-resolver
  */
 
+import { createLogger } from '../observability/index.js'
+
+const logger = createLogger({ serviceName: 'component-resolver' })
+
 /**
  * Context for component resolution
  */
@@ -211,7 +215,7 @@ async function resolveComponentRef(ref: string, context: ComponentResolutionCont
         }
       }
     } catch (error) {
-      console.warn(`Failed to fetch from Edgit: ${edgitPath}`, error)
+      logger.warn(`Failed to fetch from Edgit: ${edgitPath}`, { error: String(error) })
       // Fall through to COMPONENTS KV
     }
   }
@@ -230,7 +234,7 @@ async function resolveComponentRef(ref: string, context: ComponentResolutionCont
         }
       }
     } catch (error) {
-      console.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, error)
+      logger.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, { error: String(error) })
     }
   }
 

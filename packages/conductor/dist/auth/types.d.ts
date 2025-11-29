@@ -3,6 +3,7 @@
  *
  * Unified authentication system for all routes
  */
+import type { ConductorEnv } from '../types/env.js';
 /**
  * Auth methods supported
  */
@@ -86,7 +87,7 @@ export interface AuthValidator {
     /**
      * Validate authentication
      */
-    validate(request: Request, env: any): Promise<AuthValidationResult>;
+    validate(request: Request, env: ConductorEnv): Promise<AuthValidationResult>;
     /**
      * Extract token/key from request
      */

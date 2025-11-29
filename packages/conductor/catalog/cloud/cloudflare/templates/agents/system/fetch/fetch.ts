@@ -4,7 +4,7 @@
  * HTTP client with configurable retry logic and exponential backoff.
  */
 
-import type { AgentExecutionContext } from '@anthropic/conductor'
+import type { AgentExecutionContext } from '@ensemble-edge/conductor'
 
 // ============================================================================
 // Types

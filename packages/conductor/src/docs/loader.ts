@@ -140,11 +140,13 @@ export class DocsDirectoryLoader {
         // Remove quotes
         value = value.replace(/^["']|["']$/g, '')
 
-        // Parse booleans
-        if (value === 'true') value = true as any
-        else if (value === 'false') value = false as any
-        // Parse numbers
-        else if (/^\d+$/.test(value)) value = parseInt(value, 10) as any
+        // Parse booleans and numbers into proper types
+        let parsedValue: string | number | boolean = value
+        if (value === 'true') parsedValue = true
+        else if (value === 'false') parsedValue = false
+        else if (/^\d+$/.test(value)) parsedValue = parseInt(value, 10)
+
+        value = parsedValue
 
         frontmatter[key] = value
       }

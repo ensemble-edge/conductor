@@ -16,6 +16,8 @@ import type { QueryRegistry } from '../components/queries.js';
 import type { ScriptRegistry } from '../components/scripts.js';
 import type { TemplateRegistry } from '../components/templates.js';
 import type { AgentRegistry, EnsembleRegistry } from '../components/discovery.js';
+import type { SafeFetchOptions } from '../utils/safe-fetch.js';
+import type { ExecutionId, RequestId } from '../types/branded.js';
 /**
  * Execution context passed to agents
  *
@@ -73,13 +75,15 @@ export interface AgentExecutionContext {
     /**
      * Unique execution ID for tracing
      * Same across all agents in an ensemble execution
+     * Branded type ensures type safety - use ExecutionId.unwrap() to get string
      */
-    executionId?: string;
+    executionId?: ExecutionId;
     /**
      * Unique request ID
      * Same across the entire HTTP request lifecycle
+     * Branded type ensures type safety - use RequestId.unwrap() to get string
      */
-    requestId?: string;
+    requestId?: RequestId;
     /**
      * Authentication context from the request
      * Available when request was authenticated via trigger auth or API middleware
@@ -332,6 +336,40 @@ export interface AgentExecutionContext {
      * ```
      */
     ensembleRegistry?: EnsembleRegistry;
+    /**
+     * SSRF-protected fetch function for making HTTP requests
+     *
+     * **ALWAYS use this instead of the global `fetch()`** when making requests
+     * to URLs that come from user input or external sources.
+     *
+     * By default, this blocks requests to:
+     * - Private IP ranges (10.x, 172.16.x, 192.168.x)
+     * - Localhost (127.0.0.1, ::1)
+     * - Cloud metadata services (169.254.169.254)
+     * - Internal hostnames (.local, .internal)
+     *
+     * @example
+     * ```typescript
+     * export default async function(context: AgentExecutionContext) {
+     *   const { fetch, input } = context
+     *
+     *   // Safe - SSRF protection is automatic
+     *   const response = await fetch(input.url)
+     *   const data = await response.json()
+     *
+     *   return { data }
+     * }
+     * ```
+     *
+     * @example
+     * ```typescript
+     * // If you MUST access internal URLs (use with extreme caution!)
+     * const response = await fetch(internalUrl, {
+     *   allowInternalRequests: true
+     * })
+     * ```
+     */
+    fetch?: (input: string | URL | Request, init?: SafeFetchOptions) => Promise<Response>;
 }
 export interface AgentResponse {
     success: boolean;
@@ -344,12 +382,25 @@ export interface AgentResponse {
     metadata?: Record<string, unknown>;
 }
 /**
+ * Security settings for agents
+ * Read from AgentConfig.security and used to control automatic security features
+ */
+export interface AgentSecuritySettings {
+    /**
+     * Enable SSRF protection for fetch requests
+     * When true (default), requests to private IPs, localhost, and metadata services are blocked
+     * @default true
+     */
+    ssrf: boolean;
+}
+/**
  * Base class for all agent types
  */
 export declare abstract class BaseAgent {
     protected config: AgentConfig;
     protected name: string;
     protected type: string;
+    protected security: AgentSecuritySettings;
     constructor(config: AgentConfig);
     /**
      * Execute the agent with given input and context
@@ -357,6 +408,17 @@ export declare abstract class BaseAgent {
      * @returns Agent response
      */
     execute(context: AgentExecutionContext): Promise<AgentResponse>;
+    /**
+     * Enrich the execution context with automatic security features
+     *
+     * This method injects security utilities into the context based on
+     * the agent's security settings. Developers don't need to remember
+     * to add these - they're automatic.
+     *
+     * @param context - Original execution context
+     * @returns Enriched context with security features
+     */
+    protected enrichContext(context: AgentExecutionContext): AgentExecutionContext;
     /**
      * Abstract method to be implemented by each agent type
      * @param context - Execution context

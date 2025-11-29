@@ -104,18 +104,26 @@ export class ThinkAgent extends BaseAgent {
         // Render template variables in systemPrompt (e.g., {{input.name}})
         // Uses configurable template engine (simple or liquid) - both are Cloudflare Workers compatible
         if (this.thinkConfig.systemPrompt) {
-            console.log('[ThinkAgent] BEFORE template rendering:', this.thinkConfig.systemPrompt);
-            console.log('[ThinkAgent] Input data:', JSON.stringify(input));
+            const logger = context.logger;
+            logger?.debug('Template rendering started', {
+                agentName: this.getName(),
+                templateLength: this.thinkConfig.systemPrompt.length,
+            });
             try {
                 this.thinkConfig.systemPrompt = await this.templateEngine.render(this.thinkConfig.systemPrompt, {
                     input,
                     env,
                     context,
                 });
-                console.log('[ThinkAgent] AFTER template rendering:', this.thinkConfig.systemPrompt);
+                logger?.debug('Template rendering completed', {
+                    agentName: this.getName(),
+                    renderedLength: this.thinkConfig.systemPrompt.length,
+                });
             }
             catch (error) {
-                console.error('[ThinkAgent] Template rendering error:', error);
+                logger?.error('Template rendering failed', error instanceof Error ? error : undefined, {
+                    agentName: this.getName(),
+                });
                 throw new Error(`Failed to render systemPrompt template: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
@@ -149,7 +157,7 @@ export class ThinkAgent extends BaseAgent {
         const response = await provider.execute({
             messages,
             config: providerConfig,
-            env: env,
+            env,
         });
         // Transform to user-friendly output structure
         return this.buildOutput(response);

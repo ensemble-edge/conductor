@@ -225,11 +225,29 @@ describe('getValidatorForTrigger', () => {
   })
 
   describe('apiKey type', () => {
-    it('should create API key validator', () => {
+    it('should throw if API_KEYS KV not configured', () => {
       const config: TriggerAuthConfig = {
         type: 'apiKey',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      // Without API_KEYS KV namespace, should throw
+      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow(
+        'API key auth requires API_KEYS KV namespace to be configured'
+      )
+    })
+
+    it('should create API key validator when KV is configured', () => {
+      const mockKVNamespace = {
+        get: vi.fn(),
+        put: vi.fn(),
+        delete: vi.fn(),
+        list: vi.fn(),
+        getWithMetadata: vi.fn(),
+      }
+      const envWithKV = { ...mockEnv, API_KEYS: mockKVNamespace }
+      const config: TriggerAuthConfig = {
+        type: 'apiKey',
+      }
+      const validator = getValidatorForTrigger(config, envWithKV as any)
       expect(validator).toBeDefined()
     })
   })

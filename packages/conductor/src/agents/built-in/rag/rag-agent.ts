@@ -20,6 +20,7 @@ import type {
   RAGSearchResult,
 } from './types.js'
 import { Chunker } from './chunker.js'
+import type { ConductorEnv } from '../../../types/env.js'
 
 export class RAGMember extends BaseAgent {
   private ragConfig: RAGConfig
@@ -27,7 +28,7 @@ export class RAGMember extends BaseAgent {
 
   constructor(
     config: AgentConfig,
-    private readonly env: Env
+    private readonly env: ConductorEnv
   ) {
     super(config)
 

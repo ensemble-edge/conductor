@@ -14,6 +14,7 @@ import {
   requestId,
   timing,
   securityHeaders,
+  securityConfig as securityConfigMiddleware,
   conductorHeader,
   debugHeaders,
   apiSecurityPreset,
@@ -37,7 +38,8 @@ import { openapi } from './openapi/index.js'
 import { ScheduleManager, type ScheduledEvent } from '../runtime/schedule-manager.js'
 import { CatalogLoader } from '../runtime/catalog-loader.js'
 import { createLogger } from '../observability/index.js'
-import { initSecurityConfig } from '../config/security.js'
+import type { SecurityConfig } from '../config/security.js'
+import type { ConductorEnv } from '../types/env.js'
 
 const appLogger = createLogger({ serviceName: 'api-app' })
 
@@ -139,18 +141,21 @@ export interface APIConfig {
   }
 }
 
+/** Typed Hono app with Conductor context */
+export type ConductorApp = Hono<{ Bindings: ConductorEnv; Variables: ConductorContext['var'] }>
+
 /**
  * Create Conductor API application
  */
-export function createConductorAPI(config: APIConfig = {}): Hono {
-  const app = new Hono<{ Bindings: Env }>()
+export function createConductorAPI(config: APIConfig = {}): ConductorApp {
+  const app = new Hono<{ Bindings: ConductorEnv; Variables: ConductorContext['var'] }>()
 
-  // Initialize security configuration
-  initSecurityConfig({
+  // Build security configuration (to be injected via middleware)
+  const securityConfig: Partial<SecurityConfig> = {
     requireAuth: config.auth?.requireAuth ?? true, // SECURE BY DEFAULT
     allowDirectAgentExecution: config.security?.allowDirectAgentExecution ?? true,
     autoPermissions: config.security?.autoPermissions ?? false,
-  })
+  }
 
   // ==================== Global Middleware ====================
 
@@ -159,6 +164,9 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
 
   // Timing
   app.use('*', timing())
+
+  // Security configuration (injected into context for all routes)
+  app.use('*', securityConfigMiddleware(securityConfig))
 
   // Logger (if enabled)
   if (config.logging !== false) {
@@ -313,7 +321,7 @@ export function createConductorAPI(config: APIConfig = {}): Hono {
     )
   })
 
-  return app as any
+  return app
 }
 
 /**
@@ -348,13 +356,16 @@ async function initializeScheduleManager(env: Env): Promise<ScheduleManager> {
  */
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Cast env to ConductorEnv for typed access to environment variables
+    const conductorEnv = env as ConductorEnv
+
     // Create API with config from environment
     const config: APIConfig = {
       auth: {
-        apiKeys: (env as any).API_KEYS ? ((env as any).API_KEYS as string).split(',') : [],
-        allowAnonymous: (env as any).ALLOW_ANONYMOUS === 'true',
+        apiKeys: conductorEnv.API_KEYS ? conductorEnv.API_KEYS.split(',') : [],
+        allowAnonymous: conductorEnv.ALLOW_ANONYMOUS === 'true',
       },
-      logging: (env as any).DISABLE_LOGGING !== 'true',
+      logging: conductorEnv.DISABLE_LOGGING !== 'true',
     }
 
     const app = createConductorAPI(config)

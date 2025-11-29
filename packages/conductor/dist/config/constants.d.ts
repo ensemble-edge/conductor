@@ -29,6 +29,8 @@ export declare const TTL: {
     readonly CACHE_DEFAULT: 3600;
     /** Short-lived cache (5 minutes) */
     readonly CACHE_SHORT: 300;
+    /** Medium-lived cache (15 minutes) */
+    readonly CACHE_MEDIUM: 900;
     /** Long-lived cache (24 hours) */
     readonly CACHE_LONG: 86400;
     /** Session memory TTL (1 hour) */
@@ -37,6 +39,12 @@ export declare const TTL: {
     readonly RESUMPTION_TOKEN: 86400;
     /** Analytical memory cache (5 minutes) */
     readonly ANALYTICAL_CACHE: 300;
+    /** Query result cache - analytics queries (1 hour) */
+    readonly QUERY_ANALYTICS: 3600;
+    /** Query result cache - lookup queries (15 minutes) */
+    readonly QUERY_LOOKUP: 900;
+    /** Query result cache - list queries (5 minutes) */
+    readonly QUERY_LIST: 300;
 };
 /**
  * Retry Configuration
@@ -108,6 +116,8 @@ export declare const ConductorConfig: {
         readonly CACHE_DEFAULT: 3600;
         /** Short-lived cache (5 minutes) */
         readonly CACHE_SHORT: 300;
+        /** Medium-lived cache (15 minutes) */
+        readonly CACHE_MEDIUM: 900;
         /** Long-lived cache (24 hours) */
         readonly CACHE_LONG: 86400;
         /** Session memory TTL (1 hour) */
@@ -116,6 +126,12 @@ export declare const ConductorConfig: {
         readonly RESUMPTION_TOKEN: 86400;
         /** Analytical memory cache (5 minutes) */
         readonly ANALYTICAL_CACHE: 300;
+        /** Query result cache - analytics queries (1 hour) */
+        readonly QUERY_ANALYTICS: 3600;
+        /** Query result cache - lookup queries (15 minutes) */
+        readonly QUERY_LOOKUP: 900;
+        /** Query result cache - list queries (5 minutes) */
+        readonly QUERY_LIST: 300;
     };
     readonly retry: {
         /** Default number of retries for failed operations */

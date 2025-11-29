@@ -195,7 +195,7 @@ export class EmailNotifier {
     /**
      * Send email using MailChannels API
      */
-    async sendEmail(emailData, env) {
+    async sendEmail(emailData, _env) {
         // Use MailChannels API (free for Cloudflare Workers)
         const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
             method: 'POST',

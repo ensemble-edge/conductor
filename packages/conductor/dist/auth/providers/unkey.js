@@ -13,6 +13,8 @@
  *
  * @see https://unkey.dev
  */
+import { createLogger } from '../../observability/index.js';
+const logger = createLogger({ serviceName: 'auth-unkey' });
 /**
  * Unkey Auth Validator
  */
@@ -97,7 +99,10 @@ export class UnkeyValidator {
                 }),
             });
             if (!response.ok) {
-                console.error('Unkey API error:', response.status, response.statusText);
+                logger.error('Unkey API error', undefined, {
+                    status: response.status,
+                    statusText: response.statusText,
+                });
                 return {
                     valid: false,
                     error: 'unknown',
@@ -148,7 +153,7 @@ export class UnkeyValidator {
             };
         }
         catch (error) {
-            console.error('Unkey validation error:', error);
+            logger.error('Unkey validation error', error);
             return {
                 valid: false,
                 error: 'unknown',

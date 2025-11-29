@@ -190,29 +190,30 @@ declare const EnsembleSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: "webhook";
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
     }, {
         type: "webhook";
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
     }>, z.ZodObject<{
         type: z.ZodLiteral<"mcp">;
+        toolName: z.ZodOptional<z.ZodString>;
         auth: z.ZodOptional<z.ZodObject<{
             type: z.ZodEnum<["bearer", "oauth"]>;
             secret: z.ZodOptional<z.ZodString>;
@@ -226,18 +227,20 @@ declare const EnsembleSchema: z.ZodObject<{
         public: z.ZodOptional<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         type: "mcp";
+        public?: boolean | undefined;
         auth?: {
             type: "bearer" | "oauth";
             secret?: string | undefined;
         } | undefined;
-        public?: boolean | undefined;
+        toolName?: string | undefined;
     }, {
         type: "mcp";
+        public?: boolean | undefined;
         auth?: {
             type: "bearer" | "oauth";
             secret?: string | undefined;
         } | undefined;
-        public?: boolean | undefined;
+        toolName?: string | undefined;
     }>, z.ZodObject<{
         type: z.ZodLiteral<"email">;
         addresses: z.ZodArray<z.ZodString, "many">;
@@ -253,18 +256,18 @@ declare const EnsembleSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: "email";
         addresses: string[];
+        public?: boolean | undefined;
         auth?: {
             from: string[];
         } | undefined;
-        public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
     }, {
         type: "email";
         addresses: string[];
+        public?: boolean | undefined;
         auth?: {
             from: string[];
         } | undefined;
-        public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
     }>, z.ZodObject<{
         type: z.ZodLiteral<"queue">;
@@ -294,15 +297,15 @@ declare const EnsembleSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: "cron";
         cron: string;
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         timezone?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     }, {
         type: "cron";
         cron: string;
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         timezone?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     }>, z.ZodObject<{
@@ -372,14 +375,14 @@ declare const EnsembleSchema: z.ZodObject<{
             tags: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
             keyGenerator: z.ZodOptional<z.ZodFunction<z.ZodTuple<[], z.ZodUnknown>, z.ZodUnknown>>;
         }, "strip", z.ZodTypeAny, {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         }, {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
@@ -442,20 +445,20 @@ declare const EnsembleSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: "http";
         cache?: {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         paths?: {
@@ -492,20 +495,20 @@ declare const EnsembleSchema: z.ZodObject<{
     }, {
         type: "http";
         cache?: {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         paths?: {
@@ -547,14 +550,14 @@ declare const EnsembleSchema: z.ZodObject<{
         metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     }, "strip", z.ZodTypeAny, {
         type: "build";
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
         output?: string | undefined;
     }, {
         type: "build";
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
         output?: string | undefined;
     }>, z.ZodObject<{
@@ -591,8 +594,8 @@ declare const EnsembleSchema: z.ZodObject<{
             required?: boolean | undefined;
             description?: string | undefined;
         }[] | undefined;
-        description?: string | undefined;
         enabled?: boolean | undefined;
+        description?: string | undefined;
     }, {
         type: "cli";
         command: string;
@@ -603,34 +606,35 @@ declare const EnsembleSchema: z.ZodObject<{
             required?: boolean | undefined;
             description?: string | undefined;
         }[] | undefined;
-        description?: string | undefined;
         enabled?: boolean | undefined;
+        description?: string | undefined;
     }>]>, "many">>, ({
         type: "webhook";
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
     } | {
         type: "mcp";
+        public?: boolean | undefined;
         auth?: {
             type: "bearer" | "oauth";
             secret?: string | undefined;
         } | undefined;
-        public?: boolean | undefined;
+        toolName?: string | undefined;
     } | {
         type: "email";
         addresses: string[];
+        public?: boolean | undefined;
         auth?: {
             from: string[];
         } | undefined;
-        public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
     } | {
         queue: string;
@@ -641,27 +645,27 @@ declare const EnsembleSchema: z.ZodObject<{
     } | {
         type: "cron";
         cron: string;
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         timezone?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         paths?: {
@@ -697,8 +701,8 @@ declare const EnsembleSchema: z.ZodObject<{
         templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     } | {
         type: "build";
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
         output?: string | undefined;
     } | {
@@ -711,34 +715,35 @@ declare const EnsembleSchema: z.ZodObject<{
             required?: boolean | undefined;
             description?: string | undefined;
         }[] | undefined;
-        description?: string | undefined;
         enabled?: boolean | undefined;
+        description?: string | undefined;
     })[] | undefined, ({
         type: "webhook";
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
     } | {
         type: "mcp";
+        public?: boolean | undefined;
         auth?: {
             type: "bearer" | "oauth";
             secret?: string | undefined;
         } | undefined;
-        public?: boolean | undefined;
+        toolName?: string | undefined;
     } | {
         type: "email";
         addresses: string[];
+        public?: boolean | undefined;
         auth?: {
             from: string[];
         } | undefined;
-        public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
     } | {
         queue: string;
@@ -749,27 +754,27 @@ declare const EnsembleSchema: z.ZodObject<{
     } | {
         type: "cron";
         cron: string;
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         timezone?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         paths?: {
@@ -805,8 +810,8 @@ declare const EnsembleSchema: z.ZodObject<{
         templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     } | {
         type: "build";
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
         output?: string | undefined;
     } | {
@@ -819,8 +824,8 @@ declare const EnsembleSchema: z.ZodObject<{
             required?: boolean | undefined;
             description?: string | undefined;
         }[] | undefined;
-        description?: string | undefined;
         enabled?: boolean | undefined;
+        description?: string | undefined;
     })[] | undefined>;
     notifications: z.ZodOptional<z.ZodArray<z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
         type: z.ZodLiteral<"webhook">;
@@ -929,8 +934,8 @@ declare const EnsembleSchema: z.ZodObject<{
         /** Per-step logging overrides (keyed by step agent name or ID) */
         steps: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodRecord<z.ZodString, z.ZodUnknown>>>;
     }, "strip", z.ZodTypeAny, {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
         steps?: Record<string, Record<string, unknown>> | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
         trace?: {
             enabled?: boolean | undefined;
             includeInputs?: boolean | undefined;
@@ -939,8 +944,8 @@ declare const EnsembleSchema: z.ZodObject<{
             redactOutputs?: string[] | undefined;
         } | undefined;
     }, {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
         steps?: Record<string, Record<string, unknown>> | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
         trace?: {
             enabled?: boolean | undefined;
             includeInputs?: boolean | undefined;
@@ -991,11 +996,11 @@ declare const EnsembleSchema: z.ZodObject<{
         enabled: z.ZodOptional<z.ZodBoolean>;
         samplingRate: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
-        enabled?: boolean | undefined;
         samplingRate?: number | undefined;
+        enabled?: boolean | undefined;
     }, {
-        enabled?: boolean | undefined;
         samplingRate?: number | undefined;
+        enabled?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
@@ -1013,32 +1018,53 @@ declare const EnsembleSchema: z.ZodObject<{
         trackInState?: boolean | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
     } | undefined;
+    logging?: {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
+        steps?: Record<string, Record<string, unknown>> | undefined;
+        trace?: {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        } | undefined;
+    } | undefined;
+    metrics?: {
+        custom?: {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    } | undefined;
     trigger?: ({
         type: "webhook";
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
     } | {
         type: "mcp";
+        public?: boolean | undefined;
         auth?: {
             type: "bearer" | "oauth";
             secret?: string | undefined;
         } | undefined;
-        public?: boolean | undefined;
+        toolName?: string | undefined;
     } | {
         type: "email";
         addresses: string[];
+        public?: boolean | undefined;
         auth?: {
             from: string[];
         } | undefined;
-        public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
     } | {
         queue: string;
@@ -1049,27 +1075,27 @@ declare const EnsembleSchema: z.ZodObject<{
     } | {
         type: "cron";
         cron: string;
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         timezone?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         paths?: {
@@ -1105,8 +1131,8 @@ declare const EnsembleSchema: z.ZodObject<{
         templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     } | {
         type: "build";
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
         output?: string | undefined;
     } | {
@@ -1119,8 +1145,8 @@ declare const EnsembleSchema: z.ZodObject<{
             required?: boolean | undefined;
             description?: string | undefined;
         }[] | undefined;
-        description?: string | undefined;
         enabled?: boolean | undefined;
+        description?: string | undefined;
     })[] | undefined;
     state?: {
         schema?: Record<string, unknown> | undefined;
@@ -1155,29 +1181,9 @@ declare const EnsembleSchema: z.ZodObject<{
     agents?: Record<string, unknown>[] | undefined;
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
-    logging?: {
-        steps?: Record<string, Record<string, unknown>> | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
-        trace?: {
-            enabled?: boolean | undefined;
-            includeInputs?: boolean | undefined;
-            includeOutputs?: boolean | undefined;
-            redactInputs?: string[] | undefined;
-            redactOutputs?: string[] | undefined;
-        } | undefined;
-    } | undefined;
-    metrics?: {
-        custom?: {
-            name: string;
-            value?: string | undefined;
-            type?: "counter" | "histogram" | "gauge" | undefined;
-            condition?: string | undefined;
-        }[] | undefined;
-        enabled?: boolean | undefined;
-    } | undefined;
     tracing?: {
-        enabled?: boolean | undefined;
         samplingRate?: number | undefined;
+        enabled?: boolean | undefined;
     } | undefined;
 }, {
     name: string;
@@ -1195,32 +1201,53 @@ declare const EnsembleSchema: z.ZodObject<{
         trackInState?: boolean | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
     } | undefined;
+    logging?: {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
+        steps?: Record<string, Record<string, unknown>> | undefined;
+        trace?: {
+            enabled?: boolean | undefined;
+            includeInputs?: boolean | undefined;
+            includeOutputs?: boolean | undefined;
+            redactInputs?: string[] | undefined;
+            redactOutputs?: string[] | undefined;
+        } | undefined;
+    } | undefined;
+    metrics?: {
+        custom?: {
+            name: string;
+            value?: string | undefined;
+            type?: "counter" | "histogram" | "gauge" | undefined;
+            condition?: string | undefined;
+        }[] | undefined;
+        enabled?: boolean | undefined;
+    } | undefined;
     trigger?: ({
         type: "webhook";
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
     } | {
         type: "mcp";
+        public?: boolean | undefined;
         auth?: {
             type: "bearer" | "oauth";
             secret?: string | undefined;
         } | undefined;
-        public?: boolean | undefined;
+        toolName?: string | undefined;
     } | {
         type: "email";
         addresses: string[];
+        public?: boolean | undefined;
         auth?: {
             from: string[];
         } | undefined;
-        public?: boolean | undefined;
         reply_with_output?: boolean | undefined;
     } | {
         queue: string;
@@ -1231,27 +1258,27 @@ declare const EnsembleSchema: z.ZodObject<{
     } | {
         type: "cron";
         cron: string;
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         timezone?: string | undefined;
         metadata?: Record<string, unknown> | undefined;
     } | {
         type: "http";
         cache?: {
-            ttl: number;
             enabled: boolean;
+            ttl: number;
             vary?: string[] | undefined;
             tags?: string[] | undefined;
             keyGenerator?: ((...args: unknown[]) => unknown) | undefined;
         } | undefined;
         path?: string | undefined;
+        public?: boolean | undefined;
         timeout?: number | undefined;
         methods?: ("POST" | "GET" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS")[] | undefined;
         auth?: {
             type: "bearer" | "signature" | "basic";
             secret: string;
         } | undefined;
-        public?: boolean | undefined;
         mode?: "trigger" | "resume" | undefined;
         async?: boolean | undefined;
         paths?: {
@@ -1287,8 +1314,8 @@ declare const EnsembleSchema: z.ZodObject<{
         templateEngine?: "handlebars" | "liquid" | "simple" | undefined;
     } | {
         type: "build";
-        input?: Record<string, unknown> | undefined;
         enabled?: boolean | undefined;
+        input?: Record<string, unknown> | undefined;
         metadata?: Record<string, unknown> | undefined;
         output?: string | undefined;
     } | {
@@ -1301,8 +1328,8 @@ declare const EnsembleSchema: z.ZodObject<{
             required?: boolean | undefined;
             description?: string | undefined;
         }[] | undefined;
-        description?: string | undefined;
         enabled?: boolean | undefined;
+        description?: string | undefined;
     })[] | undefined;
     state?: {
         schema?: Record<string, unknown> | undefined;
@@ -1337,29 +1364,9 @@ declare const EnsembleSchema: z.ZodObject<{
     agents?: Record<string, unknown>[] | undefined;
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
-    logging?: {
-        steps?: Record<string, Record<string, unknown>> | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
-        trace?: {
-            enabled?: boolean | undefined;
-            includeInputs?: boolean | undefined;
-            includeOutputs?: boolean | undefined;
-            redactInputs?: string[] | undefined;
-            redactOutputs?: string[] | undefined;
-        } | undefined;
-    } | undefined;
-    metrics?: {
-        custom?: {
-            name: string;
-            value?: string | undefined;
-            type?: "counter" | "histogram" | "gauge" | undefined;
-            condition?: string | undefined;
-        }[] | undefined;
-        enabled?: boolean | undefined;
-    } | undefined;
     tracing?: {
-        enabled?: boolean | undefined;
         samplingRate?: number | undefined;
+        enabled?: boolean | undefined;
     } | undefined;
 }>;
 declare const AgentSchema: z.ZodObject<{
@@ -1403,25 +1410,25 @@ declare const AgentSchema: z.ZodObject<{
             onCacheHit?: boolean | undefined;
         }>>;
     }, "strip", z.ZodTypeAny, {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
         events?: {
             onStart?: boolean | undefined;
             onComplete?: boolean | undefined;
             onError?: boolean | undefined;
             onCacheHit?: boolean | undefined;
         } | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
-        context?: string[] | undefined;
-        redact?: string[] | undefined;
     }, {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
         events?: {
             onStart?: boolean | undefined;
             onComplete?: boolean | undefined;
             onError?: boolean | undefined;
             onCacheHit?: boolean | undefined;
         } | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
-        context?: string[] | undefined;
-        redact?: string[] | undefined;
     }>>;
     /** Agent-level metrics configuration */
     metrics: z.ZodOptional<z.ZodObject<{
@@ -1456,25 +1463,32 @@ declare const AgentSchema: z.ZodObject<{
         }[] | undefined;
         enabled?: boolean | undefined;
     }>>;
+    /** Security settings for the agent */
+    security: z.ZodOptional<z.ZodObject<{
+        /**
+         * Enable SSRF protection for fetch requests
+         * When true (default), requests to private IPs, localhost, and metadata services are blocked
+         * @default true
+         */
+        ssrf: z.ZodOptional<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        ssrf?: boolean | undefined;
+    }, {
+        ssrf?: boolean | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
-    operation: Operation;
     name: string;
-    config?: Record<string, unknown> | undefined;
-    schema?: {
-        input?: Record<string, unknown> | undefined;
-        output?: Record<string, unknown> | undefined;
-    } | undefined;
-    description?: string | undefined;
+    operation: Operation;
     logging?: {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
         events?: {
             onStart?: boolean | undefined;
             onComplete?: boolean | undefined;
             onError?: boolean | undefined;
             onCacheHit?: boolean | undefined;
         } | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
-        context?: string[] | undefined;
-        redact?: string[] | undefined;
     } | undefined;
     metrics?: {
         custom?: {
@@ -1483,26 +1497,29 @@ declare const AgentSchema: z.ZodObject<{
             type?: "counter" | "histogram" | "gauge" | undefined;
         }[] | undefined;
         enabled?: boolean | undefined;
+    } | undefined;
+    config?: Record<string, unknown> | undefined;
+    schema?: {
+        input?: Record<string, unknown> | undefined;
+        output?: Record<string, unknown> | undefined;
+    } | undefined;
+    description?: string | undefined;
+    security?: {
+        ssrf?: boolean | undefined;
     } | undefined;
 }, {
-    operation: Operation;
     name: string;
-    config?: Record<string, unknown> | undefined;
-    schema?: {
-        input?: Record<string, unknown> | undefined;
-        output?: Record<string, unknown> | undefined;
-    } | undefined;
-    description?: string | undefined;
+    operation: Operation;
     logging?: {
+        level?: "debug" | "info" | "warn" | "error" | undefined;
+        context?: string[] | undefined;
+        redact?: string[] | undefined;
         events?: {
             onStart?: boolean | undefined;
             onComplete?: boolean | undefined;
             onError?: boolean | undefined;
             onCacheHit?: boolean | undefined;
         } | undefined;
-        level?: "error" | "debug" | "info" | "warn" | undefined;
-        context?: string[] | undefined;
-        redact?: string[] | undefined;
     } | undefined;
     metrics?: {
         custom?: {
@@ -1511,6 +1528,15 @@ declare const AgentSchema: z.ZodObject<{
             type?: "counter" | "histogram" | "gauge" | undefined;
         }[] | undefined;
         enabled?: boolean | undefined;
+    } | undefined;
+    config?: Record<string, unknown> | undefined;
+    schema?: {
+        input?: Record<string, unknown> | undefined;
+        output?: Record<string, unknown> | undefined;
+    } | undefined;
+    description?: string | undefined;
+    security?: {
+        ssrf?: boolean | undefined;
     } | undefined;
 }>;
 export type EnsembleConfig = z.infer<typeof EnsembleSchema>;

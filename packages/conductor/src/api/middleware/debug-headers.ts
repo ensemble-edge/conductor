@@ -9,6 +9,7 @@
 
 import type { MiddlewareHandler } from 'hono'
 import type { ConductorContext } from '../types.js'
+import type { ConductorEnv } from '../../types/env.js'
 
 /**
  * Debug headers configuration
@@ -82,9 +83,8 @@ export function debugHeaders(config?: DebugHeadersConfig): MiddlewareHandler {
     await next()
 
     // Determine if debug headers should be added
-    // Cast env to check for ENVIRONMENT/NODE_ENV vars
-    const envAny = c.env as unknown as Record<string, unknown> | undefined
-    const isProduction = envAny?.ENVIRONMENT === 'production' || envAny?.NODE_ENV === 'production'
+    // Access typed environment variables from ConductorEnv
+    const isProduction = c.env?.ENVIRONMENT === 'production' || c.env?.NODE_ENV === 'production'
     const enabled = config?.enabled ?? !isProduction
 
     if (!enabled) return
@@ -132,11 +132,11 @@ export function debugHeaders(config?: DebugHeadersConfig): MiddlewareHandler {
 /**
  * Check if environment is production
  */
-export function isProductionEnvironment(env?: Env): boolean {
+export function isProductionEnvironment(env?: ConductorEnv): boolean {
   if (!env) return false
   return (
-    (env as any).ENVIRONMENT === 'production' ||
-    (env as any).NODE_ENV === 'production' ||
-    (env as any).CF_PAGES_BRANCH === 'main'
+    env.ENVIRONMENT === 'production' ||
+    env.NODE_ENV === 'production' ||
+    env.CF_PAGES_BRANCH === 'main'
   )
 }

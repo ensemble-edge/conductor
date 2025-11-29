@@ -35,8 +35,9 @@ export declare class MJMLTemplateEngine extends BaseTemplateEngine {
     }>;
     /**
      * Register a Handlebars helper
+     * Uses Handlebars.HelperDelegate signature for type safety
      */
-    registerHelper(name: string, fn: (...args: unknown[]) => unknown): void;
+    registerHelper(name: string, fn: import('handlebars').HelperDelegate): void;
     /**
      * Register a Handlebars partial
      */

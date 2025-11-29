@@ -12,19 +12,7 @@
  *
  * @see https://docs.ensemble.ai/conductor/building/security-authentication
  */
-/**
- * Timing-safe string comparison to prevent timing attacks
- */
-function timingSafeEqual(a, b) {
-    if (a.length !== b.length) {
-        return false;
-    }
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-        result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    }
-    return result === 0;
-}
+import { timingSafeEqual } from '../utils/crypto.js';
 /**
  * Parse credentials from "username:password" format
  */
@@ -100,12 +88,15 @@ export class BasicAuthValidator {
                 message: 'Invalid credential format. Expected: username:password',
             };
         }
-        // Check against all valid credentials
+        // Check against all valid credentials using timing-safe comparison
         let matchedUsername = null;
         for (const valid of this.credentials) {
             // Use timing-safe comparison for both username and password
-            const usernameMatch = timingSafeEqual(provided.username, valid.username);
-            const passwordMatch = timingSafeEqual(provided.password, valid.password);
+            // The async version uses HMAC for constant-time comparison
+            const [usernameMatch, passwordMatch] = await Promise.all([
+                timingSafeEqual(provided.username, valid.username),
+                timingSafeEqual(provided.password, valid.password),
+            ]);
             if (usernameMatch && passwordMatch) {
                 matchedUsername = valid.username;
                 break;

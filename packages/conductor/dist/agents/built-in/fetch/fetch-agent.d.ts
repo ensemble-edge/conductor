@@ -6,6 +6,7 @@
  * - Timeout handling
  * - Custom headers support
  * - Multiple HTTP methods
+ * - SSRF protection (blocks private/internal IPs by default)
  */
 import { BaseAgent, type AgentExecutionContext } from '../../base-agent.js';
 import type { AgentConfig } from '../../../runtime/parser.js';

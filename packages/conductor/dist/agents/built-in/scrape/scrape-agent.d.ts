@@ -9,6 +9,7 @@
  * - Automatic fallback on bot protection detection
  * - Multiple return formats (markdown, html, text)
  * - Configurable strategy (fast, balanced, aggressive)
+ * - SSRF protection (blocks private/internal IPs by default)
  */
 import { BaseAgent, type AgentExecutionContext } from '../../base-agent.js';
 import type { AgentConfig } from '../../../runtime/parser.js';

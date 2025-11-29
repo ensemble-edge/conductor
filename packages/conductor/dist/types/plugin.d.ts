@@ -8,6 +8,10 @@
  */
 import type { PluginRegistry, OperationHandler, OperationMetadata } from '../runtime/plugin-registry.js';
 import type { ConductorEnv } from './env.js';
+import type { MiddlewareHandler } from 'hono';
+import type { BaseAgent } from '../agents/base-agent.js';
+import type { AgentConfig } from '../runtime/parser.js';
+import type { AuthContext } from '../auth/types.js';
 /**
  * Configuration for Conductor
  */
@@ -32,7 +36,7 @@ export interface PluginContext {
     /** Cloudflare Workers execution context */
     ctx: ExecutionContext;
     /** Configuration passed to the plugin */
-    config: Record<string, any>;
+    config: Record<string, unknown>;
     /** Plugin-specific logger */
     logger: PluginLogger;
 }
@@ -40,10 +44,10 @@ export interface PluginContext {
  * Plugin logger interface
  */
 export interface PluginLogger {
-    info(message: string, meta?: Record<string, any>): void;
-    warn(message: string, meta?: Record<string, any>): void;
-    error(message: string, error?: Error, meta?: Record<string, any>): void;
-    debug(message: string, meta?: Record<string, any>): void;
+    info(message: string, meta?: Record<string, unknown>): void;
+    warn(message: string, meta?: Record<string, unknown>): void;
+    error(message: string, error?: Error, meta?: Record<string, unknown>): void;
+    debug(message: string, meta?: Record<string, unknown>): void;
 }
 /**
  * Operation registration from plugin
@@ -62,19 +66,23 @@ export interface OperationRegistration {
 export interface MiddlewareRegistration {
     /** Middleware name */
     name: string;
-    /** Middleware handler */
-    handler: (context: any) => Promise<any>;
+    /** Middleware handler - Hono MiddlewareHandler */
+    handler: MiddlewareHandler;
     /** Apply to specific routes/paths */
     paths?: string[];
 }
+/**
+ * Agent factory function type
+ */
+export type AgentFactory = (config: AgentConfig, env: ConductorEnv) => BaseAgent | Promise<BaseAgent>;
 /**
  * Agent registration from plugin
  */
 export interface AgentRegistration {
     /** Agent type name */
     type: string;
-    /** Agent class or factory */
-    factory: any;
+    /** Agent class or factory function */
+    factory: AgentFactory;
 }
 /**
  * Auth validator registration from plugin
@@ -90,8 +98,8 @@ export interface AuthValidatorRegistration {
  */
 export interface AuthValidationResult {
     valid: boolean;
-    user?: any;
-    metadata?: Record<string, any>;
+    user?: AuthContext['user'];
+    metadata?: Record<string, unknown>;
     error?: string;
 }
 /**
@@ -186,8 +194,9 @@ export interface LifecyclePlugin {
     requiredEnv?: string[];
     /**
      * Plugin configuration schema (for validation)
+     * Accepts Zod schemas or JSON Schema objects
      */
-    configSchema?: any;
+    configSchema?: Record<string, unknown>;
 }
 /**
  * Union type supporting both plugin patterns
@@ -212,7 +221,7 @@ export declare function isFunctionalPlugin(plugin: ConductorPlugin): plugin is F
  * })
  * ```
  */
-export declare function buildPlugin<TOptions = any>(factory: (options?: TOptions) => FunctionalPlugin): (options?: TOptions) => FunctionalPlugin;
+export declare function buildPlugin<TOptions = Record<string, unknown>>(factory: (options?: TOptions) => FunctionalPlugin): (options?: TOptions) => FunctionalPlugin;
 /**
  * Plugin metadata (for discovery and documentation)
  */

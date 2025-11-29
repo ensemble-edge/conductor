@@ -81,7 +81,9 @@ export class TriggerRegistry {
      * Register all triggers for an ensemble
      * Called during auto-discovery initialization
      */
-    async registerEnsembleTriggers(app, ensemble, agents, env, ctx) {
+    async registerEnsembleTriggers(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    app, ensemble, agents, env, ctx) {
         if (!ensemble.trigger || ensemble.trigger.length === 0) {
             return; // No triggers to register
         }

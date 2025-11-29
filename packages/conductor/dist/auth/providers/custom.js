@@ -9,6 +9,8 @@
  * - Twilio webhook signature validation
  * - Custom validator interface
  */
+import { createLogger } from '../../observability/index.js';
+const logger = createLogger({ serviceName: 'auth-custom' });
 /**
  * Stripe Webhook Signature Validator
  */
@@ -19,7 +21,7 @@ export class StripeSignatureValidator {
     extractToken(request) {
         return request.headers.get('stripe-signature');
     }
-    async validate(request, env) {
+    async validate(request, _env) {
         const signature = this.extractToken(request);
         if (!signature) {
             return {
@@ -76,7 +78,7 @@ export class StripeSignatureValidator {
             return signatures.some((sig) => this.secureCompare(sig, expectedSignature));
         }
         catch (error) {
-            console.error('Stripe signature verification error:', error);
+            logger.error('Stripe signature verification error', error instanceof Error ? error : undefined);
             return false;
         }
     }
@@ -110,7 +112,7 @@ export class GitHubSignatureValidator {
     extractToken(request) {
         return request.headers.get('x-hub-signature-256');
     }
-    async validate(request, env) {
+    async validate(request, _env) {
         const signature = this.extractToken(request);
         if (!signature) {
             return {
@@ -151,7 +153,7 @@ export class GitHubSignatureValidator {
             return this.secureCompare(receivedSignature, expectedSignature);
         }
         catch (error) {
-            console.error('GitHub signature verification error:', error);
+            logger.error('GitHub signature verification error', error instanceof Error ? error : undefined);
             return false;
         }
     }
@@ -185,7 +187,7 @@ export class TwilioSignatureValidator {
     extractToken(request) {
         return request.headers.get('x-twilio-signature');
     }
-    async validate(request, env) {
+    async validate(request, _env) {
         const signature = this.extractToken(request);
         if (!signature) {
             return {
@@ -229,7 +231,7 @@ export class TwilioSignatureValidator {
             return this.secureCompare(signature, expectedSignature);
         }
         catch (error) {
-            console.error('Twilio signature verification error:', error);
+            logger.error('Twilio signature verification error', error instanceof Error ? error : undefined);
             return false;
         }
     }

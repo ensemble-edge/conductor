@@ -12,6 +12,7 @@ import { Errors, type ConductorError } from '../errors/error-types.js'
 import { TTL } from '../config/constants.js'
 import type { AgentMetric } from './executor.js'
 import type { ScoringState } from './scoring/types.js'
+import type { ExecutionId, RequestId } from '../types/branded.js'
 
 /**
  * HITL State response from Durable Object
@@ -41,14 +42,14 @@ export interface SuspendedExecutionState {
   token: string
 
   /**
-   * Execution ID for tracing and observability
+   * Execution ID for tracing and observability - branded type for type safety
    */
-  executionId?: string
+  executionId?: ExecutionId
 
   /**
-   * Request ID from original request
+   * Request ID from original request - branded type for type safety
    */
-  requestId?: string
+  requestId?: RequestId
 
   /**
    * Ensemble configuration

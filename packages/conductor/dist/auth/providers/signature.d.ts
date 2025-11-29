@@ -13,6 +13,7 @@
  * @see https://docs.ensemble.ai/conductor/building/security-authentication
  */
 import type { AuthValidator, AuthValidationResult } from '../types.js';
+import type { ConductorEnv } from '../../types/env.js';
 /**
  * Signature validation configuration
  */
@@ -50,7 +51,7 @@ export declare class SignatureValidator implements AuthValidator {
     /**
      * Validate the webhook signature
      */
-    validate(request: Request, _env: any): Promise<AuthValidationResult>;
+    validate(request: Request, _env: ConductorEnv): Promise<AuthValidationResult>;
 }
 /**
  * Create a signature validator with common presets

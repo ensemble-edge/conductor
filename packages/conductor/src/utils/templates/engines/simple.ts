@@ -43,8 +43,13 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
     let result = template
 
     // Handle both structured context {data: {...}} and flat context {...}
-    const data = (context as any).data !== undefined ? (context as any).data : context
-    const helpers = (context as any).helpers
+    // Type guard for structured context detection
+    const hasDataProperty = 'data' in context && context.data !== undefined
+    const data = hasDataProperty ? (context.data as TemplateContext) : context
+    const helpers =
+      'helpers' in context
+        ? (context.helpers as Record<string, (...args: unknown[]) => unknown> | undefined)
+        : undefined
 
     // Process conditionals FIRST (recursively processes content)
     result = await this.processConditionalsRecursive(result, data, context)
@@ -308,7 +313,12 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
       const [fullMatch, partialRef, argsStr] = match
 
       // Parse arguments if provided (e.g., {{> header title="My Site"}})
-      const partialData = argsStr ? this.parsePartialArgs(argsStr, context.data) : context.data
+      // Type guard: context.data is Record<string, unknown> when passed from render()
+      const contextData =
+        'data' in context && typeof context.data === 'object' && context.data !== null
+          ? (context.data as Record<string, unknown>)
+          : {}
+      const partialData = argsStr ? this.parsePartialArgs(argsStr, contextData) : contextData
 
       try {
         let partialContent: string
