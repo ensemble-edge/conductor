@@ -5,6 +5,7 @@
  * Makes all error cases explicit and checked at compile time.
  */
 import { Parser, } from './parser.js';
+import { GraphExecutor, hasControlFlowSteps, } from './graph-executor.js';
 /**
  * Type guard to check if a flow step is an agent step (not a control flow step)
  */
@@ -33,6 +34,7 @@ import { NotificationManager } from './notifications/index.js';
 import { hasGlobalScriptLoader, getGlobalScriptLoader, parseScriptURI, isScriptReference, } from '../utils/script-loader.js';
 import { createComponentRegistry, createAgentRegistry, createEnsembleRegistry, } from '../components/index.js';
 import { resolveOutput } from './output-resolver.js';
+import { MemoryManager } from './memory/memory-manager.js';
 /** Default timeout for agent execution (30 seconds) */
 const DEFAULT_AGENT_TIMEOUT_MS = 30000;
 /**
@@ -229,6 +231,8 @@ export class Executor {
             ensembleRegistry: flowContext.ensembleRegistry,
             // Agent-specific config from ensemble definition
             config: agentConfig,
+            // Memory manager for conversation history and persistent storage
+            memory: flowContext.memoryManager ?? undefined,
         };
     }
     /**
@@ -474,6 +478,7 @@ export class Executor {
     }
     /**
      * Execute ensemble flow from a given step
+     * Automatically uses GraphExecutor for flows with control flow steps (parallel, branch, etc.)
      * @private
      */
     async executeFlow(flowContext, startStep = 0) {
@@ -482,13 +487,18 @@ export class Executor {
         if (!ensemble.flow || ensemble.flow.length === 0) {
             return Result.err(new EnsembleExecutionError(ensemble.name, 'validation', new Error('Ensemble has no flow steps defined')));
         }
+        // Check if flow contains control flow steps
+        // If so, delegate to GraphExecutor for DAG-based execution
+        const flowSteps = ensemble.flow.slice(startStep);
+        if (hasControlFlowSteps(flowSteps)) {
+            return this.executeFlowWithGraph(flowContext, startStep);
+        }
+        // Simple agent-only flow - execute sequentially
         for (let i = startStep; i < ensemble.flow.length; i++) {
             const step = ensemble.flow[i];
-            // Only process agent steps - control flow steps (parallel, branch, etc.)
-            // should use GraphExecutor for proper handling
+            // Double-check this is an agent step (should always be true here)
             if (!isAgentStep(step)) {
-                return Result.err(new EnsembleExecutionError(ensemble.name, 'flow', new Error(`Control flow step type "${step.type}" requires GraphExecutor. ` +
-                    `Use GraphExecutor.execute() for ensembles with parallel, branch, foreach, try, switch, while, or map-reduce steps.`)));
+                return Result.err(new EnsembleExecutionError(ensemble.name, 'flow', new Error(`Unexpected control flow step at index ${i}`)));
             }
             const stepResult = await this.executeStep(step, flowContext, i);
             if (!stepResult.success) {
@@ -556,6 +566,125 @@ export class Executor {
         // Get state report if available
         const stateReport = flowContext.stateManager?.getAccessReport();
         // Build execution output with scoring data and response metadata
+        const executionOutput = {
+            output: finalOutput,
+            metrics,
+            stateReport,
+            response: responseMetadata,
+        };
+        // Add scoring data if available
+        if (scoringState) {
+            executionOutput.scoring = scoringState;
+        }
+        return Result.ok(executionOutput);
+    }
+    /**
+     * Execute flow using GraphExecutor for control flow constructs
+     * Handles parallel, branch, foreach, try/catch, switch, while, and map-reduce steps
+     * @private
+     */
+    async executeFlowWithGraph(flowContext, startStep = 0) {
+        const { ensemble, executionContext, metrics, stateManager, scoringState, ensembleScorer, startTime, } = flowContext;
+        // Create agent executor callback that delegates to this.executeStep
+        // This allows GraphExecutor to call back into Executor for agent execution
+        const agentExecutorFn = async (step, graphContext) => {
+            // Merge graph context into flow context's execution context
+            // This ensures previous step outputs are available
+            for (const [key, value] of graphContext.results) {
+                executionContext[key] = { output: value };
+            }
+            // Execute the agent step using existing logic
+            const stepIndex = ensemble.flow
+                ? ensemble.flow.findIndex((s) => isAgentStep(s) && (s.id === step.id || s.agent === step.agent))
+                : -1;
+            const result = await this.executeStep(step, flowContext, stepIndex >= 0 ? stepIndex : 0);
+            if (!result.success) {
+                throw result.error;
+            }
+            // Get the output from execution context
+            const contextKey = step.id || step.agent;
+            const agentResult = executionContext[contextKey];
+            return agentResult?.output;
+        };
+        // Create GraphExecutor with our callback
+        const graphExecutor = new GraphExecutor(agentExecutorFn, ensemble.name);
+        // Execute the flow
+        const flowSteps = (ensemble.flow?.slice(startStep) || []);
+        const graphResult = await graphExecutor.execute(flowSteps, {
+            input: executionContext.input,
+            state: stateManager ? stateManager.getState() : undefined,
+        });
+        if (!graphResult.success) {
+            return Result.err(graphResult.error);
+        }
+        // Merge graph results into execution context
+        for (const [key, value] of Object.entries(graphResult.value)) {
+            executionContext[key] = { output: value };
+        }
+        // Calculate final ensemble score if scoring was enabled
+        if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
+            scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
+            scoringState.qualityMetrics = ensembleScorer.calculateQualityMetrics(scoringState.scoreHistory);
+        }
+        // Resolve final output using the output resolver
+        let finalOutput;
+        let responseMetadata;
+        if (ensemble.output) {
+            // Use the new output resolver for conditional outputs
+            const resolved = resolveOutput(ensemble.output, executionContext);
+            // Extract the body/rawBody as the output
+            if (resolved.redirect) {
+                finalOutput = {};
+                responseMetadata = {
+                    status: resolved.status,
+                    headers: resolved.headers,
+                    redirect: resolved.redirect,
+                };
+            }
+            else if (resolved.rawBody !== undefined) {
+                finalOutput = resolved.rawBody;
+                responseMetadata = {
+                    status: resolved.status,
+                    headers: resolved.headers,
+                    isRawBody: true,
+                };
+            }
+            else {
+                finalOutput = resolved.body ?? {};
+                responseMetadata = {
+                    status: resolved.status,
+                    headers: resolved.headers,
+                };
+            }
+        }
+        else if (ensemble.flow && ensemble.flow.length > 0) {
+            // Default to last step's output
+            const lastStep = ensemble.flow[ensemble.flow.length - 1];
+            const lastKey = isAgentStep(lastStep)
+                ? lastStep.id || lastStep.agent
+                : `step_${ensemble.flow.length - 1}`;
+            if (graphResult.value[lastKey]) {
+                finalOutput = graphResult.value[lastKey];
+            }
+            else {
+                // For control flow steps, get the last result
+                const keys = Object.keys(graphResult.value);
+                if (keys.length > 0) {
+                    finalOutput = graphResult.value[keys[keys.length - 1]];
+                }
+                else {
+                    finalOutput = {};
+                }
+            }
+        }
+        else {
+            finalOutput = {};
+        }
+        // Calculate total duration
+        metrics.totalDuration = Date.now() - startTime;
+        // Get state report if available
+        const stateReport = flowContext.stateManager?.getAccessReport();
+        // Build execution output
         const executionOutput = {
             output: finalOutput,
             metrics,
@@ -677,6 +806,65 @@ export class Executor {
         };
     }
     /**
+     * Create memory manager from ensemble config
+     * Extracts userId/sessionId from input and auth context
+     * @private
+     */
+    createMemoryManager(ensemble, input) {
+        // Check if memory is configured
+        if (!ensemble.memory || ensemble.memory.enabled === false) {
+            return null;
+        }
+        const memoryParsed = ensemble.memory;
+        // Convert parsed config to MemoryConfig format
+        const memoryConfig = {
+            enabled: memoryParsed.enabled !== false,
+            layers: {
+                working: true, // Always enabled
+                session: memoryParsed.session?.enabled !== false && !!memoryParsed.session,
+                longTerm: memoryParsed.longTerm?.enabled !== false && !!memoryParsed.longTerm,
+                semantic: memoryParsed.semantic?.enabled !== false && !!memoryParsed.semantic,
+                analytical: memoryParsed.analytical?.enabled !== false && !!memoryParsed.analytical,
+            },
+            sessionTTL: memoryParsed.session?.ttl ?? 3600, // Default 1 hour
+            semanticModel: memoryParsed.semantic?.model,
+        };
+        // Extract userId - try multiple sources
+        let userId;
+        if (memoryParsed.longTerm?.userId) {
+            // Resolve template expression like {{ auth.userId }} or {{ input.userId }}
+            const userIdTemplate = memoryParsed.longTerm.userId;
+            if (userIdTemplate.includes('{{') || userIdTemplate.includes('${')) {
+                // Template expression - resolve it
+                userId = Parser.resolveInterpolation(userIdTemplate, {
+                    input,
+                    auth: this.auth,
+                });
+            }
+            else {
+                // Direct value
+                userId = userIdTemplate;
+            }
+        }
+        // Fallback to auth context
+        if (!userId && this.auth?.user?.id) {
+            userId = String(this.auth.user.id);
+        }
+        // Extract sessionId from input (commonly passed as conversationId or sessionId)
+        const sessionId = input.sessionId ||
+            input.conversationId ||
+            input.conversation_id ||
+            undefined;
+        // Log memory initialization
+        this.logger.debug('Initializing memory manager', {
+            ensembleName: ensemble.name,
+            layers: memoryConfig.layers,
+            hasUserId: !!userId,
+            hasSessionId: !!sessionId,
+        });
+        return new MemoryManager(this.env, memoryConfig, userId, sessionId);
+    }
+    /**
      * Execute an ensemble with Result-based error handling
      * @param ensemble - Parsed ensemble configuration
      * @param input - Input data for the ensemble
@@ -715,6 +903,8 @@ export class Executor {
         this.ctx.waitUntil(NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env));
         // Initialize state manager if configured
         const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
+        // Initialize memory manager if configured
+        const memoryManager = this.createMemoryManager(ensemble, input);
         // Initialize scoring if enabled
         let scoringState = null;
         let ensembleScorer = null;
@@ -755,6 +945,7 @@ export class Executor {
             componentRegistry,
             agentRegistry: agentDiscoveryRegistry,
             ensembleRegistry: ensembleDiscoveryRegistry,
+            memoryManager,
         };
         // Execute flow from the beginning
         const result = await this.executeFlow(flowContext, 0);
@@ -900,6 +1091,13 @@ export class Executor {
         // Create discovery registries for agents and ensembles
         const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
         const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map());
+        // Re-create memory manager for resumed execution
+        // Use original input from suspended state plus any resumeInput
+        const originalInput = executionContext.input ?? {};
+        const memoryManager = this.createMemoryManager(ensemble, {
+            ...originalInput,
+            ...resumeInput,
+        });
         // Create flow execution context
         const flowContext = {
             ensemble,
@@ -915,6 +1113,7 @@ export class Executor {
             componentRegistry,
             agentRegistry: agentDiscoveryRegistry,
             ensembleRegistry: ensembleDiscoveryRegistry,
+            memoryManager,
         };
         // Resume from the specified step
         const resumeFromStep = suspendedState.resumeFromStep;

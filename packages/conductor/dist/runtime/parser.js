@@ -410,6 +410,53 @@ const EnsembleSchema = z.object({
     flow: z.array(z.lazy(() => FlowStepSchema)).optional(),
     inputs: z.record(z.unknown()).optional(), // Input schema definition
     output: EnsembleOutputSchema.optional(), // Conditional outputs with status, headers, redirect, rawBody
+    /** Memory configuration for persistent conversation and context */
+    memory: z
+        .object({
+        /** Enable memory system (default: true if memory block is present) */
+        enabled: z.boolean().optional(),
+        /** Session memory configuration (KV-based conversation history) */
+        session: z
+            .object({
+            enabled: z.boolean().optional(),
+            /** Time-to-live in seconds (default: 3600 = 1 hour) */
+            ttl: z.number().positive().optional(),
+            /** Maximum messages to keep (default: 50) */
+            maxMessages: z.number().positive().optional(),
+            /** Maximum age of individual messages in hours (default: 24) */
+            messageMaxAgeHours: z.number().positive().optional(),
+        })
+            .optional(),
+        /** Long-term memory configuration (D1-based persistent storage) */
+        longTerm: z
+            .object({
+            enabled: z.boolean().optional(),
+            /** User ID expression for scoping long-term memory (e.g., {{ auth.userId }}) */
+            userId: z.string().optional(),
+        })
+            .optional(),
+        /** Semantic memory configuration (Vectorize-based RAG) */
+        semantic: z
+            .object({
+            enabled: z.boolean().optional(),
+            /** Embedding model (default: @cf/baai/bge-base-en-v1.5) */
+            model: z.string().optional(),
+            /** Number of results to return from search (default: 5) */
+            topK: z.number().positive().optional(),
+            /** Minimum similarity score (0-1) */
+            minScore: z.number().min(0).max(1).optional(),
+        })
+            .optional(),
+        /** Analytical memory configuration (Hyperdrive SQL databases) */
+        analytical: z
+            .object({
+            enabled: z.boolean().optional(),
+            /** Default database alias */
+            defaultDatabase: z.string().optional(),
+        })
+            .optional(),
+    })
+        .optional(),
     /** Ensemble-level logging configuration */
     logging: z
         .object({
