@@ -91,15 +91,7 @@ export interface GraphExecutionResult {
  */
 interface ExecutionNode {
   id: string
-  type:
-    | 'agent'
-    | 'parallel'
-    | 'branch'
-    | 'foreach'
-    | 'try'
-    | 'switch'
-    | 'while'
-    | 'map-reduce'
+  type: 'agent' | 'parallel' | 'branch' | 'foreach' | 'try' | 'switch' | 'while' | 'map-reduce'
   step: FlowStepType
   dependencies: string[]
   status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
@@ -195,10 +187,7 @@ export class GraphExecutor {
   /**
    * Execute a single step (dispatches to appropriate handler based on type)
    */
-  private async executeStep(
-    step: FlowStepType,
-    context: GraphExecutionContext
-  ): Promise<unknown> {
+  private async executeStep(step: FlowStepType, context: GraphExecutionContext): Promise<unknown> {
     // Agent step - delegate to executor callback
     if (isAgentStep(step)) {
       return this.executeAgentStep(step, context)
@@ -373,10 +362,7 @@ export class GraphExecutor {
   /**
    * Execute try/catch/finally block
    */
-  private async executeTry(
-    step: TryFlowStep,
-    context: GraphExecutionContext
-  ): Promise<unknown> {
+  private async executeTry(step: TryFlowStep, context: GraphExecutionContext): Promise<unknown> {
     let tryResult: unknown
     let caughtError: Error | null = null
 
@@ -640,13 +626,7 @@ export class GraphExecutor {
       const evalContext = this.buildResolutionContext(context)
 
       // Create function with context variables
-      const func = new Function(
-        'context',
-        'input',
-        'state',
-        'results',
-        `return ${expression}`
-      )
+      const func = new Function('context', 'input', 'state', 'results', `return ${expression}`)
 
       return Boolean(
         func(evalContext, context.input, context.state || {}, Object.fromEntries(context.results))

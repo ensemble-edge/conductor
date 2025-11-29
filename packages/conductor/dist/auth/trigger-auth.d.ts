@@ -38,7 +38,7 @@ export interface TriggerAuthConfig {
 /**
  * Get the appropriate auth validator based on trigger config
  */
-export declare function getValidatorForTrigger(config: TriggerAuthConfig, env: ConductorEnv): AuthValidator;
+export declare function getValidatorForTrigger(config: TriggerAuthConfig, env: ConductorEnv): Promise<AuthValidator>;
 /**
  * Create auth middleware for triggers using the unified provider system
  *

@@ -82,18 +82,20 @@
 		"prepublishOnly": "npm run build"
 	},
 	"dependencies": {
+		"hono": "^4.10.6",
+		"jose": "^6.1.2",
+		"liquidjs": "^10.10.0",
+		"yaml": "^2.4.0",
+		"zod": "^3.22.4"
+	},
+	"optionalDependencies": {
 		"archiver": "^7.0.1",
 		"chalk": "^4.1.2",
 		"commander": "^12.1.0",
 		"glob": "^10.3.10",
 		"handlebars": "^4.7.8",
-		"hono": "^4.10.6",
-		"jose": "^6.1.2",
-		"liquidjs": "^10.10.0",
 		"tar": "^7.4.3",
-		"unzipper": "^0.12.3",
-		"yaml": "^2.4.0",
-		"zod": "^3.22.4"
+		"unzipper": "^0.12.3"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.29.7",

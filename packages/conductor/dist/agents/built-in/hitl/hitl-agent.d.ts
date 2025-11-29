@@ -43,6 +43,12 @@ export declare class HITLMember extends BaseAgent {
     private sendSlackNotification;
     /**
      * Send email notification
+     *
+     * Requires notificationConfig to include:
+     * - to: Recipient email address
+     * - from: Sender email address (must be verified in Cloudflare)
+     * - subject: (optional) Custom subject line
+     * - baseUrl: Base URL for callback links
      */
     private sendEmailNotification;
     /**
@@ -53,9 +59,5 @@ export declare class HITLMember extends BaseAgent {
      * Generate a cryptographically secure unique execution ID
      */
     private generateExecutionId;
-    /**
-     * Get Durable Object for approval state
-     */
-    private getApprovalDO;
 }
 //# sourceMappingURL=hitl-agent.d.ts.map

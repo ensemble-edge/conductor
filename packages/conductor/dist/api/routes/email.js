@@ -8,6 +8,7 @@
  * destination = "https://your-worker.workers.dev/email"
  */
 import { Hono } from 'hono';
+import { CatalogLoader } from '../../runtime/catalog-loader.js';
 import { Executor } from '../../runtime/executor.js';
 import { createLogger } from '../../observability/index.js';
 const app = new Hono();
@@ -76,35 +77,19 @@ app.post('/', async (c) => {
             // Return 200 to prevent bounce (silently ignore)
             return c.text('OK');
         }
-        // Check if ensemble has email exposure configured
-        const emailExpose = ensemble.trigger?.find((exp) => exp.type === 'email');
-        if (!emailExpose || emailExpose.type !== 'email') {
-            logger.warn('Ensemble found but no email exposure configured', {
-                ensemble: ensemble.name,
-                to: redactEmail(emailData.to),
-            });
-            return c.text('OK');
-        }
-        // Check if recipient address matches
-        if (!emailExpose.addresses.includes(emailData.to)) {
-            logger.warn('Email address not in configured addresses', {
-                ensemble: ensemble.name,
-                to: redactEmail(emailData.to),
-                configuredCount: emailExpose.addresses.length,
-            });
-            return c.text('OK');
-        }
+        // Get the email trigger config (we know it exists since findEnsembleForEmail matched it)
+        const emailTrigger = ensemble.trigger?.find((exp) => exp.type === 'email');
         // Authenticate sender if configured
-        if (!emailExpose.public && emailExpose.auth) {
-            const isAuthorized = await authenticateEmailSender(emailData.from, emailExpose.auth.from);
+        if (emailTrigger && !emailTrigger.public && emailTrigger.auth) {
+            const isAuthorized = await authenticateEmailSender(emailData.from, emailTrigger.auth.from);
             if (!isAuthorized) {
                 logger.warn('Email sender not authorized', {
                     ensemble: ensemble.name,
                     from: redactEmail(emailData.from),
-                    whitelistCount: emailExpose.auth.from.length,
+                    whitelistCount: emailTrigger.auth.from.length,
                 });
                 // Send rejection email if configured
-                if (emailExpose.reply_with_output) {
+                if (emailTrigger?.reply_with_output) {
                     await sendRejectionEmail(emailData, env);
                 }
                 return c.text('OK');
@@ -125,10 +110,10 @@ app.post('/', async (c) => {
         const executor = new Executor({ env, ctx });
         const result = await executor.executeEnsemble(ensemble, input);
         // Send reply email if configured
-        if (emailExpose.reply_with_output && result.success) {
+        if (emailTrigger?.reply_with_output && result.success) {
             await sendReplyEmail(emailData, result.value.output, env);
         }
-        else if (emailExpose.reply_with_output && !result.success) {
+        else if (emailTrigger?.reply_with_output && !result.success) {
             await sendErrorEmail(emailData, result.error.message, env);
         }
         logger.info('Email execution completed', {
@@ -148,8 +133,6 @@ app.post('/', async (c) => {
  * Parse email data from request
  */
 async function parseEmailFromRequest(c) {
-    // For now, parse from form data or JSON
-    // In production, this would parse the actual RFC822 message
     const contentType = c.req.header('content-type') || '';
     if (contentType.includes('application/json')) {
         // JSON format (for testing)
@@ -159,33 +142,237 @@ async function parseEmailFromRequest(c) {
             to: data.to || '',
             subject: data.subject || '',
             body: data.body || data.text || '',
+            html: data.html,
             headers: data.headers || {},
+            attachments: data.attachments,
         };
+    }
+    // RFC822 format (production - from Cloudflare Email Routing)
+    // The raw email is in the request body
+    const rawBody = await c.req.text();
+    return parseRFC822(rawBody, {
+        from: c.req.header('x-sender') || '',
+        to: c.req.header('x-recipient') || '',
+    });
+}
+/**
+ * Parse RFC822 email format
+ *
+ * RFC822 emails have the format:
+ * ```
+ * Header-Name: Header-Value
+ * Another-Header: Value
+ *
+ * Body content here...
+ * ```
+ *
+ * The headers and body are separated by a blank line (CRLF CRLF).
+ */
+function parseRFC822(raw, defaults = {}) {
+    const headers = {};
+    let body = '';
+    let html;
+    // Split headers and body (blank line separates them)
+    // Handle both \r\n and \n line endings
+    const headerBodySplit = raw.split(/\r?\n\r?\n/);
+    const headerSection = headerBodySplit[0] || '';
+    const bodySection = headerBodySplit.slice(1).join('\n\n');
+    // Parse headers (handle continuation lines - lines starting with whitespace)
+    let currentHeader = '';
+    for (const line of headerSection.split(/\r?\n/)) {
+        if (line.startsWith(' ') || line.startsWith('\t')) {
+            // Continuation of previous header
+            if (currentHeader) {
+                headers[currentHeader] += ' ' + line.trim();
+            }
+        }
+        else if (line.includes(':')) {
+            const colonIndex = line.indexOf(':');
+            const name = line.substring(0, colonIndex).trim().toLowerCase();
+            const value = line.substring(colonIndex + 1).trim();
+            headers[name] = value;
+            currentHeader = name;
+        }
+    }
+    // Decode encoded words in headers (RFC 2047)
+    const decodeHeader = (value) => {
+        // Match =?charset?encoding?text?= patterns
+        return value.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (_, charset, encoding, text) => {
+            try {
+                if (encoding.toUpperCase() === 'B') {
+                    // Base64
+                    return atob(text);
+                }
+                else if (encoding.toUpperCase() === 'Q') {
+                    // Quoted-printable
+                    return text.replace(/_/g, ' ').replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => {
+                        return String.fromCharCode(parseInt(hex, 16));
+                    });
+                }
+            }
+            catch {
+                return text;
+            }
+            return text;
+        });
+    };
+    const subject = decodeHeader(headers['subject'] || '');
+    const from = headers['from'] || defaults.from || '';
+    const to = headers['to'] || defaults.to || '';
+    // Handle MIME multipart content
+    const contentTypeHeader = headers['content-type'] || '';
+    const attachments = [];
+    if (contentTypeHeader.includes('multipart/')) {
+        // Extract boundary
+        const boundaryMatch = contentTypeHeader.match(/boundary="?([^";\s]+)"?/);
+        if (boundaryMatch) {
+            const boundary = boundaryMatch[1];
+            const parts = bodySection.split(new RegExp(`--${escapeRegex(boundary)}`));
+            for (const part of parts) {
+                if (part.trim() === '' || part.trim() === '--')
+                    continue;
+                // Parse part headers and content
+                const partSplit = part.split(/\r?\n\r?\n/);
+                const partHeaders = {};
+                const partHeaderSection = partSplit[0] || '';
+                const partContent = partSplit.slice(1).join('\n\n').trim();
+                for (const line of partHeaderSection.split(/\r?\n/)) {
+                    if (line.includes(':')) {
+                        const colonIndex = line.indexOf(':');
+                        const name = line.substring(0, colonIndex).trim().toLowerCase();
+                        const value = line.substring(colonIndex + 1).trim();
+                        partHeaders[name] = value;
+                    }
+                }
+                const partContentType = partHeaders['content-type'] || '';
+                if (partContentType.includes('text/plain') && !body) {
+                    body = decodePartContent(partContent, partHeaders['content-transfer-encoding']);
+                }
+                else if (partContentType.includes('text/html')) {
+                    html = decodePartContent(partContent, partHeaders['content-transfer-encoding']);
+                }
+                else if (partHeaders['content-disposition']?.includes('attachment')) {
+                    // Extract attachment
+                    const filenameMatch = partHeaders['content-disposition'].match(/filename="?([^";\s]+)"?/);
+                    const filename = filenameMatch ? filenameMatch[1] : 'attachment';
+                    const content = decodePartContentBinary(partContent, partHeaders['content-transfer-encoding']);
+                    attachments.push({ filename, contentType: partContentType.split(';')[0], content });
+                }
+            }
+        }
     }
     else {
-        // Form data or RFC822 (production)
-        // TODO: Implement full RFC822 parsing
-        // For now, return mock data
-        return {
-            from: c.req.header('x-sender') || '',
-            to: c.req.header('x-recipient') || '',
-            subject: c.req.header('x-subject') || '',
-            body: '',
-            headers: {},
-        };
+        // Simple text email
+        body = decodePartContent(bodySection, headers['content-transfer-encoding']);
     }
+    return {
+        from,
+        to,
+        subject,
+        body,
+        html,
+        headers,
+        attachments: attachments.length > 0 ? attachments : undefined,
+    };
+}
+/**
+ * Decode part content based on transfer encoding
+ */
+function decodePartContent(content, encoding) {
+    if (!encoding)
+        return content;
+    encoding = encoding.toLowerCase();
+    if (encoding === 'base64') {
+        try {
+            return atob(content.replace(/\s/g, ''));
+        }
+        catch {
+            return content;
+        }
+    }
+    if (encoding === 'quoted-printable') {
+        return content
+            .replace(/=\r?\n/g, '') // Soft line breaks
+            .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    }
+    return content;
+}
+/**
+ * Decode part content to binary
+ */
+function decodePartContentBinary(content, encoding) {
+    const decoded = decodePartContent(content, encoding);
+    return new TextEncoder().encode(decoded);
+}
+/**
+ * Escape regex special characters
+ */
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 /**
  * Find ensemble that handles this email address
  */
 async function findEnsembleForEmail(emailAddress, env) {
-    // TODO: Load all ensembles from catalog/KV and find one with matching email exposure
-    // For now, return null (not found)
-    // In production, this would:
-    // 1. List all ensemble YAMLs from KV or catalog
-    // 2. Parse each one
-    // 3. Filter for those with expose.type === 'email' and matching addresses
+    // Load all ensembles from catalog
+    const allEnsembles = await CatalogLoader.loadAllEnsembles(env);
+    // Normalize the target email for comparison
+    const normalizedTarget = emailAddress.toLowerCase().trim();
+    for (const ensemble of allEnsembles) {
+        // Check if ensemble has email trigger
+        const emailTrigger = ensemble.trigger?.find((t) => t.type === 'email');
+        if (!emailTrigger)
+            continue;
+        // Check if the email address matches
+        const exposedAddresses = emailTrigger.addresses || [];
+        for (const pattern of exposedAddresses) {
+            if (matchEmailPattern(normalizedTarget, pattern)) {
+                logger.info('Found ensemble for email', {
+                    ensemble: ensemble.name,
+                    pattern,
+                    to: redactEmail(emailAddress),
+                });
+                return ensemble;
+            }
+        }
+    }
+    logger.debug('No ensemble found for email', { to: redactEmail(emailAddress) });
     return null;
+}
+/**
+ * Match email address against a pattern
+ *
+ * Supports:
+ * - Exact match: user@example.com
+ * - Wildcard domain: *@example.com
+ * - Wildcard local: support+*@example.com
+ * - Full wildcard: * (matches all)
+ */
+function matchEmailPattern(email, pattern) {
+    const normalizedPattern = pattern.toLowerCase().trim();
+    // Full wildcard
+    if (normalizedPattern === '*') {
+        return true;
+    }
+    // Exact match
+    if (email === normalizedPattern) {
+        return true;
+    }
+    // Convert pattern to regex
+    // Escape special chars except *, then replace * with .*
+    const regexPattern = '^' +
+        normalizedPattern
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*') +
+        '$';
+    try {
+        const regex = new RegExp(regexPattern);
+        return regex.test(email);
+    }
+    catch {
+        // Invalid pattern, try simple includes
+        return email.includes(normalizedPattern.replace(/\*/g, ''));
+    }
 }
 /**
  * Authenticate email sender against whitelist
@@ -235,7 +422,7 @@ function extractInputFromEmail(emailData) {
 /**
  * Send reply email with execution results
  */
-async function sendReplyEmail(originalEmail, output, env) {
+async function sendReplyEmail(originalEmail, output, _env) {
     try {
         const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
             method: 'POST',
@@ -276,7 +463,7 @@ async function sendReplyEmail(originalEmail, output, env) {
 /**
  * Send rejection email
  */
-async function sendRejectionEmail(originalEmail, env) {
+async function sendRejectionEmail(originalEmail, _env) {
     try {
         await fetch('https://api.mailchannels.net/tx/v1/send', {
             method: 'POST',
@@ -310,7 +497,7 @@ async function sendRejectionEmail(originalEmail, env) {
 /**
  * Send error email
  */
-async function sendErrorEmail(originalEmail, errorMessage, env) {
+async function sendErrorEmail(originalEmail, errorMessage, _env) {
     try {
         await fetch('https://api.mailchannels.net/tx/v1/send', {
             method: 'POST',

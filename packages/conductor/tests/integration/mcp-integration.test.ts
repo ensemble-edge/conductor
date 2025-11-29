@@ -55,7 +55,7 @@ describe('MCP Integration', () => {
 		})
 
 		describe('POST /mcp/tools/:name', () => {
-			it('should return 404 for non-existent tool', async () => {
+			it('should return error response for non-existent tool', async () => {
 				const request = new Request('http://localhost/mcp/tools/non-existent', {
 					method: 'POST',
 					headers: {
@@ -70,10 +70,13 @@ describe('MCP Integration', () => {
 
 				const response = await app.fetch(request, env, {} as ExecutionContext)
 
-				expect(response.status).toBe(404)
+				// MCP protocol returns 200 with error in response body
+				expect(response.status).toBe(200)
+				const data = await response.json()
+				expect(data.isError).toBe(true)
 			})
 
-			it('should return 404 for ensemble not configured', async () => {
+			it('should return error response for ensemble not configured', async () => {
 				const request = new Request('http://localhost/mcp/tools/test-tool', {
 					method: 'POST',
 					headers: {
@@ -88,8 +91,10 @@ describe('MCP Integration', () => {
 
 				const response = await app.fetch(request, env, {} as ExecutionContext)
 
-				// Returns 404 because ensemble doesn't exist (loadEnsembleYAML returns null)
-				expect(response.status).toBe(404)
+				// MCP protocol returns 200 with error in response body when tool not found
+				expect(response.status).toBe(200)
+				const data = await response.json()
+				expect(data.isError).toBe(true)
 			})
 		})
 	})

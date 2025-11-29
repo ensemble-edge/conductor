@@ -58,7 +58,7 @@ describe('getValidatorForTrigger', () => {
         type: 'bearer',
         secret: '$env.API_SECRET',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
 
       // Test that the resolved secret is used
       const validRequest = new Request('https://example.com', {
@@ -74,7 +74,7 @@ describe('getValidatorForTrigger', () => {
         type: 'bearer',
         secret: '${env.MY_TOKEN}',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
 
       const validRequest = new Request('https://example.com', {
         headers: { Authorization: 'Bearer secret-from-template' },
@@ -89,7 +89,7 @@ describe('getValidatorForTrigger', () => {
         type: 'bearer',
         secret: '$env.API_SECRET',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
 
       // Token matches the literal string since env var not found
       const literalRequest = new Request('https://example.com', {
@@ -105,7 +105,7 @@ describe('getValidatorForTrigger', () => {
         type: 'signature',
         secret: '$env.WEBHOOK_SECRET',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
       expect(validator).toBeDefined()
       // The validator should be created with the resolved secret
     })
@@ -116,7 +116,7 @@ describe('getValidatorForTrigger', () => {
         type: 'basic',
         secret: '${env.BASIC_CREDS}',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
       expect(validator).toBeInstanceOf(BasicAuthValidator)
 
       // Test that the resolved credentials work
@@ -134,7 +134,7 @@ describe('getValidatorForTrigger', () => {
         type: 'bearer',
         secret: 'literal-token',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
 
       const validRequest = new Request('https://example.com', {
         headers: { Authorization: 'Bearer literal-token' },
@@ -145,97 +145,99 @@ describe('getValidatorForTrigger', () => {
   })
 
   describe('bearer type', () => {
-    it('should create simple bearer validator when no JWT_SECRET', () => {
+    it('should create simple bearer validator when no JWT_SECRET', async () => {
       const config: TriggerAuthConfig = {
         type: 'bearer',
         secret: 'my-bearer-token',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
       expect(validator).toBeDefined()
       expect(validator.extractToken).toBeDefined()
       expect(validator.validate).toBeDefined()
     })
 
-    it('should throw if bearer has no secret and no JWT_SECRET', () => {
+    it('should throw if bearer has no secret and no JWT_SECRET', async () => {
       const config: TriggerAuthConfig = {
         type: 'bearer',
       }
-      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow('Bearer auth requires a secret')
+      await expect(getValidatorForTrigger(config, mockEnv)).rejects.toThrow(
+        'Bearer auth requires a secret'
+      )
     })
   })
 
   describe('signature type', () => {
-    it('should create signature validator', () => {
+    it('should create signature validator', async () => {
       const config: TriggerAuthConfig = {
         type: 'signature',
         secret: 'webhook-secret',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
       expect(validator).toBeInstanceOf(SignatureValidator)
     })
 
-    it('should create signature validator with preset', () => {
+    it('should create signature validator with preset', async () => {
       const config: TriggerAuthConfig = {
         type: 'signature',
         secret: 'github-secret',
         preset: 'github',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
       expect(validator).toBeInstanceOf(SignatureValidator)
     })
 
-    it('should throw if signature has no secret', () => {
+    it('should throw if signature has no secret', async () => {
       const config: TriggerAuthConfig = {
         type: 'signature',
       }
-      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow(
+      await expect(getValidatorForTrigger(config, mockEnv)).rejects.toThrow(
         'Signature auth requires a secret'
       )
     })
   })
 
   describe('basic type', () => {
-    it('should create basic auth validator', () => {
+    it('should create basic auth validator', async () => {
       const config: TriggerAuthConfig = {
         type: 'basic',
         secret: 'user:pass',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
       expect(validator).toBeInstanceOf(BasicAuthValidator)
     })
 
-    it('should create basic auth validator with realm', () => {
+    it('should create basic auth validator with realm', async () => {
       const config: TriggerAuthConfig = {
         type: 'basic',
         secret: 'admin:secret',
         realm: 'Admin Area',
       }
-      const validator = getValidatorForTrigger(config, mockEnv)
+      const validator = await getValidatorForTrigger(config, mockEnv)
       expect(validator).toBeInstanceOf(BasicAuthValidator)
     })
 
-    it('should throw if basic has no secret', () => {
+    it('should throw if basic has no secret', async () => {
       const config: TriggerAuthConfig = {
         type: 'basic',
       }
-      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow(
+      await expect(getValidatorForTrigger(config, mockEnv)).rejects.toThrow(
         'Basic auth requires credentials'
       )
     })
   })
 
   describe('apiKey type', () => {
-    it('should throw if API_KEYS KV not configured', () => {
+    it('should throw if API_KEYS KV not configured', async () => {
       const config: TriggerAuthConfig = {
         type: 'apiKey',
       }
       // Without API_KEYS KV namespace, should throw
-      expect(() => getValidatorForTrigger(config, mockEnv)).toThrow(
+      await expect(getValidatorForTrigger(config, mockEnv)).rejects.toThrow(
         'API key auth requires API_KEYS KV namespace to be configured'
       )
     })
 
-    it('should create API key validator when KV is configured', () => {
+    it('should create API key validator when KV is configured', async () => {
       const mockKVNamespace = {
         get: vi.fn(),
         put: vi.fn(),
@@ -247,7 +249,7 @@ describe('getValidatorForTrigger', () => {
       const config: TriggerAuthConfig = {
         type: 'apiKey',
       }
-      const validator = getValidatorForTrigger(config, envWithKV as any)
+      const validator = await getValidatorForTrigger(config, envWithKV as any)
       expect(validator).toBeDefined()
     })
   })

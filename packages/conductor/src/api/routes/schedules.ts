@@ -122,8 +122,9 @@ app.post('/:ensembleName/trigger', async (c) => {
     }
 
     // Extract cron triggers with proper type narrowing
-    const cronTriggers = (ensemble.trigger?.filter((t): t is CronTriggerConfig => t.type === 'cron') ||
-      []) as CronTriggerConfig[]
+    const cronTriggers = (ensemble.trigger?.filter(
+      (t): t is CronTriggerConfig => t.type === 'cron'
+    ) || []) as CronTriggerConfig[]
 
     if (cronTriggers.length === 0) {
       return c.json(

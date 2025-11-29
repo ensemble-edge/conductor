@@ -427,8 +427,7 @@ export async function listComponentVersions(
     .filter((v): v is string => !!v && !v.startsWith('_')) // Exclude metadata keys like _versions
     .filter(
       (v) =>
-        /^v?\d+\.\d+\.\d+/.test(v) ||
-        ['prod', 'staging', 'canary', 'latest', 'dev'].includes(v)
+        /^v?\d+\.\d+\.\d+/.test(v) || ['prod', 'staging', 'canary', 'latest', 'dev'].includes(v)
     )
 
   return versions

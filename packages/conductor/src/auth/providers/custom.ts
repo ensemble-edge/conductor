@@ -92,7 +92,10 @@ export class StripeSignatureValidator implements AuthValidator {
       // Compare signatures
       return signatures.some((sig) => this.secureCompare(sig, expectedSignature))
     } catch (error) {
-      logger.error('Stripe signature verification error', error instanceof Error ? error : undefined)
+      logger.error(
+        'Stripe signature verification error',
+        error instanceof Error ? error : undefined
+      )
       return false
     }
   }
@@ -183,7 +186,10 @@ export class GitHubSignatureValidator implements AuthValidator {
 
       return this.secureCompare(receivedSignature, expectedSignature)
     } catch (error) {
-      logger.error('GitHub signature verification error', error instanceof Error ? error : undefined)
+      logger.error(
+        'GitHub signature verification error',
+        error instanceof Error ? error : undefined
+      )
       return false
     }
   }
@@ -282,7 +288,10 @@ export class TwilioSignatureValidator implements AuthValidator {
 
       return this.secureCompare(signature, expectedSignature)
     } catch (error) {
-      logger.error('Twilio signature verification error', error instanceof Error ? error : undefined)
+      logger.error(
+        'Twilio signature verification error',
+        error instanceof Error ? error : undefined
+      )
       return false
     }
   }

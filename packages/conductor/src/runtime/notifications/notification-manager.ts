@@ -112,7 +112,9 @@ export class NotificationManager {
         default: {
           // Exhaustive type check - should never reach here with valid configs
           const exhaustiveCheck: never = config
-          throw new Error(`Unknown notification type: ${(exhaustiveCheck as { type: string }).type}`)
+          throw new Error(
+            `Unknown notification type: ${(exhaustiveCheck as { type: string }).type}`
+          )
         }
       }
     } catch (error) {

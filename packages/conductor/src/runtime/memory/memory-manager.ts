@@ -143,7 +143,9 @@ export class MemoryManager {
    *
    * @param maxContext - Maximum messages to include (default: 10 = 5 exchanges)
    */
-  async formatMessagesForAI(maxContext: number = 10): Promise<Array<{ role: string; content: string }>> {
+  async formatMessagesForAI(
+    maxContext: number = 10
+  ): Promise<Array<{ role: string; content: string }>> {
     if (!this.sessionMemory) {
       return []
     }

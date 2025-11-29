@@ -43,7 +43,8 @@ describe('Basic Hello World Test', () => {
 
 		// Check that the greeting was generated
 		expect(result.value.output).toBeDefined();
-		expect(result.value.output.greeting).toContain('Hello');
+		const output = result.value.output as any;
+		expect(output.greeting).toContain('Hello');
 
 		// Check that the hello agent executed successfully
 		expect(result.value.metrics.agents).toHaveLength(1);
@@ -72,7 +73,7 @@ describe('Basic Hello World Test', () => {
 		expect(result.success).toBe(true);
 		if (!result.success) return;
 
-		expect(result.value.output.greeting).toContain('Hello');
+		expect((result.value.output as any).greeting).toContain('Hello');
 		expect(result.value.metrics.agents[0].name).toBe('hello');
 	});
 

@@ -310,8 +310,9 @@ export class DataAgent extends BaseAgent {
                 // This should never be reached due to the check in run()
                 throw new Error('Hyperdrive uses SQL-native operations, not Repository pattern');
             case DatabaseType.Vectorize:
-                // TODO: Implement VectorizeRepository for vector operations
-                throw new Error('Vectorize repository not yet implemented');
+                // Vectorize requires embeddings and semantic operations
+                // Use the RAG agent instead: operation: rag with config.operation: search/index
+                throw new Error('Vectorize is not supported via the data agent. Use the RAG agent (operation: rag) for vector operations.');
             case DatabaseType.Supabase:
             case DatabaseType.Neon:
             case DatabaseType.PlanetScale:

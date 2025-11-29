@@ -379,7 +379,11 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
       return app.fetch(request, env, ctx)
     },
 
-    async scheduled(event: ScheduledEvent, env: ConductorEnv, ctx: ExecutionContext): Promise<void> {
+    async scheduled(
+      event: ScheduledEvent,
+      env: ConductorEnv,
+      ctx: ExecutionContext
+    ): Promise<void> {
       // Lazy initialization
       if (!initialized) {
         await initializeLoaders(env, ctx, config)
@@ -420,8 +424,14 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
           }
 
           const cronTrigger = ensemble.trigger?.find(
-            (t): t is { type: 'cron'; cron: string; input?: Record<string, unknown>; metadata?: Record<string, unknown> } =>
-              t.type === 'cron' && 'cron' in t && t.cron === event.cron
+            (
+              t
+            ): t is {
+              type: 'cron'
+              cron: string
+              input?: Record<string, unknown>
+              metadata?: Record<string, unknown>
+            } => t.type === 'cron' && 'cron' in t && t.cron === event.cron
           )
 
           await executor.executeEnsemble(ensemble, {

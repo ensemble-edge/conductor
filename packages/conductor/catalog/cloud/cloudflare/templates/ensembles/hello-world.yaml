@@ -14,17 +14,7 @@ flow:
       language: ${input.language || "en"}
 
 output:
-  # Success case
-  - when: ${hello.success}
-    status: 200
-    body:
-      greeting: ${hello.output.message}
-      metadata:
-        promptUsed: "prompts/hello.md"
-        configUsed: "configs/hello-settings.yaml"
-
-  # Error fallback
-  - status: 500
-    body:
-      error: "Failed to generate greeting"
-      message: ${hello.output.error}
+  greeting: ${hello.output.message}
+  metadata:
+    promptUsed: "prompts/hello.md"
+    configUsed: "configs/hello-settings.yaml"

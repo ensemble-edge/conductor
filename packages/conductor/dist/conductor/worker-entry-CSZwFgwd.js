@@ -20793,7 +20793,9 @@ class DataAgent extends BaseAgent {
       case DatabaseType.Hyperdrive:
         throw new Error("Hyperdrive uses SQL-native operations, not Repository pattern");
       case DatabaseType.Vectorize:
-        throw new Error("Vectorize repository not yet implemented");
+        throw new Error(
+          "Vectorize is not supported via the data agent. Use the RAG agent (operation: rag) for vector operations."
+        );
       case DatabaseType.Supabase:
       case DatabaseType.Neon:
       case DatabaseType.PlanetScale:
@@ -25221,7 +25223,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache2;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-DJp-KJ6H.js");
+        const { MemoryCache } = await import("./cache-BcDDTYOs.js");
         cache2 = new MemoryCache({
           defaultTTL: 3600
         });
@@ -25307,7 +25309,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache2;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-DJp-KJ6H.js");
+          const { MemoryCache } = await import("./cache-BcDDTYOs.js");
           cache2 = new MemoryCache({
             defaultTTL: 3600
           });
@@ -25899,7 +25901,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-D03CUuhX.js");
+      const { RAGMember } = await import("./index-CfQrJyuC.js");
       return new RAGMember(config, env);
     }
   );
@@ -25935,7 +25937,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-Cnxlj5-W.js");
+      const { HITLMember } = await import("./index-BAdpaQlN.js");
       return new HITLMember(config, env);
     }
   );
@@ -33384,6 +33386,11 @@ function createUnkeyValidator(env) {
     stealthMode: env.UNKEY_STEALTH_MODE === "true"
   });
 }
+const unkey = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  UnkeyValidator,
+  createUnkeyValidator
+}, Symbol.toStringTag, { value: "Module" }));
 const logger$1 = createLogger({ serviceName: "auth-custom" });
 class StripeSignatureValidator {
   constructor(webhookSecret) {
@@ -34061,7 +34068,7 @@ function resolveEnvSecret(value, env) {
   }
   return value;
 }
-function getValidatorForTrigger(config, env) {
+async function getValidatorForTrigger(config, env) {
   const resolvedSecret = resolveEnvSecret(config.secret, env);
   switch (config.type) {
     case "bearer":
@@ -34107,9 +34114,10 @@ function getValidatorForTrigger(config, env) {
       return validator;
     }
     case "unkey": {
-      const validator = createApiKeyValidator(env);
+      const { createUnkeyValidator: createUnkeyValidator2 } = await Promise.resolve().then(() => unkey);
+      const validator = createUnkeyValidator2(env);
       if (!validator) {
-        throw new Error("Unkey auth requires API_KEYS KV namespace to be configured");
+        throw new Error("Unkey auth requires UNKEY_ROOT_KEY to be configured");
       }
       return validator;
     }
@@ -34120,8 +34128,8 @@ function getValidatorForTrigger(config, env) {
   }
 }
 function createTriggerAuthMiddleware(authConfig, env) {
-  const validator = getValidatorForTrigger(authConfig, env);
   return async (c, next) => {
+    const validator = await getValidatorForTrigger(authConfig, env);
     const request = c.req.raw;
     try {
       const result = await validator.validate(request, env);
@@ -34303,8 +34311,8 @@ class UnifiedRouter {
     if (apiKey) this.validators.set("apiKey", apiKey);
     const cookie = createCookieValidator(env);
     if (cookie) this.validators.set("cookie", cookie);
-    const unkey = createUnkeyValidator(env);
-    if (unkey) this.validators.set("unkey", unkey);
+    const unkey2 = createUnkeyValidator(env);
+    if (unkey2) this.validators.set("unkey", unkey2);
     this.customValidatorRegistry = createCustomValidatorRegistry(env);
   }
   /**
@@ -36191,4 +36199,4 @@ export {
   ExecutionId as y,
   RequestId as z
 };
-//# sourceMappingURL=worker-entry-D_d7jZUq.js.map
+//# sourceMappingURL=worker-entry-CSZwFgwd.js.map

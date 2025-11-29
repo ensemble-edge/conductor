@@ -122,13 +122,7 @@ export const RoutingConfigSchema = z.object({
 /**
  * Documentation UI framework type
  */
-export const DocsUIFrameworkSchema = z.enum([
-  'stoplight',
-  'redoc',
-  'swagger',
-  'scalar',
-  'rapidoc',
-])
+export const DocsUIFrameworkSchema = z.enum(['stoplight', 'redoc', 'swagger', 'scalar', 'rapidoc'])
 
 /**
  * Documentation theme schema
@@ -384,9 +378,7 @@ export type ValidatedStorageConfig = z.infer<typeof StorageConfigSchema>
 /**
  * Validation result type
  */
-export type ValidationResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: z.ZodError }
+export type ValidationResult<T> = { success: true; data: T } | { success: false; error: z.ZodError }
 
 /**
  * Validate a ConductorConfig object

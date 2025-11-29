@@ -42,7 +42,7 @@ export declare class RAGMember extends BaseAgent {
      */
     private searchVectorize;
     /**
-     * Rerank search results
+     * Rerank search results using cross-encoder model
      */
     private rerank;
 }
