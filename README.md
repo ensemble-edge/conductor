@@ -17,7 +17,7 @@
 - 🧪 **Built-in Testing** - 1500+ tests passing, comprehensive mocks, custom matchers
 - 🔄 **State Management** - Built-in state sharing across agent executions
 - 💾 **Integrated Caching** - KV-based caching for performance and cost optimization
-- 🧩 **Composable Operations** - 14 operation types: think, code, storage, data, http, tools, email, sms, html, pdf, page, form, queue, docs
+- 🧩 **Composable Operations** - 13 operation types: think, code, storage, data, http, tools, email, sms, html, pdf, form, queue, docs
 - 🛠️ **CLI Tools** - Project scaffolding, agent generation, and upgrades
 - 📦 **SDK** - Client library, testing utilities, and agent factories
 - 🔁 **Durable Objects** - Stateful workflows with strong consistency (ExecutionState, HITL)
@@ -2076,7 +2076,10 @@ See [examples/](./examples/) for:
 
 ## Links
 
-- [Documentation](https://github.com/ensemble-edge/conductor)
+- [Full Documentation](https://docs.ensemble.ai/conductor/overview)
+- [Getting Started](https://docs.ensemble.ai/conductor/getting-started/your-first-project)
+- [Operations Reference](https://docs.ensemble.ai/conductor/operations/overview)
+- [Starter Kit](https://docs.ensemble.ai/conductor/starter-kit/overview)
 - [Examples](./examples/)
 - [Issues](https://github.com/ensemble-edge/conductor/issues)
 - [Edgit Integration](https://github.com/ensemble-edge/edgit)
