@@ -9,11 +9,13 @@
  */
 
 import { Hono } from 'hono'
-import { Parser, type EnsembleConfig } from '../../runtime/parser.js'
+import { type EnsembleConfig } from '../../runtime/parser.js'
+import { CatalogLoader } from '../../runtime/catalog-loader.js'
 import { Executor } from '../../runtime/executor.js'
 import { createLogger } from '../../observability/index.js'
+import type { ConductorEnv } from '../../types/env.js'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<{ Bindings: ConductorEnv }>()
 const logger = createLogger({ serviceName: 'api-email' })
 
 /**
@@ -113,39 +115,22 @@ app.post('/', async (c) => {
       return c.text('OK')
     }
 
-    // Check if ensemble has email exposure configured
-    const emailExpose = ensemble.trigger?.find((exp) => exp.type === 'email')
-    if (!emailExpose || emailExpose.type !== 'email') {
-      logger.warn('Ensemble found but no email exposure configured', {
-        ensemble: ensemble.name,
-        to: redactEmail(emailData.to),
-      })
-      return c.text('OK')
-    }
-
-    // Check if recipient address matches
-    if (!emailExpose.addresses.includes(emailData.to)) {
-      logger.warn('Email address not in configured addresses', {
-        ensemble: ensemble.name,
-        to: redactEmail(emailData.to),
-        configuredCount: emailExpose.addresses.length,
-      })
-      return c.text('OK')
-    }
+    // Get the email trigger config (we know it exists since findEnsembleForEmail matched it)
+    const emailTrigger = ensemble.trigger?.find((exp) => exp.type === 'email')
 
     // Authenticate sender if configured
-    if (!emailExpose.public && emailExpose.auth) {
-      const isAuthorized = await authenticateEmailSender(emailData.from, emailExpose.auth.from)
+    if (emailTrigger && !emailTrigger.public && emailTrigger.auth) {
+      const isAuthorized = await authenticateEmailSender(emailData.from, emailTrigger.auth.from)
 
       if (!isAuthorized) {
         logger.warn('Email sender not authorized', {
           ensemble: ensemble.name,
           from: redactEmail(emailData.from),
-          whitelistCount: emailExpose.auth.from.length,
+          whitelistCount: emailTrigger.auth.from.length,
         })
 
         // Send rejection email if configured
-        if (emailExpose.reply_with_output) {
+        if (emailTrigger?.reply_with_output) {
           await sendRejectionEmail(emailData, env)
         }
 
@@ -172,9 +157,9 @@ app.post('/', async (c) => {
     const result = await executor.executeEnsemble(ensemble, input)
 
     // Send reply email if configured
-    if (emailExpose.reply_with_output && result.success) {
+    if (emailTrigger?.reply_with_output && result.success) {
       await sendReplyEmail(emailData, result.value.output, env)
-    } else if (emailExpose.reply_with_output && !result.success) {
+    } else if (emailTrigger?.reply_with_output && !result.success) {
       await sendErrorEmail(emailData, result.error.message, env)
     }
 
@@ -201,10 +186,10 @@ async function parseEmailFromRequest(c: any): Promise<{
   to: string
   subject: string
   body: string
+  html?: string
   headers: Record<string, string>
+  attachments?: Array<{ filename: string; contentType: string; content: Uint8Array }>
 }> {
-  // For now, parse from form data or JSON
-  // In production, this would parse the actual RFC822 message
   const contentType = c.req.header('content-type') || ''
 
   if (contentType.includes('application/json')) {
@@ -215,20 +200,200 @@ async function parseEmailFromRequest(c: any): Promise<{
       to: data.to || '',
       subject: data.subject || '',
       body: data.body || data.text || '',
+      html: data.html,
       headers: data.headers || {},
-    }
-  } else {
-    // Form data or RFC822 (production)
-    // TODO: Implement full RFC822 parsing
-    // For now, return mock data
-    return {
-      from: c.req.header('x-sender') || '',
-      to: c.req.header('x-recipient') || '',
-      subject: c.req.header('x-subject') || '',
-      body: '',
-      headers: {},
+      attachments: data.attachments,
     }
   }
+
+  // RFC822 format (production - from Cloudflare Email Routing)
+  // The raw email is in the request body
+  const rawBody = await c.req.text()
+
+  return parseRFC822(rawBody, {
+    from: c.req.header('x-sender') || '',
+    to: c.req.header('x-recipient') || '',
+  })
+}
+
+/**
+ * Parse RFC822 email format
+ *
+ * RFC822 emails have the format:
+ * ```
+ * Header-Name: Header-Value
+ * Another-Header: Value
+ *
+ * Body content here...
+ * ```
+ *
+ * The headers and body are separated by a blank line (CRLF CRLF).
+ */
+function parseRFC822(
+  raw: string,
+  defaults: { from?: string; to?: string } = {}
+): {
+  from: string
+  to: string
+  subject: string
+  body: string
+  html?: string
+  headers: Record<string, string>
+  attachments?: Array<{ filename: string; contentType: string; content: Uint8Array }>
+} {
+  const headers: Record<string, string> = {}
+  let body = ''
+  let html: string | undefined
+
+  // Split headers and body (blank line separates them)
+  // Handle both \r\n and \n line endings
+  const headerBodySplit = raw.split(/\r?\n\r?\n/)
+  const headerSection = headerBodySplit[0] || ''
+  const bodySection = headerBodySplit.slice(1).join('\n\n')
+
+  // Parse headers (handle continuation lines - lines starting with whitespace)
+  let currentHeader = ''
+  for (const line of headerSection.split(/\r?\n/)) {
+    if (line.startsWith(' ') || line.startsWith('\t')) {
+      // Continuation of previous header
+      if (currentHeader) {
+        headers[currentHeader] += ' ' + line.trim()
+      }
+    } else if (line.includes(':')) {
+      const colonIndex = line.indexOf(':')
+      const name = line.substring(0, colonIndex).trim().toLowerCase()
+      const value = line.substring(colonIndex + 1).trim()
+      headers[name] = value
+      currentHeader = name
+    }
+  }
+
+  // Decode encoded words in headers (RFC 2047)
+  const decodeHeader = (value: string): string => {
+    // Match =?charset?encoding?text?= patterns
+    return value.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (_, charset, encoding, text) => {
+      try {
+        if (encoding.toUpperCase() === 'B') {
+          // Base64
+          return atob(text)
+        } else if (encoding.toUpperCase() === 'Q') {
+          // Quoted-printable
+          return text.replace(/_/g, ' ').replace(/=([0-9A-Fa-f]{2})/g, (_: string, hex: string) => {
+            return String.fromCharCode(parseInt(hex, 16))
+          })
+        }
+      } catch {
+        return text
+      }
+      return text
+    })
+  }
+
+  const subject = decodeHeader(headers['subject'] || '')
+  const from = headers['from'] || defaults.from || ''
+  const to = headers['to'] || defaults.to || ''
+
+  // Handle MIME multipart content
+  const contentTypeHeader = headers['content-type'] || ''
+  const attachments: Array<{ filename: string; contentType: string; content: Uint8Array }> = []
+
+  if (contentTypeHeader.includes('multipart/')) {
+    // Extract boundary
+    const boundaryMatch = contentTypeHeader.match(/boundary="?([^";\s]+)"?/)
+    if (boundaryMatch) {
+      const boundary = boundaryMatch[1]
+      const parts = bodySection.split(new RegExp(`--${escapeRegex(boundary)}`))
+
+      for (const part of parts) {
+        if (part.trim() === '' || part.trim() === '--') continue
+
+        // Parse part headers and content
+        const partSplit = part.split(/\r?\n\r?\n/)
+        const partHeaders: Record<string, string> = {}
+        const partHeaderSection = partSplit[0] || ''
+        const partContent = partSplit.slice(1).join('\n\n').trim()
+
+        for (const line of partHeaderSection.split(/\r?\n/)) {
+          if (line.includes(':')) {
+            const colonIndex = line.indexOf(':')
+            const name = line.substring(0, colonIndex).trim().toLowerCase()
+            const value = line.substring(colonIndex + 1).trim()
+            partHeaders[name] = value
+          }
+        }
+
+        const partContentType = partHeaders['content-type'] || ''
+
+        if (partContentType.includes('text/plain') && !body) {
+          body = decodePartContent(partContent, partHeaders['content-transfer-encoding'])
+        } else if (partContentType.includes('text/html')) {
+          html = decodePartContent(partContent, partHeaders['content-transfer-encoding'])
+        } else if (partHeaders['content-disposition']?.includes('attachment')) {
+          // Extract attachment
+          const filenameMatch = partHeaders['content-disposition'].match(/filename="?([^";\s]+)"?/)
+          const filename = filenameMatch ? filenameMatch[1] : 'attachment'
+          const content = decodePartContentBinary(
+            partContent,
+            partHeaders['content-transfer-encoding']
+          )
+          attachments.push({ filename, contentType: partContentType.split(';')[0], content })
+        }
+      }
+    }
+  } else {
+    // Simple text email
+    body = decodePartContent(bodySection, headers['content-transfer-encoding'])
+  }
+
+  return {
+    from,
+    to,
+    subject,
+    body,
+    html,
+    headers,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  }
+}
+
+/**
+ * Decode part content based on transfer encoding
+ */
+function decodePartContent(content: string, encoding?: string): string {
+  if (!encoding) return content
+
+  encoding = encoding.toLowerCase()
+
+  if (encoding === 'base64') {
+    try {
+      return atob(content.replace(/\s/g, ''))
+    } catch {
+      return content
+    }
+  }
+
+  if (encoding === 'quoted-printable') {
+    return content
+      .replace(/=\r?\n/g, '') // Soft line breaks
+      .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+  }
+
+  return content
+}
+
+/**
+ * Decode part content to binary
+ */
+function decodePartContentBinary(content: string, encoding?: string): Uint8Array {
+  const decoded = decodePartContent(content, encoding)
+  return new TextEncoder().encode(decoded)
+}
+
+/**
+ * Escape regex special characters
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
@@ -236,16 +401,75 @@ async function parseEmailFromRequest(c: any): Promise<{
  */
 async function findEnsembleForEmail(
   emailAddress: string,
-  env: Env
+  env: ConductorEnv
 ): Promise<EnsembleConfig | null> {
-  // TODO: Load all ensembles from catalog/KV and find one with matching email exposure
-  // For now, return null (not found)
-  // In production, this would:
-  // 1. List all ensemble YAMLs from KV or catalog
-  // 2. Parse each one
-  // 3. Filter for those with expose.type === 'email' and matching addresses
+  // Load all ensembles from catalog
+  const allEnsembles = await CatalogLoader.loadAllEnsembles(env)
 
+  // Normalize the target email for comparison
+  const normalizedTarget = emailAddress.toLowerCase().trim()
+
+  for (const ensemble of allEnsembles) {
+    // Check if ensemble has email trigger
+    const emailTrigger = ensemble.trigger?.find((t) => t.type === 'email')
+    if (!emailTrigger) continue
+
+    // Check if the email address matches
+    const exposedAddresses = emailTrigger.addresses || []
+    for (const pattern of exposedAddresses) {
+      if (matchEmailPattern(normalizedTarget, pattern)) {
+        logger.info('Found ensemble for email', {
+          ensemble: ensemble.name,
+          pattern,
+          to: redactEmail(emailAddress),
+        })
+        return ensemble
+      }
+    }
+  }
+
+  logger.debug('No ensemble found for email', { to: redactEmail(emailAddress) })
   return null
+}
+
+/**
+ * Match email address against a pattern
+ *
+ * Supports:
+ * - Exact match: user@example.com
+ * - Wildcard domain: *@example.com
+ * - Wildcard local: support+*@example.com
+ * - Full wildcard: * (matches all)
+ */
+function matchEmailPattern(email: string, pattern: string): boolean {
+  const normalizedPattern = pattern.toLowerCase().trim()
+
+  // Full wildcard
+  if (normalizedPattern === '*') {
+    return true
+  }
+
+  // Exact match
+  if (email === normalizedPattern) {
+    return true
+  }
+
+  // Convert pattern to regex
+  // Escape special chars except *, then replace * with .*
+  const regexPattern =
+    '^' +
+    normalizedPattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*') +
+    '$'
+
+  try {
+    const regex = new RegExp(regexPattern)
+    return regex.test(email)
+  } catch {
+    // Invalid pattern, try simple includes
+    return email.includes(normalizedPattern.replace(/\*/g, ''))
+  }
 }
 
 /**
@@ -308,7 +532,7 @@ function extractInputFromEmail(emailData: {
 async function sendReplyEmail(
   originalEmail: { from: string; to: string; subject: string },
   output: unknown,
-  env: Env
+  _env: ConductorEnv
 ): Promise<void> {
   try {
     const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
@@ -353,7 +577,7 @@ async function sendReplyEmail(
  */
 async function sendRejectionEmail(
   originalEmail: { from: string; to: string; subject: string },
-  env: Env
+  _env: ConductorEnv
 ): Promise<void> {
   try {
     await fetch('https://api.mailchannels.net/tx/v1/send', {
@@ -391,7 +615,7 @@ async function sendRejectionEmail(
 async function sendErrorEmail(
   originalEmail: { from: string; to: string; subject: string },
   errorMessage: string,
-  env: Env
+  _env: ConductorEnv
 ): Promise<void> {
   try {
     await fetch('https://api.mailchannels.net/tx/v1/send', {

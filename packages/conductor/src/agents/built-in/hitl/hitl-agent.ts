@@ -14,13 +14,11 @@ import type { AgentConfig } from '../../../runtime/parser.js'
 import { createLogger } from '../../../observability/index.js'
 import type {
   HITLConfig,
-  HITLInput,
   HITLSuspendInput,
   HITLResumeInput,
   HITLResult,
   HITLSuspendResult,
   HITLResumeResult,
-  ApprovalState,
 } from './types.js'
 import type { ConductorEnv } from '../../../types/env.js'
 
@@ -72,37 +70,72 @@ export class HITLMember extends BaseAgent {
       throw new Error('Suspend action requires "approvalData" in input')
     }
 
-    // Generate execution ID
-    const executionId = this.generateExecutionId()
-    const expiresAt = Date.now() + this.hitlConfig.timeout!
-
-    // Store approval state (placeholder - TODO: integrate with Durable Objects)
-    const approvalState: ApprovalState = {
-      executionId,
-      state: context.state || {},
-      suspendedAt: Date.now(),
-      expiresAt,
-      approvalData: input.approvalData,
-      status: 'suspended',
+    // Check for HITL_STATE Durable Object binding
+    if (!this.env.HITL_STATE) {
+      throw new Error(
+        'HITL agent requires HITL_STATE binding. Add [[durable_objects]] binding = "HITL_STATE" to wrangler.toml'
+      )
     }
 
-    // TODO: Store in Durable Object
-    // const approvalDO = this.getApprovalDO(executionId);
-    // await approvalDO.suspend(approvalState);
+    // Generate execution ID/token
+    const token = this.generateExecutionId()
+    const ttlSeconds = Math.floor(this.hitlConfig.timeout! / 1000)
+    const expiresAt = Date.now() + this.hitlConfig.timeout!
+
+    // Build simplified state for storage
+    // Note: Full SuspendedExecutionState is managed by the caller
+    // executionId is a branded type, need to unwrap it for storage
+    const execId = context.executionId
+      ? typeof context.executionId === 'string'
+        ? context.executionId
+        : (context.executionId as { value: string }).value
+      : token
+
+    const suspendedState = {
+      executionId: execId,
+      input: context.input,
+      suspendedAt: Date.now(),
+      resumeToken: token,
+    }
+
+    // Get Durable Object and suspend execution
+    const doId = this.env.HITL_STATE.idFromName(token)
+    const stub = this.env.HITL_STATE.get(doId)
+
+    const response = await stub.fetch(new Request('https://hitl/suspend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        suspendedState,
+        ttl: ttlSeconds,
+      }),
+    }))
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Failed to suspend execution: ${error}`)
+    }
+
+    logger.info('Execution suspended for approval', {
+      token,
+      expiresAt,
+      ttlSeconds,
+    })
 
     // Send notification
     if (this.hitlConfig.notificationChannel) {
-      await this.sendNotification(executionId, input.approvalData)
+      await this.sendNotification(token, input.approvalData)
     }
 
-    // Generate callback URL (placeholder - user should configure their base URL)
-    // Default endpoint: POST /callback/:token with { approved: true/false }
-    // Base path is configurable via APIConfig.hitl.resumeBasePath
-    const approvalUrl = `https://your-worker.workers.dev/callback/${executionId}`
+    // Build callback URL - user should configure their base URL via notificationConfig.baseUrl
+    const baseUrl = (this.hitlConfig.notificationConfig?.baseUrl as string) ||
+      'https://your-worker.workers.dev'
+    const approvalUrl = `${baseUrl}/callback/${token}`
 
     return {
       status: 'suspended',
-      executionId,
+      executionId: token,
       approvalUrl,
       expiresAt,
     }
@@ -118,23 +151,52 @@ export class HITLMember extends BaseAgent {
       throw new Error('Resume action requires "executionId" in input')
     }
 
-    // Get approval state (placeholder - TODO: integrate with Durable Objects)
-    // const approvalDO = this.getApprovalDO(input.executionId);
-    // const approvalState = await approvalDO.getState();
+    // Check for HITL_STATE Durable Object binding
+    if (!this.env.HITL_STATE) {
+      throw new Error(
+        'HITL agent requires HITL_STATE binding. Add [[durable_objects]] binding = "HITL_STATE" to wrangler.toml'
+      )
+    }
 
-    // Placeholder
-    const approvalState: ApprovalState = {
-      executionId: input.executionId,
-      state: {},
-      suspendedAt: Date.now() - 1000,
-      expiresAt: Date.now() + 86400000,
-      approvalData: {},
-      status: input.approved ? 'approved' : 'rejected',
-      comments: input.comments,
+    // Get Durable Object
+    const doId = this.env.HITL_STATE.idFromName(input.executionId)
+    const stub = this.env.HITL_STATE.get(doId)
+
+    // First, get current status
+    const statusResponse = await stub.fetch(new Request('https://hitl/status', {
+      method: 'GET',
+    }))
+
+    if (!statusResponse.ok) {
+      if (statusResponse.status === 404) {
+        return {
+          status: 'expired',
+          executionId: input.executionId,
+          comments: 'Execution not found or expired',
+        }
+      }
+      const error = await statusResponse.text()
+      throw new Error(`Failed to get HITL status: ${error}`)
+    }
+
+    const currentState = await statusResponse.json() as {
+      status: string
+      expiresAt: number
+      approvalData?: unknown
+      rejectionReason?: string
+    }
+
+    // Check if already processed
+    if (currentState.status !== 'pending') {
+      return {
+        status: currentState.status as HITLResumeResult['status'],
+        executionId: input.executionId,
+        comments: currentState.rejectionReason,
+      }
     }
 
     // Check if expired
-    if (Date.now() > approvalState.expiresAt) {
+    if (Date.now() > currentState.expiresAt) {
       return {
         status: 'expired',
         executionId: input.executionId,
@@ -142,14 +204,57 @@ export class HITLMember extends BaseAgent {
       }
     }
 
-    // Update state
-    // await approvalDO.resume(input.approved, input.comments);
+    // Process approval or rejection
+    if (input.approved) {
+      const approveResponse = await stub.fetch(new Request('https://hitl/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actor: input.actor || 'system',
+          approvalData: input.approvalData,
+        }),
+      }))
 
-    return {
-      status: approvalState.status,
-      executionId: input.executionId,
-      state: approvalState.state,
-      comments: input.comments,
+      if (!approveResponse.ok) {
+        const error = await approveResponse.text()
+        throw new Error(`Failed to approve: ${error}`)
+      }
+
+      const result = await approveResponse.json() as {
+        suspendedState: Record<string, unknown>
+        approvalData?: unknown
+      }
+
+      logger.info('Execution approved', { executionId: input.executionId })
+
+      return {
+        status: 'approved',
+        executionId: input.executionId,
+        state: result.suspendedState,
+        comments: input.comments,
+      }
+    } else {
+      const rejectResponse = await stub.fetch(new Request('https://hitl/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actor: input.actor || 'system',
+          reason: input.comments,
+        }),
+      }))
+
+      if (!rejectResponse.ok) {
+        const error = await rejectResponse.text()
+        throw new Error(`Failed to reject: ${error}`)
+      }
+
+      logger.info('Execution rejected', { executionId: input.executionId })
+
+      return {
+        status: 'rejected',
+        executionId: input.executionId,
+        comments: input.comments,
+      }
     }
   }
 
@@ -212,6 +317,10 @@ export class HITLMember extends BaseAgent {
       throw new Error('Slack notification requires webhookUrl in notificationConfig')
     }
 
+    const baseUrl = (config.baseUrl as string) || 'https://your-worker.workers.dev'
+    const approveUrl = `${baseUrl}/callback/${executionId}?action=approve`
+    const rejectUrl = `${baseUrl}/callback/${executionId}?action=reject`
+
     const message = {
       text: `🔔 Approval Required`,
       blocks: [
@@ -226,7 +335,7 @@ export class HITLMember extends BaseAgent {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*Execution ID:* ${executionId}\n*Data:* ${JSON.stringify(approvalData, null, 2)}`,
+            text: `*Execution ID:* \`${executionId}\`\n*Data:*\n\`\`\`${JSON.stringify(approvalData, null, 2)}\`\`\``,
           },
         },
         {
@@ -236,21 +345,28 @@ export class HITLMember extends BaseAgent {
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: 'Approve',
+                text: '✓ Approve',
               },
               style: 'primary',
-              // POST /callback/:token with { approved: true }
-              url: `https://your-worker.workers.dev/callback/${executionId}`,
+              url: approveUrl,
             },
             {
               type: 'button',
               text: {
                 type: 'plain_text',
-                text: 'Reject',
+                text: '✗ Reject',
               },
               style: 'danger',
-              // POST /callback/:token with { approved: false }
-              url: `https://your-worker.workers.dev/callback/${executionId}`,
+              url: rejectUrl,
+            },
+          ],
+        },
+        {
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `⏱️ Expires in ${Math.round(this.hitlConfig.timeout! / 3600000)} hours`,
             },
           ],
         },
@@ -262,20 +378,126 @@ export class HITLMember extends BaseAgent {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(message),
     })
+
+    logger.info('Slack notification sent', { executionId })
   }
 
   /**
    * Send email notification
+   *
+   * Requires notificationConfig to include:
+   * - to: Recipient email address
+   * - from: Sender email address (must be verified in Cloudflare)
+   * - subject: (optional) Custom subject line
+   * - baseUrl: Base URL for callback links
    */
   private async sendEmailNotification(
     executionId: string,
     approvalData: Record<string, unknown>,
     config: Record<string, unknown>
   ): Promise<void> {
-    // TODO: Implement email notification via Cloudflare Email Workers
-    logger.debug('Email notification not yet implemented', {
-      executionId,
-    })
+    const to = config.to as string
+    const from = config.from as string
+    const baseUrl = (config.baseUrl as string) || 'https://your-worker.workers.dev'
+    const subject = (config.subject as string) || '🔔 Approval Required'
+
+    if (!to || !from) {
+      logger.warn('Email notification skipped: missing to or from in notificationConfig', {
+        executionId,
+      })
+      return
+    }
+
+    // Build approval/rejection URLs
+    const approveUrl = `${baseUrl}/callback/${executionId}?action=approve`
+    const rejectUrl = `${baseUrl}/callback/${executionId}?action=reject`
+
+    // Build email body
+    const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header { background: #f5f5f5; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { padding: 20px; border: 1px solid #e0e0e0; border-top: none; }
+    .data { background: #fafafa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    .buttons { margin-top: 20px; }
+    .btn { display: inline-block; padding: 12px 24px; margin-right: 10px; border-radius: 6px; text-decoration: none; font-weight: 500; }
+    .btn-approve { background: #22c55e; color: white; }
+    .btn-reject { background: #ef4444; color: white; }
+    .footer { margin-top: 20px; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>${subject}</h2>
+    </div>
+    <div class="content">
+      <p><strong>Execution ID:</strong> ${executionId}</p>
+      <p><strong>Approval Data:</strong></p>
+      <div class="data">
+        <pre>${JSON.stringify(approvalData, null, 2)}</pre>
+      </div>
+      <div class="buttons">
+        <a href="${approveUrl}" class="btn btn-approve">✓ Approve</a>
+        <a href="${rejectUrl}" class="btn btn-reject">✗ Reject</a>
+      </div>
+      <div class="footer">
+        <p>This request will expire in ${Math.round(this.hitlConfig.timeout! / 3600000)} hours.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+    const textBody = `
+Approval Required
+=================
+
+Execution ID: ${executionId}
+
+Approval Data:
+${JSON.stringify(approvalData, null, 2)}
+
+Actions:
+- Approve: ${approveUrl}
+- Reject: ${rejectUrl}
+
+This request will expire in ${Math.round(this.hitlConfig.timeout! / 3600000)} hours.
+`
+
+    // Use MailChannels API (free for Cloudflare Workers)
+    // Or the configured email service
+    try {
+      const emailResponse = await fetch('https://api.mailchannels.net/tx/v1/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: from },
+          subject,
+          content: [
+            { type: 'text/plain', value: textBody },
+            { type: 'text/html', value: htmlBody },
+          ],
+        }),
+      })
+
+      if (!emailResponse.ok) {
+        const error = await emailResponse.text()
+        logger.error('Failed to send email notification', new Error(error), { executionId })
+      } else {
+        logger.info('Email notification sent', { executionId, to })
+      }
+    } catch (error) {
+      logger.error('Email notification failed', error instanceof Error ? error : undefined, {
+        executionId,
+      })
+    }
   }
 
   /**
@@ -292,34 +514,28 @@ export class HITLMember extends BaseAgent {
       throw new Error('Webhook notification requires webhookUrl in notificationConfig')
     }
 
+    const baseUrl = (config.baseUrl as string) || 'https://your-worker.workers.dev'
+
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         executionId,
         approvalData,
-        // POST /callback/:token with { approved: true/false }
-        // Base path configurable via APIConfig.hitl.resumeBasePath
-        callbackUrl: `https://your-worker.workers.dev/callback/${executionId}`,
+        callbackUrl: `${baseUrl}/callback/${executionId}`,
+        approveUrl: `${baseUrl}/callback/${executionId}?action=approve`,
+        rejectUrl: `${baseUrl}/callback/${executionId}?action=reject`,
         expiresAt: Date.now() + this.hitlConfig.timeout!,
       }),
     })
+
+    logger.info('Webhook notification sent', { executionId, webhookUrl })
   }
 
   /**
    * Generate a cryptographically secure unique execution ID
    */
   private generateExecutionId(): string {
-    return `exec_${crypto.randomUUID()}`
-  }
-
-  /**
-   * Get Durable Object for approval state
-   */
-  private getApprovalDO(executionId: string): unknown {
-    // TODO: Integrate with Durable Objects
-    // const doId = this.env.APPROVAL_MANAGER.idFromName(executionId);
-    // return this.env.APPROVAL_MANAGER.get(doId);
-    return null
+    return `hitl_${crypto.randomUUID()}`
   }
 }

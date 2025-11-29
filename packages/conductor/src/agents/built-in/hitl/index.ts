@@ -14,5 +14,4 @@ export type {
   HITLAction,
   HITLStatus,
   NotificationChannel,
-  ApprovalState,
 } from './types.js'

@@ -151,7 +151,7 @@ function resolveEnvSecret(value: string | undefined, env: ConductorEnv): string 
 /**
  * Get the appropriate auth validator based on trigger config
  */
-export function getValidatorForTrigger(config: TriggerAuthConfig, env: ConductorEnv): AuthValidator {
+export async function getValidatorForTrigger(config: TriggerAuthConfig, env: ConductorEnv): Promise<AuthValidator> {
   // Resolve environment variable references in the secret
   const resolvedSecret = resolveEnvSecret(config.secret, env)
 
@@ -208,12 +208,11 @@ export function getValidatorForTrigger(config: TriggerAuthConfig, env: Conductor
     }
 
     case 'unkey': {
-      // Unkey validator requires the unkey package
-      // For now, fall back to API key validation
-      // TODO: Import UnkeyValidator when available
-      const validator = createApiKeyValidator(env)
+      // Use the Unkey validator for API key management
+      const { createUnkeyValidator } = await import('./providers/unkey.js')
+      const validator = createUnkeyValidator(env)
       if (!validator) {
-        throw new Error('Unkey auth requires API_KEYS KV namespace to be configured')
+        throw new Error('Unkey auth requires UNKEY_ROOT_KEY to be configured')
       }
       return validator
     }
@@ -240,9 +239,8 @@ export function createTriggerAuthMiddleware(
   authConfig: TriggerAuthConfig,
   env: ConductorEnv
 ): (c: any, next: () => Promise<void>) => Promise<Response | void> {
-  const validator = getValidatorForTrigger(authConfig, env)
-
   return async (c: any, next: () => Promise<void>) => {
+    const validator = await getValidatorForTrigger(authConfig, env)
     const request = c.req.raw as Request
 
     try {
