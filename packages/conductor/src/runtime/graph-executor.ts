@@ -1,414 +1,317 @@
 /**
  * Graph-based Workflow Executor
  *
- * Executes sophisticated workflows with parallel execution,
- * branching, and complex dependencies.
+ * Executes sophisticated workflows with control flow constructs:
+ * - Parallel execution (run multiple steps concurrently)
+ * - Conditional branching (if/else, switch/case)
+ * - Iteration (foreach, while loops)
+ * - Error handling (try/catch/finally)
+ * - Map-reduce pattern (parallel map + reduce)
+ *
+ * The GraphExecutor delegates actual agent execution back to the main Executor
+ * via a callback function. This maintains separation of concerns:
+ * - GraphExecutor handles control flow logic
+ * - Executor handles agent lifecycle, observability, scoring, etc.
+ *
+ * Integration pattern:
+ * ```typescript
+ * const graphExecutor = new GraphExecutor(agentExecutorFn)
+ * const result = await graphExecutor.execute(ensemble.flow, context)
+ * ```
  */
 
 import type {
-  FlowElement,
-  GraphFlowStep,
-  ParallelBlock,
-  BranchBlock,
-  ForEachBlock,
-  TryBlock,
-  SwitchBlock,
-  WhileBlock,
-  MapReduceBlock,
-  ExecutionNode,
-  ExecutionGraph,
-} from './graph-types.js'
-import type { AgentExecutionContext } from '../agents/base-agent.js'
-import { Result } from '../types/result.js'
+  FlowStepType,
+  AgentFlowStep,
+  ParallelFlowStep,
+  BranchFlowStep,
+  ForeachFlowStep,
+  TryFlowStep,
+  SwitchFlowStep,
+  WhileFlowStep,
+  MapReduceFlowStep,
+} from '../primitives/types.js'
+import {
+  isAgentStep,
+  isParallelStep,
+  isBranchStep,
+  isForeachStep,
+  isTryStep,
+  isSwitchStep,
+  isWhileStep,
+  isMapReduceStep,
+} from '../primitives/types.js'
+import { Parser } from './parser.js'
+import { Result, type AsyncResult } from '../types/result.js'
 import type { ConductorError } from '../errors/error-types.js'
+import { EnsembleExecutionError } from '../errors/error-types.js'
 
+/**
+ * Callback function type for executing agents
+ * The main Executor provides this callback to handle agent execution
+ *
+ * @param step - The agent step to execute
+ * @param context - Current execution context with all previous outputs
+ * @returns Promise resolving to the agent's output
+ */
+export type AgentExecutorFn = (
+  step: AgentFlowStep,
+  context: GraphExecutionContext
+) => Promise<unknown>
+
+/**
+ * Execution context passed through the graph
+ * Contains input, state, and all previous step outputs
+ */
+export interface GraphExecutionContext {
+  /** Original input to the ensemble */
+  input: unknown
+  /** Current state (if state management enabled) */
+  state?: Record<string, unknown>
+  /** Outputs from all completed steps, keyed by step id or agent name */
+  results: Map<string, unknown>
+  /** Flattened context for expression resolution */
+  [key: string]: unknown
+}
+
+/**
+ * Result of graph execution
+ */
+export interface GraphExecutionResult {
+  /** Final outputs from all steps */
+  outputs: Record<string, unknown>
+  /** Whether execution completed successfully */
+  success: boolean
+  /** Error if execution failed */
+  error?: Error
+}
+
+/**
+ * Execution node in the dependency graph
+ */
+interface ExecutionNode {
+  id: string
+  type:
+    | 'agent'
+    | 'parallel'
+    | 'branch'
+    | 'foreach'
+    | 'try'
+    | 'switch'
+    | 'while'
+    | 'map-reduce'
+  step: FlowStepType
+  dependencies: string[]
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+  result?: unknown
+  error?: Error
+  startTime?: number
+  endTime?: number
+}
+
+/**
+ * Type guard to check if a flow contains any control flow steps
+ */
+export function hasControlFlowSteps(flow: FlowStepType[]): boolean {
+  return flow.some(
+    (step) =>
+      isParallelStep(step) ||
+      isBranchStep(step) ||
+      isForeachStep(step) ||
+      isTryStep(step) ||
+      isSwitchStep(step) ||
+      isWhileStep(step) ||
+      isMapReduceStep(step)
+  )
+}
+
+/**
+ * Graph-based workflow executor for control flow constructs
+ */
 export class GraphExecutor {
+  private agentExecutor: AgentExecutorFn
+  private ensembleName: string
+
+  /**
+   * Create a new GraphExecutor
+   *
+   * @param agentExecutor - Callback function to execute agent steps
+   * @param ensembleName - Name of the ensemble (for error messages)
+   */
+  constructor(agentExecutor: AgentExecutorFn, ensembleName: string = 'unknown') {
+    this.agentExecutor = agentExecutor
+    this.ensembleName = ensembleName
+  }
+
   /**
    * Execute a graph-based flow
+   *
+   * @param flow - Array of flow steps to execute
+   * @param initialContext - Initial execution context (input, state)
+   * @returns Result containing all step outputs or an error
    */
   async execute(
-    flow: FlowElement[],
-    context: Record<string, unknown>
-  ): Promise<Result<Record<string, unknown>, ConductorError>> {
-    // Build execution graph
-    const graph = this.buildGraph(flow)
-
-    // Execute in topological order
-    return await this.executeGraph(graph, context)
-  }
-
-  /**
-   * Build execution graph from flow elements
-   */
-  private buildGraph(flow: FlowElement[]): ExecutionGraph {
-    const graph: ExecutionGraph = {
-      nodes: new Map(),
-      edges: new Map(),
+    flow: FlowStepType[],
+    initialContext: { input: unknown; state?: Record<string, unknown> }
+  ): AsyncResult<Record<string, unknown>, ConductorError> {
+    const context: GraphExecutionContext = {
+      input: initialContext.input,
+      state: initialContext.state,
+      results: new Map(),
     }
 
-    let nodeId = 0
-
-    for (const element of flow) {
-      const id = `node_${nodeId++}`
-      this.addNode(graph, id, element)
+    // Add input and state to context for expression resolution
+    ;(context as Record<string, unknown>).input = initialContext.input
+    if (initialContext.state) {
+      ;(context as Record<string, unknown>).state = initialContext.state
     }
-
-    return graph
-  }
-
-  /**
-   * Add node to graph
-   */
-  private addNode(graph: ExecutionGraph, id: string, element: FlowElement): void {
-    const node: ExecutionNode = {
-      id,
-      type: this.getElementType(element),
-      element,
-      dependencies: this.getDependencies(element),
-      status: 'pending',
-    }
-
-    graph.nodes.set(id, node)
-
-    // Add edges for dependencies
-    for (const depId of node.dependencies) {
-      if (!graph.edges.has(depId)) {
-        graph.edges.set(depId, new Set())
-      }
-      graph.edges.get(depId)!.add(id)
-    }
-  }
-
-  /**
-   * Get element type
-   */
-  private getElementType(element: FlowElement): ExecutionNode['type'] {
-    if ('type' in element) {
-      return element.type as ExecutionNode['type']
-    }
-    return 'step'
-  }
-
-  /**
-   * Get dependencies from element
-   */
-  private getDependencies(element: FlowElement): string[] {
-    if ('depends_on' in element && element.depends_on) {
-      return element.depends_on
-    }
-    return []
-  }
-
-  /**
-   * Execute the graph
-   */
-  private async executeGraph(
-    graph: ExecutionGraph,
-    context: Record<string, unknown>
-  ): Promise<Result<Record<string, unknown>, ConductorError>> {
-    const results = new Map<string, unknown>()
-    const completed = new Set<string>()
-
-    // Find nodes with no dependencies
-    const ready = Array.from(graph.nodes.values()).filter((node) => node.dependencies.length === 0)
-
-    while (ready.length > 0 || completed.size < graph.nodes.size) {
-      // Execute all ready nodes in parallel
-      if (ready.length > 0) {
-        const executions = ready.map((node) => this.executeNode(node, context, results))
-        const nodeResults = await Promise.allSettled(executions)
-
-        // Process results
-        for (let i = 0; i < ready.length; i++) {
-          const node = ready[i]
-          const result = nodeResults[i]
-
-          if (result.status === 'fulfilled') {
-            results.set(node.id, result.value)
-            completed.add(node.id)
-            node.status = 'completed'
-          } else {
-            node.status = 'failed'
-            node.error = result.reason as Error
-          }
-        }
-
-        // Clear ready list
-        ready.length = 0
-      }
-
-      // Find newly ready nodes
-      for (const [nodeId, node] of graph.nodes) {
-        if (node.status === 'pending') {
-          const depsCompleted = node.dependencies.every((dep) => completed.has(dep))
-          if (depsCompleted) {
-            ready.push(node)
-          }
-        }
-      }
-
-      // Check for deadlock (no progress)
-      if (ready.length === 0 && completed.size < graph.nodes.size) {
-        // Find failed nodes
-        const failed = Array.from(graph.nodes.values()).find((n) => n.status === 'failed')
-        if (failed) {
-          return Result.err({
-            code: 'EXECUTION_FAILED',
-            message: `Node ${failed.id} failed: ${failed.error?.message}`,
-            details: { nodeId: failed.id, error: failed.error },
-            isOperational: true,
-            toJSON: () => ({ code: 'EXECUTION_FAILED', message: `Node failed` }),
-            toUserMessage: () => 'Execution failed',
-            name: 'ExecutionError',
-          } as unknown as ConductorError)
-        }
-
-        // Deadlock detected
-        return Result.err({
-          code: 'EXECUTION_DEADLOCK',
-          message: 'Execution deadlock detected - circular dependencies?',
-          details: {
-            completed: Array.from(completed),
-            pending: Array.from(graph.nodes.values())
-              .filter((n) => n.status === 'pending')
-              .map((n) => n.id),
-          },
-          isOperational: true,
-          toJSON: () => ({ code: 'EXECUTION_DEADLOCK', message: 'Deadlock detected' }),
-          toUserMessage: () => 'Execution deadlock detected',
-          name: 'DeadlockError',
-        } as unknown as ConductorError)
-      }
-    }
-
-    return Result.ok(Object.fromEntries(results))
-  }
-
-  /**
-   * Execute a single node
-   */
-  private async executeNode(
-    node: ExecutionNode,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
-  ): Promise<unknown> {
-    node.status = 'running'
-    node.startTime = Date.now()
 
     try {
-      let result: unknown
+      // Execute steps sequentially, but handle control flow internally
+      for (let i = 0; i < flow.length; i++) {
+        const step = flow[i]
+        const result = await this.executeStep(step, context)
 
-      switch (node.type) {
-        case 'step':
-          result = await this.executeStepWithFeatures(
-            node.element as GraphFlowStep,
-            context,
-            results
-          )
-          break
+        // Store result with appropriate key
+        const stepKey = this.getStepKey(step, i)
+        context.results.set(stepKey, result)
 
-        case 'parallel':
-          result = await this.executeParallel(node.element as ParallelBlock, context, results)
-          break
-
-        case 'branch':
-          result = await this.executeBranch(node.element as BranchBlock, context, results)
-          break
-
-        case 'foreach':
-          result = await this.executeForEach(node.element as ForEachBlock, context, results)
-          break
-
-        case 'try':
-          result = await this.executeTry(node.element as TryBlock, context, results)
-          break
-
-        case 'switch':
-          result = await this.executeSwitch(node.element as SwitchBlock, context, results)
-          break
-
-        case 'while':
-          result = await this.executeWhile(node.element as WhileBlock, context, results)
-          break
-
-        case 'map-reduce':
-          result = await this.executeMapReduce(node.element as MapReduceBlock, context, results)
-          break
-
-        default:
-          throw new Error(`Unknown node type: ${node.type}`)
+        // Also add to flat context for expression resolution
+        ;(context as Record<string, unknown>)[stepKey] = { output: result }
       }
 
-      node.endTime = Date.now()
-      node.result = result
-      return result
+      return Result.ok(Object.fromEntries(context.results))
     } catch (error) {
-      node.endTime = Date.now()
-      node.error = error as Error
-      throw error
+      return Result.err(
+        new EnsembleExecutionError(
+          this.ensembleName,
+          'graph-execution',
+          error instanceof Error ? error : new Error(String(error))
+        )
+      )
     }
   }
 
   /**
-   * Execute a single step
+   * Execute a single step (dispatches to appropriate handler based on type)
    */
   private async executeStep(
-    step: GraphFlowStep,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+    step: FlowStepType,
+    context: GraphExecutionContext
   ): Promise<unknown> {
-    // TODO: Implement actual agent execution
-    // This is a simplified placeholder
-    return { success: true, agent: step.agent }
+    // Agent step - delegate to executor callback
+    if (isAgentStep(step)) {
+      return this.executeAgentStep(step, context)
+    }
+
+    // Control flow steps
+    if (isParallelStep(step)) {
+      return this.executeParallel(step, context)
+    }
+
+    if (isBranchStep(step)) {
+      return this.executeBranch(step, context)
+    }
+
+    if (isForeachStep(step)) {
+      return this.executeForeach(step, context)
+    }
+
+    if (isTryStep(step)) {
+      return this.executeTry(step, context)
+    }
+
+    if (isSwitchStep(step)) {
+      return this.executeSwitch(step, context)
+    }
+
+    if (isWhileStep(step)) {
+      return this.executeWhile(step, context)
+    }
+
+    if (isMapReduceStep(step)) {
+      return this.executeMapReduce(step, context)
+    }
+
+    throw new Error(`Unknown step type: ${JSON.stringify(step)}`)
   }
 
   /**
-   * Execute step with retry, timeout, and conditional execution
+   * Execute an agent step by delegating to the executor callback
    */
-  private async executeStepWithFeatures(
-    step: GraphFlowStep,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+  private async executeAgentStep(
+    step: AgentFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown> {
-    // Check "when" condition - skip if false
-    if (step.when) {
-      const shouldExecute = this.evaluateCondition(String(step.when), context, results)
+    // Check conditional execution (when/condition)
+    if (step.when !== undefined || step.condition !== undefined) {
+      const condition = step.when ?? step.condition
+      const shouldExecute = this.evaluateCondition(condition, context)
       if (!shouldExecute) {
-        return { skipped: true, reason: 'when condition false' }
+        return { skipped: true, reason: 'condition evaluated to false' }
       }
     }
 
-    // Execute with retry logic
-    if (step.retry) {
-      return await this.executeWithRetry(step, context, results)
+    // Resolve input interpolations
+    const resolvedInput = step.input
+      ? Parser.resolveInterpolation(step.input, this.buildResolutionContext(context))
+      : undefined
+
+    // Create step with resolved input
+    const resolvedStep: AgentFlowStep = {
+      ...step,
+      input: resolvedInput as Record<string, unknown> | undefined,
     }
 
-    // Execute with timeout
-    if (step.timeout) {
-      return await this.executeWithTimeout(step, context, results)
-    }
-
-    // Regular execution
-    return await this.executeStep(step, context, results)
+    // Delegate to executor callback for actual agent execution
+    return this.agentExecutor(resolvedStep, context)
   }
 
   /**
-   * Execute step with retry logic
-   */
-  private async executeWithRetry(
-    step: GraphFlowStep,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
-  ): Promise<unknown> {
-    const retry = step.retry!
-    const maxAttempts = retry.attempts || 3
-    const initialDelay = retry.initialDelay || 1000
-    const maxDelay = retry.maxDelay || 30000
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        // Execute with optional timeout
-        if (step.timeout) {
-          return await this.executeWithTimeout(step, context, results)
-        }
-        return await this.executeStep(step, context, results)
-      } catch (error) {
-        const errorCode = (error as Error & { code?: string }).code
-
-        // Check if we should retry this error
-        if (retry.retryOn && errorCode && !retry.retryOn.includes(errorCode)) {
-          throw error // Don't retry this error type
-        }
-
-        // Last attempt - throw error
-        if (attempt === maxAttempts - 1) {
-          throw error
-        }
-
-        // Calculate backoff delay
-        let delay: number
-        switch (retry.backoff) {
-          case 'exponential':
-            delay = Math.min(initialDelay * Math.pow(2, attempt), maxDelay)
-            break
-          case 'linear':
-            delay = Math.min(initialDelay * (attempt + 1), maxDelay)
-            break
-          case 'fixed':
-          default:
-            delay = initialDelay
-        }
-
-        // Wait before retry
-        await new Promise((resolve) => setTimeout(resolve, delay))
-      }
-    }
-
-    throw new Error('Max retry attempts reached')
-  }
-
-  /**
-   * Execute step with timeout
-   */
-  private async executeWithTimeout(
-    step: GraphFlowStep,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
-  ): Promise<unknown> {
-    const timeout = step.timeout!
-    const onTimeout = step.onTimeout
-
-    return (await Promise.race([
-      this.executeStep(step, context, results),
-      new Promise((resolve, reject) =>
-        setTimeout(() => {
-          if (onTimeout?.error === false && onTimeout.fallback !== undefined) {
-            // Resolve with fallback value instead of rejecting with error
-            resolve(onTimeout.fallback)
-          } else {
-            reject(new Error(`Step timeout after ${timeout}ms`))
-          }
-        }, timeout)
-      ),
-    ])) as unknown
-  }
-
-  /**
-   * Execute parallel block
+   * Execute parallel steps concurrently
    */
   private async executeParallel(
-    block: ParallelBlock,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+    step: ParallelFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown[]> {
-    const executions = block.steps.map((step) => this.executeStep(step, context, results))
+    const executions = step.steps.map((subStep) => this.executeStep(subStep, context))
 
-    if (block.waitFor === 'any') {
-      // Return first completed
-      return [await Promise.race(executions)]
+    switch (step.waitFor) {
+      case 'any':
+        // Return first completed result
+        return [await Promise.race(executions)]
+
+      case 'first':
+        // Return first successful result (ignores failures)
+        return [
+          await Promise.any(executions).catch(() => {
+            throw new Error('All parallel steps failed')
+          }),
+        ]
+
+      case 'all':
+      default:
+        // Wait for all to complete
+        return Promise.all(executions)
     }
-
-    // Wait for all (default)
-    return await Promise.all(executions)
   }
 
   /**
    * Execute conditional branch
    */
   private async executeBranch(
-    block: BranchBlock,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+    step: BranchFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown> {
-    // Evaluate condition
-    const condition = this.evaluateCondition(block.condition, context, results)
+    const conditionResult = this.evaluateCondition(step.condition, context)
 
-    // Execute appropriate branch
-    const branch = condition ? block.then : block.else || []
+    // Select branch based on condition
+    const branchSteps = conditionResult ? step.then : step.else || []
 
+    // Execute selected branch sequentially
     const branchResults: unknown[] = []
-    for (const element of branch) {
-      const result = await this.executeElement(element, context, results)
+    for (const subStep of branchSteps) {
+      const result = await this.executeStep(subStep, context)
       branchResults.push(result)
     }
 
@@ -416,115 +319,105 @@ export class GraphExecutor {
   }
 
   /**
-   * Execute foreach loop
+   * Execute foreach loop over items
    */
-  private async executeForEach(
-    block: ForEachBlock,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+  private async executeForeach(
+    step: ForeachFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown[]> {
-    // Resolve items array
-    const items = this.resolveExpression(block.items, context, results) as unknown[]
+    // Resolve items expression
+    const items = this.resolveExpression(step.items, context)
 
     if (!Array.isArray(items)) {
-      throw new Error(`ForEach items must be an array, got: ${typeof items}`)
+      throw new Error(`Foreach items must be an array, got: ${typeof items}`)
     }
 
-    // Execute step for each item
-    const maxConcurrency = block.maxConcurrency || items.length
-    const loopResults: unknown[] = []
+    const maxConcurrency = step.maxConcurrency || items.length
+    const results: unknown[] = []
 
+    // Process items in batches based on maxConcurrency
     for (let i = 0; i < items.length; i += maxConcurrency) {
       const batch = items.slice(i, i + maxConcurrency)
+
       const batchResults = await Promise.all(
-        batch.map((item) => {
-          const itemContext = { ...context, item }
-          return this.executeStep(block.step, itemContext, results)
+        batch.map((item, index) => {
+          // Create context with current item and index
+          const itemContext: GraphExecutionContext = {
+            ...context,
+            results: new Map(context.results),
+          }
+          ;(itemContext as Record<string, unknown>).item = item
+          ;(itemContext as Record<string, unknown>).index = i + index
+
+          return this.executeStep(step.step, itemContext)
         })
       )
-      loopResults.push(...batchResults)
 
-      // Check break condition (early exit)
-      if (block.breakWhen) {
-        const shouldBreak = this.evaluateCondition(block.breakWhen, context, results)
+      results.push(...batchResults)
+
+      // Check break condition after each batch
+      if (step.breakWhen) {
+        const shouldBreak = this.evaluateCondition(step.breakWhen, {
+          ...context,
+          results: new Map([...context.results, ['lastBatchResults', batchResults]]),
+        } as GraphExecutionContext)
         if (shouldBreak) {
           break
         }
       }
     }
 
-    return loopResults
-  }
-
-  /**
-   * Execute any flow element
-   */
-  private async executeElement(
-    element: FlowElement,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
-  ): Promise<unknown> {
-    if ('type' in element) {
-      switch (element.type) {
-        case 'parallel':
-          return this.executeParallel(element as ParallelBlock, context, results)
-        case 'branch':
-          return this.executeBranch(element as BranchBlock, context, results)
-        case 'foreach':
-          return this.executeForEach(element as ForEachBlock, context, results)
-        case 'try':
-          return this.executeTry(element as TryBlock, context, results)
-        case 'switch':
-          return this.executeSwitch(element as SwitchBlock, context, results)
-        case 'while':
-          return this.executeWhile(element as WhileBlock, context, results)
-        case 'map-reduce':
-          return this.executeMapReduce(element as MapReduceBlock, context, results)
-      }
-    }
-    return this.executeStep(element as GraphFlowStep, context, results)
+    return results
   }
 
   /**
    * Execute try/catch/finally block
    */
   private async executeTry(
-    block: TryBlock,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+    step: TryFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown> {
     let tryResult: unknown
-    let error: Error | null = null
+    let caughtError: Error | null = null
 
     try {
       // Execute try block
       const tryResults: unknown[] = []
-      for (const element of block.steps) {
-        const result = await this.executeElement(element, context, results)
+      for (const subStep of step.steps) {
+        const result = await this.executeStep(subStep, context)
         tryResults.push(result)
       }
       tryResult = tryResults
-    } catch (err) {
-      error = err as Error
+    } catch (error) {
+      caughtError = error instanceof Error ? error : new Error(String(error))
 
       // Execute catch block if present
-      if (block.catch && block.catch.length > 0) {
+      if (step.catch && step.catch.length > 0) {
+        const errorContext: GraphExecutionContext = {
+          ...context,
+          results: new Map(context.results),
+        }
+        ;(errorContext as Record<string, unknown>).error = {
+          message: caughtError.message,
+          name: caughtError.name,
+          stack: caughtError.stack,
+        }
+
         const catchResults: unknown[] = []
-        const errorContext = { ...context, error }
-        for (const element of block.catch) {
-          const result = await this.executeElement(element, errorContext, results)
+        for (const subStep of step.catch) {
+          const result = await this.executeStep(subStep, errorContext)
           catchResults.push(result)
         }
         tryResult = catchResults
       } else {
         // No catch block - rethrow
-        throw error
+        throw caughtError
       }
     } finally {
       // Execute finally block if present
-      if (block.finally && block.finally.length > 0) {
-        for (const element of block.finally) {
-          await this.executeElement(element, context, results)
+      if (step.finally && step.finally.length > 0) {
+        for (const subStep of step.finally) {
+          await this.executeStep(subStep, context)
         }
       }
     }
@@ -533,31 +426,30 @@ export class GraphExecutor {
   }
 
   /**
-   * Execute switch/case block
+   * Execute switch/case branching
    */
   private async executeSwitch(
-    block: SwitchBlock,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+    step: SwitchFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown> {
-    // Evaluate switch value
-    const value = this.resolveExpression(block.value, context, results)
+    // Resolve the switch value
+    const value = this.resolveExpression(step.value, context)
     const valueStr = String(value)
 
     // Find matching case
-    let caseSteps = block.cases[valueStr]
-    if (!caseSteps && block.default) {
-      caseSteps = block.default
+    let caseSteps = step.cases[valueStr]
+    if (!caseSteps && step.default) {
+      caseSteps = step.default
     }
 
     if (!caseSteps) {
       return null // No matching case and no default
     }
 
-    // Execute case steps
+    // Execute case steps sequentially
     const caseResults: unknown[] = []
-    for (const element of caseSteps) {
-      const result = await this.executeElement(element, context, results)
+    for (const subStep of caseSteps) {
+      const result = await this.executeStep(subStep, context)
       caseResults.push(result)
     }
 
@@ -568,28 +460,36 @@ export class GraphExecutor {
    * Execute while loop
    */
   private async executeWhile(
-    block: WhileBlock,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+    step: WhileFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown[]> {
-    const maxIterations = block.maxIterations || 1000 // Safety limit
-    const loopResults: unknown[] = []
+    const maxIterations = step.maxIterations || 1000 // Safety limit
+    const results: unknown[] = []
     let iterations = 0
 
+    // Create mutable context for loop
+    const loopContext: GraphExecutionContext = {
+      ...context,
+      results: new Map(context.results),
+    }
+
     while (iterations < maxIterations) {
-      // Check condition
-      const condition = this.evaluateCondition(block.condition, context, results)
-      if (!condition) {
+      // Check condition before each iteration
+      const shouldContinue = this.evaluateCondition(step.condition, loopContext)
+      if (!shouldContinue) {
         break
       }
 
-      // Execute loop steps
+      // Execute loop body
       const iterationResults: unknown[] = []
-      for (const element of block.steps) {
-        const result = await this.executeElement(element, context, results)
+      for (const subStep of step.steps) {
+        const result = await this.executeStep(subStep, loopContext)
         iterationResults.push(result)
       }
-      loopResults.push(iterationResults)
+
+      results.push(iterationResults)
+      ;(loopContext as Record<string, unknown>).iteration = iterations
+      ;(loopContext as Record<string, unknown>).lastIterationResults = iterationResults
 
       iterations++
     }
@@ -598,75 +498,163 @@ export class GraphExecutor {
       throw new Error(`While loop exceeded maximum iterations (${maxIterations})`)
     }
 
-    return loopResults
+    return results
   }
 
   /**
-   * Execute map/reduce pattern
+   * Execute map-reduce pattern
    */
   private async executeMapReduce(
-    block: MapReduceBlock,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
+    step: MapReduceFlowStep,
+    context: GraphExecutionContext
   ): Promise<unknown> {
-    // Resolve items array
-    const items = this.resolveExpression(block.items, context, results) as unknown[]
+    // Resolve items expression
+    const items = this.resolveExpression(step.items, context)
 
     if (!Array.isArray(items)) {
-      throw new Error(`Map-Reduce items must be an array, got: ${typeof items}`)
+      throw new Error(`Map-reduce items must be an array, got: ${typeof items}`)
     }
 
-    // Map phase: Process items with concurrency control
-    const maxConcurrency = block.maxConcurrency || items.length
+    const maxConcurrency = step.maxConcurrency || items.length
     const mapResults: unknown[] = []
 
+    // Map phase: process items with concurrency control
     for (let i = 0; i < items.length; i += maxConcurrency) {
       const batch = items.slice(i, i + maxConcurrency)
+
       const batchResults = await Promise.all(
-        batch.map((item) => {
-          const itemContext = { ...context, item }
-          return this.executeStep(block.map, itemContext, results)
+        batch.map((item, index) => {
+          const itemContext: GraphExecutionContext = {
+            ...context,
+            results: new Map(context.results),
+          }
+          ;(itemContext as Record<string, unknown>).item = item
+          ;(itemContext as Record<string, unknown>).index = i + index
+
+          return this.executeStep(step.map, itemContext)
         })
       )
+
       mapResults.push(...batchResults)
     }
 
-    // Reduce phase: Aggregate results
-    const reduceContext = { ...context, results: mapResults }
-    return await this.executeStep(block.reduce, reduceContext, results)
-  }
-
-  /**
-   * Evaluate condition expression
-   */
-  private evaluateCondition(
-    condition: string,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
-  ): boolean {
-    // Simple expression evaluation
-    // In production, use a proper expression parser
-    try {
-      const func = new Function('context', 'results', `return ${condition}`)
-      return func(context, Object.fromEntries(results))
-    } catch {
-      return false
+    // Reduce phase: aggregate results
+    const reduceContext: GraphExecutionContext = {
+      ...context,
+      results: new Map(context.results),
     }
+    ;(reduceContext as Record<string, unknown>).mapResults = mapResults
+    ;(reduceContext as Record<string, unknown>).results = mapResults // Alias
+
+    return this.executeStep(step.reduce, reduceContext)
   }
 
   /**
-   * Resolve expression to value
+   * Get a unique key for storing step results
    */
-  private resolveExpression(
-    expression: string,
-    context: Record<string, unknown>,
-    results: Map<string, unknown>
-  ): unknown {
-    try {
-      const func = new Function('context', 'results', `return ${expression}`)
-      return func(context, Object.fromEntries(results))
-    } catch {
+  private getStepKey(step: FlowStepType, index: number): string {
+    if (isAgentStep(step)) {
+      return step.id || step.agent
+    }
+
+    // For control flow steps, use type and index
+    if ('type' in step) {
+      return `${step.type}_${index}`
+    }
+
+    return `step_${index}`
+  }
+
+  /**
+   * Evaluate a condition expression
+   * Supports both interpolation expressions and JavaScript expressions
+   */
+  private evaluateCondition(condition: unknown, context: GraphExecutionContext): boolean {
+    if (typeof condition === 'boolean') {
+      return condition
+    }
+
+    if (typeof condition === 'string') {
+      // First try to resolve interpolation (${...} or {{...}})
+      const resolved = this.resolveExpression(condition, context)
+
+      if (typeof resolved === 'boolean') {
+        return resolved
+      }
+
+      // If still a string, try to evaluate as expression
+      if (typeof resolved === 'string') {
+        return this.evaluateJsExpression(resolved, context)
+      }
+
+      // Truthy check
+      return Boolean(resolved)
+    }
+
+    // For objects/arrays, check truthiness
+    return Boolean(condition)
+  }
+
+  /**
+   * Resolve an expression using Parser's interpolation system
+   */
+  private resolveExpression(expression: unknown, context: GraphExecutionContext): unknown {
+    if (expression === null || expression === undefined) {
       return expression
+    }
+
+    return Parser.resolveInterpolation(expression, this.buildResolutionContext(context))
+  }
+
+  /**
+   * Build resolution context for Parser.resolveInterpolation
+   */
+  private buildResolutionContext(context: GraphExecutionContext): Record<string, unknown> {
+    const resolutionContext: Record<string, unknown> = {
+      input: context.input,
+      state: context.state || {},
+    }
+
+    // Add all step results to context
+    for (const [key, value] of context.results) {
+      resolutionContext[key] = { output: value }
+    }
+
+    // Add any additional context properties
+    for (const [key, value] of Object.entries(context)) {
+      if (key !== 'input' && key !== 'state' && key !== 'results') {
+        resolutionContext[key] = value
+      }
+    }
+
+    return resolutionContext
+  }
+
+  /**
+   * Evaluate a JavaScript expression in the context
+   * Used as fallback for complex condition expressions
+   */
+  private evaluateJsExpression(expression: string, context: GraphExecutionContext): boolean {
+    try {
+      // Build evaluation context
+      const evalContext = this.buildResolutionContext(context)
+
+      // Create function with context variables
+      const func = new Function(
+        'context',
+        'input',
+        'state',
+        'results',
+        `return ${expression}`
+      )
+
+      return Boolean(
+        func(evalContext, context.input, context.state || {}, Object.fromEntries(context.results))
+      )
+    } catch (error) {
+      // If evaluation fails, return false (safe default)
+      console.warn(`Failed to evaluate condition "${expression}":`, error)
+      return false
     }
   }
 }

@@ -25,7 +25,7 @@ import type {
   EmailMessage,
   EmailResult,
 } from '../types/index.js'
-import type { AgentExecutionContext } from '../../../runtime/types.js'
+import type { AgentExecutionContext } from '../../base-agent.js'
 import { BaseEmailProvider } from '../providers/base.js'
 import type { ValidationResult } from '../types/index.js'
 

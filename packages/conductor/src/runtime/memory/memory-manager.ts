@@ -136,6 +136,39 @@ export class MemoryManager {
     await this.sessionMemory.compress(maxMessages)
   }
 
+  /**
+   * Format messages for AI model consumption
+   * Strips metadata - returns only role + content
+   * Limits to maxContext most recent messages
+   *
+   * @param maxContext - Maximum messages to include (default: 10 = 5 exchanges)
+   */
+  async formatMessagesForAI(maxContext: number = 10): Promise<Array<{ role: string; content: string }>> {
+    if (!this.sessionMemory) {
+      return []
+    }
+    return await this.sessionMemory.formatForAI(maxContext)
+  }
+
+  /**
+   * Get conversation metadata (for debugging/analytics)
+   */
+  async getConversationMetadata(): Promise<{
+    sessionId: string | undefined
+    messageCount: number
+    modelsUsed: string[]
+    firstMessage?: number
+    lastMessage?: number
+    userMessages: number
+    assistantMessages: number
+    totalTokens: { input: number; output: number }
+  } | null> {
+    if (!this.sessionMemory) {
+      return null
+    }
+    return await this.sessionMemory.getMetadata()
+  }
+
   // ==================== Long-Term Memory ====================
 
   /**
