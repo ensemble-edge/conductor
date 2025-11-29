@@ -151,7 +151,10 @@ function resolveEnvSecret(value: string | undefined, env: ConductorEnv): string 
 /**
  * Get the appropriate auth validator based on trigger config
  */
-export async function getValidatorForTrigger(config: TriggerAuthConfig, env: ConductorEnv): Promise<AuthValidator> {
+export async function getValidatorForTrigger(
+  config: TriggerAuthConfig,
+  env: ConductorEnv
+): Promise<AuthValidator> {
   // Resolve environment variable references in the secret
   const resolvedSecret = resolveEnvSecret(config.secret, env)
 

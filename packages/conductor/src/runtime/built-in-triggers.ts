@@ -144,7 +144,9 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
     const middlewareRegistry = getHttpMiddlewareRegistry()
     // Cast middleware array - schema uses loose z.function() but middleware should be MiddlewareHandler
     type MiddlewareHandler = Parameters<typeof middlewareRegistry.resolve>[0][number]
-    const resolved = middlewareRegistry.resolve(trigger.middleware as (string | MiddlewareHandler)[])
+    const resolved = middlewareRegistry.resolve(
+      trigger.middleware as (string | MiddlewareHandler)[]
+    )
     middlewareChain.push(...resolved)
   }
 
@@ -581,7 +583,11 @@ interface HtmlOutput {
  * Render HTTP response
  * Handles ExecutionOutput from the executor
  */
-function renderResponse(c: Context, executionOutput: { output: unknown }, trigger: HTTPTriggerConfig): Response {
+function renderResponse(
+  c: Context,
+  executionOutput: { output: unknown },
+  trigger: HTTPTriggerConfig
+): Response {
   const accept = c.req.header('accept') || ''
   const output = executionOutput.output
 

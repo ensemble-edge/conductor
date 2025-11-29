@@ -32,7 +32,9 @@ export function errorHandler(): MiddlewareHandler {
       // Check if we're in production (don't leak internal error details)
       // Uses configurable productionEnvironments from security config
       const securityConfig = c.get('securityConfig') || DEFAULT_SECURITY_CONFIG
-      const environment = (c.env as unknown as Record<string, unknown>)?.ENVIRONMENT as string | undefined
+      const environment = (c.env as unknown as Record<string, unknown>)?.ENVIRONMENT as
+        | string
+        | undefined
       const isProduction = isProductionEnvironment(securityConfig, environment)
 
       // Handle ConductorError

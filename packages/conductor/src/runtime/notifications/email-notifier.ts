@@ -35,7 +35,10 @@ export class EmailNotifier {
   /**
    * Send email notification
    */
-  async send(eventData: NotificationEventData, env: ConductorEnv): Promise<NotificationDeliveryResult> {
+  async send(
+    eventData: NotificationEventData,
+    env: ConductorEnv
+  ): Promise<NotificationDeliveryResult> {
     const startTime = Date.now()
 
     try {

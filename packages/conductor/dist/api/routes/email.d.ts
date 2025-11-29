@@ -8,8 +8,9 @@
  * destination = "https://your-worker.workers.dev/email"
  */
 import { Hono } from 'hono';
+import type { ConductorEnv } from '../../types/env.js';
 declare const app: Hono<{
-    Bindings: Env;
+    Bindings: ConductorEnv;
 }, import("hono/types").BlankSchema, "/">;
 export default app;
 //# sourceMappingURL=email.d.ts.map

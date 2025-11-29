@@ -104,7 +104,7 @@ function resolveEnvSecret(value, env) {
 /**
  * Get the appropriate auth validator based on trigger config
  */
-export function getValidatorForTrigger(config, env) {
+export async function getValidatorForTrigger(config, env) {
     // Resolve environment variable references in the secret
     const resolvedSecret = resolveEnvSecret(config.secret, env);
     switch (config.type) {
@@ -154,12 +154,11 @@ export function getValidatorForTrigger(config, env) {
             return validator;
         }
         case 'unkey': {
-            // Unkey validator requires the unkey package
-            // For now, fall back to API key validation
-            // TODO: Import UnkeyValidator when available
-            const validator = createApiKeyValidator(env);
+            // Use the Unkey validator for API key management
+            const { createUnkeyValidator } = await import('./providers/unkey.js');
+            const validator = createUnkeyValidator(env);
             if (!validator) {
-                throw new Error('Unkey auth requires API_KEYS KV namespace to be configured');
+                throw new Error('Unkey auth requires UNKEY_ROOT_KEY to be configured');
             }
             return validator;
         }
@@ -181,8 +180,8 @@ export function getValidatorForTrigger(config, env) {
  * @returns Hono middleware function
  */
 export function createTriggerAuthMiddleware(authConfig, env) {
-    const validator = getValidatorForTrigger(authConfig, env);
     return async (c, next) => {
+        const validator = await getValidatorForTrigger(authConfig, env);
         const request = c.req.raw;
         try {
             const result = await validator.validate(request, env);

@@ -139,7 +139,11 @@ export async function validateField(
   // Custom validation function
   if (validation.custom) {
     // Custom validation would be provided in context.input.validators
-    type ValidatorFn = (value: unknown, allData: Record<string, unknown>, field: FormField) => boolean | string | Promise<boolean | string>
+    type ValidatorFn = (
+      value: unknown,
+      allData: Record<string, unknown>,
+      field: FormField
+    ) => boolean | string | Promise<boolean | string>
     const input = context.input as { validators?: Record<string, ValidatorFn> } | undefined
     const customValidator = input?.validators?.[validation.custom]
     if (typeof customValidator === 'function') {

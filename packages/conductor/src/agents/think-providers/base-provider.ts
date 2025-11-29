@@ -104,7 +104,11 @@ export abstract class BaseAIProvider implements AIProvider {
   /**
    * Helper to get API key from config or env
    */
-  protected getApiKey(config: AIProviderConfig, env: ConductorEnv, envVarName: string): string | null {
+  protected getApiKey(
+    config: AIProviderConfig,
+    env: ConductorEnv,
+    envVarName: string
+  ): string | null {
     // Access env as Record for dynamic key lookup
     const envRecord = env as Record<string, unknown>
     return config.apiKey || (envRecord[envVarName] as string | undefined) || null

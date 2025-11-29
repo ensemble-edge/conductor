@@ -87,12 +87,14 @@ export function createMockContext(): ExecutionContext {
  * const result = await agent.execute(context);
  * ```
  */
-export function createAgentContext(options: {
-  input?: unknown
-  env?: Partial<ConductorEnv>
-  ctx?: Partial<ExecutionContext>
-  state?: Record<string, unknown>
-} = {}): {
+export function createAgentContext(
+  options: {
+    input?: unknown
+    env?: Partial<ConductorEnv>
+    ctx?: Partial<ExecutionContext>
+    state?: Record<string, unknown>
+  } = {}
+): {
   input: unknown
   env: ConductorEnv
   ctx: ExecutionContext
@@ -157,7 +159,7 @@ export function createTestHonoApp(
     const reqId =
       options.requestId !== undefined
         ? typeof options.requestId === 'string'
-          ? RequestId.tryCreate(options.requestId) ?? RequestId.generate()
+          ? (RequestId.tryCreate(options.requestId) ?? RequestId.generate())
           : options.requestId
         : RequestId.generate()
     c.set('requestId', reqId)
@@ -306,7 +308,11 @@ export class MockRepository<T = unknown> {
     return Result.ok(value)
   }
 
-  async put(key: string, value: T, _options?: { ttl?: number }): Promise<Result<void, ConductorError>> {
+  async put(
+    key: string,
+    value: T,
+    _options?: { ttl?: number }
+  ): Promise<Result<void, ConductorError>> {
     if (this.putError) {
       const error = this.putError
       this.putError = null // Clear after use

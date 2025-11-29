@@ -25,7 +25,9 @@ function validateSqlIdentifier(identifier: string, type: 'table' | 'column'): st
   }
 
   if (identifier.length > 128) {
-    throw new Error(`Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`)
+    throw new Error(
+      `Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`
+    )
   }
 
   // SQL identifier pattern: starts with letter/underscore, contains only alphanumeric/underscore

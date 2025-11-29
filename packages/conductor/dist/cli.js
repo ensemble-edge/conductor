@@ -403,125 +403,6 @@ var init_chunker = __esm({
   }
 });
 
-// src/agents/built-in/rag/rag-agent.ts
-var RAGMember;
-var init_rag_agent = __esm({
-  "src/agents/built-in/rag/rag-agent.ts"() {
-    "use strict";
-    init_base_agent();
-    init_chunker();
-    RAGMember = class extends BaseAgent {
-      constructor(config, env) {
-        super(config);
-        this.env = env;
-        const cfg = config.config;
-        this.ragConfig = {
-          operation: cfg?.operation || "search",
-          chunkStrategy: cfg?.chunkStrategy || "semantic",
-          chunkSize: cfg?.chunkSize || 512,
-          overlap: cfg?.overlap || 50,
-          embeddingModel: cfg?.embeddingModel || "@cf/baai/bge-base-en-v1.5",
-          topK: cfg?.topK || 5,
-          rerank: cfg?.rerank || false,
-          rerankAlgorithm: cfg?.rerankAlgorithm || "cross-encoder"
-        };
-        this.chunker = new Chunker();
-      }
-      async run(context) {
-        const input = context.input;
-        const operation = this.ragConfig.operation;
-        switch (operation) {
-          case "index":
-            return await this.indexContent(input);
-          case "search":
-            return await this.searchContent(input);
-          default:
-            throw new Error(`Unknown RAG operation: ${operation}`);
-        }
-      }
-      /**
-       * Index content into vector database
-       */
-      async indexContent(input) {
-        if (!input.content) {
-          throw new Error('Index operation requires "content" in input');
-        }
-        if (!input.id) {
-          throw new Error('Index operation requires "id" in input');
-        }
-        const chunks = this.chunker.chunk(
-          input.content,
-          this.ragConfig.chunkStrategy,
-          this.ragConfig.chunkSize,
-          this.ragConfig.overlap
-        );
-        return {
-          indexed: chunks.length,
-          chunks: chunks.length,
-          embeddingModel: this.ragConfig.embeddingModel,
-          chunkStrategy: this.ragConfig.chunkStrategy
-        };
-      }
-      /**
-       * Search content in vector database
-       */
-      async searchContent(input) {
-        if (!input.query) {
-          throw new Error('Search operation requires "query" in input');
-        }
-        return {
-          results: [],
-          count: 0,
-          reranked: this.ragConfig.rerank
-        };
-      }
-      /**
-       * Generate embeddings using Cloudflare AI
-       */
-      async generateEmbeddings(chunks) {
-        return chunks.map(() => Array(384).fill(0));
-      }
-      /**
-       * Generate a single embedding
-       */
-      async generateEmbedding(text) {
-        return Array(384).fill(0);
-      }
-      /**
-       * Store chunks in Vectorize
-       */
-      async storeInVectorize(docId, chunks, embeddings, metadata) {
-      }
-      /**
-       * Search Vectorize for similar vectors
-       */
-      async searchVectorize(queryEmbedding, filter) {
-        return [];
-      }
-      /**
-       * Rerank search results
-       */
-      async rerank(query, results) {
-        return results;
-      }
-    };
-  }
-});
-
-// src/agents/built-in/rag/index.ts
-var rag_exports = {};
-__export(rag_exports, {
-  Chunker: () => Chunker,
-  RAGMember: () => RAGMember
-});
-var init_rag = __esm({
-  "src/agents/built-in/rag/index.ts"() {
-    "use strict";
-    init_rag_agent();
-    init_chunker();
-  }
-});
-
 // src/observability/types.ts
 var init_types = __esm({
   "src/observability/types.ts"() {
@@ -1173,14 +1054,256 @@ var init_observability = __esm({
   }
 });
 
+// src/agents/built-in/rag/rag-agent.ts
+var logger, RAGMember;
+var init_rag_agent = __esm({
+  "src/agents/built-in/rag/rag-agent.ts"() {
+    "use strict";
+    init_base_agent();
+    init_chunker();
+    init_observability();
+    logger = createLogger({ serviceName: "rag-agent" });
+    RAGMember = class extends BaseAgent {
+      constructor(config, env) {
+        super(config);
+        this.env = env;
+        const cfg = config.config;
+        this.ragConfig = {
+          operation: cfg?.operation || "search",
+          chunkStrategy: cfg?.chunkStrategy || "semantic",
+          chunkSize: cfg?.chunkSize || 512,
+          overlap: cfg?.overlap || 50,
+          embeddingModel: cfg?.embeddingModel || "@cf/baai/bge-base-en-v1.5",
+          topK: cfg?.topK || 5,
+          rerank: cfg?.rerank || false,
+          rerankModel: cfg?.rerankModel || "@cf/baai/bge-reranker-base",
+          namespace: cfg?.namespace
+        };
+        this.chunker = new Chunker();
+      }
+      async run(context) {
+        const input = context.input;
+        const operation = this.ragConfig.operation;
+        switch (operation) {
+          case "index":
+            return await this.indexContent(input);
+          case "search":
+            return await this.searchContent(input);
+          default:
+            throw new Error(`Unknown RAG operation: ${operation}`);
+        }
+      }
+      /**
+       * Index content into vector database
+       */
+      async indexContent(input) {
+        if (!input.content) {
+          throw new Error('Index operation requires "content" in input');
+        }
+        if (!input.id) {
+          throw new Error('Index operation requires "id" in input');
+        }
+        if (!this.env.AI) {
+          throw new Error('RAG agent requires AI binding. Add [ai] binding = "AI" to wrangler.toml');
+        }
+        if (!this.env.VECTORIZE) {
+          throw new Error(
+            'RAG agent requires VECTORIZE binding. Add [[vectorize]] binding = "VECTORIZE" to wrangler.toml'
+          );
+        }
+        const chunks = this.chunker.chunk(
+          input.content,
+          this.ragConfig.chunkStrategy,
+          this.ragConfig.chunkSize,
+          this.ragConfig.overlap
+        );
+        logger.debug("Chunked content", { docId: input.id, chunkCount: chunks.length });
+        const embeddings = await this.generateEmbeddings(chunks);
+        await this.storeInVectorize(input.id, chunks, embeddings, input.metadata);
+        logger.info("Indexed document", {
+          docId: input.id,
+          chunks: chunks.length,
+          model: this.ragConfig.embeddingModel
+        });
+        return {
+          indexed: chunks.length,
+          chunks: chunks.length,
+          embeddingModel: this.ragConfig.embeddingModel,
+          chunkStrategy: this.ragConfig.chunkStrategy
+        };
+      }
+      /**
+       * Search content in vector database
+       */
+      async searchContent(input) {
+        if (!input.query) {
+          throw new Error('Search operation requires "query" in input');
+        }
+        if (!this.env.AI) {
+          throw new Error('RAG agent requires AI binding. Add [ai] binding = "AI" to wrangler.toml');
+        }
+        if (!this.env.VECTORIZE) {
+          throw new Error(
+            'RAG agent requires VECTORIZE binding. Add [[vectorize]] binding = "VECTORIZE" to wrangler.toml'
+          );
+        }
+        const queryEmbedding = await this.generateEmbedding(input.query);
+        let results = await this.searchVectorize(
+          queryEmbedding,
+          input.filter,
+          input.topK ?? this.ragConfig.topK
+        );
+        const shouldRerank = input.rerank ?? this.ragConfig.rerank;
+        if (shouldRerank && results.length > 0) {
+          results = await this.rerank(input.query, results);
+        }
+        logger.debug("Search completed", {
+          query: input.query.slice(0, 50),
+          resultCount: results.length,
+          reranked: shouldRerank
+        });
+        return {
+          results,
+          count: results.length,
+          reranked: shouldRerank
+        };
+      }
+      /**
+       * Generate embeddings using Cloudflare AI
+       */
+      async generateEmbeddings(chunks) {
+        const texts = chunks.map((c) => c.text);
+        const batchSize = 100;
+        const allEmbeddings = [];
+        for (let i = 0; i < texts.length; i += batchSize) {
+          const batch = texts.slice(i, i + batchSize);
+          const response = await this.env.AI.run(this.ragConfig.embeddingModel, {
+            text: batch,
+            pooling: "cls"
+            // Use CLS pooling for better accuracy on longer texts
+          });
+          if (!response.data) {
+            throw new Error("Failed to generate embeddings: no data returned from AI");
+          }
+          allEmbeddings.push(...response.data);
+        }
+        return allEmbeddings;
+      }
+      /**
+       * Generate a single embedding
+       */
+      async generateEmbedding(text) {
+        const response = await this.env.AI.run(this.ragConfig.embeddingModel, {
+          text: [text],
+          pooling: "cls"
+        });
+        if (!response.data || response.data.length === 0) {
+          throw new Error("Failed to generate embedding: no data returned from AI");
+        }
+        return response.data[0];
+      }
+      /**
+       * Store chunks in Vectorize
+       */
+      async storeInVectorize(docId, chunks, embeddings, metadata) {
+        const vectors = chunks.map((chunk, i) => ({
+          id: `${docId}-chunk-${chunk.index}`,
+          values: embeddings[i],
+          namespace: this.ragConfig.namespace,
+          metadata: {
+            content: chunk.text,
+            docId,
+            chunkIndex: chunk.index,
+            ...metadata
+          }
+        }));
+        const batchSize = 1e3;
+        for (let i = 0; i < vectors.length; i += batchSize) {
+          const batch = vectors.slice(i, i + batchSize);
+          await this.env.VECTORIZE.upsert(batch);
+        }
+      }
+      /**
+       * Search Vectorize for similar vectors
+       */
+      async searchVectorize(queryEmbedding, filter, topK) {
+        const results = await this.env.VECTORIZE.query(queryEmbedding, {
+          topK: topK ?? this.ragConfig.topK,
+          namespace: this.ragConfig.namespace,
+          filter,
+          returnValues: false,
+          // Don't need embeddings back
+          returnMetadata: "all"
+          // Get full metadata including content
+        });
+        return results.matches.map((match) => ({
+          id: match.id,
+          score: match.score,
+          content: match.metadata?.content || "",
+          metadata: match.metadata || {}
+        }));
+      }
+      /**
+       * Rerank search results using cross-encoder model
+       */
+      async rerank(query, results) {
+        if (results.length === 0) {
+          return results;
+        }
+        const contexts = results.map((r) => ({
+          text: r.content
+        }));
+        const response = await this.env.AI.run(this.ragConfig.rerankModel, {
+          query,
+          contexts,
+          top_k: results.length
+          // Rerank all results
+        });
+        if (!response.response || response.response.length === 0) {
+          logger.warn("Reranker returned no results, using original order");
+          return results;
+        }
+        const rerankedResults = [];
+        for (const item of response.response) {
+          if (item.id !== void 0 && item.score !== void 0) {
+            const originalResult = results[item.id];
+            if (originalResult) {
+              rerankedResults.push({
+                ...originalResult,
+                score: item.score
+                // Use reranker score
+              });
+            }
+          }
+        }
+        return rerankedResults;
+      }
+    };
+  }
+});
+
+// src/agents/built-in/rag/index.ts
+var rag_exports = {};
+__export(rag_exports, {
+  Chunker: () => Chunker,
+  RAGMember: () => RAGMember
+});
+var init_rag = __esm({
+  "src/agents/built-in/rag/index.ts"() {
+    "use strict";
+    init_rag_agent();
+    init_chunker();
+  }
+});
+
 // src/agents/built-in/hitl/hitl-agent.ts
-var logger, HITLMember;
+var logger2, HITLMember;
 var init_hitl_agent = __esm({
   "src/agents/built-in/hitl/hitl-agent.ts"() {
     "use strict";
     init_base_agent();
     init_observability();
-    logger = createLogger({ serviceName: "hitl-agent" });
+    logger2 = createLogger({ serviceName: "hitl-agent" });
     HITLMember = class extends BaseAgent {
       constructor(config, env) {
         super(config);
@@ -1217,23 +1340,49 @@ var init_hitl_agent = __esm({
         if (!input.approvalData) {
           throw new Error('Suspend action requires "approvalData" in input');
         }
-        const executionId = this.generateExecutionId();
-        const expiresAt = Date.now() + this.hitlConfig.timeout;
-        const approvalState = {
-          executionId,
-          state: context.state || {},
-          suspendedAt: Date.now(),
-          expiresAt,
-          approvalData: input.approvalData,
-          status: "suspended"
-        };
-        if (this.hitlConfig.notificationChannel) {
-          await this.sendNotification(executionId, input.approvalData);
+        if (!this.env.HITL_STATE) {
+          throw new Error(
+            'HITL agent requires HITL_STATE binding. Add [[durable_objects]] binding = "HITL_STATE" to wrangler.toml'
+          );
         }
-        const approvalUrl = `https://your-worker.workers.dev/callback/${executionId}`;
+        const token = this.generateExecutionId();
+        const ttlSeconds = Math.floor(this.hitlConfig.timeout / 1e3);
+        const expiresAt = Date.now() + this.hitlConfig.timeout;
+        const execId = context.executionId ? typeof context.executionId === "string" ? context.executionId : context.executionId.value : token;
+        const suspendedState = {
+          executionId: execId,
+          input: context.input,
+          suspendedAt: Date.now(),
+          resumeToken: token
+        };
+        const doId = this.env.HITL_STATE.idFromName(token);
+        const stub = this.env.HITL_STATE.get(doId);
+        const response = await stub.fetch(new Request("https://hitl/suspend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            suspendedState,
+            ttl: ttlSeconds
+          })
+        }));
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Failed to suspend execution: ${error}`);
+        }
+        logger2.info("Execution suspended for approval", {
+          token,
+          expiresAt,
+          ttlSeconds
+        });
+        if (this.hitlConfig.notificationChannel) {
+          await this.sendNotification(token, input.approvalData);
+        }
+        const baseUrl = this.hitlConfig.notificationConfig?.baseUrl || "https://your-worker.workers.dev";
+        const approvalUrl = `${baseUrl}/callback/${token}`;
         return {
           status: "suspended",
-          executionId,
+          executionId: token,
           approvalUrl,
           expiresAt
         };
@@ -1246,28 +1395,83 @@ var init_hitl_agent = __esm({
         if (!input.executionId) {
           throw new Error('Resume action requires "executionId" in input');
         }
-        const approvalState = {
-          executionId: input.executionId,
-          state: {},
-          suspendedAt: Date.now() - 1e3,
-          expiresAt: Date.now() + 864e5,
-          approvalData: {},
-          status: input.approved ? "approved" : "rejected",
-          comments: input.comments
-        };
-        if (Date.now() > approvalState.expiresAt) {
+        if (!this.env.HITL_STATE) {
+          throw new Error(
+            'HITL agent requires HITL_STATE binding. Add [[durable_objects]] binding = "HITL_STATE" to wrangler.toml'
+          );
+        }
+        const doId = this.env.HITL_STATE.idFromName(input.executionId);
+        const stub = this.env.HITL_STATE.get(doId);
+        const statusResponse = await stub.fetch(new Request("https://hitl/status", {
+          method: "GET"
+        }));
+        if (!statusResponse.ok) {
+          if (statusResponse.status === 404) {
+            return {
+              status: "expired",
+              executionId: input.executionId,
+              comments: "Execution not found or expired"
+            };
+          }
+          const error = await statusResponse.text();
+          throw new Error(`Failed to get HITL status: ${error}`);
+        }
+        const currentState = await statusResponse.json();
+        if (currentState.status !== "pending") {
+          return {
+            status: currentState.status,
+            executionId: input.executionId,
+            comments: currentState.rejectionReason
+          };
+        }
+        if (Date.now() > currentState.expiresAt) {
           return {
             status: "expired",
             executionId: input.executionId,
             comments: "Approval request expired"
           };
         }
-        return {
-          status: approvalState.status,
-          executionId: input.executionId,
-          state: approvalState.state,
-          comments: input.comments
-        };
+        if (input.approved) {
+          const approveResponse = await stub.fetch(new Request("https://hitl/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              actor: input.actor || "system",
+              approvalData: input.approvalData
+            })
+          }));
+          if (!approveResponse.ok) {
+            const error = await approveResponse.text();
+            throw new Error(`Failed to approve: ${error}`);
+          }
+          const result = await approveResponse.json();
+          logger2.info("Execution approved", { executionId: input.executionId });
+          return {
+            status: "approved",
+            executionId: input.executionId,
+            state: result.suspendedState,
+            comments: input.comments
+          };
+        } else {
+          const rejectResponse = await stub.fetch(new Request("https://hitl/reject", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              actor: input.actor || "system",
+              reason: input.comments
+            })
+          }));
+          if (!rejectResponse.ok) {
+            const error = await rejectResponse.text();
+            throw new Error(`Failed to reject: ${error}`);
+          }
+          logger2.info("Execution rejected", { executionId: input.executionId });
+          return {
+            status: "rejected",
+            executionId: input.executionId,
+            comments: input.comments
+          };
+        }
       }
       /**
        * Approve execution (shorthand for resume with approved=true)
@@ -1315,6 +1519,9 @@ var init_hitl_agent = __esm({
         if (!webhookUrl || typeof webhookUrl !== "string") {
           throw new Error("Slack notification requires webhookUrl in notificationConfig");
         }
+        const baseUrl = config.baseUrl || "https://your-worker.workers.dev";
+        const approveUrl = `${baseUrl}/callback/${executionId}?action=approve`;
+        const rejectUrl = `${baseUrl}/callback/${executionId}?action=reject`;
         const message = {
           text: `\u{1F514} Approval Required`,
           blocks: [
@@ -1329,8 +1536,9 @@ var init_hitl_agent = __esm({
               type: "section",
               text: {
                 type: "mrkdwn",
-                text: `*Execution ID:* ${executionId}
-*Data:* ${JSON.stringify(approvalData, null, 2)}`
+                text: `*Execution ID:* \`${executionId}\`
+*Data:*
+\`\`\`${JSON.stringify(approvalData, null, 2)}\`\`\``
               }
             },
             {
@@ -1340,21 +1548,28 @@ var init_hitl_agent = __esm({
                   type: "button",
                   text: {
                     type: "plain_text",
-                    text: "Approve"
+                    text: "\u2713 Approve"
                   },
                   style: "primary",
-                  // POST /callback/:token with { approved: true }
-                  url: `https://your-worker.workers.dev/callback/${executionId}`
+                  url: approveUrl
                 },
                 {
                   type: "button",
                   text: {
                     type: "plain_text",
-                    text: "Reject"
+                    text: "\u2717 Reject"
                   },
                   style: "danger",
-                  // POST /callback/:token with { approved: false }
-                  url: `https://your-worker.workers.dev/callback/${executionId}`
+                  url: rejectUrl
+                }
+              ]
+            },
+            {
+              type: "context",
+              elements: [
+                {
+                  type: "mrkdwn",
+                  text: `\u23F1\uFE0F Expires in ${Math.round(this.hitlConfig.timeout / 36e5)} hours`
                 }
               ]
             }
@@ -1365,14 +1580,110 @@ var init_hitl_agent = __esm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(message)
         });
+        logger2.info("Slack notification sent", { executionId });
       }
       /**
        * Send email notification
+       *
+       * Requires notificationConfig to include:
+       * - to: Recipient email address
+       * - from: Sender email address (must be verified in Cloudflare)
+       * - subject: (optional) Custom subject line
+       * - baseUrl: Base URL for callback links
        */
       async sendEmailNotification(executionId, approvalData, config) {
-        logger.debug("Email notification not yet implemented", {
-          executionId
-        });
+        const to = config.to;
+        const from = config.from;
+        const baseUrl = config.baseUrl || "https://your-worker.workers.dev";
+        const subject = config.subject || "\u{1F514} Approval Required";
+        if (!to || !from) {
+          logger2.warn("Email notification skipped: missing to or from in notificationConfig", {
+            executionId
+          });
+          return;
+        }
+        const approveUrl = `${baseUrl}/callback/${executionId}?action=approve`;
+        const rejectUrl = `${baseUrl}/callback/${executionId}?action=reject`;
+        const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header { background: #f5f5f5; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { padding: 20px; border: 1px solid #e0e0e0; border-top: none; }
+    .data { background: #fafafa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    .buttons { margin-top: 20px; }
+    .btn { display: inline-block; padding: 12px 24px; margin-right: 10px; border-radius: 6px; text-decoration: none; font-weight: 500; }
+    .btn-approve { background: #22c55e; color: white; }
+    .btn-reject { background: #ef4444; color: white; }
+    .footer { margin-top: 20px; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>${subject}</h2>
+    </div>
+    <div class="content">
+      <p><strong>Execution ID:</strong> ${executionId}</p>
+      <p><strong>Approval Data:</strong></p>
+      <div class="data">
+        <pre>${JSON.stringify(approvalData, null, 2)}</pre>
+      </div>
+      <div class="buttons">
+        <a href="${approveUrl}" class="btn btn-approve">\u2713 Approve</a>
+        <a href="${rejectUrl}" class="btn btn-reject">\u2717 Reject</a>
+      </div>
+      <div class="footer">
+        <p>This request will expire in ${Math.round(this.hitlConfig.timeout / 36e5)} hours.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+`;
+        const textBody = `
+Approval Required
+=================
+
+Execution ID: ${executionId}
+
+Approval Data:
+${JSON.stringify(approvalData, null, 2)}
+
+Actions:
+- Approve: ${approveUrl}
+- Reject: ${rejectUrl}
+
+This request will expire in ${Math.round(this.hitlConfig.timeout / 36e5)} hours.
+`;
+        try {
+          const emailResponse = await fetch("https://api.mailchannels.net/tx/v1/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              personalizations: [{ to: [{ email: to }] }],
+              from: { email: from },
+              subject,
+              content: [
+                { type: "text/plain", value: textBody },
+                { type: "text/html", value: htmlBody }
+              ]
+            })
+          });
+          if (!emailResponse.ok) {
+            const error = await emailResponse.text();
+            logger2.error("Failed to send email notification", new Error(error), { executionId });
+          } else {
+            logger2.info("Email notification sent", { executionId, to });
+          }
+        } catch (error) {
+          logger2.error("Email notification failed", error instanceof Error ? error : void 0, {
+            executionId
+          });
+        }
       }
       /**
        * Send webhook notification
@@ -1382,30 +1693,26 @@ var init_hitl_agent = __esm({
         if (!webhookUrl || typeof webhookUrl !== "string") {
           throw new Error("Webhook notification requires webhookUrl in notificationConfig");
         }
+        const baseUrl = config.baseUrl || "https://your-worker.workers.dev";
         await fetch(webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             executionId,
             approvalData,
-            // POST /callback/:token with { approved: true/false }
-            // Base path configurable via APIConfig.hitl.resumeBasePath
-            callbackUrl: `https://your-worker.workers.dev/callback/${executionId}`,
+            callbackUrl: `${baseUrl}/callback/${executionId}`,
+            approveUrl: `${baseUrl}/callback/${executionId}?action=approve`,
+            rejectUrl: `${baseUrl}/callback/${executionId}?action=reject`,
             expiresAt: Date.now() + this.hitlConfig.timeout
           })
         });
+        logger2.info("Webhook notification sent", { executionId, webhookUrl });
       }
       /**
        * Generate a cryptographically secure unique execution ID
        */
       generateExecutionId() {
-        return `exec_${crypto.randomUUID()}`;
-      }
-      /**
-       * Get Durable Object for approval state
-       */
-      getApprovalDO(executionId) {
-        return null;
+        return `hitl_${crypto.randomUUID()}`;
       }
     };
   }
@@ -2803,13 +3110,13 @@ var require_logger = __commonJS({
     "use strict";
     exports.__esModule = true;
     var _utils = require_utils();
-    var logger9 = {
+    var logger10 = {
       methodMap: ["debug", "info", "warn", "error"],
       level: "info",
       // Maps a given level value to the `methodMap` indexes above.
       lookupLevel: function lookupLevel(level) {
         if (typeof level === "string") {
-          var levelMap = _utils.indexOf(logger9.methodMap, level.toLowerCase());
+          var levelMap = _utils.indexOf(logger10.methodMap, level.toLowerCase());
           if (levelMap >= 0) {
             level = levelMap;
           } else {
@@ -2820,9 +3127,9 @@ var require_logger = __commonJS({
       },
       // Can be overridden in the host environment
       log: function log(level) {
-        level = logger9.lookupLevel(level);
-        if (typeof console !== "undefined" && logger9.lookupLevel(logger9.level) <= level) {
-          var method = logger9.methodMap[level];
+        level = logger10.lookupLevel(level);
+        if (typeof console !== "undefined" && logger10.lookupLevel(logger10.level) <= level) {
+          var method = logger10.methodMap[level];
           if (!console[method]) {
             method = "log";
           }
@@ -2833,7 +3140,7 @@ var require_logger = __commonJS({
         }
       }
     };
-    exports["default"] = logger9;
+    exports["default"] = logger10;
     module.exports = exports["default"];
   }
 });
@@ -13561,7 +13868,7 @@ function ensembleFromConfig(config) {
 }
 
 // src/runtime/parser.ts
-var logger2 = createLogger({ serviceName: "parser" });
+var logger3 = createLogger({ serviceName: "parser" });
 var AgentFlowStepSchema = external_exports.object({
   agent: external_exports.string().min(1, "Agent name is required"),
   id: external_exports.string().optional(),
@@ -14062,14 +14369,14 @@ var Parser = class {
         validated.flow = validated.agents.map((agent) => {
           const name = typeof agent === "object" && agent !== null && "name" in agent ? String(agent.name) : void 0;
           if (!name) {
-            logger2.warn(`Skipping agent without name in ensemble "${validated.name}"`, {
+            logger3.warn(`Skipping agent without name in ensemble "${validated.name}"`, {
               ensembleName: validated.name
             });
             return null;
           }
           return { agent: name };
         }).filter((step) => step !== null);
-        logger2.debug(`Auto-generated sequential flow for ensemble`, {
+        logger3.debug(`Auto-generated sequential flow for ensemble`, {
           ensembleName: validated.name,
           agentCount: validated.flow.length
         });
@@ -16068,6 +16375,128 @@ config:
     fixed: false
   };
 }
+async function validateTypeScriptAgent(filePath, _options) {
+  const errors = [];
+  try {
+    await fs6.access(filePath);
+  } catch (error) {
+    return {
+      file: filePath,
+      valid: false,
+      errors: [
+        {
+          file: filePath,
+          message: `Cannot read file: ${error.message}`,
+          severity: "error",
+          fixable: false
+        }
+      ],
+      fixed: false
+    };
+  }
+  try {
+    const fileUrl = pathToFileURL2(filePath).href;
+    const module = await import(fileUrl);
+    if (!module.default) {
+      errors.push({
+        file: filePath,
+        message: "TypeScript agent must have a default export",
+        severity: "error",
+        fixable: false,
+        suggestion: 'Add "export default createAgent({ handler: async (ctx) => {...} })" to your file'
+      });
+      return {
+        file: filePath,
+        valid: false,
+        errors,
+        fixed: false
+      };
+    }
+    const exported = module.default;
+    if (typeof exported === "function") {
+      return {
+        file: filePath,
+        valid: true,
+        errors,
+        fixed: false
+      };
+    }
+    if (typeof exported === "object" && exported !== null) {
+      if ("handler" in exported && typeof exported.handler === "function") {
+        errors.push({
+          file: filePath,
+          message: "Default export is a config object, not wrapped with createAgent()",
+          severity: "warning",
+          fixable: false,
+          suggestion: "Wrap your config with createAgent(): export default createAgent({ ... })"
+        });
+      } else if ("flow" in exported || "agents" in exported) {
+        errors.push({
+          file: filePath,
+          message: "This appears to be an Ensemble, not an Agent",
+          severity: "error",
+          fixable: false,
+          suggestion: "Move this file to the ensembles/ directory and use createEnsemble() instead"
+        });
+        return {
+          file: filePath,
+          valid: false,
+          errors,
+          fixed: false
+        };
+      } else {
+        errors.push({
+          file: filePath,
+          message: `Default export is not a valid agent handler (got ${typeof exported})`,
+          severity: "error",
+          fixable: false,
+          suggestion: "Use createAgent() to create your agent: export default createAgent({ handler: async (ctx) => {...} })"
+        });
+        return {
+          file: filePath,
+          valid: false,
+          errors,
+          fixed: false
+        };
+      }
+    } else {
+      errors.push({
+        file: filePath,
+        message: `Default export is not a valid agent handler (got ${typeof exported})`,
+        severity: "error",
+        fixable: false,
+        suggestion: "Use createAgent() to create your agent: export default createAgent({ handler: async (ctx) => {...} })"
+      });
+      return {
+        file: filePath,
+        valid: false,
+        errors,
+        fixed: false
+      };
+    }
+  } catch (error) {
+    const errorMessage = error.message;
+    const errorStack = error.stack || "";
+    const lineMatch = errorStack.match(new RegExp(`${path5.basename(filePath)}:(\\d+):(\\d+)`));
+    const line = lineMatch ? parseInt(lineMatch[1], 10) : void 0;
+    const column = lineMatch ? parseInt(lineMatch[2], 10) : void 0;
+    errors.push({
+      file: filePath,
+      line,
+      column,
+      message: `Import/execution error: ${errorMessage}`,
+      severity: "error",
+      fixable: false,
+      suggestion: "Check for syntax errors or missing imports in your TypeScript file"
+    });
+  }
+  return {
+    file: filePath,
+    valid: errors.filter((e) => e.severity === "error").length === 0,
+    errors,
+    fixed: false
+  };
+}
 async function validateTypeScriptEnsemble(filePath, _options) {
   const errors = [];
   try {
@@ -16318,7 +16747,7 @@ function createValidateCommand() {
           if (file.type === "ensemble") {
             result = await validateTypeScriptEnsemble(file.path, options);
           } else {
-            result = await validateTypeScriptEnsemble(file.path, options);
+            result = await validateTypeScriptAgent(file.path, options);
           }
         } else {
           result = file.type === "ensemble" ? await validateEnsemble(file.path, options) : await validateAgent(file.path, options);
@@ -18243,7 +18672,7 @@ function getProviderRegistry() {
 
 // src/utils/component-resolver.ts
 init_observability();
-var logger3 = createLogger({ serviceName: "component-resolver" });
+var logger4 = createLogger({ serviceName: "component-resolver" });
 function isComponentReference(value) {
   const componentPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i;
   return componentPattern.test(value);
@@ -18333,7 +18762,7 @@ async function resolveComponentRef(ref, context) {
         }
       }
     } catch (error) {
-      logger3.warn(`Failed to fetch from Edgit: ${edgitPath}`, { error: String(error) });
+      logger4.warn(`Failed to fetch from Edgit: ${edgitPath}`, { error: String(error) });
     }
   }
   if (context.env?.COMPONENTS) {
@@ -18348,7 +18777,7 @@ async function resolveComponentRef(ref, context) {
         }
       }
     } catch (error) {
-      logger3.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, { error: String(error) });
+      logger4.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, { error: String(error) });
     }
   }
   throw new Error(
@@ -18937,8 +19366,8 @@ var ThinkAgent = class extends BaseAgent {
     const { input, env } = context;
     await this.resolvePrompt(env);
     if (this.thinkConfig.systemPrompt) {
-      const logger9 = context.logger;
-      logger9?.debug("Template rendering started", {
+      const logger10 = context.logger;
+      logger10?.debug("Template rendering started", {
         agentName: this.getName(),
         templateLength: this.thinkConfig.systemPrompt.length
       });
@@ -18951,12 +19380,12 @@ var ThinkAgent = class extends BaseAgent {
             context
           }
         );
-        logger9?.debug("Template rendering completed", {
+        logger10?.debug("Template rendering completed", {
           agentName: this.getName(),
           renderedLength: this.thinkConfig.systemPrompt.length
         });
       } catch (error) {
-        logger9?.error("Template rendering failed", error instanceof Error ? error : void 0, {
+        logger10?.error("Template rendering failed", error instanceof Error ? error : void 0, {
           agentName: this.getName()
         });
         throw new Error(
@@ -20823,7 +21252,9 @@ var DataAgent = class extends BaseAgent {
       case "hyperdrive" /* Hyperdrive */:
         throw new Error("Hyperdrive uses SQL-native operations, not Repository pattern");
       case "vectorize" /* Vectorize */:
-        throw new Error("Vectorize repository not yet implemented");
+        throw new Error(
+          "Vectorize is not supported via the data agent. Use the RAG agent (operation: rag) for vector operations."
+        );
       case "supabase" /* Supabase */:
       case "neon" /* Neon */:
       case "planetscale" /* PlanetScale */:
@@ -23886,7 +24317,7 @@ init_error_types();
 // src/runtime/scoring/scoring-executor.ts
 init_error_types();
 init_observability();
-var logger4 = createLogger({ serviceName: "scoring-executor" });
+var logger5 = createLogger({ serviceName: "scoring-executor" });
 var ScoringExecutor = class {
   /**
    * Execute a agent with scoring and retry logic
@@ -23936,7 +24367,7 @@ var ScoringExecutor = class {
             }
             break;
           case "continue":
-            logger4.warn("Score below threshold, continuing anyway", {
+            logger5.warn("Score below threshold, continuing anyway", {
               score: score.score,
               threshold: config.thresholds?.minimum,
               attempts
@@ -24235,7 +24666,7 @@ init_observability();
 
 // src/runtime/notifications/webhook-notifier.ts
 init_observability();
-var logger5 = createLogger({ serviceName: "webhook-notifier" });
+var logger6 = createLogger({ serviceName: "webhook-notifier" });
 var WebhookNotifier = class {
   constructor(config) {
     this.config = {
@@ -24263,7 +24694,7 @@ var WebhookNotifier = class {
           attempts: attempt + 1
         };
       } catch (error) {
-        logger5.error("Webhook notification failed", error instanceof Error ? error : void 0, {
+        logger6.error("Webhook notification failed", error instanceof Error ? error : void 0, {
           url: this.config.url,
           attempt: attempt + 1,
           maxRetries: maxRetries + 1
@@ -24367,7 +24798,7 @@ var WebhookNotifier = class {
 
 // src/runtime/notifications/email-notifier.ts
 init_observability();
-var logger6 = createLogger({ serviceName: "email-notifier" });
+var logger7 = createLogger({ serviceName: "email-notifier" });
 var EmailNotifier = class {
   constructor(config) {
     this.config = config;
@@ -24380,7 +24811,7 @@ var EmailNotifier = class {
     try {
       const emailData = this.buildEmailData(eventData);
       await this.sendEmail(emailData, env);
-      logger6.info("Email notification sent", {
+      logger7.info("Email notification sent", {
         to: emailData.to,
         event: eventData.event
       });
@@ -24392,7 +24823,7 @@ var EmailNotifier = class {
         duration: Date.now() - startTime
       };
     } catch (error) {
-      logger6.error("Email notification failed", error instanceof Error ? error : void 0, {
+      logger7.error("Email notification failed", error instanceof Error ? error : void 0, {
         to: this.config.to,
         event: eventData.event
       });
@@ -24592,7 +25023,7 @@ var EmailNotifier = class {
 
 // src/runtime/notifications/notification-manager.ts
 init_observability();
-var logger7 = createLogger({ serviceName: "notification-manager" });
+var logger8 = createLogger({ serviceName: "notification-manager" });
 var NotificationManager = class {
   /**
    * Send notifications for an event
@@ -24615,7 +25046,7 @@ var NotificationManager = class {
     if (relevantNotifications.length === 0) {
       return [];
     }
-    logger7.info("Sending notifications", {
+    logger8.info("Sending notifications", {
       ensemble: ensemble.name,
       event,
       count: relevantNotifications.length
@@ -24627,7 +25058,7 @@ var NotificationManager = class {
     );
     const successful = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
-    logger7.info("Notifications sent", {
+    logger8.info("Notifications sent", {
       ensemble: ensemble.name,
       event,
       total: results.length,
@@ -24666,7 +25097,7 @@ var NotificationManager = class {
         }
       }
     } catch (error) {
-      logger7.error("Notification failed", error instanceof Error ? error : void 0, {
+      logger8.error("Notification failed", error instanceof Error ? error : void 0, {
         type: config.type,
         event: eventData.event
       });
@@ -26511,7 +26942,7 @@ var LongTermMemory = class {
 
 // src/runtime/memory/semantic-memory.ts
 init_observability();
-var logger8 = createLogger({ serviceName: "semantic-memory" });
+var logger9 = createLogger({ serviceName: "semantic-memory" });
 var SemanticMemory = class {
   constructor(env, userId) {
     this.env = env;
@@ -26620,7 +27051,7 @@ var SemanticMemory = class {
     if (!this.userId || !this.env.VECTORIZE) {
       return;
     }
-    logger8.warn("Semantic memory clear not fully implemented - requires ID tracking", {
+    logger9.warn("Semantic memory clear not fully implemented - requires ID tracking", {
       userId: this.userId
     });
   }
@@ -28303,9 +28734,9 @@ Script loader not initialized. For Cloudflare Workers:
 // src/runtime/build-manager.ts
 init_observability();
 var BuildManager = class {
-  constructor(logger9) {
+  constructor(logger10) {
     this.ensembles = /* @__PURE__ */ new Map();
-    this.logger = logger9 || createLogger({ serviceName: "build-manager" });
+    this.logger = logger10 || createLogger({ serviceName: "build-manager" });
   }
   /**
    * Register ensemble with build triggers
@@ -28747,9 +29178,9 @@ import chalk14 from "chalk";
 // src/runtime/cli-manager.ts
 init_observability();
 var CLIManager = class {
-  constructor(logger9) {
+  constructor(logger10) {
     this.commands = /* @__PURE__ */ new Map();
-    this.logger = logger9 || createLogger({ serviceName: "cli-manager" });
+    this.logger = logger10 || createLogger({ serviceName: "cli-manager" });
   }
   /**
    * Register ensemble with CLI triggers

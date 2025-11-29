@@ -118,9 +118,13 @@ export class AgentLoader {
 
         logger.debug(`Auto-discovered agent: ${agentDef.name}`, { agentName: agentDef.name })
       } catch (error) {
-        logger.error(`Failed to load agent "${agentDef.name}"`, error instanceof Error ? error : undefined, {
-          agentName: agentDef.name,
-        })
+        logger.error(
+          `Failed to load agent "${agentDef.name}"`,
+          error instanceof Error ? error : undefined,
+          {
+            agentName: agentDef.name,
+          }
+        )
         // Continue with other agents even if one fails
       }
     }

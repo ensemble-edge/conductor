@@ -443,9 +443,7 @@ export const ExecutionId = {
 
     const normalized = value.trim()
     if (!normalized.startsWith('exec_')) {
-      throw new Error(
-        `Invalid execution ID format: "${value}" (must start with 'exec_')`
-      )
+      throw new Error(`Invalid execution ID format: "${value}" (must start with 'exec_')`)
     }
 
     return normalized as ExecutionId
@@ -499,9 +497,7 @@ export const RequestId = {
 
     const normalized = value.trim()
     if (!normalized.startsWith('req_')) {
-      throw new Error(
-        `Invalid request ID format: "${value}" (must start with 'req_')`
-      )
+      throw new Error(`Invalid request ID format: "${value}" (must start with 'req_')`)
     }
 
     return normalized as RequestId
@@ -555,9 +551,7 @@ export const ResumeToken = {
 
     const normalized = value.trim()
     if (!normalized.startsWith('resume_')) {
-      throw new Error(
-        `Invalid resume token format: "${value}" (must start with 'resume_')`
-      )
+      throw new Error(`Invalid resume token format: "${value}" (must start with 'resume_')`)
     }
 
     return normalized as ResumeToken

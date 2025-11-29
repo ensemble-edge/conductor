@@ -164,7 +164,7 @@ export class EnsembleLoader {
           )
         } catch (error) {
           logger.error(
-            `Failed to register inline agent "${(agentDef as {name?: string}).name}"`,
+            `Failed to register inline agent "${(agentDef as { name?: string }).name}"`,
             error as Error
           )
         }

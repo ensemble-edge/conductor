@@ -448,6 +448,150 @@ async function validateAgent(filePath, options) {
     };
 }
 /**
+ * Validate a TypeScript agent file
+ *
+ * TypeScript agents are validated by dynamically importing them
+ * and checking that they export a valid handler function.
+ */
+async function validateTypeScriptAgent(filePath, _options) {
+    const errors = [];
+    try {
+        // Check file exists
+        await fs.access(filePath);
+    }
+    catch (error) {
+        return {
+            file: filePath,
+            valid: false,
+            errors: [
+                {
+                    file: filePath,
+                    message: `Cannot read file: ${error.message}`,
+                    severity: 'error',
+                    fixable: false,
+                },
+            ],
+            fixed: false,
+        };
+    }
+    try {
+        // Dynamically import the TypeScript file
+        const fileUrl = pathToFileURL(filePath).href;
+        const module = await import(fileUrl);
+        // Check for default export
+        if (!module.default) {
+            errors.push({
+                file: filePath,
+                message: 'TypeScript agent must have a default export',
+                severity: 'error',
+                fixable: false,
+                suggestion: 'Add "export default createAgent({ handler: async (ctx) => {...} })" to your file',
+            });
+            return {
+                file: filePath,
+                valid: false,
+                errors,
+                fixed: false,
+            };
+        }
+        const exported = module.default;
+        // TypeScript agents should export a handler function (from createAgent)
+        // or an object with a handler property
+        if (typeof exported === 'function') {
+            // Valid - it's a handler function
+            return {
+                file: filePath,
+                valid: true,
+                errors,
+                fixed: false,
+            };
+        }
+        // Check if it looks like a raw config object that should use createAgent
+        if (typeof exported === 'object' && exported !== null) {
+            // If it has a handler function, it might be a config object
+            if ('handler' in exported && typeof exported.handler === 'function') {
+                errors.push({
+                    file: filePath,
+                    message: 'Default export is a config object, not wrapped with createAgent()',
+                    severity: 'warning',
+                    fixable: false,
+                    suggestion: 'Wrap your config with createAgent(): export default createAgent({ ... })',
+                });
+            }
+            // If it looks like an ensemble, provide a helpful message
+            else if ('flow' in exported || 'agents' in exported) {
+                errors.push({
+                    file: filePath,
+                    message: 'This appears to be an Ensemble, not an Agent',
+                    severity: 'error',
+                    fixable: false,
+                    suggestion: 'Move this file to the ensembles/ directory and use createEnsemble() instead',
+                });
+                return {
+                    file: filePath,
+                    valid: false,
+                    errors,
+                    fixed: false,
+                };
+            }
+            // Generic object - probably misconfigured
+            else {
+                errors.push({
+                    file: filePath,
+                    message: `Default export is not a valid agent handler (got ${typeof exported})`,
+                    severity: 'error',
+                    fixable: false,
+                    suggestion: 'Use createAgent() to create your agent: export default createAgent({ handler: async (ctx) => {...} })',
+                });
+                return {
+                    file: filePath,
+                    valid: false,
+                    errors,
+                    fixed: false,
+                };
+            }
+        }
+        else {
+            errors.push({
+                file: filePath,
+                message: `Default export is not a valid agent handler (got ${typeof exported})`,
+                severity: 'error',
+                fixable: false,
+                suggestion: 'Use createAgent() to create your agent: export default createAgent({ handler: async (ctx) => {...} })',
+            });
+            return {
+                file: filePath,
+                valid: false,
+                errors,
+                fixed: false,
+            };
+        }
+    }
+    catch (error) {
+        const errorMessage = error.message;
+        const errorStack = error.stack || '';
+        // Try to extract line number from stack trace
+        const lineMatch = errorStack.match(new RegExp(`${path.basename(filePath)}:(\\d+):(\\d+)`));
+        const line = lineMatch ? parseInt(lineMatch[1], 10) : undefined;
+        const column = lineMatch ? parseInt(lineMatch[2], 10) : undefined;
+        errors.push({
+            file: filePath,
+            line,
+            column,
+            message: `Import/execution error: ${errorMessage}`,
+            severity: 'error',
+            fixable: false,
+            suggestion: 'Check for syntax errors or missing imports in your TypeScript file',
+        });
+    }
+    return {
+        file: filePath,
+        valid: errors.filter((e) => e.severity === 'error').length === 0,
+        errors,
+        fixed: false,
+    };
+}
+/**
  * Validate a TypeScript ensemble file
  *
  * TypeScript ensembles are validated by dynamically importing them
@@ -741,9 +885,7 @@ export function createValidateCommand() {
                         result = await validateTypeScriptEnsemble(file.path, options);
                     }
                     else {
-                        // TODO: Add validateTypeScriptAgent when needed
-                        // For now, treat agent .ts files as ensembles (they use same validation)
-                        result = await validateTypeScriptEnsemble(file.path, options);
+                        result = await validateTypeScriptAgent(file.path, options);
                     }
                 }
                 else {

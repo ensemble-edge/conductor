@@ -102,15 +102,17 @@ export class HITLMember extends BaseAgent {
     const doId = this.env.HITL_STATE.idFromName(token)
     const stub = this.env.HITL_STATE.get(doId)
 
-    const response = await stub.fetch(new Request('https://hitl/suspend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token,
-        suspendedState,
-        ttl: ttlSeconds,
-      }),
-    }))
+    const response = await stub.fetch(
+      new Request('https://hitl/suspend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          suspendedState,
+          ttl: ttlSeconds,
+        }),
+      })
+    )
 
     if (!response.ok) {
       const error = await response.text()
@@ -129,8 +131,8 @@ export class HITLMember extends BaseAgent {
     }
 
     // Build callback URL - user should configure their base URL via notificationConfig.baseUrl
-    const baseUrl = (this.hitlConfig.notificationConfig?.baseUrl as string) ||
-      'https://your-worker.workers.dev'
+    const baseUrl =
+      (this.hitlConfig.notificationConfig?.baseUrl as string) || 'https://your-worker.workers.dev'
     const approvalUrl = `${baseUrl}/callback/${token}`
 
     return {
@@ -163,9 +165,11 @@ export class HITLMember extends BaseAgent {
     const stub = this.env.HITL_STATE.get(doId)
 
     // First, get current status
-    const statusResponse = await stub.fetch(new Request('https://hitl/status', {
-      method: 'GET',
-    }))
+    const statusResponse = await stub.fetch(
+      new Request('https://hitl/status', {
+        method: 'GET',
+      })
+    )
 
     if (!statusResponse.ok) {
       if (statusResponse.status === 404) {
@@ -179,7 +183,7 @@ export class HITLMember extends BaseAgent {
       throw new Error(`Failed to get HITL status: ${error}`)
     }
 
-    const currentState = await statusResponse.json() as {
+    const currentState = (await statusResponse.json()) as {
       status: string
       expiresAt: number
       approvalData?: unknown
@@ -206,21 +210,23 @@ export class HITLMember extends BaseAgent {
 
     // Process approval or rejection
     if (input.approved) {
-      const approveResponse = await stub.fetch(new Request('https://hitl/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actor: input.actor || 'system',
-          approvalData: input.approvalData,
-        }),
-      }))
+      const approveResponse = await stub.fetch(
+        new Request('https://hitl/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actor: input.actor || 'system',
+            approvalData: input.approvalData,
+          }),
+        })
+      )
 
       if (!approveResponse.ok) {
         const error = await approveResponse.text()
         throw new Error(`Failed to approve: ${error}`)
       }
 
-      const result = await approveResponse.json() as {
+      const result = (await approveResponse.json()) as {
         suspendedState: Record<string, unknown>
         approvalData?: unknown
       }
@@ -234,14 +240,16 @@ export class HITLMember extends BaseAgent {
         comments: input.comments,
       }
     } else {
-      const rejectResponse = await stub.fetch(new Request('https://hitl/reject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actor: input.actor || 'system',
-          reason: input.comments,
-        }),
-      }))
+      const rejectResponse = await stub.fetch(
+        new Request('https://hitl/reject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actor: input.actor || 'system',
+            reason: input.comments,
+          }),
+        })
+      )
 
       if (!rejectResponse.ok) {
         const error = await rejectResponse.text()

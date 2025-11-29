@@ -498,7 +498,14 @@ export class Executor {
     stepContext: StepExecutionContext
   ): Promise<{ response: AgentResponse; scoringResult?: ScoringResult }> {
     const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext
-    const { ensemble, executionContext, scoringState, ensembleScorer, scoringExecutor, stateManager } = flowContext
+    const {
+      ensemble,
+      executionContext,
+      scoringState,
+      ensembleScorer,
+      scoringExecutor,
+      stateManager,
+    } = flowContext
 
     const agentTimeout = step.timeout ?? this.defaultTimeout
     const scoringConfig = step.scoring as AgentScoringConfig
@@ -506,11 +513,7 @@ export class Executor {
     const scoredResult = await scoringExecutor.executeWithScoring(
       // Agent execution function (with timeout)
       async () => {
-        const resp = await withTimeout(
-          agent.execute(agentContext),
-          agentTimeout,
-          step.agent
-        )
+        const resp = await withTimeout(agent.execute(agentContext), agentTimeout, step.agent)
         // Apply state updates after each attempt
         if (stateManager && getPendingUpdates) {
           const { updates, newLog } = getPendingUpdates()
@@ -617,19 +620,13 @@ export class Executor {
    * Execute agent without scoring (normal path)
    * @private
    */
-  private async executeAgentDirect(
-    stepContext: StepExecutionContext
-  ): Promise<AgentResponse> {
+  private async executeAgentDirect(stepContext: StepExecutionContext): Promise<AgentResponse> {
     const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext
     const { stateManager } = flowContext
 
     const agentTimeout = step.timeout ?? this.defaultTimeout
 
-    const response = await withTimeout(
-      agent.execute(agentContext),
-      agentTimeout,
-      step.agent
-    )
+    const response = await withTimeout(agent.execute(agentContext), agentTimeout, step.agent)
 
     // Apply pending state updates
     if (stateManager && getPendingUpdates) {

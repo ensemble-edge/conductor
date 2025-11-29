@@ -604,8 +604,7 @@ async function validateTypeScriptAgent(
           message: 'This appears to be an Ensemble, not an Agent',
           severity: 'error',
           fixable: false,
-          suggestion:
-            'Move this file to the ensembles/ directory and use createEnsemble() instead',
+          suggestion: 'Move this file to the ensembles/ directory and use createEnsemble() instead',
         })
         return {
           file: filePath,
