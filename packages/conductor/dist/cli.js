@@ -2803,13 +2803,13 @@ var require_logger = __commonJS({
     "use strict";
     exports.__esModule = true;
     var _utils = require_utils();
-    var logger8 = {
+    var logger9 = {
       methodMap: ["debug", "info", "warn", "error"],
       level: "info",
       // Maps a given level value to the `methodMap` indexes above.
       lookupLevel: function lookupLevel(level) {
         if (typeof level === "string") {
-          var levelMap = _utils.indexOf(logger8.methodMap, level.toLowerCase());
+          var levelMap = _utils.indexOf(logger9.methodMap, level.toLowerCase());
           if (levelMap >= 0) {
             level = levelMap;
           } else {
@@ -2820,9 +2820,9 @@ var require_logger = __commonJS({
       },
       // Can be overridden in the host environment
       log: function log(level) {
-        level = logger8.lookupLevel(level);
-        if (typeof console !== "undefined" && logger8.lookupLevel(logger8.level) <= level) {
-          var method = logger8.methodMap[level];
+        level = logger9.lookupLevel(level);
+        if (typeof console !== "undefined" && logger9.lookupLevel(logger9.level) <= level) {
+          var method = logger9.methodMap[level];
           if (!console[method]) {
             method = "log";
           }
@@ -2833,7 +2833,7 @@ var require_logger = __commonJS({
         }
       }
     };
-    exports["default"] = logger8;
+    exports["default"] = logger9;
     module.exports = exports["default"];
   }
 });
@@ -13901,6 +13901,43 @@ var EnsembleSchema = external_exports.object({
   // Input schema definition
   output: EnsembleOutputSchema.optional(),
   // Conditional outputs with status, headers, redirect, rawBody
+  /** Memory configuration for persistent conversation and context */
+  memory: external_exports.object({
+    /** Enable memory system (default: true if memory block is present) */
+    enabled: external_exports.boolean().optional(),
+    /** Session memory configuration (KV-based conversation history) */
+    session: external_exports.object({
+      enabled: external_exports.boolean().optional(),
+      /** Time-to-live in seconds (default: 3600 = 1 hour) */
+      ttl: external_exports.number().positive().optional(),
+      /** Maximum messages to keep (default: 50) */
+      maxMessages: external_exports.number().positive().optional(),
+      /** Maximum age of individual messages in hours (default: 24) */
+      messageMaxAgeHours: external_exports.number().positive().optional()
+    }).optional(),
+    /** Long-term memory configuration (D1-based persistent storage) */
+    longTerm: external_exports.object({
+      enabled: external_exports.boolean().optional(),
+      /** User ID expression for scoping long-term memory (e.g., {{ auth.userId }}) */
+      userId: external_exports.string().optional()
+    }).optional(),
+    /** Semantic memory configuration (Vectorize-based RAG) */
+    semantic: external_exports.object({
+      enabled: external_exports.boolean().optional(),
+      /** Embedding model (default: @cf/baai/bge-base-en-v1.5) */
+      model: external_exports.string().optional(),
+      /** Number of results to return from search (default: 5) */
+      topK: external_exports.number().positive().optional(),
+      /** Minimum similarity score (0-1) */
+      minScore: external_exports.number().min(0).max(1).optional()
+    }).optional(),
+    /** Analytical memory configuration (Hyperdrive SQL databases) */
+    analytical: external_exports.object({
+      enabled: external_exports.boolean().optional(),
+      /** Default database alias */
+      defaultDatabase: external_exports.string().optional()
+    }).optional()
+  }).optional(),
   /** Ensemble-level logging configuration */
   logging: external_exports.object({
     /** Override log level for this ensemble */
@@ -17179,6 +17216,414 @@ async function handleKeysCommand(subcommand, args) {
 import { Command as Command13 } from "commander";
 import chalk13 from "chalk";
 
+// src/primitives/types.ts
+function isParallelStep(step) {
+  return "type" in step && step.type === "parallel";
+}
+function isBranchStep(step) {
+  return "type" in step && step.type === "branch";
+}
+function isForeachStep(step) {
+  return "type" in step && step.type === "foreach";
+}
+function isTryStep(step) {
+  return "type" in step && step.type === "try";
+}
+function isSwitchStep(step) {
+  return "type" in step && step.type === "switch";
+}
+function isWhileStep(step) {
+  return "type" in step && step.type === "while";
+}
+function isMapReduceStep(step) {
+  return "type" in step && step.type === "map-reduce";
+}
+function isAgentStep2(step) {
+  return "agent" in step && !("type" in step);
+}
+
+// src/runtime/graph-executor.ts
+init_result();
+init_error_types();
+function hasControlFlowSteps(flow) {
+  return flow.some(
+    (step) => isParallelStep(step) || isBranchStep(step) || isForeachStep(step) || isTryStep(step) || isSwitchStep(step) || isWhileStep(step) || isMapReduceStep(step)
+  );
+}
+var GraphExecutor = class {
+  /**
+   * Create a new GraphExecutor
+   *
+   * @param agentExecutor - Callback function to execute agent steps
+   * @param ensembleName - Name of the ensemble (for error messages)
+   */
+  constructor(agentExecutor, ensembleName = "unknown") {
+    this.agentExecutor = agentExecutor;
+    this.ensembleName = ensembleName;
+  }
+  /**
+   * Execute a graph-based flow
+   *
+   * @param flow - Array of flow steps to execute
+   * @param initialContext - Initial execution context (input, state)
+   * @returns Result containing all step outputs or an error
+   */
+  async execute(flow, initialContext) {
+    const context = {
+      input: initialContext.input,
+      state: initialContext.state,
+      results: /* @__PURE__ */ new Map()
+    };
+    context.input = initialContext.input;
+    if (initialContext.state) {
+      ;
+      context.state = initialContext.state;
+    }
+    try {
+      for (let i = 0; i < flow.length; i++) {
+        const step = flow[i];
+        const result = await this.executeStep(step, context);
+        const stepKey = this.getStepKey(step, i);
+        context.results.set(stepKey, result);
+        context[stepKey] = { output: result };
+      }
+      return Result.ok(Object.fromEntries(context.results));
+    } catch (error) {
+      return Result.err(
+        new EnsembleExecutionError(
+          this.ensembleName,
+          "graph-execution",
+          error instanceof Error ? error : new Error(String(error))
+        )
+      );
+    }
+  }
+  /**
+   * Execute a single step (dispatches to appropriate handler based on type)
+   */
+  async executeStep(step, context) {
+    if (isAgentStep2(step)) {
+      return this.executeAgentStep(step, context);
+    }
+    if (isParallelStep(step)) {
+      return this.executeParallel(step, context);
+    }
+    if (isBranchStep(step)) {
+      return this.executeBranch(step, context);
+    }
+    if (isForeachStep(step)) {
+      return this.executeForeach(step, context);
+    }
+    if (isTryStep(step)) {
+      return this.executeTry(step, context);
+    }
+    if (isSwitchStep(step)) {
+      return this.executeSwitch(step, context);
+    }
+    if (isWhileStep(step)) {
+      return this.executeWhile(step, context);
+    }
+    if (isMapReduceStep(step)) {
+      return this.executeMapReduce(step, context);
+    }
+    throw new Error(`Unknown step type: ${JSON.stringify(step)}`);
+  }
+  /**
+   * Execute an agent step by delegating to the executor callback
+   */
+  async executeAgentStep(step, context) {
+    if (step.when !== void 0 || step.condition !== void 0) {
+      const condition = step.when ?? step.condition;
+      const shouldExecute = this.evaluateCondition(condition, context);
+      if (!shouldExecute) {
+        return { skipped: true, reason: "condition evaluated to false" };
+      }
+    }
+    const resolvedInput = step.input ? Parser.resolveInterpolation(step.input, this.buildResolutionContext(context)) : void 0;
+    const resolvedStep = {
+      ...step,
+      input: resolvedInput
+    };
+    return this.agentExecutor(resolvedStep, context);
+  }
+  /**
+   * Execute parallel steps concurrently
+   */
+  async executeParallel(step, context) {
+    const executions = step.steps.map((subStep) => this.executeStep(subStep, context));
+    switch (step.waitFor) {
+      case "any":
+        return [await Promise.race(executions)];
+      case "first":
+        return [
+          await Promise.any(executions).catch(() => {
+            throw new Error("All parallel steps failed");
+          })
+        ];
+      case "all":
+      default:
+        return Promise.all(executions);
+    }
+  }
+  /**
+   * Execute conditional branch
+   */
+  async executeBranch(step, context) {
+    const conditionResult = this.evaluateCondition(step.condition, context);
+    const branchSteps = conditionResult ? step.then : step.else || [];
+    const branchResults = [];
+    for (const subStep of branchSteps) {
+      const result = await this.executeStep(subStep, context);
+      branchResults.push(result);
+    }
+    return branchResults;
+  }
+  /**
+   * Execute foreach loop over items
+   */
+  async executeForeach(step, context) {
+    const items = this.resolveExpression(step.items, context);
+    if (!Array.isArray(items)) {
+      throw new Error(`Foreach items must be an array, got: ${typeof items}`);
+    }
+    const maxConcurrency = step.maxConcurrency || items.length;
+    const results = [];
+    for (let i = 0; i < items.length; i += maxConcurrency) {
+      const batch = items.slice(i, i + maxConcurrency);
+      const batchResults = await Promise.all(
+        batch.map((item, index) => {
+          const itemContext = {
+            ...context,
+            results: new Map(context.results)
+          };
+          itemContext.item = item;
+          itemContext.index = i + index;
+          return this.executeStep(step.step, itemContext);
+        })
+      );
+      results.push(...batchResults);
+      if (step.breakWhen) {
+        const shouldBreak = this.evaluateCondition(step.breakWhen, {
+          ...context,
+          results: new Map([...context.results, ["lastBatchResults", batchResults]])
+        });
+        if (shouldBreak) {
+          break;
+        }
+      }
+    }
+    return results;
+  }
+  /**
+   * Execute try/catch/finally block
+   */
+  async executeTry(step, context) {
+    let tryResult;
+    let caughtError = null;
+    try {
+      const tryResults = [];
+      for (const subStep of step.steps) {
+        const result = await this.executeStep(subStep, context);
+        tryResults.push(result);
+      }
+      tryResult = tryResults;
+    } catch (error) {
+      caughtError = error instanceof Error ? error : new Error(String(error));
+      if (step.catch && step.catch.length > 0) {
+        const errorContext = {
+          ...context,
+          results: new Map(context.results)
+        };
+        errorContext.error = {
+          message: caughtError.message,
+          name: caughtError.name,
+          stack: caughtError.stack
+        };
+        const catchResults = [];
+        for (const subStep of step.catch) {
+          const result = await this.executeStep(subStep, errorContext);
+          catchResults.push(result);
+        }
+        tryResult = catchResults;
+      } else {
+        throw caughtError;
+      }
+    } finally {
+      if (step.finally && step.finally.length > 0) {
+        for (const subStep of step.finally) {
+          await this.executeStep(subStep, context);
+        }
+      }
+    }
+    return tryResult;
+  }
+  /**
+   * Execute switch/case branching
+   */
+  async executeSwitch(step, context) {
+    const value = this.resolveExpression(step.value, context);
+    const valueStr = String(value);
+    let caseSteps = step.cases[valueStr];
+    if (!caseSteps && step.default) {
+      caseSteps = step.default;
+    }
+    if (!caseSteps) {
+      return null;
+    }
+    const caseResults = [];
+    for (const subStep of caseSteps) {
+      const result = await this.executeStep(subStep, context);
+      caseResults.push(result);
+    }
+    return caseResults;
+  }
+  /**
+   * Execute while loop
+   */
+  async executeWhile(step, context) {
+    const maxIterations = step.maxIterations || 1e3;
+    const results = [];
+    let iterations = 0;
+    const loopContext = {
+      ...context,
+      results: new Map(context.results)
+    };
+    while (iterations < maxIterations) {
+      const shouldContinue = this.evaluateCondition(step.condition, loopContext);
+      if (!shouldContinue) {
+        break;
+      }
+      const iterationResults = [];
+      for (const subStep of step.steps) {
+        const result = await this.executeStep(subStep, loopContext);
+        iterationResults.push(result);
+      }
+      results.push(iterationResults);
+      loopContext.iteration = iterations;
+      loopContext.lastIterationResults = iterationResults;
+      iterations++;
+    }
+    if (iterations >= maxIterations) {
+      throw new Error(`While loop exceeded maximum iterations (${maxIterations})`);
+    }
+    return results;
+  }
+  /**
+   * Execute map-reduce pattern
+   */
+  async executeMapReduce(step, context) {
+    const items = this.resolveExpression(step.items, context);
+    if (!Array.isArray(items)) {
+      throw new Error(`Map-reduce items must be an array, got: ${typeof items}`);
+    }
+    const maxConcurrency = step.maxConcurrency || items.length;
+    const mapResults = [];
+    for (let i = 0; i < items.length; i += maxConcurrency) {
+      const batch = items.slice(i, i + maxConcurrency);
+      const batchResults = await Promise.all(
+        batch.map((item, index) => {
+          const itemContext = {
+            ...context,
+            results: new Map(context.results)
+          };
+          itemContext.item = item;
+          itemContext.index = i + index;
+          return this.executeStep(step.map, itemContext);
+        })
+      );
+      mapResults.push(...batchResults);
+    }
+    const reduceContext = {
+      ...context,
+      results: new Map(context.results)
+    };
+    reduceContext.mapResults = mapResults;
+    reduceContext.results = mapResults;
+    return this.executeStep(step.reduce, reduceContext);
+  }
+  /**
+   * Get a unique key for storing step results
+   */
+  getStepKey(step, index) {
+    if (isAgentStep2(step)) {
+      return step.id || step.agent;
+    }
+    if ("type" in step) {
+      return `${step.type}_${index}`;
+    }
+    return `step_${index}`;
+  }
+  /**
+   * Evaluate a condition expression
+   * Supports both interpolation expressions and JavaScript expressions
+   */
+  evaluateCondition(condition, context) {
+    if (typeof condition === "boolean") {
+      return condition;
+    }
+    if (typeof condition === "string") {
+      const resolved = this.resolveExpression(condition, context);
+      if (typeof resolved === "boolean") {
+        return resolved;
+      }
+      if (typeof resolved === "string") {
+        return this.evaluateJsExpression(resolved, context);
+      }
+      return Boolean(resolved);
+    }
+    return Boolean(condition);
+  }
+  /**
+   * Resolve an expression using Parser's interpolation system
+   */
+  resolveExpression(expression, context) {
+    if (expression === null || expression === void 0) {
+      return expression;
+    }
+    return Parser.resolveInterpolation(expression, this.buildResolutionContext(context));
+  }
+  /**
+   * Build resolution context for Parser.resolveInterpolation
+   */
+  buildResolutionContext(context) {
+    const resolutionContext = {
+      input: context.input,
+      state: context.state || {}
+    };
+    for (const [key, value] of context.results) {
+      resolutionContext[key] = { output: value };
+    }
+    for (const [key, value] of Object.entries(context)) {
+      if (key !== "input" && key !== "state" && key !== "results") {
+        resolutionContext[key] = value;
+      }
+    }
+    return resolutionContext;
+  }
+  /**
+   * Evaluate a JavaScript expression in the context
+   * Used as fallback for complex condition expressions
+   */
+  evaluateJsExpression(expression, context) {
+    try {
+      const evalContext = this.buildResolutionContext(context);
+      const func = new Function(
+        "context",
+        "input",
+        "state",
+        "results",
+        `return ${expression}`
+      );
+      return Boolean(
+        func(evalContext, context.input, context.state || {}, Object.fromEntries(context.results))
+      );
+    } catch (error) {
+      console.warn(`Failed to evaluate condition "${expression}":`, error);
+      return false;
+    }
+  }
+};
+
 // src/runtime/state-manager.ts
 init_observability();
 var StateManager = class _StateManager {
@@ -18492,8 +18937,8 @@ var ThinkAgent = class extends BaseAgent {
     const { input, env } = context;
     await this.resolvePrompt(env);
     if (this.thinkConfig.systemPrompt) {
-      const logger8 = context.logger;
-      logger8?.debug("Template rendering started", {
+      const logger9 = context.logger;
+      logger9?.debug("Template rendering started", {
         agentName: this.getName(),
         templateLength: this.thinkConfig.systemPrompt.length
       });
@@ -18506,12 +18951,12 @@ var ThinkAgent = class extends BaseAgent {
             context
           }
         );
-        logger8?.debug("Template rendering completed", {
+        logger9?.debug("Template rendering completed", {
           agentName: this.getName(),
           renderedLength: this.thinkConfig.systemPrompt.length
         });
       } catch (error) {
-        logger8?.error("Template rendering failed", error instanceof Error ? error : void 0, {
+        logger9?.error("Template rendering failed", error instanceof Error ? error : void 0, {
           agentName: this.getName()
         });
         throw new Error(
@@ -19506,6 +19951,241 @@ var HyperdriveRepository = class {
 // src/storage/query-cache.ts
 init_result();
 init_error_types();
+
+// src/config/constants.ts
+var TTL = {
+  /** Default cache TTL (1 hour) */
+  CACHE_DEFAULT: 3600,
+  /** Short-lived cache (5 minutes) */
+  CACHE_SHORT: 300,
+  /** Medium-lived cache (15 minutes) */
+  CACHE_MEDIUM: 900,
+  /** Long-lived cache (24 hours) */
+  CACHE_LONG: 86400,
+  /** Session memory TTL (1 hour) */
+  SESSION: 3600,
+  /** Resumption token TTL (24 hours) */
+  RESUMPTION_TOKEN: 86400,
+  /** Analytical memory cache (5 minutes) */
+  ANALYTICAL_CACHE: 300,
+  /** Query result cache - analytics queries (1 hour) */
+  QUERY_ANALYTICS: 3600,
+  /** Query result cache - lookup queries (15 minutes) */
+  QUERY_LOOKUP: 900,
+  /** Query result cache - list queries (5 minutes) */
+  QUERY_LIST: 300
+};
+
+// src/storage/query-cache.ts
+var QueryCache = class {
+  constructor(config) {
+    // Statistics
+    this.stats = {
+      hits: 0,
+      misses: 0,
+      sets: 0,
+      deletes: 0,
+      errors: 0
+    };
+    this.kv = config.kv;
+    this.defaultTTL = config.defaultTTL || TTL.CACHE_SHORT;
+    this.keyPrefix = config.keyPrefix || "query:";
+    this.enableStats = config.enableStats !== false;
+  }
+  /**
+   * Get cached query result
+   */
+  async get(sql, params, database) {
+    try {
+      const key = await this.generateKey(sql, params, database);
+      const cached = await this.kv.get(key, "json");
+      if (!cached) {
+        if (this.enableStats) this.stats.misses++;
+        return Result.ok(null);
+      }
+      const age = (Date.now() - cached.cachedAt) / 1e3;
+      if (age > cached.ttl) {
+        await this.delete(sql, params, database);
+        if (this.enableStats) this.stats.misses++;
+        return Result.ok(null);
+      }
+      if (this.enableStats) this.stats.hits++;
+      return Result.ok(cached.result);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache get failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Set cached query result
+   */
+  async set(sql, result, params, database, ttl) {
+    try {
+      const key = await this.generateKey(sql, params, database);
+      const cacheTTL = ttl || this.defaultTTL;
+      const entry = {
+        result,
+        cachedAt: Date.now(),
+        ttl: cacheTTL,
+        metadata: {
+          sql: sql.substring(0, 200),
+          // Truncate for storage
+          database,
+          paramCount: params?.length || 0
+        }
+      };
+      await this.kv.put(key, JSON.stringify(entry), {
+        expirationTtl: cacheTTL
+      });
+      if (this.enableStats) this.stats.sets++;
+      return Result.ok(void 0);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache set failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Delete cached query result
+   */
+  async delete(sql, params, database) {
+    try {
+      const key = await this.generateKey(sql, params, database);
+      await this.kv.delete(key);
+      if (this.enableStats) this.stats.deletes++;
+      return Result.ok(void 0);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache delete failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Clear all cached queries for a database
+   */
+  async clearDatabase(database) {
+    try {
+      const prefix = `${this.keyPrefix}${database}:`;
+      const list = await this.kv.list({ prefix });
+      let deleted = 0;
+      for (const key of list.keys) {
+        await this.kv.delete(key.name);
+        deleted++;
+      }
+      if (this.enableStats) this.stats.deletes += deleted;
+      return Result.ok(deleted);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache clear failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Clear all cached queries
+   */
+  async clearAll() {
+    try {
+      const list = await this.kv.list({ prefix: this.keyPrefix });
+      let deleted = 0;
+      for (const key of list.keys) {
+        await this.kv.delete(key.name);
+        deleted++;
+      }
+      if (this.enableStats) this.stats.deletes += deleted;
+      return Result.ok(deleted);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache clear all failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Get cache statistics
+   */
+  getStats() {
+    const total = this.stats.hits + this.stats.misses;
+    return {
+      ...this.stats,
+      hitRate: total > 0 ? this.stats.hits / total : 0
+    };
+  }
+  /**
+   * Reset cache statistics
+   */
+  resetStats() {
+    this.stats = {
+      hits: 0,
+      misses: 0,
+      sets: 0,
+      deletes: 0,
+      errors: 0
+    };
+  }
+  /**
+   * Generate cache key from query, params, and database
+   */
+  async generateKey(sql, params, database) {
+    const normalizedSQL = sql.trim().replace(/\s+/g, " ").toLowerCase();
+    const components = [database || "default", normalizedSQL];
+    if (params && params.length > 0) {
+      const paramString = JSON.stringify(params);
+      components.push(paramString);
+    }
+    const hash = await this.sha256Hash(components.join("|"));
+    return `${this.keyPrefix}${hash}`;
+  }
+  /**
+   * Cryptographically secure SHA-256 hash function
+   * Uses Web Crypto API for secure, collision-resistant hashing
+   */
+  async sha256Hash(str) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return hashHex.substring(0, 16);
+  }
+  /**
+   * Check if caching is enabled for a query
+   * Certain query types should not be cached (writes, transactions, etc.)
+   */
+  static shouldCache(sql) {
+    const upperSQL = sql.trim().toUpperCase();
+    if (/^(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|REPLACE)/i.test(upperSQL)) {
+      return false;
+    }
+    if (/^(BEGIN|COMMIT|ROLLBACK|START TRANSACTION)/i.test(upperSQL)) {
+      return false;
+    }
+    if (/\b(NOW|CURRENT_TIMESTAMP|RANDOM|UUID|NEWID)\b/i.test(upperSQL)) {
+      return false;
+    }
+    return true;
+  }
+  /**
+   * Get recommended TTL based on query type
+   */
+  static getRecommendedTTL(sql) {
+    const upperSQL = sql.trim().toUpperCase();
+    if (/\b(COUNT|SUM|AVG|GROUP BY|AGGREGATE)\b/i.test(upperSQL)) {
+      return TTL.QUERY_ANALYTICS;
+    }
+    if (/\bWHERE\s+\w+\s*=\s*[$?:\d]/i.test(upperSQL)) {
+      return TTL.QUERY_LOOKUP;
+    }
+    if (/\bSELECT\b/i.test(upperSQL)) {
+      return TTL.QUERY_LIST;
+    }
+    return TTL.QUERY_LIST;
+  }
+};
 
 // src/agents/storage-agent.ts
 var StorageAgent = class extends BaseAgent {
@@ -25321,8 +26001,1286 @@ function parseValue(value) {
   return value;
 }
 
+// src/runtime/memory/working-memory.ts
+var WorkingMemory = class {
+  constructor() {
+    this.memory = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Set a value in working memory
+   */
+  set(key, value) {
+    this.memory.set(key, value);
+  }
+  /**
+   * Get a value from working memory
+   */
+  get(key) {
+    return this.memory.get(key);
+  }
+  /**
+   * Check if key exists
+   */
+  has(key) {
+    return this.memory.has(key);
+  }
+  /**
+   * Delete a key
+   */
+  delete(key) {
+    return this.memory.delete(key);
+  }
+  /**
+   * Get all keys
+   */
+  keys() {
+    return Array.from(this.memory.keys());
+  }
+  /**
+   * Get all values as object
+   */
+  getAll() {
+    return Object.fromEntries(this.memory);
+  }
+  /**
+   * Clear all memory
+   */
+  clear() {
+    this.memory.clear();
+  }
+  /**
+   * Get memory size
+   */
+  size() {
+    return this.memory.size;
+  }
+  /**
+   * Merge another object into working memory
+   */
+  merge(data) {
+    for (const [key, value] of Object.entries(data)) {
+      this.memory.set(key, value);
+    }
+  }
+  /**
+   * Create a snapshot of working memory
+   */
+  snapshot() {
+    return { ...this.getAll() };
+  }
+  /**
+   * Restore from a snapshot
+   */
+  restore(snapshot) {
+    this.memory.clear();
+    this.merge(snapshot);
+  }
+};
+
+// src/runtime/memory/session-memory.ts
+var SessionMemory = class {
+  constructor(env, sessionId, config) {
+    this.env = env;
+    this.sessionId = sessionId;
+    this.defaultTTL = 3600;
+    // 1 hour in seconds
+    this.defaultMaxMessages = 50;
+    this.defaultMessageMaxAgeHours = 24;
+    this.defaultMaxConversationSize = 1024 * 1024;
+    if (typeof config === "number") {
+      this.ttl = config;
+      this.maxMessages = this.defaultMaxMessages;
+      this.messageMaxAgeHours = this.defaultMessageMaxAgeHours;
+      this.maxConversationSize = this.defaultMaxConversationSize;
+    } else {
+      this.ttl = config?.ttl ?? this.defaultTTL;
+      this.maxMessages = config?.maxMessages ?? this.defaultMaxMessages;
+      this.messageMaxAgeHours = config?.messageMaxAgeHours ?? this.defaultMessageMaxAgeHours;
+      this.maxConversationSize = config?.maxConversationSize ?? this.defaultMaxConversationSize;
+    }
+  }
+  /**
+   * Get the KV key for this session
+   */
+  getKey() {
+    if (!this.sessionId) {
+      throw new Error("Session ID is required for session memory");
+    }
+    return `session:${this.sessionId}`;
+  }
+  /**
+   * Filter messages by age (sliding window memory)
+   * Removes messages older than messageMaxAgeHours
+   * @private
+   */
+  filterByAge(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return [];
+    }
+    const cutoffTime = Date.now() - this.messageMaxAgeHours * 60 * 60 * 1e3;
+    return messages.filter((msg) => {
+      if (!msg.timestamp) return true;
+      return msg.timestamp > cutoffTime;
+    });
+  }
+  /**
+   * Enforce message count limit (keeps most recent)
+   * @private
+   */
+  enforceMaxMessages(messages) {
+    if (messages.length <= this.maxMessages) {
+      return messages;
+    }
+    const trimmed = messages.slice(-this.maxMessages);
+    if (trimmed.length > 0 && trimmed[0].role === "assistant") {
+      trimmed.shift();
+    }
+    return trimmed;
+  }
+  /**
+   * Enforce conversation size limit
+   * Progressively removes oldest message pairs until under limit
+   * @private
+   */
+  enforceMaxSize(messages) {
+    if (!Array.isArray(messages)) return [];
+    let conversationJson = JSON.stringify(messages);
+    while (conversationJson.length > this.maxConversationSize && messages.length > 2) {
+      messages.splice(0, 2);
+      conversationJson = JSON.stringify(messages);
+    }
+    return messages;
+  }
+  /**
+   * Apply all filters to messages (age, count, size)
+   * @private
+   */
+  applyFilters(messages) {
+    let filtered = this.filterByAge(messages);
+    filtered = this.enforceMaxMessages(filtered);
+    filtered = this.enforceMaxSize(filtered);
+    return filtered;
+  }
+  /**
+   * Get conversation history
+   * Automatically filters out old messages and enforces limits
+   */
+  async get() {
+    if (!this.sessionId) {
+      return { messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+    }
+    const key = this.getKey();
+    const data = await this.env.SESSIONS?.get(key);
+    if (!data) {
+      return { messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+    }
+    const history = JSON.parse(data);
+    history.messages = this.applyFilters(history.messages);
+    return history;
+  }
+  /**
+   * Add a message to conversation history
+   * Automatically enforces limits after adding
+   */
+  async add(message) {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    history.messages.push(message);
+    history.messages = this.applyFilters(history.messages);
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Add multiple messages
+   * Automatically enforces limits after adding
+   */
+  async addMany(messages) {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    history.messages.push(...messages);
+    history.messages = this.applyFilters(history.messages);
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Replace entire conversation history
+   */
+  async replace(history) {
+    if (!this.sessionId) {
+      return;
+    }
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Clear conversation history
+   */
+  async clear() {
+    if (!this.sessionId) {
+      return;
+    }
+    const key = this.getKey();
+    await this.env.SESSIONS?.delete(key);
+  }
+  /**
+   * Get last N messages
+   */
+  async getLastN(n) {
+    const history = await this.get();
+    return history.messages.slice(-n);
+  }
+  /**
+   * Get messages since timestamp
+   */
+  async getSince(timestamp) {
+    const history = await this.get();
+    return history.messages.filter((m) => m.timestamp >= timestamp);
+  }
+  /**
+   * Count messages
+   */
+  async count() {
+    const history = await this.get();
+    return history.messages.length;
+  }
+  /**
+   * Compress history by summarizing older messages
+   */
+  async compress(maxMessages) {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    if (history.messages.length <= maxMessages) {
+      return;
+    }
+    const recentMessages = history.messages.slice(-maxMessages);
+    const olderMessages = history.messages.slice(0, -maxMessages);
+    const summaryText = `[Previous conversation summary: ${olderMessages.length} messages]`;
+    const summaryMessage = {
+      role: "system",
+      content: summaryText,
+      timestamp: olderMessages[olderMessages.length - 1]?.timestamp || Date.now(),
+      metadata: { type: "summary", messageCount: olderMessages.length }
+    };
+    history.messages = [summaryMessage, ...recentMessages];
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Extend TTL (reset expiration)
+   */
+  async extend() {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Format messages for AI model consumption
+   * Strips metadata, timestamps, model info - returns only role + content
+   * Limits to maxContext most recent messages
+   *
+   * @param maxContext - Maximum messages to include (default: 10 = 5 exchanges)
+   */
+  async formatForAI(maxContext = 10) {
+    const history = await this.get();
+    if (history.messages.length === 0) {
+      return [];
+    }
+    const recentMessages = history.messages.length > maxContext ? history.messages.slice(-maxContext) : history.messages;
+    return recentMessages.map((msg) => ({
+      role: msg.role,
+      content: msg.content
+    }));
+  }
+  /**
+   * Get conversation metadata (for debugging/analytics)
+   * Returns stats about the conversation without full message content
+   */
+  async getMetadata() {
+    const history = await this.get();
+    if (history.messages.length === 0) {
+      return null;
+    }
+    const modelsUsed = [...new Set(history.messages.map((m) => m.model).filter(Boolean))];
+    const totalTokens = history.messages.reduce(
+      (acc, msg) => ({
+        input: acc.input + (msg.tokens?.input ?? 0),
+        output: acc.output + (msg.tokens?.output ?? 0)
+      }),
+      { input: 0, output: 0 }
+    );
+    return {
+      sessionId: this.sessionId,
+      messageCount: history.messages.length,
+      modelsUsed,
+      firstMessage: history.messages[0]?.timestamp,
+      lastMessage: history.messages[history.messages.length - 1]?.timestamp,
+      userMessages: history.messages.filter((m) => m.role === "user").length,
+      assistantMessages: history.messages.filter((m) => m.role === "assistant").length,
+      totalTokens
+    };
+  }
+};
+
+// src/runtime/memory/long-term-memory.ts
+var LongTermMemory = class {
+  constructor(env, userId) {
+    this.env = env;
+    this.userId = userId;
+    this.tableName = "long_term_memory";
+  }
+  /**
+   * Get a value by key
+   */
+  async get(key) {
+    if (!this.userId || !this.env.DB) {
+      return null;
+    }
+    const result = await this.env.DB.prepare(
+      `SELECT value, updated_at FROM ${this.tableName} WHERE user_id = ? AND key = ?`
+    ).bind(this.userId, key).first();
+    if (!result) {
+      return null;
+    }
+    return JSON.parse(result.value);
+  }
+  /**
+   * Set a value
+   */
+  async set(key, value) {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    await this.env.DB.prepare(
+      `INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, key) DO UPDATE SET
+       value = excluded.value,
+       updated_at = excluded.updated_at`
+    ).bind(this.userId, key, JSON.stringify(value), Date.now()).run();
+  }
+  /**
+   * Delete a key
+   */
+  async delete(key) {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ? AND key = ?`).bind(this.userId, key).run();
+  }
+  /**
+   * Check if key exists
+   */
+  async has(key) {
+    if (!this.userId || !this.env.DB) {
+      return false;
+    }
+    const result = await this.env.DB.prepare(
+      `SELECT 1 FROM ${this.tableName} WHERE user_id = ? AND key = ? LIMIT 1`
+    ).bind(this.userId, key).first();
+    return !!result;
+  }
+  /**
+   * Get all keys for this user
+   */
+  async keys() {
+    if (!this.userId || !this.env.DB) {
+      return [];
+    }
+    const results = await this.env.DB.prepare(
+      `SELECT key FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
+    ).bind(this.userId).all();
+    return results.results.map((row) => row.key);
+  }
+  /**
+   * Get all key-value pairs
+   */
+  async getAll() {
+    if (!this.userId || !this.env.DB) {
+      return {};
+    }
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
+    ).bind(this.userId).all();
+    const data = {};
+    for (const row of results.results) {
+      data[row.key] = JSON.parse(row.value);
+    }
+    return data;
+  }
+  /**
+   * Get multiple values by keys
+   */
+  async getMany(keys) {
+    if (!this.userId || !this.env.DB || keys.length === 0) {
+      return {};
+    }
+    const placeholders = keys.map(() => "?").join(",");
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName} WHERE user_id = ? AND key IN (${placeholders})`
+    ).bind(this.userId, ...keys).all();
+    const data = {};
+    for (const row of results.results) {
+      data[row.key] = JSON.parse(row.value);
+    }
+    return data;
+  }
+  /**
+   * Set multiple key-value pairs
+   */
+  async setMany(data) {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    const timestamp = Date.now();
+    const batch = this.env.DB.batch(
+      Object.entries(data).map(
+        ([key, value]) => this.env.DB.prepare(
+          `INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(user_id, key) DO UPDATE SET
+           value = excluded.value,
+           updated_at = excluded.updated_at`
+        ).bind(this.userId, key, JSON.stringify(value), timestamp)
+      )
+    );
+    await batch;
+  }
+  /**
+   * Clear all data for this user
+   */
+  async clear() {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ?`).bind(this.userId).run();
+  }
+  /**
+   * Count entries for this user
+   */
+  async count() {
+    if (!this.userId || !this.env.DB) {
+      return 0;
+    }
+    const result = await this.env.DB.prepare(
+      `SELECT COUNT(*) as count FROM ${this.tableName} WHERE user_id = ?`
+    ).bind(this.userId).first();
+    return result?.count || 0;
+  }
+  /**
+   * Search keys by prefix
+   */
+  async searchByPrefix(prefix) {
+    if (!this.userId || !this.env.DB) {
+      return {};
+    }
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName}
+       WHERE user_id = ? AND key LIKE ?
+       ORDER BY updated_at DESC`
+    ).bind(this.userId, `${prefix}%`).all();
+    const data = {};
+    for (const row of results.results) {
+      data[row.key] = JSON.parse(row.value);
+    }
+    return data;
+  }
+};
+
+// src/runtime/memory/semantic-memory.ts
+init_observability();
+var logger8 = createLogger({ serviceName: "semantic-memory" });
+var SemanticMemory = class {
+  constructor(env, userId) {
+    this.env = env;
+    this.userId = userId;
+    this.embeddingModel = "@cf/baai/bge-base-en-v1.5";
+  }
+  /**
+   * Add a memory to semantic storage
+   */
+  async add(content, metadata) {
+    if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
+      return "";
+    }
+    const embedding = await this.generateEmbedding(content);
+    const userId = this.userId;
+    const id = `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    await this.env.VECTORIZE.upsert([
+      {
+        id,
+        values: embedding,
+        metadata: {
+          user_id: userId,
+          content,
+          timestamp: Date.now(),
+          ...metadata
+        }
+      }
+    ]);
+    return id;
+  }
+  /**
+   * Add multiple memories
+   */
+  async addMany(memories) {
+    if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
+      return [];
+    }
+    const embeddings = await this.generateEmbeddings(memories.map((m) => m.content));
+    const userId = this.userId;
+    const vectors = memories.map((memory, i) => ({
+      id: `${userId}-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}`,
+      values: embeddings[i],
+      metadata: {
+        user_id: userId,
+        content: memory.content,
+        timestamp: Date.now(),
+        ...memory.metadata
+      }
+    }));
+    await this.env.VECTORIZE.upsert(vectors);
+    return vectors.map((v) => v.id);
+  }
+  /**
+   * Search for semantically similar memories
+   */
+  async search(query, options) {
+    if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
+      return [];
+    }
+    const queryEmbedding = await this.generateEmbedding(query);
+    const results = await this.env.VECTORIZE.query(queryEmbedding, {
+      topK: options?.topK || 5,
+      filter: { user_id: this.userId, ...options?.filter },
+      returnValues: false,
+      returnMetadata: true
+    });
+    return results.matches.filter((match) => !options?.minScore || match.score >= options.minScore).map((match) => ({
+      id: match.id,
+      content: match.metadata.content,
+      timestamp: match.metadata.timestamp,
+      metadata: match.metadata,
+      score: match.score
+    }));
+  }
+  /**
+   * Get a specific memory by ID
+   */
+  async get(id) {
+    if (!this.userId || !this.env.VECTORIZE) {
+      return null;
+    }
+    return null;
+  }
+  /**
+   * Delete a memory
+   */
+  async delete(id) {
+    if (!this.userId || !this.env.VECTORIZE) {
+      return;
+    }
+    await this.env.VECTORIZE.deleteByIds([id]);
+  }
+  /**
+   * Delete multiple memories
+   */
+  async deleteMany(ids) {
+    if (!this.userId || !this.env.VECTORIZE || ids.length === 0) {
+      return;
+    }
+    await this.env.VECTORIZE.deleteByIds(ids);
+  }
+  /**
+   * Clear all memories for this user
+   */
+  async clear() {
+    if (!this.userId || !this.env.VECTORIZE) {
+      return;
+    }
+    logger8.warn("Semantic memory clear not fully implemented - requires ID tracking", {
+      userId: this.userId
+    });
+  }
+  /**
+   * Generate embedding for a single text
+   */
+  async generateEmbedding(text) {
+    const result = await this.env.AI.run(this.embeddingModel, {
+      text: [text]
+    });
+    return Array.isArray(result.data[0]) ? result.data[0] : result.data;
+  }
+  /**
+   * Generate embeddings for multiple texts
+   */
+  async generateEmbeddings(texts) {
+    const result = await this.env.AI.run(this.embeddingModel, {
+      text: texts
+    });
+    return result.data;
+  }
+  /**
+   * Calculate similarity between two texts
+   */
+  async similarity(text1, text2) {
+    if (!this.env.AI) {
+      return 0;
+    }
+    const embeddings = await this.generateEmbeddings([text1, text2]);
+    return this.cosineSimilarity(embeddings[0], embeddings[1]);
+  }
+  /**
+   * Calculate cosine similarity between two vectors
+   */
+  cosineSimilarity(vec1, vec2) {
+    if (vec1.length !== vec2.length) {
+      return 0;
+    }
+    let dotProduct = 0;
+    let norm1 = 0;
+    let norm2 = 0;
+    for (let i = 0; i < vec1.length; i++) {
+      dotProduct += vec1[i] * vec2[i];
+      norm1 += vec1[i] * vec1[i];
+      norm2 += vec2[i] * vec2[i];
+    }
+    norm1 = Math.sqrt(norm1);
+    norm2 = Math.sqrt(norm2);
+    if (norm1 === 0 || norm2 === 0) {
+      return 0;
+    }
+    return dotProduct / (norm1 * norm2);
+  }
+};
+
+// src/runtime/memory/analytical-memory.ts
+init_result();
+init_error_types();
+var AnalyticalMemory = class {
+  constructor(_env, config) {
+    this.config = config;
+    this.repositories = /* @__PURE__ */ new Map();
+    this.defaultDatabase = config.defaultDatabase;
+    if (config.enableCache && config.cacheKV) {
+      this.cache = new QueryCache({
+        kv: config.cacheKV,
+        defaultTTL: config.cacheTTL || 300,
+        keyPrefix: "analytical:",
+        enableStats: true
+      });
+    }
+    for (const [alias, dbConfig] of Object.entries(config.databases)) {
+      const repository = new HyperdriveRepository(dbConfig.binding, {
+        databaseType: dbConfig.type,
+        schema: dbConfig.schema,
+        options: {
+          readOnly: dbConfig.readOnly,
+          timeout: dbConfig.timeout,
+          maxRows: dbConfig.maxRows
+        }
+      });
+      this.repositories.set(alias, repository);
+    }
+  }
+  /**
+   * Query a specific database
+   */
+  async query(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    if (this.cache && QueryCache.shouldCache(sql)) {
+      const cachedResult = await this.cache.get(sql, params, dbAlias);
+      if (cachedResult.success && cachedResult.value) {
+        return cachedResult.value.rows;
+      }
+    }
+    const result = await repository.query(sql, params);
+    if (!result.success) {
+      throw new Error(`Query failed: ${result.error.message}`);
+    }
+    if (this.cache && QueryCache.shouldCache(sql)) {
+      const ttl = QueryCache.getRecommendedTTL(sql);
+      await this.cache.set(sql, result.value, params, dbAlias, ttl);
+    }
+    return result.value.rows;
+  }
+  /**
+   * Query with named parameters
+   */
+  async queryNamed(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    const result = await repository.queryNamed(sql, params);
+    if (!result.success) {
+      throw new Error(`Query failed: ${result.error.message}`);
+    }
+    return result.value.rows;
+  }
+  /**
+   * Query with full result metadata
+   */
+  async queryWithMetadata(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      return Result.err(Errors.internal("No database specified and no default database configured"));
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      return Result.err(Errors.internal(`Database not found: ${dbAlias}`));
+    }
+    return repository.query(sql, params);
+  }
+  /**
+   * Execute a write query (INSERT, UPDATE, DELETE)
+   */
+  async execute(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    if (repository.isReadOnly()) {
+      throw new Error(`Database is read-only: ${dbAlias}`);
+    }
+    const result = await repository.execute(sql, params);
+    if (!result.success) {
+      throw new Error(`Execute failed: ${result.error.message}`);
+    }
+    return result.value.rowsAffected;
+  }
+  /**
+   * Execute queries across multiple databases (federated query)
+   */
+  async queryMultiple(queries) {
+    const results = /* @__PURE__ */ new Map();
+    const promises = queries.map(async (query) => {
+      const rows = await this.query(query.sql, query.params, query.database);
+      return { database: query.database, rows };
+    });
+    const queryResults = await Promise.all(promises);
+    for (const result of queryResults) {
+      results.set(result.database, result.rows);
+    }
+    return results;
+  }
+  /**
+   * Begin a transaction on a specific database
+   */
+  async transaction(database, callback) {
+    const repository = this.repositories.get(database);
+    if (!repository) {
+      throw new Error(`Database not found: ${database}`);
+    }
+    const result = await repository.transaction(async (tx) => {
+      return await callback(repository);
+    });
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error.message}`);
+    }
+    return result.value;
+  }
+  /**
+   * Get list of available databases
+   */
+  getDatabases() {
+    return Array.from(this.repositories.keys());
+  }
+  /**
+   * Check if a database is available
+   */
+  hasDatabase(alias) {
+    return this.repositories.has(alias);
+  }
+  /**
+   * Get database configuration
+   */
+  getDatabaseConfig(alias) {
+    return this.config.databases[alias];
+  }
+  /**
+   * Get repository for a database
+   */
+  getRepository(alias) {
+    return this.repositories.get(alias);
+  }
+  /**
+   * List tables in a database
+   */
+  async listTables(database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    const result = await repository.listTables();
+    if (!result.success) {
+      throw new Error(`Failed to list tables: ${result.error.message}`);
+    }
+    return result.value;
+  }
+  /**
+   * Get table metadata
+   */
+  async getTableInfo(tableName, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    const result = await repository.getTableInfo(tableName);
+    if (!result.success) {
+      throw new Error(`Failed to get table info: ${result.error.message}`);
+    }
+    return result.value;
+  }
+  /**
+   * Get default database alias
+   */
+  getDefaultDatabase() {
+    return this.defaultDatabase;
+  }
+  /**
+   * Set default database
+   */
+  setDefaultDatabase(alias) {
+    if (!this.repositories.has(alias)) {
+      throw new Error(`Database not found: ${alias}`);
+    }
+    this.defaultDatabase = alias;
+  }
+  /**
+   * Get cache statistics (if caching is enabled)
+   */
+  getCacheStats() {
+    return this.cache?.getStats();
+  }
+  /**
+   * Clear cache for a specific database
+   */
+  async clearCache(database) {
+    if (!this.cache) {
+      return 0;
+    }
+    if (database) {
+      const result = await this.cache.clearDatabase(database);
+      return result.success ? result.value : 0;
+    } else {
+      const result = await this.cache.clearAll();
+      return result.success ? result.value : 0;
+    }
+  }
+  /**
+   * Reset cache statistics
+   */
+  resetCacheStats() {
+    this.cache?.resetStats();
+  }
+  /**
+   * Check if caching is enabled
+   */
+  isCacheEnabled() {
+    return this.cache !== void 0;
+  }
+};
+
+// src/runtime/memory/memory-manager.ts
+var MemoryManager = class {
+  constructor(env, config, userId, sessionId) {
+    this.env = env;
+    this.config = config;
+    this.userId = userId;
+    this.sessionId = sessionId;
+    this.sessionMemory = null;
+    this.longTermMemory = null;
+    this.semanticMemory = null;
+    this.analyticalMemory = null;
+    this.workingMemory = new WorkingMemory();
+    if (config.layers.session && sessionId) {
+      this.sessionMemory = new SessionMemory(env, sessionId, config.sessionTTL);
+    }
+    if (config.layers.longTerm && userId) {
+      this.longTermMemory = new LongTermMemory(env, userId);
+    }
+    if (config.layers.semantic && userId) {
+      this.semanticMemory = new SemanticMemory(env, userId);
+    }
+    if (config.layers.analytical && config.analyticalConfig) {
+      this.analyticalMemory = new AnalyticalMemory(env, config.analyticalConfig);
+    }
+  }
+  // ==================== Working Memory ====================
+  /**
+   * Set a value in working memory
+   */
+  setWorking(key, value) {
+    this.workingMemory.set(key, value);
+  }
+  /**
+   * Get a value from working memory
+   */
+  getWorking(key) {
+    return this.workingMemory.get(key);
+  }
+  /**
+   * Get all working memory
+   */
+  getWorkingAll() {
+    return this.workingMemory.getAll();
+  }
+  /**
+   * Clear working memory
+   */
+  clearWorking() {
+    this.workingMemory.clear();
+  }
+  // ==================== Session Memory ====================
+  /**
+   * Add a message to session memory
+   */
+  async addMessage(message) {
+    if (!this.sessionMemory) {
+      return;
+    }
+    await this.sessionMemory.add(message);
+  }
+  /**
+   * Get conversation history
+   */
+  async getConversationHistory() {
+    if (!this.sessionMemory) {
+      return [];
+    }
+    const history = await this.sessionMemory.get();
+    return history.messages;
+  }
+  /**
+   * Get last N messages
+   */
+  async getLastMessages(n) {
+    if (!this.sessionMemory) {
+      return [];
+    }
+    return await this.sessionMemory.getLastN(n);
+  }
+  /**
+   * Clear session memory
+   */
+  async clearSession() {
+    if (!this.sessionMemory) {
+      return;
+    }
+    await this.sessionMemory.clear();
+  }
+  /**
+   * Compress session memory
+   */
+  async compressSession(maxMessages) {
+    if (!this.sessionMemory) {
+      return;
+    }
+    await this.sessionMemory.compress(maxMessages);
+  }
+  /**
+   * Format messages for AI model consumption
+   * Strips metadata - returns only role + content
+   * Limits to maxContext most recent messages
+   *
+   * @param maxContext - Maximum messages to include (default: 10 = 5 exchanges)
+   */
+  async formatMessagesForAI(maxContext = 10) {
+    if (!this.sessionMemory) {
+      return [];
+    }
+    return await this.sessionMemory.formatForAI(maxContext);
+  }
+  /**
+   * Get conversation metadata (for debugging/analytics)
+   */
+  async getConversationMetadata() {
+    if (!this.sessionMemory) {
+      return null;
+    }
+    return await this.sessionMemory.getMetadata();
+  }
+  // ==================== Long-Term Memory ====================
+  /**
+   * Set a value in long-term memory
+   */
+  async setLongTerm(key, value) {
+    if (!this.longTermMemory) {
+      return;
+    }
+    await this.longTermMemory.set(key, value);
+  }
+  /**
+   * Get a value from long-term memory
+   */
+  async getLongTerm(key) {
+    if (!this.longTermMemory) {
+      return null;
+    }
+    return await this.longTermMemory.get(key);
+  }
+  /**
+   * Get all long-term memory
+   */
+  async getLongTermAll() {
+    if (!this.longTermMemory) {
+      return {};
+    }
+    return await this.longTermMemory.getAll();
+  }
+  /**
+   * Delete from long-term memory
+   */
+  async deleteLongTerm(key) {
+    if (!this.longTermMemory) {
+      return;
+    }
+    await this.longTermMemory.delete(key);
+  }
+  /**
+   * Clear long-term memory
+   */
+  async clearLongTerm() {
+    if (!this.longTermMemory) {
+      return;
+    }
+    await this.longTermMemory.clear();
+  }
+  // ==================== Semantic Memory ====================
+  /**
+   * Add a memory to semantic storage
+   */
+  async addSemantic(content, metadata) {
+    if (!this.semanticMemory) {
+      return "";
+    }
+    return await this.semanticMemory.add(content, metadata);
+  }
+  /**
+   * Search semantic memory
+   */
+  async searchSemantic(query, options) {
+    if (!this.semanticMemory) {
+      return [];
+    }
+    return await this.semanticMemory.search(query, options);
+  }
+  /**
+   * Delete from semantic memory
+   */
+  async deleteSemantic(id) {
+    if (!this.semanticMemory) {
+      return;
+    }
+    await this.semanticMemory.delete(id);
+  }
+  /**
+   * Clear semantic memory
+   */
+  async clearSemantic() {
+    if (!this.semanticMemory) {
+      return;
+    }
+    await this.semanticMemory.clear();
+  }
+  // ==================== Unified Operations ====================
+  /**
+   * Create a complete memory snapshot
+   */
+  async snapshot() {
+    const snapshot = {
+      working: this.workingMemory.getAll()
+    };
+    if (this.sessionMemory) {
+      snapshot.session = await this.sessionMemory.get();
+    }
+    if (this.longTermMemory) {
+      snapshot.longTerm = await this.longTermMemory.getAll();
+    }
+    if (this.semanticMemory) {
+      snapshot.semantic = [];
+    }
+    return snapshot;
+  }
+  /**
+   * Clear all memory layers
+   */
+  async clearAll() {
+    this.clearWorking();
+    await this.clearSession();
+    await this.clearLongTerm();
+    await this.clearSemantic();
+  }
+  /**
+   * Get memory statistics
+   */
+  async getStats() {
+    const stats = {
+      working: { size: this.workingMemory.size() }
+    };
+    if (this.sessionMemory) {
+      stats.session = {
+        messageCount: await this.sessionMemory.count()
+      };
+    }
+    if (this.longTermMemory) {
+      stats.longTerm = {
+        keyCount: await this.longTermMemory.count()
+      };
+    }
+    if (this.semanticMemory) {
+      stats.semantic = {
+        note: "Semantic memory count not available via Vectorize API"
+      };
+    }
+    if (this.analyticalMemory) {
+      stats.analytical = {
+        databases: this.analyticalMemory.getDatabases(),
+        databaseCount: this.analyticalMemory.getDatabases().length
+      };
+    }
+    return stats;
+  }
+  /**
+   * Check if a memory layer is enabled
+   */
+  isLayerEnabled(layer) {
+    switch (layer) {
+      case "working":
+        return true;
+      // Always enabled
+      case "session":
+        return !!this.sessionMemory;
+      case "longTerm":
+        return !!this.longTermMemory;
+      case "semantic":
+        return !!this.semanticMemory;
+      case "analytical":
+        return !!this.analyticalMemory;
+      default:
+        return false;
+    }
+  }
+  // ==================== Analytical Memory ====================
+  /**
+   * Query analytical database
+   */
+  async queryAnalytical(sql, params, database) {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return await this.analyticalMemory.query(sql, params, database);
+  }
+  /**
+   * Query analytical database with named parameters
+   */
+  async queryAnalyticalNamed(sql, params, database) {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return await this.analyticalMemory.queryNamed(sql, params, database);
+  }
+  /**
+   * Execute write query on analytical database
+   */
+  async executeAnalytical(sql, params, database) {
+    if (!this.analyticalMemory) {
+      return 0;
+    }
+    return await this.analyticalMemory.execute(sql, params, database);
+  }
+  /**
+   * Execute federated query across multiple databases
+   */
+  async queryMultiple(queries) {
+    if (!this.analyticalMemory) {
+      return /* @__PURE__ */ new Map();
+    }
+    return await this.analyticalMemory.queryMultiple(queries);
+  }
+  /**
+   * Get available analytical databases
+   */
+  getAnalyticalDatabases() {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return this.analyticalMemory.getDatabases();
+  }
+  /**
+   * Check if analytical database exists
+   */
+  hasAnalyticalDatabase(alias) {
+    if (!this.analyticalMemory) {
+      return false;
+    }
+    return this.analyticalMemory.hasDatabase(alias);
+  }
+  /**
+   * List tables in analytical database
+   */
+  async listAnalyticalTables(database) {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return await this.analyticalMemory.listTables(database);
+  }
+  /**
+   * Get analytical memory instance (for advanced usage)
+   */
+  getAnalyticalMemory() {
+    return this.analyticalMemory;
+  }
+};
+
 // src/runtime/executor.ts
-function isAgentStep2(step) {
+function isAgentStep3(step) {
   return "agent" in step && typeof step.agent === "string";
 }
 var DEFAULT_AGENT_TIMEOUT_MS = 3e4;
@@ -25475,7 +27433,7 @@ var Executor = class {
       return Parser.resolveInterpolation(step.input, executionContext);
     } else if (stepIndex > 0 && ensemble.flow) {
       const previousStep = ensemble.flow[stepIndex - 1];
-      const previousAgentName = isAgentStep2(previousStep) ? previousStep.agent : void 0;
+      const previousAgentName = isAgentStep3(previousStep) ? previousStep.agent : void 0;
       if (previousAgentName) {
         const previousResult = executionContext[previousAgentName];
         return previousResult?.output || {};
@@ -25509,7 +27467,9 @@ var Executor = class {
       agentRegistry: flowContext.agentRegistry,
       ensembleRegistry: flowContext.ensembleRegistry,
       // Agent-specific config from ensemble definition
-      config: agentConfig
+      config: agentConfig,
+      // Memory manager for conversation history and persistent storage
+      memory: flowContext.memoryManager ?? void 0
     };
   }
   /**
@@ -25741,6 +27701,7 @@ var Executor = class {
   }
   /**
    * Execute ensemble flow from a given step
+   * Automatically uses GraphExecutor for flows with control flow steps (parallel, branch, etc.)
    * @private
    */
   async executeFlow(flowContext, startStep = 0) {
@@ -25762,16 +27723,18 @@ var Executor = class {
         )
       );
     }
+    const flowSteps = ensemble.flow.slice(startStep);
+    if (hasControlFlowSteps(flowSteps)) {
+      return this.executeFlowWithGraph(flowContext, startStep);
+    }
     for (let i = startStep; i < ensemble.flow.length; i++) {
       const step = ensemble.flow[i];
-      if (!isAgentStep2(step)) {
+      if (!isAgentStep3(step)) {
         return Result.err(
           new EnsembleExecutionError(
             ensemble.name,
             "flow",
-            new Error(
-              `Control flow step type "${step.type}" requires GraphExecutor. Use GraphExecutor.execute() for ensembles with parallel, branch, foreach, try, switch, while, or map-reduce steps.`
-            )
+            new Error(`Unexpected control flow step at index ${i}`)
           )
         );
       }
@@ -25813,12 +27776,114 @@ var Executor = class {
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
       const lastStep = ensemble.flow[ensemble.flow.length - 1];
-      const lastMemberName = isAgentStep2(lastStep) ? lastStep.agent : void 0;
+      const lastMemberName = isAgentStep3(lastStep) ? lastStep.agent : void 0;
       if (lastMemberName) {
         const lastResult = executionContext[lastMemberName];
         finalOutput = lastResult?.output;
       } else {
         finalOutput = {};
+      }
+    } else {
+      finalOutput = {};
+    }
+    metrics.totalDuration = Date.now() - startTime;
+    const stateReport = flowContext.stateManager?.getAccessReport();
+    const executionOutput = {
+      output: finalOutput,
+      metrics,
+      stateReport,
+      response: responseMetadata
+    };
+    if (scoringState) {
+      executionOutput.scoring = scoringState;
+    }
+    return Result.ok(executionOutput);
+  }
+  /**
+   * Execute flow using GraphExecutor for control flow constructs
+   * Handles parallel, branch, foreach, try/catch, switch, while, and map-reduce steps
+   * @private
+   */
+  async executeFlowWithGraph(flowContext, startStep = 0) {
+    const {
+      ensemble,
+      executionContext,
+      metrics,
+      stateManager,
+      scoringState,
+      ensembleScorer,
+      startTime
+    } = flowContext;
+    const agentExecutorFn = async (step, graphContext) => {
+      for (const [key, value] of graphContext.results) {
+        executionContext[key] = { output: value };
+      }
+      const stepIndex = ensemble.flow ? ensemble.flow.findIndex(
+        (s) => isAgentStep3(s) && (s.id === step.id || s.agent === step.agent)
+      ) : -1;
+      const result = await this.executeStep(step, flowContext, stepIndex >= 0 ? stepIndex : 0);
+      if (!result.success) {
+        throw result.error;
+      }
+      const contextKey = step.id || step.agent;
+      const agentResult = executionContext[contextKey];
+      return agentResult?.output;
+    };
+    const graphExecutor = new GraphExecutor(agentExecutorFn, ensemble.name);
+    const flowSteps = ensemble.flow?.slice(startStep) || [];
+    const graphResult = await graphExecutor.execute(flowSteps, {
+      input: executionContext.input,
+      state: stateManager ? stateManager.getState() : void 0
+    });
+    if (!graphResult.success) {
+      return Result.err(graphResult.error);
+    }
+    for (const [key, value] of Object.entries(graphResult.value)) {
+      executionContext[key] = { output: value };
+    }
+    if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
+      scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
+      scoringState.qualityMetrics = ensembleScorer.calculateQualityMetrics(
+        scoringState.scoreHistory
+      );
+    }
+    let finalOutput;
+    let responseMetadata;
+    if (ensemble.output) {
+      const resolved = resolveOutput(ensemble.output, executionContext);
+      if (resolved.redirect) {
+        finalOutput = {};
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          redirect: resolved.redirect
+        };
+      } else if (resolved.rawBody !== void 0) {
+        finalOutput = resolved.rawBody;
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          isRawBody: true
+        };
+      } else {
+        finalOutput = resolved.body ?? {};
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers
+        };
+      }
+    } else if (ensemble.flow && ensemble.flow.length > 0) {
+      const lastStep = ensemble.flow[ensemble.flow.length - 1];
+      const lastKey = isAgentStep3(lastStep) ? lastStep.id || lastStep.agent : `step_${ensemble.flow.length - 1}`;
+      if (graphResult.value[lastKey]) {
+        finalOutput = graphResult.value[lastKey];
+      } else {
+        const keys = Object.keys(graphResult.value);
+        if (keys.length > 0) {
+          finalOutput = graphResult.value[keys[keys.length - 1]];
+        } else {
+          finalOutput = {};
+        }
       }
     } else {
       finalOutput = {};
@@ -25945,6 +28010,54 @@ Script loader not initialized. For Cloudflare Workers:
     };
   }
   /**
+   * Create memory manager from ensemble config
+   * Extracts userId/sessionId from input and auth context
+   * @private
+   */
+  createMemoryManager(ensemble, input) {
+    if (!ensemble.memory || ensemble.memory.enabled === false) {
+      return null;
+    }
+    const memoryParsed = ensemble.memory;
+    const memoryConfig = {
+      enabled: memoryParsed.enabled !== false,
+      layers: {
+        working: true,
+        // Always enabled
+        session: memoryParsed.session?.enabled !== false && !!memoryParsed.session,
+        longTerm: memoryParsed.longTerm?.enabled !== false && !!memoryParsed.longTerm,
+        semantic: memoryParsed.semantic?.enabled !== false && !!memoryParsed.semantic,
+        analytical: memoryParsed.analytical?.enabled !== false && !!memoryParsed.analytical
+      },
+      sessionTTL: memoryParsed.session?.ttl ?? 3600,
+      // Default 1 hour
+      semanticModel: memoryParsed.semantic?.model
+    };
+    let userId;
+    if (memoryParsed.longTerm?.userId) {
+      const userIdTemplate = memoryParsed.longTerm.userId;
+      if (userIdTemplate.includes("{{") || userIdTemplate.includes("${")) {
+        userId = Parser.resolveInterpolation(userIdTemplate, {
+          input,
+          auth: this.auth
+        });
+      } else {
+        userId = userIdTemplate;
+      }
+    }
+    if (!userId && this.auth?.user?.id) {
+      userId = String(this.auth.user.id);
+    }
+    const sessionId = input.sessionId || input.conversationId || input.conversation_id || void 0;
+    this.logger.debug("Initializing memory manager", {
+      ensembleName: ensemble.name,
+      layers: memoryConfig.layers,
+      hasUserId: !!userId,
+      hasSessionId: !!sessionId
+    });
+    return new MemoryManager(this.env, memoryConfig, userId, sessionId);
+  }
+  /**
    * Execute an ensemble with Result-based error handling
    * @param ensemble - Parsed ensemble configuration
    * @param input - Input data for the ensemble
@@ -25982,6 +28095,7 @@ Script loader not initialized. For Cloudflare Workers:
       NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env)
     );
     const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
+    const memoryManager = this.createMemoryManager(ensemble, input);
     let scoringState = null;
     let ensembleScorer = null;
     const scoringExecutor = new ScoringExecutor();
@@ -26015,7 +28129,8 @@ Script loader not initialized. For Cloudflare Workers:
       executionId,
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
-      ensembleRegistry: ensembleDiscoveryRegistry
+      ensembleRegistry: ensembleDiscoveryRegistry,
+      memoryManager
     };
     const result = await this.executeFlow(flowContext, 0);
     const totalDuration = Date.now() - startTime;
@@ -26159,6 +28274,11 @@ Script loader not initialized. For Cloudflare Workers:
     const componentRegistry = createComponentRegistry(this.env);
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
     const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const originalInput = executionContext.input ?? {};
+    const memoryManager = this.createMemoryManager(ensemble, {
+      ...originalInput,
+      ...resumeInput
+    });
     const flowContext = {
       ensemble,
       executionContext,
@@ -26172,7 +28292,8 @@ Script loader not initialized. For Cloudflare Workers:
       executionId,
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
-      ensembleRegistry: ensembleDiscoveryRegistry
+      ensembleRegistry: ensembleDiscoveryRegistry,
+      memoryManager
     };
     const resumeFromStep = suspendedState.resumeFromStep;
     return await this.executeFlow(flowContext, resumeFromStep);
@@ -26182,9 +28303,9 @@ Script loader not initialized. For Cloudflare Workers:
 // src/runtime/build-manager.ts
 init_observability();
 var BuildManager = class {
-  constructor(logger8) {
+  constructor(logger9) {
     this.ensembles = /* @__PURE__ */ new Map();
-    this.logger = logger8 || createLogger({ serviceName: "build-manager" });
+    this.logger = logger9 || createLogger({ serviceName: "build-manager" });
   }
   /**
    * Register ensemble with build triggers
@@ -26626,9 +28747,9 @@ import chalk14 from "chalk";
 // src/runtime/cli-manager.ts
 init_observability();
 var CLIManager = class {
-  constructor(logger8) {
+  constructor(logger9) {
     this.commands = /* @__PURE__ */ new Map();
-    this.logger = logger8 || createLogger({ serviceName: "cli-manager" });
+    this.logger = logger9 || createLogger({ serviceName: "cli-manager" });
   }
   /**
    * Register ensemble with CLI triggers

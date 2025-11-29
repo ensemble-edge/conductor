@@ -907,6 +907,119 @@ declare const EnsembleSchema: z.ZodObject<{
             status?: 301 | 302 | 307 | 308 | undefined;
         } | undefined;
     }>, "many">, z.ZodRecord<z.ZodString, z.ZodUnknown>]>>;
+    /** Memory configuration for persistent conversation and context */
+    memory: z.ZodOptional<z.ZodObject<{
+        /** Enable memory system (default: true if memory block is present) */
+        enabled: z.ZodOptional<z.ZodBoolean>;
+        /** Session memory configuration (KV-based conversation history) */
+        session: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            /** Time-to-live in seconds (default: 3600 = 1 hour) */
+            ttl: z.ZodOptional<z.ZodNumber>;
+            /** Maximum messages to keep (default: 50) */
+            maxMessages: z.ZodOptional<z.ZodNumber>;
+            /** Maximum age of individual messages in hours (default: 24) */
+            messageMaxAgeHours: z.ZodOptional<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            enabled?: boolean | undefined;
+            ttl?: number | undefined;
+            maxMessages?: number | undefined;
+            messageMaxAgeHours?: number | undefined;
+        }, {
+            enabled?: boolean | undefined;
+            ttl?: number | undefined;
+            maxMessages?: number | undefined;
+            messageMaxAgeHours?: number | undefined;
+        }>>;
+        /** Long-term memory configuration (D1-based persistent storage) */
+        longTerm: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            /** User ID expression for scoping long-term memory (e.g., {{ auth.userId }}) */
+            userId: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            userId?: string | undefined;
+            enabled?: boolean | undefined;
+        }, {
+            userId?: string | undefined;
+            enabled?: boolean | undefined;
+        }>>;
+        /** Semantic memory configuration (Vectorize-based RAG) */
+        semantic: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            /** Embedding model (default: @cf/baai/bge-base-en-v1.5) */
+            model: z.ZodOptional<z.ZodString>;
+            /** Number of results to return from search (default: 5) */
+            topK: z.ZodOptional<z.ZodNumber>;
+            /** Minimum similarity score (0-1) */
+            minScore: z.ZodOptional<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            enabled?: boolean | undefined;
+            model?: string | undefined;
+            topK?: number | undefined;
+            minScore?: number | undefined;
+        }, {
+            enabled?: boolean | undefined;
+            model?: string | undefined;
+            topK?: number | undefined;
+            minScore?: number | undefined;
+        }>>;
+        /** Analytical memory configuration (Hyperdrive SQL databases) */
+        analytical: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            /** Default database alias */
+            defaultDatabase: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            enabled?: boolean | undefined;
+            defaultDatabase?: string | undefined;
+        }, {
+            enabled?: boolean | undefined;
+            defaultDatabase?: string | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        enabled?: boolean | undefined;
+        semantic?: {
+            enabled?: boolean | undefined;
+            model?: string | undefined;
+            topK?: number | undefined;
+            minScore?: number | undefined;
+        } | undefined;
+        session?: {
+            enabled?: boolean | undefined;
+            ttl?: number | undefined;
+            maxMessages?: number | undefined;
+            messageMaxAgeHours?: number | undefined;
+        } | undefined;
+        longTerm?: {
+            userId?: string | undefined;
+            enabled?: boolean | undefined;
+        } | undefined;
+        analytical?: {
+            enabled?: boolean | undefined;
+            defaultDatabase?: string | undefined;
+        } | undefined;
+    }, {
+        enabled?: boolean | undefined;
+        semantic?: {
+            enabled?: boolean | undefined;
+            model?: string | undefined;
+            topK?: number | undefined;
+            minScore?: number | undefined;
+        } | undefined;
+        session?: {
+            enabled?: boolean | undefined;
+            ttl?: number | undefined;
+            maxMessages?: number | undefined;
+            messageMaxAgeHours?: number | undefined;
+        } | undefined;
+        longTerm?: {
+            userId?: string | undefined;
+            enabled?: boolean | undefined;
+        } | undefined;
+        analytical?: {
+            enabled?: boolean | undefined;
+            defaultDatabase?: string | undefined;
+        } | undefined;
+    }>>;
     /** Ensemble-level logging configuration */
     logging: z.ZodOptional<z.ZodObject<{
         /** Override log level for this ensemble */
@@ -1181,6 +1294,29 @@ declare const EnsembleSchema: z.ZodObject<{
     agents?: Record<string, unknown>[] | undefined;
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
+    memory?: {
+        enabled?: boolean | undefined;
+        semantic?: {
+            enabled?: boolean | undefined;
+            model?: string | undefined;
+            topK?: number | undefined;
+            minScore?: number | undefined;
+        } | undefined;
+        session?: {
+            enabled?: boolean | undefined;
+            ttl?: number | undefined;
+            maxMessages?: number | undefined;
+            messageMaxAgeHours?: number | undefined;
+        } | undefined;
+        longTerm?: {
+            userId?: string | undefined;
+            enabled?: boolean | undefined;
+        } | undefined;
+        analytical?: {
+            enabled?: boolean | undefined;
+            defaultDatabase?: string | undefined;
+        } | undefined;
+    } | undefined;
     tracing?: {
         samplingRate?: number | undefined;
         enabled?: boolean | undefined;
@@ -1364,6 +1500,29 @@ declare const EnsembleSchema: z.ZodObject<{
     agents?: Record<string, unknown>[] | undefined;
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
+    memory?: {
+        enabled?: boolean | undefined;
+        semantic?: {
+            enabled?: boolean | undefined;
+            model?: string | undefined;
+            topK?: number | undefined;
+            minScore?: number | undefined;
+        } | undefined;
+        session?: {
+            enabled?: boolean | undefined;
+            ttl?: number | undefined;
+            maxMessages?: number | undefined;
+            messageMaxAgeHours?: number | undefined;
+        } | undefined;
+        longTerm?: {
+            userId?: string | undefined;
+            enabled?: boolean | undefined;
+        } | undefined;
+        analytical?: {
+            enabled?: boolean | undefined;
+            defaultDatabase?: string | undefined;
+        } | undefined;
+    } | undefined;
     tracing?: {
         samplingRate?: number | undefined;
         enabled?: boolean | undefined;
@@ -1544,6 +1703,7 @@ export type AgentConfig = z.infer<typeof AgentSchema>;
 export type FlowStep = FlowStepType;
 export type TriggerConfig = NonNullable<EnsembleConfig['trigger']>[number];
 export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number];
+export type MemoryConfigParsed = NonNullable<EnsembleConfig['memory']>;
 export type ExposeConfig = TriggerConfig;
 export type ScheduleConfig = Extract<TriggerConfig, {
     type: 'cron';

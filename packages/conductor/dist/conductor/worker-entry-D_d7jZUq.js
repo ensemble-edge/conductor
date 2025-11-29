@@ -11285,7 +11285,7 @@ function ensembleFromConfig(config) {
     output: config.output
   });
 }
-const logger$e = createLogger({ serviceName: "parser" });
+const logger$f = createLogger({ serviceName: "parser" });
 const AgentFlowStepSchema = objectType({
   agent: stringType().min(1, "Agent name is required"),
   id: stringType().optional(),
@@ -11625,6 +11625,43 @@ const EnsembleSchema = objectType({
   // Input schema definition
   output: EnsembleOutputSchema.optional(),
   // Conditional outputs with status, headers, redirect, rawBody
+  /** Memory configuration for persistent conversation and context */
+  memory: objectType({
+    /** Enable memory system (default: true if memory block is present) */
+    enabled: booleanType().optional(),
+    /** Session memory configuration (KV-based conversation history) */
+    session: objectType({
+      enabled: booleanType().optional(),
+      /** Time-to-live in seconds (default: 3600 = 1 hour) */
+      ttl: numberType().positive().optional(),
+      /** Maximum messages to keep (default: 50) */
+      maxMessages: numberType().positive().optional(),
+      /** Maximum age of individual messages in hours (default: 24) */
+      messageMaxAgeHours: numberType().positive().optional()
+    }).optional(),
+    /** Long-term memory configuration (D1-based persistent storage) */
+    longTerm: objectType({
+      enabled: booleanType().optional(),
+      /** User ID expression for scoping long-term memory (e.g., {{ auth.userId }}) */
+      userId: stringType().optional()
+    }).optional(),
+    /** Semantic memory configuration (Vectorize-based RAG) */
+    semantic: objectType({
+      enabled: booleanType().optional(),
+      /** Embedding model (default: @cf/baai/bge-base-en-v1.5) */
+      model: stringType().optional(),
+      /** Number of results to return from search (default: 5) */
+      topK: numberType().positive().optional(),
+      /** Minimum similarity score (0-1) */
+      minScore: numberType().min(0).max(1).optional()
+    }).optional(),
+    /** Analytical memory configuration (Hyperdrive SQL databases) */
+    analytical: objectType({
+      enabled: booleanType().optional(),
+      /** Default database alias */
+      defaultDatabase: stringType().optional()
+    }).optional()
+  }).optional(),
   /** Ensemble-level logging configuration */
   logging: objectType({
     /** Override log level for this ensemble */
@@ -11749,14 +11786,14 @@ let Parser$1 = class Parser2 {
         validated.flow = validated.agents.map((agent) => {
           const name = typeof agent === "object" && agent !== null && "name" in agent ? String(agent.name) : void 0;
           if (!name) {
-            logger$e.warn(`Skipping agent without name in ensemble "${validated.name}"`, {
+            logger$f.warn(`Skipping agent without name in ensemble "${validated.name}"`, {
               ensembleName: validated.name
             });
             return null;
           }
           return { agent: name };
         }).filter((step2) => step2 !== null);
-        logger$e.debug(`Auto-generated sequential flow for ensemble`, {
+        logger$f.debug(`Auto-generated sequential flow for ensemble`, {
           ensembleName: validated.name,
           agentCount: validated.flow.length
         });
@@ -11928,6 +11965,949 @@ let Parser$1 = class Parser2 {
     }
   }
 };
+function isParallelStep(step2) {
+  return "type" in step2 && step2.type === "parallel";
+}
+function isBranchStep(step2) {
+  return "type" in step2 && step2.type === "branch";
+}
+function isForeachStep(step2) {
+  return "type" in step2 && step2.type === "foreach";
+}
+function isTryStep(step2) {
+  return "type" in step2 && step2.type === "try";
+}
+function isSwitchStep(step2) {
+  return "type" in step2 && step2.type === "switch";
+}
+function isWhileStep(step2) {
+  return "type" in step2 && step2.type === "while";
+}
+function isMapReduceStep(step2) {
+  return "type" in step2 && step2.type === "map-reduce";
+}
+function isAgentStep$1(step2) {
+  return "agent" in step2 && !("type" in step2);
+}
+function isControlFlowStep(step2) {
+  return "type" in step2;
+}
+function isFlowControlStep(step2) {
+  return isParallelStep(step2) || isBranchStep(step2) || isForeachStep(step2) || isTryStep(step2) || isSwitchStep(step2) || isWhileStep(step2) || isMapReduceStep(step2);
+}
+const Result = {
+  /**
+   * Create a successful Result
+   */
+  ok(value) {
+    return { success: true, value };
+  },
+  /**
+   * Create a failed Result
+   */
+  err(error) {
+    return { success: false, error };
+  },
+  /**
+   * Wrap a Promise to catch errors and return a Result
+   * @example
+   * ```typescript
+   * const result = await Result.fromPromise(
+   *   fetch('https://api.example.com/data')
+   * );
+   * ```
+   */
+  async fromPromise(promise) {
+    try {
+      const value = await promise;
+      return Result.ok(value);
+    } catch (error) {
+      return Result.err(error instanceof Error ? error : new Error(String(error)));
+    }
+  },
+  /**
+   * Wrap a synchronous function to catch errors and return a Result
+   * @example
+   * ```typescript
+   * const result = Result.fromThrowable(() => JSON.parse(input));
+   * ```
+   */
+  fromThrowable(fn) {
+    try {
+      return Result.ok(fn());
+    } catch (error) {
+      return Result.err(error instanceof Error ? error : new Error(String(error)));
+    }
+  },
+  /**
+   * Transform the value inside a successful Result
+   * Leaves error Results unchanged
+   * @example
+   * ```typescript
+   * const result = Result.ok(5);
+   * const doubled = Result.map(result, x => x * 2);
+   * // doubled = { success: true, value: 10 }
+   * ```
+   */
+  map(result, fn) {
+    if (result.success) {
+      return Result.ok(fn(result.value));
+    }
+    return result;
+  },
+  /**
+   * Async version of map
+   */
+  async mapAsync(result, fn) {
+    if (result.success) {
+      return Result.ok(await fn(result.value));
+    }
+    return result;
+  },
+  /**
+   * Transform the error inside a failed Result
+   * Leaves success Results unchanged
+   * @example
+   * ```typescript
+   * const result = Result.err(new Error('failed'));
+   * const wrapped = Result.mapErr(result, e => new CustomError(e));
+   * ```
+   */
+  mapErr(result, fn) {
+    if (result.success) {
+      return result;
+    }
+    return Result.err(fn(result.error));
+  },
+  /**
+   * Chain Results together (flatMap/bind)
+   * If the first Result is an error, returns it without calling fn
+   * If the first Result is success, calls fn with the value
+   * @example
+   * ```typescript
+   * const result = Result.ok(5);
+   * const chained = Result.flatMap(result, x => {
+   *   if (x > 10) return Result.ok(x);
+   *   return Result.err(new Error('too small'));
+   * });
+   * ```
+   */
+  flatMap(result, fn) {
+    if (result.success) {
+      return fn(result.value);
+    }
+    return result;
+  },
+  /**
+   * Async version of flatMap
+   */
+  async flatMapAsync(result, fn) {
+    if (result.success) {
+      return await fn(result.value);
+    }
+    return result;
+  },
+  /**
+   * Unwrap a Result, throwing if it's an error
+   * Use sparingly - prefer explicit error handling
+   * @throws The error if Result is failed
+   * @example
+   * ```typescript
+   * const value = Result.unwrap(result); // Throws if error
+   * ```
+   */
+  unwrap(result) {
+    if (result.success) {
+      return result.value;
+    }
+    throw result.error;
+  },
+  /**
+   * Unwrap a Result, returning a default value if it's an error
+   * @example
+   * ```typescript
+   * const value = Result.unwrapOr(result, 'default');
+   * ```
+   */
+  unwrapOr(result, defaultValue) {
+    return result.success ? result.value : defaultValue;
+  },
+  /**
+   * Unwrap a Result, computing a default value from the error
+   * @example
+   * ```typescript
+   * const value = Result.unwrapOrElse(result, error => {
+   *   console.error('Failed:', error);
+   *   return 'fallback';
+   * });
+   * ```
+   */
+  unwrapOrElse(result, fn) {
+    return result.success ? result.value : fn(result.error);
+  },
+  /**
+   * Check if Result is success
+   */
+  isOk(result) {
+    return result.success === true;
+  },
+  /**
+   * Check if Result is error
+   */
+  isErr(result) {
+    return result.success === false;
+  },
+  /**
+   * Combine multiple Results into one
+   * Returns first error, or all values if all succeed
+   * @example
+   * ```typescript
+   * const results = [Result.ok(1), Result.ok(2), Result.ok(3)];
+   * const combined = Result.all(results);
+   * // combined = { success: true, value: [1, 2, 3] }
+   * ```
+   */
+  all(results) {
+    const values = [];
+    for (const result of results) {
+      if (!result.success) {
+        return result;
+      }
+      values.push(result.value);
+    }
+    return Result.ok(values);
+  },
+  /**
+   * Combine multiple Results, collecting all errors or all values
+   * Unlike `all`, this doesn't short-circuit on first error
+   * @example
+   * ```typescript
+   * const results = [
+   *   Result.ok(1),
+   *   Result.err(new Error('e1')),
+   *   Result.err(new Error('e2'))
+   * ];
+   * const combined = Result.partition(results);
+   * // combined = { success: false, error: [Error('e1'), Error('e2')] }
+   * ```
+   */
+  partition(results) {
+    const values = [];
+    const errors = [];
+    for (const result of results) {
+      if (result.success) {
+        values.push(result.value);
+      } else {
+        errors.push(result.error);
+      }
+    }
+    if (errors.length > 0) {
+      return Result.err(errors);
+    }
+    return Result.ok(values);
+  },
+  /**
+   * Sequence async operations, short-circuiting on first error
+   * @example
+   * ```typescript
+   * const result = await Result.sequence([
+   *   () => validateInput(data),
+   *   () => fetchUser(data.userId),
+   *   () => updateUser(user)
+   * ]);
+   * ```
+   */
+  async sequence(operations) {
+    const values = [];
+    for (const operation of operations) {
+      const result = await operation();
+      if (!result.success) {
+        return result;
+      }
+      values.push(result.value);
+    }
+    return Result.ok(values);
+  },
+  /**
+   * Match on a Result, providing handlers for both cases
+   * @example
+   * ```typescript
+   * const message = Result.match(result, {
+   *   ok: user => `Welcome ${user.name}`,
+   *   err: error => `Error: ${error.message}`
+   * });
+   * ```
+   */
+  match(result, handlers) {
+    if (result.success) {
+      return handlers.ok(result.value);
+    }
+    return handlers.err(result.error);
+  },
+  /**
+   * Perform a side effect on success, returning the original Result
+   * @example
+   * ```typescript
+   * const result = Result.ok(user)
+   *   .pipe(Result.tap(u => console.log('Found user:', u.name)));
+   * ```
+   */
+  tap(result, fn) {
+    if (result.success) {
+      fn(result.value);
+    }
+    return result;
+  },
+  /**
+   * Perform a side effect on error, returning the original Result
+   * @example
+   * ```typescript
+   * const result = operation()
+   *   .pipe(Result.tapErr(e => console.error('Operation failed:', e)));
+   * ```
+   */
+  tapErr(result, fn) {
+    if (!result.success) {
+      fn(result.error);
+    }
+    return result;
+  }
+};
+class ConductorError extends Error {
+  constructor(message2, details) {
+    super(message2);
+    this.name = this.constructor.name;
+    this.details = details;
+    if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+  /**
+   * Convert error to JSON for logging/serialization
+   */
+  toJSON() {
+    return {
+      name: this.name,
+      code: this.code,
+      message: this.message,
+      isOperational: this.isOperational,
+      ...this.details && { details: this.details },
+      stack: this.stack
+    };
+  }
+}
+class MemberNotFoundError extends ConductorError {
+  constructor(agentName) {
+    super(`Agent "${agentName}" not found in registry`);
+    this.agentName = agentName;
+    this.code = "MEMBER_NOT_FOUND";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `The agent "${this.agentName}" does not exist. Check your ensemble configuration.`;
+  }
+}
+class MemberConfigurationError extends ConductorError {
+  constructor(agentName, reason) {
+    super(`Invalid configuration for agent "${agentName}": ${reason}`);
+    this.agentName = agentName;
+    this.reason = reason;
+    this.code = "MEMBER_INVALID_CONFIG";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Configuration error in agent "${this.agentName}": ${this.reason}`;
+  }
+}
+class AgentExecutionError extends ConductorError {
+  constructor(agentName, reason, cause) {
+    super(`Agent "${agentName}" execution failed: ${reason}`);
+    this.agentName = agentName;
+    this.reason = reason;
+    this.cause = cause;
+    this.code = "MEMBER_EXECUTION_FAILED";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Execution failed for agent "${this.agentName}": ${this.reason}`;
+  }
+}
+class ProviderNotFoundError extends ConductorError {
+  constructor(providerId) {
+    super(`AI provider "${providerId}" not found`);
+    this.providerId = providerId;
+    this.code = "PROVIDER_NOT_FOUND";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `The AI provider "${this.providerId}" is not available. Check your provider configuration.`;
+  }
+}
+class ProviderAuthError extends ConductorError {
+  constructor(providerId, reason) {
+    super(`Authentication failed for provider "${providerId}": ${reason}`);
+    this.providerId = providerId;
+    this.reason = reason;
+    this.code = "PROVIDER_AUTH_FAILED";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Authentication error with "${this.providerId}": ${this.reason}. Check your API keys.`;
+  }
+}
+class ProviderAPIError extends ConductorError {
+  constructor(providerId, statusCode, response) {
+    super(`API error from provider "${providerId}": ${statusCode} - ${response}`);
+    this.providerId = providerId;
+    this.statusCode = statusCode;
+    this.response = response;
+    this.code = "PROVIDER_API_ERROR";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `API error from "${this.providerId}" (HTTP ${this.statusCode}): ${this.response}`;
+  }
+}
+class ProviderTimeoutError extends ConductorError {
+  constructor(providerId, timeoutMs) {
+    super(`Request to provider "${providerId}" timed out after ${timeoutMs}ms`);
+    this.providerId = providerId;
+    this.timeoutMs = timeoutMs;
+    this.code = "PROVIDER_TIMEOUT";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Request to "${this.providerId}" timed out. The service may be slow or unavailable.`;
+  }
+}
+class PlatformBindingMissingError extends ConductorError {
+  constructor(bindingName, hint) {
+    super(`Binding "${bindingName}" not found` + (hint ? `: ${hint}` : ""));
+    this.bindingName = bindingName;
+    this.hint = hint;
+    this.code = "PLATFORM_BINDING_MISSING";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Required binding "${this.bindingName}" is not configured. ${this.hint || "Add it to wrangler.toml"}`;
+  }
+}
+class ModelNotFoundError extends ConductorError {
+  constructor(modelId) {
+    super(`Model "${modelId}" not found in platform data`);
+    this.modelId = modelId;
+    this.code = "MODEL_NOT_FOUND";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `The model "${this.modelId}" is not available. Check the model ID or use a different model.`;
+  }
+}
+class ModelDeprecatedError extends ConductorError {
+  constructor(modelId, reason, replacement) {
+    super(
+      `Model "${modelId}" is deprecated` + (reason ? `: ${reason}` : "") + (replacement ? `. Use "${replacement}" instead` : "")
+    );
+    this.modelId = modelId;
+    this.reason = reason;
+    this.replacement = replacement;
+    this.code = "MODEL_DEPRECATED";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    let msg = `The model "${this.modelId}" is deprecated`;
+    if (this.reason) msg += `: ${this.reason}`;
+    if (this.replacement) msg += `. Please migrate to "${this.replacement}"`;
+    return msg;
+  }
+}
+class ModelEOLError extends ConductorError {
+  constructor(modelId, eolDate, replacement) {
+    super(
+      `Model "${modelId}" reached end of life on ${eolDate}` + (replacement ? `. Use "${replacement}" instead` : "")
+    );
+    this.modelId = modelId;
+    this.eolDate = eolDate;
+    this.replacement = replacement;
+    this.code = "MODEL_EOL";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    let msg = `The model "${this.modelId}" is no longer available (EOL: ${this.eolDate})`;
+    if (this.replacement) msg += `. Please use "${this.replacement}" instead`;
+    return msg;
+  }
+}
+class EnsembleNotFoundError extends ConductorError {
+  constructor(ensembleName) {
+    super(`Ensemble "${ensembleName}" not found`);
+    this.ensembleName = ensembleName;
+    this.code = "ENSEMBLE_NOT_FOUND";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `The ensemble "${this.ensembleName}" does not exist.`;
+  }
+}
+class EnsembleParseError extends ConductorError {
+  constructor(ensembleName, reason) {
+    super(`Failed to parse ensemble "${ensembleName}": ${reason}`);
+    this.ensembleName = ensembleName;
+    this.reason = reason;
+    this.code = "ENSEMBLE_PARSE_FAILED";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Syntax error in ensemble "${this.ensembleName}": ${this.reason}`;
+  }
+}
+class EnsembleExecutionError extends ConductorError {
+  constructor(ensembleName, step2, cause) {
+    super(`Ensemble "${ensembleName}" failed at step "${step2}": ${cause.message}`);
+    this.ensembleName = ensembleName;
+    this.step = step2;
+    this.cause = cause;
+    this.code = "ENSEMBLE_EXECUTION_FAILED";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Execution failed in ensemble "${this.ensembleName}" at step "${this.step}": ${this.cause.message}`;
+  }
+}
+class StorageKeyNotFoundError extends ConductorError {
+  constructor(key, storageType) {
+    super(`Key "${key}" not found in ${storageType}`);
+    this.key = key;
+    this.storageType = storageType;
+    this.code = "STORAGE_NOT_FOUND";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `The key "${this.key}" does not exist in ${this.storageType} storage.`;
+  }
+}
+class ConfigurationError extends ConductorError {
+  constructor(reason) {
+    super(`Configuration error: ${reason}`);
+    this.reason = reason;
+    this.code = "CONFIGURATION_ERROR";
+    this.isOperational = true;
+  }
+  toUserMessage() {
+    return `Configuration error: ${this.reason}`;
+  }
+}
+class InternalError extends ConductorError {
+  // Non-operational - indicates a bug
+  constructor(reason, cause) {
+    super(`Internal error: ${reason}`);
+    this.reason = reason;
+    this.cause = cause;
+    this.code = "INTERNAL_ERROR";
+    this.isOperational = false;
+  }
+  toUserMessage() {
+    return `An unexpected error occurred. Please contact support.`;
+  }
+}
+const Errors = {
+  /** @deprecated Use agentNotFound instead */
+  memberNotFound: (name) => new MemberNotFoundError(name),
+  agentNotFound: (name) => new MemberNotFoundError(name),
+  agentConfig: (name, reason) => new MemberConfigurationError(name, reason),
+  memberExecution: (name, reason, cause) => new AgentExecutionError(name, reason, cause),
+  providerNotFound: (id) => new ProviderNotFoundError(id),
+  providerAuth: (id, reason) => new ProviderAuthError(id, reason),
+  providerAPI: (id, status, response) => new ProviderAPIError(id, status, response),
+  providerTimeout: (id, timeout) => new ProviderTimeoutError(id, timeout),
+  modelNotFound: (id) => new ModelNotFoundError(id),
+  modelDeprecated: (id, reason, replacement) => new ModelDeprecatedError(id, reason, replacement),
+  modelEOL: (id, eolDate, replacement) => new ModelEOLError(id, eolDate, replacement),
+  ensembleNotFound: (name) => new EnsembleNotFoundError(name),
+  ensembleParse: (name, reason) => new EnsembleParseError(name, reason),
+  ensembleExecution: (name, step2, cause) => new EnsembleExecutionError(name, step2, cause),
+  bindingMissing: (name, hint) => new PlatformBindingMissingError(name, hint),
+  storageNotFound: (key, storageType) => new StorageKeyNotFoundError(key, storageType),
+  config: (reason) => new ConfigurationError(reason),
+  internal: (reason, cause) => new InternalError(reason, cause)
+};
+function hasControlFlowSteps(flow) {
+  return flow.some(
+    (step2) => isParallelStep(step2) || isBranchStep(step2) || isForeachStep(step2) || isTryStep(step2) || isSwitchStep(step2) || isWhileStep(step2) || isMapReduceStep(step2)
+  );
+}
+class GraphExecutor {
+  /**
+   * Create a new GraphExecutor
+   *
+   * @param agentExecutor - Callback function to execute agent steps
+   * @param ensembleName - Name of the ensemble (for error messages)
+   */
+  constructor(agentExecutor, ensembleName = "unknown") {
+    this.agentExecutor = agentExecutor;
+    this.ensembleName = ensembleName;
+  }
+  /**
+   * Execute a graph-based flow
+   *
+   * @param flow - Array of flow steps to execute
+   * @param initialContext - Initial execution context (input, state)
+   * @returns Result containing all step outputs or an error
+   */
+  async execute(flow, initialContext) {
+    const context = {
+      input: initialContext.input,
+      state: initialContext.state,
+      results: /* @__PURE__ */ new Map()
+    };
+    context.input = initialContext.input;
+    if (initialContext.state) {
+      context.state = initialContext.state;
+    }
+    try {
+      for (let i = 0; i < flow.length; i++) {
+        const step2 = flow[i];
+        const result = await this.executeStep(step2, context);
+        const stepKey = this.getStepKey(step2, i);
+        context.results.set(stepKey, result);
+        context[stepKey] = { output: result };
+      }
+      return Result.ok(Object.fromEntries(context.results));
+    } catch (error) {
+      return Result.err(
+        new EnsembleExecutionError(
+          this.ensembleName,
+          "graph-execution",
+          error instanceof Error ? error : new Error(String(error))
+        )
+      );
+    }
+  }
+  /**
+   * Execute a single step (dispatches to appropriate handler based on type)
+   */
+  async executeStep(step2, context) {
+    if (isAgentStep$1(step2)) {
+      return this.executeAgentStep(step2, context);
+    }
+    if (isParallelStep(step2)) {
+      return this.executeParallel(step2, context);
+    }
+    if (isBranchStep(step2)) {
+      return this.executeBranch(step2, context);
+    }
+    if (isForeachStep(step2)) {
+      return this.executeForeach(step2, context);
+    }
+    if (isTryStep(step2)) {
+      return this.executeTry(step2, context);
+    }
+    if (isSwitchStep(step2)) {
+      return this.executeSwitch(step2, context);
+    }
+    if (isWhileStep(step2)) {
+      return this.executeWhile(step2, context);
+    }
+    if (isMapReduceStep(step2)) {
+      return this.executeMapReduce(step2, context);
+    }
+    throw new Error(`Unknown step type: ${JSON.stringify(step2)}`);
+  }
+  /**
+   * Execute an agent step by delegating to the executor callback
+   */
+  async executeAgentStep(step2, context) {
+    if (step2.when !== void 0 || step2.condition !== void 0) {
+      const condition = step2.when ?? step2.condition;
+      const shouldExecute = this.evaluateCondition(condition, context);
+      if (!shouldExecute) {
+        return { skipped: true, reason: "condition evaluated to false" };
+      }
+    }
+    const resolvedInput = step2.input ? Parser$1.resolveInterpolation(step2.input, this.buildResolutionContext(context)) : void 0;
+    const resolvedStep = {
+      ...step2,
+      input: resolvedInput
+    };
+    return this.agentExecutor(resolvedStep, context);
+  }
+  /**
+   * Execute parallel steps concurrently
+   */
+  async executeParallel(step2, context) {
+    const executions = step2.steps.map((subStep) => this.executeStep(subStep, context));
+    switch (step2.waitFor) {
+      case "any":
+        return [await Promise.race(executions)];
+      case "first":
+        return [
+          await Promise.any(executions).catch(() => {
+            throw new Error("All parallel steps failed");
+          })
+        ];
+      case "all":
+      default:
+        return Promise.all(executions);
+    }
+  }
+  /**
+   * Execute conditional branch
+   */
+  async executeBranch(step2, context) {
+    const conditionResult = this.evaluateCondition(step2.condition, context);
+    const branchSteps = conditionResult ? step2.then : step2.else || [];
+    const branchResults = [];
+    for (const subStep of branchSteps) {
+      const result = await this.executeStep(subStep, context);
+      branchResults.push(result);
+    }
+    return branchResults;
+  }
+  /**
+   * Execute foreach loop over items
+   */
+  async executeForeach(step2, context) {
+    const items = this.resolveExpression(step2.items, context);
+    if (!Array.isArray(items)) {
+      throw new Error(`Foreach items must be an array, got: ${typeof items}`);
+    }
+    const maxConcurrency = step2.maxConcurrency || items.length;
+    const results = [];
+    for (let i = 0; i < items.length; i += maxConcurrency) {
+      const batch = items.slice(i, i + maxConcurrency);
+      const batchResults = await Promise.all(
+        batch.map((item, index) => {
+          const itemContext = {
+            ...context,
+            results: new Map(context.results)
+          };
+          itemContext.item = item;
+          itemContext.index = i + index;
+          return this.executeStep(step2.step, itemContext);
+        })
+      );
+      results.push(...batchResults);
+      if (step2.breakWhen) {
+        const shouldBreak = this.evaluateCondition(step2.breakWhen, {
+          ...context,
+          results: new Map([...context.results, ["lastBatchResults", batchResults]])
+        });
+        if (shouldBreak) {
+          break;
+        }
+      }
+    }
+    return results;
+  }
+  /**
+   * Execute try/catch/finally block
+   */
+  async executeTry(step2, context) {
+    let tryResult;
+    let caughtError = null;
+    try {
+      const tryResults = [];
+      for (const subStep of step2.steps) {
+        const result = await this.executeStep(subStep, context);
+        tryResults.push(result);
+      }
+      tryResult = tryResults;
+    } catch (error) {
+      caughtError = error instanceof Error ? error : new Error(String(error));
+      if (step2.catch && step2.catch.length > 0) {
+        const errorContext = {
+          ...context,
+          results: new Map(context.results)
+        };
+        errorContext.error = {
+          message: caughtError.message,
+          name: caughtError.name,
+          stack: caughtError.stack
+        };
+        const catchResults = [];
+        for (const subStep of step2.catch) {
+          const result = await this.executeStep(subStep, errorContext);
+          catchResults.push(result);
+        }
+        tryResult = catchResults;
+      } else {
+        throw caughtError;
+      }
+    } finally {
+      if (step2.finally && step2.finally.length > 0) {
+        for (const subStep of step2.finally) {
+          await this.executeStep(subStep, context);
+        }
+      }
+    }
+    return tryResult;
+  }
+  /**
+   * Execute switch/case branching
+   */
+  async executeSwitch(step2, context) {
+    const value = this.resolveExpression(step2.value, context);
+    const valueStr = String(value);
+    let caseSteps = step2.cases[valueStr];
+    if (!caseSteps && step2.default) {
+      caseSteps = step2.default;
+    }
+    if (!caseSteps) {
+      return null;
+    }
+    const caseResults = [];
+    for (const subStep of caseSteps) {
+      const result = await this.executeStep(subStep, context);
+      caseResults.push(result);
+    }
+    return caseResults;
+  }
+  /**
+   * Execute while loop
+   */
+  async executeWhile(step2, context) {
+    const maxIterations = step2.maxIterations || 1e3;
+    const results = [];
+    let iterations = 0;
+    const loopContext = {
+      ...context,
+      results: new Map(context.results)
+    };
+    while (iterations < maxIterations) {
+      const shouldContinue = this.evaluateCondition(step2.condition, loopContext);
+      if (!shouldContinue) {
+        break;
+      }
+      const iterationResults = [];
+      for (const subStep of step2.steps) {
+        const result = await this.executeStep(subStep, loopContext);
+        iterationResults.push(result);
+      }
+      results.push(iterationResults);
+      loopContext.iteration = iterations;
+      loopContext.lastIterationResults = iterationResults;
+      iterations++;
+    }
+    if (iterations >= maxIterations) {
+      throw new Error(`While loop exceeded maximum iterations (${maxIterations})`);
+    }
+    return results;
+  }
+  /**
+   * Execute map-reduce pattern
+   */
+  async executeMapReduce(step2, context) {
+    const items = this.resolveExpression(step2.items, context);
+    if (!Array.isArray(items)) {
+      throw new Error(`Map-reduce items must be an array, got: ${typeof items}`);
+    }
+    const maxConcurrency = step2.maxConcurrency || items.length;
+    const mapResults = [];
+    for (let i = 0; i < items.length; i += maxConcurrency) {
+      const batch = items.slice(i, i + maxConcurrency);
+      const batchResults = await Promise.all(
+        batch.map((item, index) => {
+          const itemContext = {
+            ...context,
+            results: new Map(context.results)
+          };
+          itemContext.item = item;
+          itemContext.index = i + index;
+          return this.executeStep(step2.map, itemContext);
+        })
+      );
+      mapResults.push(...batchResults);
+    }
+    const reduceContext = {
+      ...context,
+      results: new Map(context.results)
+    };
+    reduceContext.mapResults = mapResults;
+    reduceContext.results = mapResults;
+    return this.executeStep(step2.reduce, reduceContext);
+  }
+  /**
+   * Get a unique key for storing step results
+   */
+  getStepKey(step2, index) {
+    if (isAgentStep$1(step2)) {
+      return step2.id || step2.agent;
+    }
+    if ("type" in step2) {
+      return `${step2.type}_${index}`;
+    }
+    return `step_${index}`;
+  }
+  /**
+   * Evaluate a condition expression
+   * Supports both interpolation expressions and JavaScript expressions
+   */
+  evaluateCondition(condition, context) {
+    if (typeof condition === "boolean") {
+      return condition;
+    }
+    if (typeof condition === "string") {
+      const resolved = this.resolveExpression(condition, context);
+      if (typeof resolved === "boolean") {
+        return resolved;
+      }
+      if (typeof resolved === "string") {
+        return this.evaluateJsExpression(resolved, context);
+      }
+      return Boolean(resolved);
+    }
+    return Boolean(condition);
+  }
+  /**
+   * Resolve an expression using Parser's interpolation system
+   */
+  resolveExpression(expression, context) {
+    if (expression === null || expression === void 0) {
+      return expression;
+    }
+    return Parser$1.resolveInterpolation(expression, this.buildResolutionContext(context));
+  }
+  /**
+   * Build resolution context for Parser.resolveInterpolation
+   */
+  buildResolutionContext(context) {
+    const resolutionContext = {
+      input: context.input,
+      state: context.state || {}
+    };
+    for (const [key, value] of context.results) {
+      resolutionContext[key] = { output: value };
+    }
+    for (const [key, value] of Object.entries(context)) {
+      if (key !== "input" && key !== "state" && key !== "results") {
+        resolutionContext[key] = value;
+      }
+    }
+    return resolutionContext;
+  }
+  /**
+   * Evaluate a JavaScript expression in the context
+   * Used as fallback for complex condition expressions
+   */
+  evaluateJsExpression(expression, context) {
+    try {
+      const evalContext = this.buildResolutionContext(context);
+      const func = new Function(
+        "context",
+        "input",
+        "state",
+        "results",
+        `return ${expression}`
+      );
+      return Boolean(
+        func(evalContext, context.input, context.state || {}, Object.fromEntries(context.results))
+      );
+    } catch (error) {
+      console.warn(`Failed to evaluate condition "${expression}":`, error);
+      return false;
+    }
+  }
+}
 class StateManager {
   constructor(config, existingState, existingLog) {
     this.schema = Object.freeze(config.schema || {});
@@ -12711,7 +13691,7 @@ function getProviderRegistry() {
   }
   return globalRegistry;
 }
-const logger$d = createLogger({ serviceName: "component-resolver" });
+const logger$e = createLogger({ serviceName: "component-resolver" });
 function isComponentReference(value) {
   const componentPattern = /^[a-z0-9-_]+\/[a-z0-9-_/]+@[a-z0-9.-]+$/i;
   return componentPattern.test(value);
@@ -12801,7 +13781,7 @@ async function resolveComponentRef(ref2, context) {
         }
       }
     } catch (error) {
-      logger$d.warn(`Failed to fetch from Edgit: ${edgitPath}`, { error: String(error) });
+      logger$e.warn(`Failed to fetch from Edgit: ${edgitPath}`, { error: String(error) });
     }
   }
   if (context.env?.COMPONENTS) {
@@ -12816,7 +13796,7 @@ async function resolveComponentRef(ref2, context) {
         }
       }
     } catch (error) {
-      logger$d.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, { error: String(error) });
+      logger$e.warn(`Failed to fetch from COMPONENTS: ${componentPath}`, { error: String(error) });
     }
   }
   throw new Error(
@@ -18192,542 +19172,6 @@ class JSONSerializer {
     return JSON.parse(raw2);
   }
 }
-const Result = {
-  /**
-   * Create a successful Result
-   */
-  ok(value) {
-    return { success: true, value };
-  },
-  /**
-   * Create a failed Result
-   */
-  err(error) {
-    return { success: false, error };
-  },
-  /**
-   * Wrap a Promise to catch errors and return a Result
-   * @example
-   * ```typescript
-   * const result = await Result.fromPromise(
-   *   fetch('https://api.example.com/data')
-   * );
-   * ```
-   */
-  async fromPromise(promise) {
-    try {
-      const value = await promise;
-      return Result.ok(value);
-    } catch (error) {
-      return Result.err(error instanceof Error ? error : new Error(String(error)));
-    }
-  },
-  /**
-   * Wrap a synchronous function to catch errors and return a Result
-   * @example
-   * ```typescript
-   * const result = Result.fromThrowable(() => JSON.parse(input));
-   * ```
-   */
-  fromThrowable(fn) {
-    try {
-      return Result.ok(fn());
-    } catch (error) {
-      return Result.err(error instanceof Error ? error : new Error(String(error)));
-    }
-  },
-  /**
-   * Transform the value inside a successful Result
-   * Leaves error Results unchanged
-   * @example
-   * ```typescript
-   * const result = Result.ok(5);
-   * const doubled = Result.map(result, x => x * 2);
-   * // doubled = { success: true, value: 10 }
-   * ```
-   */
-  map(result, fn) {
-    if (result.success) {
-      return Result.ok(fn(result.value));
-    }
-    return result;
-  },
-  /**
-   * Async version of map
-   */
-  async mapAsync(result, fn) {
-    if (result.success) {
-      return Result.ok(await fn(result.value));
-    }
-    return result;
-  },
-  /**
-   * Transform the error inside a failed Result
-   * Leaves success Results unchanged
-   * @example
-   * ```typescript
-   * const result = Result.err(new Error('failed'));
-   * const wrapped = Result.mapErr(result, e => new CustomError(e));
-   * ```
-   */
-  mapErr(result, fn) {
-    if (result.success) {
-      return result;
-    }
-    return Result.err(fn(result.error));
-  },
-  /**
-   * Chain Results together (flatMap/bind)
-   * If the first Result is an error, returns it without calling fn
-   * If the first Result is success, calls fn with the value
-   * @example
-   * ```typescript
-   * const result = Result.ok(5);
-   * const chained = Result.flatMap(result, x => {
-   *   if (x > 10) return Result.ok(x);
-   *   return Result.err(new Error('too small'));
-   * });
-   * ```
-   */
-  flatMap(result, fn) {
-    if (result.success) {
-      return fn(result.value);
-    }
-    return result;
-  },
-  /**
-   * Async version of flatMap
-   */
-  async flatMapAsync(result, fn) {
-    if (result.success) {
-      return await fn(result.value);
-    }
-    return result;
-  },
-  /**
-   * Unwrap a Result, throwing if it's an error
-   * Use sparingly - prefer explicit error handling
-   * @throws The error if Result is failed
-   * @example
-   * ```typescript
-   * const value = Result.unwrap(result); // Throws if error
-   * ```
-   */
-  unwrap(result) {
-    if (result.success) {
-      return result.value;
-    }
-    throw result.error;
-  },
-  /**
-   * Unwrap a Result, returning a default value if it's an error
-   * @example
-   * ```typescript
-   * const value = Result.unwrapOr(result, 'default');
-   * ```
-   */
-  unwrapOr(result, defaultValue) {
-    return result.success ? result.value : defaultValue;
-  },
-  /**
-   * Unwrap a Result, computing a default value from the error
-   * @example
-   * ```typescript
-   * const value = Result.unwrapOrElse(result, error => {
-   *   console.error('Failed:', error);
-   *   return 'fallback';
-   * });
-   * ```
-   */
-  unwrapOrElse(result, fn) {
-    return result.success ? result.value : fn(result.error);
-  },
-  /**
-   * Check if Result is success
-   */
-  isOk(result) {
-    return result.success === true;
-  },
-  /**
-   * Check if Result is error
-   */
-  isErr(result) {
-    return result.success === false;
-  },
-  /**
-   * Combine multiple Results into one
-   * Returns first error, or all values if all succeed
-   * @example
-   * ```typescript
-   * const results = [Result.ok(1), Result.ok(2), Result.ok(3)];
-   * const combined = Result.all(results);
-   * // combined = { success: true, value: [1, 2, 3] }
-   * ```
-   */
-  all(results) {
-    const values = [];
-    for (const result of results) {
-      if (!result.success) {
-        return result;
-      }
-      values.push(result.value);
-    }
-    return Result.ok(values);
-  },
-  /**
-   * Combine multiple Results, collecting all errors or all values
-   * Unlike `all`, this doesn't short-circuit on first error
-   * @example
-   * ```typescript
-   * const results = [
-   *   Result.ok(1),
-   *   Result.err(new Error('e1')),
-   *   Result.err(new Error('e2'))
-   * ];
-   * const combined = Result.partition(results);
-   * // combined = { success: false, error: [Error('e1'), Error('e2')] }
-   * ```
-   */
-  partition(results) {
-    const values = [];
-    const errors = [];
-    for (const result of results) {
-      if (result.success) {
-        values.push(result.value);
-      } else {
-        errors.push(result.error);
-      }
-    }
-    if (errors.length > 0) {
-      return Result.err(errors);
-    }
-    return Result.ok(values);
-  },
-  /**
-   * Sequence async operations, short-circuiting on first error
-   * @example
-   * ```typescript
-   * const result = await Result.sequence([
-   *   () => validateInput(data),
-   *   () => fetchUser(data.userId),
-   *   () => updateUser(user)
-   * ]);
-   * ```
-   */
-  async sequence(operations) {
-    const values = [];
-    for (const operation of operations) {
-      const result = await operation();
-      if (!result.success) {
-        return result;
-      }
-      values.push(result.value);
-    }
-    return Result.ok(values);
-  },
-  /**
-   * Match on a Result, providing handlers for both cases
-   * @example
-   * ```typescript
-   * const message = Result.match(result, {
-   *   ok: user => `Welcome ${user.name}`,
-   *   err: error => `Error: ${error.message}`
-   * });
-   * ```
-   */
-  match(result, handlers) {
-    if (result.success) {
-      return handlers.ok(result.value);
-    }
-    return handlers.err(result.error);
-  },
-  /**
-   * Perform a side effect on success, returning the original Result
-   * @example
-   * ```typescript
-   * const result = Result.ok(user)
-   *   .pipe(Result.tap(u => console.log('Found user:', u.name)));
-   * ```
-   */
-  tap(result, fn) {
-    if (result.success) {
-      fn(result.value);
-    }
-    return result;
-  },
-  /**
-   * Perform a side effect on error, returning the original Result
-   * @example
-   * ```typescript
-   * const result = operation()
-   *   .pipe(Result.tapErr(e => console.error('Operation failed:', e)));
-   * ```
-   */
-  tapErr(result, fn) {
-    if (!result.success) {
-      fn(result.error);
-    }
-    return result;
-  }
-};
-class ConductorError extends Error {
-  constructor(message2, details) {
-    super(message2);
-    this.name = this.constructor.name;
-    this.details = details;
-    if ("captureStackTrace" in Error && typeof Error.captureStackTrace === "function") {
-      Error.captureStackTrace(this, this.constructor);
-    }
-  }
-  /**
-   * Convert error to JSON for logging/serialization
-   */
-  toJSON() {
-    return {
-      name: this.name,
-      code: this.code,
-      message: this.message,
-      isOperational: this.isOperational,
-      ...this.details && { details: this.details },
-      stack: this.stack
-    };
-  }
-}
-class MemberNotFoundError extends ConductorError {
-  constructor(agentName) {
-    super(`Agent "${agentName}" not found in registry`);
-    this.agentName = agentName;
-    this.code = "MEMBER_NOT_FOUND";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `The agent "${this.agentName}" does not exist. Check your ensemble configuration.`;
-  }
-}
-class MemberConfigurationError extends ConductorError {
-  constructor(agentName, reason) {
-    super(`Invalid configuration for agent "${agentName}": ${reason}`);
-    this.agentName = agentName;
-    this.reason = reason;
-    this.code = "MEMBER_INVALID_CONFIG";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Configuration error in agent "${this.agentName}": ${this.reason}`;
-  }
-}
-class AgentExecutionError extends ConductorError {
-  constructor(agentName, reason, cause) {
-    super(`Agent "${agentName}" execution failed: ${reason}`);
-    this.agentName = agentName;
-    this.reason = reason;
-    this.cause = cause;
-    this.code = "MEMBER_EXECUTION_FAILED";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Execution failed for agent "${this.agentName}": ${this.reason}`;
-  }
-}
-class ProviderNotFoundError extends ConductorError {
-  constructor(providerId) {
-    super(`AI provider "${providerId}" not found`);
-    this.providerId = providerId;
-    this.code = "PROVIDER_NOT_FOUND";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `The AI provider "${this.providerId}" is not available. Check your provider configuration.`;
-  }
-}
-class ProviderAuthError extends ConductorError {
-  constructor(providerId, reason) {
-    super(`Authentication failed for provider "${providerId}": ${reason}`);
-    this.providerId = providerId;
-    this.reason = reason;
-    this.code = "PROVIDER_AUTH_FAILED";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Authentication error with "${this.providerId}": ${this.reason}. Check your API keys.`;
-  }
-}
-class ProviderAPIError extends ConductorError {
-  constructor(providerId, statusCode, response) {
-    super(`API error from provider "${providerId}": ${statusCode} - ${response}`);
-    this.providerId = providerId;
-    this.statusCode = statusCode;
-    this.response = response;
-    this.code = "PROVIDER_API_ERROR";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `API error from "${this.providerId}" (HTTP ${this.statusCode}): ${this.response}`;
-  }
-}
-class ProviderTimeoutError extends ConductorError {
-  constructor(providerId, timeoutMs) {
-    super(`Request to provider "${providerId}" timed out after ${timeoutMs}ms`);
-    this.providerId = providerId;
-    this.timeoutMs = timeoutMs;
-    this.code = "PROVIDER_TIMEOUT";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Request to "${this.providerId}" timed out. The service may be slow or unavailable.`;
-  }
-}
-class PlatformBindingMissingError extends ConductorError {
-  constructor(bindingName, hint) {
-    super(`Binding "${bindingName}" not found` + (hint ? `: ${hint}` : ""));
-    this.bindingName = bindingName;
-    this.hint = hint;
-    this.code = "PLATFORM_BINDING_MISSING";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Required binding "${this.bindingName}" is not configured. ${this.hint || "Add it to wrangler.toml"}`;
-  }
-}
-class ModelNotFoundError extends ConductorError {
-  constructor(modelId) {
-    super(`Model "${modelId}" not found in platform data`);
-    this.modelId = modelId;
-    this.code = "MODEL_NOT_FOUND";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `The model "${this.modelId}" is not available. Check the model ID or use a different model.`;
-  }
-}
-class ModelDeprecatedError extends ConductorError {
-  constructor(modelId, reason, replacement) {
-    super(
-      `Model "${modelId}" is deprecated` + (reason ? `: ${reason}` : "") + (replacement ? `. Use "${replacement}" instead` : "")
-    );
-    this.modelId = modelId;
-    this.reason = reason;
-    this.replacement = replacement;
-    this.code = "MODEL_DEPRECATED";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    let msg = `The model "${this.modelId}" is deprecated`;
-    if (this.reason) msg += `: ${this.reason}`;
-    if (this.replacement) msg += `. Please migrate to "${this.replacement}"`;
-    return msg;
-  }
-}
-class ModelEOLError extends ConductorError {
-  constructor(modelId, eolDate, replacement) {
-    super(
-      `Model "${modelId}" reached end of life on ${eolDate}` + (replacement ? `. Use "${replacement}" instead` : "")
-    );
-    this.modelId = modelId;
-    this.eolDate = eolDate;
-    this.replacement = replacement;
-    this.code = "MODEL_EOL";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    let msg = `The model "${this.modelId}" is no longer available (EOL: ${this.eolDate})`;
-    if (this.replacement) msg += `. Please use "${this.replacement}" instead`;
-    return msg;
-  }
-}
-class EnsembleNotFoundError extends ConductorError {
-  constructor(ensembleName) {
-    super(`Ensemble "${ensembleName}" not found`);
-    this.ensembleName = ensembleName;
-    this.code = "ENSEMBLE_NOT_FOUND";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `The ensemble "${this.ensembleName}" does not exist.`;
-  }
-}
-class EnsembleParseError extends ConductorError {
-  constructor(ensembleName, reason) {
-    super(`Failed to parse ensemble "${ensembleName}": ${reason}`);
-    this.ensembleName = ensembleName;
-    this.reason = reason;
-    this.code = "ENSEMBLE_PARSE_FAILED";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Syntax error in ensemble "${this.ensembleName}": ${this.reason}`;
-  }
-}
-class EnsembleExecutionError extends ConductorError {
-  constructor(ensembleName, step2, cause) {
-    super(`Ensemble "${ensembleName}" failed at step "${step2}": ${cause.message}`);
-    this.ensembleName = ensembleName;
-    this.step = step2;
-    this.cause = cause;
-    this.code = "ENSEMBLE_EXECUTION_FAILED";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Execution failed in ensemble "${this.ensembleName}" at step "${this.step}": ${this.cause.message}`;
-  }
-}
-class StorageKeyNotFoundError extends ConductorError {
-  constructor(key, storageType) {
-    super(`Key "${key}" not found in ${storageType}`);
-    this.key = key;
-    this.storageType = storageType;
-    this.code = "STORAGE_NOT_FOUND";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `The key "${this.key}" does not exist in ${this.storageType} storage.`;
-  }
-}
-class ConfigurationError extends ConductorError {
-  constructor(reason) {
-    super(`Configuration error: ${reason}`);
-    this.reason = reason;
-    this.code = "CONFIGURATION_ERROR";
-    this.isOperational = true;
-  }
-  toUserMessage() {
-    return `Configuration error: ${this.reason}`;
-  }
-}
-class InternalError extends ConductorError {
-  // Non-operational - indicates a bug
-  constructor(reason, cause) {
-    super(`Internal error: ${reason}`);
-    this.reason = reason;
-    this.cause = cause;
-    this.code = "INTERNAL_ERROR";
-    this.isOperational = false;
-  }
-  toUserMessage() {
-    return `An unexpected error occurred. Please contact support.`;
-  }
-}
-const Errors = {
-  /** @deprecated Use agentNotFound instead */
-  memberNotFound: (name) => new MemberNotFoundError(name),
-  agentNotFound: (name) => new MemberNotFoundError(name),
-  agentConfig: (name, reason) => new MemberConfigurationError(name, reason),
-  memberExecution: (name, reason, cause) => new AgentExecutionError(name, reason, cause),
-  providerNotFound: (id) => new ProviderNotFoundError(id),
-  providerAuth: (id, reason) => new ProviderAuthError(id, reason),
-  providerAPI: (id, status, response) => new ProviderAPIError(id, status, response),
-  providerTimeout: (id, timeout) => new ProviderTimeoutError(id, timeout),
-  modelNotFound: (id) => new ModelNotFoundError(id),
-  modelDeprecated: (id, reason, replacement) => new ModelDeprecatedError(id, reason, replacement),
-  modelEOL: (id, eolDate, replacement) => new ModelEOLError(id, eolDate, replacement),
-  ensembleNotFound: (name) => new EnsembleNotFoundError(name),
-  ensembleParse: (name, reason) => new EnsembleParseError(name, reason),
-  ensembleExecution: (name, step2, cause) => new EnsembleExecutionError(name, step2, cause),
-  bindingMissing: (name, hint) => new PlatformBindingMissingError(name, hint),
-  storageNotFound: (key, storageType) => new StorageKeyNotFoundError(key, storageType),
-  config: (reason) => new ConfigurationError(reason),
-  internal: (reason, cause) => new InternalError(reason, cause)
-};
 class KVRepository {
   constructor(binding, serializer = new JSONSerializer()) {
     this.binding = binding;
@@ -19501,6 +19945,224 @@ class HyperdriveRepository {
    */
   isReadOnly() {
     return this.readOnly;
+  }
+}
+const TTL = {
+  /** Short-lived cache (5 minutes) */
+  CACHE_SHORT: 300,
+  /** Query result cache - analytics queries (1 hour) */
+  QUERY_ANALYTICS: 3600,
+  /** Query result cache - lookup queries (15 minutes) */
+  QUERY_LOOKUP: 900,
+  /** Query result cache - list queries (5 minutes) */
+  QUERY_LIST: 300
+};
+class QueryCache {
+  constructor(config) {
+    this.stats = {
+      hits: 0,
+      misses: 0,
+      sets: 0,
+      deletes: 0,
+      errors: 0
+    };
+    this.kv = config.kv;
+    this.defaultTTL = config.defaultTTL || TTL.CACHE_SHORT;
+    this.keyPrefix = config.keyPrefix || "query:";
+    this.enableStats = config.enableStats !== false;
+  }
+  /**
+   * Get cached query result
+   */
+  async get(sql, params, database) {
+    try {
+      const key = await this.generateKey(sql, params, database);
+      const cached = await this.kv.get(key, "json");
+      if (!cached) {
+        if (this.enableStats) this.stats.misses++;
+        return Result.ok(null);
+      }
+      const age = (Date.now() - cached.cachedAt) / 1e3;
+      if (age > cached.ttl) {
+        await this.delete(sql, params, database);
+        if (this.enableStats) this.stats.misses++;
+        return Result.ok(null);
+      }
+      if (this.enableStats) this.stats.hits++;
+      return Result.ok(cached.result);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache get failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Set cached query result
+   */
+  async set(sql, result, params, database, ttl) {
+    try {
+      const key = await this.generateKey(sql, params, database);
+      const cacheTTL = ttl || this.defaultTTL;
+      const entry = {
+        result,
+        cachedAt: Date.now(),
+        ttl: cacheTTL,
+        metadata: {
+          sql: sql.substring(0, 200),
+          // Truncate for storage
+          database,
+          paramCount: params?.length || 0
+        }
+      };
+      await this.kv.put(key, JSON.stringify(entry), {
+        expirationTtl: cacheTTL
+      });
+      if (this.enableStats) this.stats.sets++;
+      return Result.ok(void 0);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache set failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Delete cached query result
+   */
+  async delete(sql, params, database) {
+    try {
+      const key = await this.generateKey(sql, params, database);
+      await this.kv.delete(key);
+      if (this.enableStats) this.stats.deletes++;
+      return Result.ok(void 0);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache delete failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Clear all cached queries for a database
+   */
+  async clearDatabase(database) {
+    try {
+      const prefix = `${this.keyPrefix}${database}:`;
+      const list = await this.kv.list({ prefix });
+      let deleted = 0;
+      for (const key of list.keys) {
+        await this.kv.delete(key.name);
+        deleted++;
+      }
+      if (this.enableStats) this.stats.deletes += deleted;
+      return Result.ok(deleted);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache clear failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Clear all cached queries
+   */
+  async clearAll() {
+    try {
+      const list = await this.kv.list({ prefix: this.keyPrefix });
+      let deleted = 0;
+      for (const key of list.keys) {
+        await this.kv.delete(key.name);
+        deleted++;
+      }
+      if (this.enableStats) this.stats.deletes += deleted;
+      return Result.ok(deleted);
+    } catch (error) {
+      if (this.enableStats) this.stats.errors++;
+      return Result.err(
+        Errors.internal("Cache clear all failed", error instanceof Error ? error : void 0)
+      );
+    }
+  }
+  /**
+   * Get cache statistics
+   */
+  getStats() {
+    const total = this.stats.hits + this.stats.misses;
+    return {
+      ...this.stats,
+      hitRate: total > 0 ? this.stats.hits / total : 0
+    };
+  }
+  /**
+   * Reset cache statistics
+   */
+  resetStats() {
+    this.stats = {
+      hits: 0,
+      misses: 0,
+      sets: 0,
+      deletes: 0,
+      errors: 0
+    };
+  }
+  /**
+   * Generate cache key from query, params, and database
+   */
+  async generateKey(sql, params, database) {
+    const normalizedSQL = sql.trim().replace(/\s+/g, " ").toLowerCase();
+    const components = [database || "default", normalizedSQL];
+    if (params && params.length > 0) {
+      const paramString = JSON.stringify(params);
+      components.push(paramString);
+    }
+    const hash = await this.sha256Hash(components.join("|"));
+    return `${this.keyPrefix}${hash}`;
+  }
+  /**
+   * Cryptographically secure SHA-256 hash function
+   * Uses Web Crypto API for secure, collision-resistant hashing
+   */
+  async sha256Hash(str) {
+    const encoder2 = new TextEncoder();
+    const data = encoder2.encode(str);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return hashHex.substring(0, 16);
+  }
+  /**
+   * Check if caching is enabled for a query
+   * Certain query types should not be cached (writes, transactions, etc.)
+   */
+  static shouldCache(sql) {
+    const upperSQL = sql.trim().toUpperCase();
+    if (/^(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|REPLACE)/i.test(upperSQL)) {
+      return false;
+    }
+    if (/^(BEGIN|COMMIT|ROLLBACK|START TRANSACTION)/i.test(upperSQL)) {
+      return false;
+    }
+    if (/\b(NOW|CURRENT_TIMESTAMP|RANDOM|UUID|NEWID)\b/i.test(upperSQL)) {
+      return false;
+    }
+    return true;
+  }
+  /**
+   * Get recommended TTL based on query type
+   */
+  static getRecommendedTTL(sql) {
+    const upperSQL = sql.trim().toUpperCase();
+    if (/\b(COUNT|SUM|AVG|GROUP BY|AGGREGATE)\b/i.test(upperSQL)) {
+      return TTL.QUERY_ANALYTICS;
+    }
+    if (/\bWHERE\s+\w+\s*=\s*[$?:\d]/i.test(upperSQL)) {
+      return TTL.QUERY_LOOKUP;
+    }
+    if (/\bSELECT\b/i.test(upperSQL)) {
+      return TTL.QUERY_LIST;
+    }
+    return TTL.QUERY_LIST;
   }
 }
 class StorageAgent extends BaseAgent {
@@ -24559,7 +25221,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache2;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-D4IHugO7.js");
+        const { MemoryCache } = await import("./cache-DJp-KJ6H.js");
         cache2 = new MemoryCache({
           defaultTTL: 3600
         });
@@ -24645,7 +25307,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache2;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-D4IHugO7.js");
+          const { MemoryCache } = await import("./cache-DJp-KJ6H.js");
           cache2 = new MemoryCache({
             defaultTTL: 3600
           });
@@ -25237,7 +25899,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-Cqnjix58.js");
+      const { RAGMember } = await import("./index-D03CUuhX.js");
       return new RAGMember(config, env);
     }
   );
@@ -25273,12 +25935,12 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-DD6ZSvN1.js");
+      const { HITLMember } = await import("./index-Cnxlj5-W.js");
       return new HITLMember(config, env);
     }
   );
 }
-const logger$c = createLogger({ serviceName: "scoring-executor" });
+const logger$d = createLogger({ serviceName: "scoring-executor" });
 class ScoringExecutor {
   /**
    * Execute a agent with scoring and retry logic
@@ -25328,7 +25990,7 @@ class ScoringExecutor {
             }
             break;
           case "continue":
-            logger$c.warn("Score below threshold, continuing anyway", {
+            logger$d.warn("Score below threshold, continuing anyway", {
               score: score.score,
               threshold: config.thresholds?.minimum,
               attempts
@@ -25619,7 +26281,7 @@ class EnsembleScorer {
     return "stable";
   }
 }
-const logger$b = createLogger({ serviceName: "webhook-notifier" });
+const logger$c = createLogger({ serviceName: "webhook-notifier" });
 class WebhookNotifier {
   constructor(config) {
     this.config = {
@@ -25647,7 +26309,7 @@ class WebhookNotifier {
           attempts: attempt + 1
         };
       } catch (error) {
-        logger$b.error("Webhook notification failed", error instanceof Error ? error : void 0, {
+        logger$c.error("Webhook notification failed", error instanceof Error ? error : void 0, {
           url: this.config.url,
           attempt: attempt + 1,
           maxRetries: maxRetries + 1
@@ -25748,7 +26410,7 @@ class WebhookNotifier {
     return new Promise((resolve2) => setTimeout(resolve2, ms));
   }
 }
-const logger$a = createLogger({ serviceName: "email-notifier" });
+const logger$b = createLogger({ serviceName: "email-notifier" });
 class EmailNotifier {
   constructor(config) {
     this.config = config;
@@ -25761,7 +26423,7 @@ class EmailNotifier {
     try {
       const emailData = this.buildEmailData(eventData);
       await this.sendEmail(emailData, env);
-      logger$a.info("Email notification sent", {
+      logger$b.info("Email notification sent", {
         to: emailData.to,
         event: eventData.event
       });
@@ -25773,7 +26435,7 @@ class EmailNotifier {
         duration: Date.now() - startTime
       };
     } catch (error) {
-      logger$a.error("Email notification failed", error instanceof Error ? error : void 0, {
+      logger$b.error("Email notification failed", error instanceof Error ? error : void 0, {
         to: this.config.to,
         event: eventData.event
       });
@@ -25970,7 +26632,7 @@ class EmailNotifier {
     }
   }
 }
-const logger$9 = createLogger({ serviceName: "notification-manager" });
+const logger$a = createLogger({ serviceName: "notification-manager" });
 class NotificationManager {
   /**
    * Send notifications for an event
@@ -25993,7 +26655,7 @@ class NotificationManager {
     if (relevantNotifications.length === 0) {
       return [];
     }
-    logger$9.info("Sending notifications", {
+    logger$a.info("Sending notifications", {
       ensemble: ensemble.name,
       event,
       count: relevantNotifications.length
@@ -26005,7 +26667,7 @@ class NotificationManager {
     );
     const successful = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
-    logger$9.info("Notifications sent", {
+    logger$a.info("Notifications sent", {
       ensemble: ensemble.name,
       event,
       total: results.length,
@@ -26044,7 +26706,7 @@ class NotificationManager {
         }
       }
     } catch (error) {
-      logger$9.error("Notification failed", error instanceof Error ? error : void 0, {
+      logger$a.error("Notification failed", error instanceof Error ? error : void 0, {
         type: config.type,
         event: eventData.event
       });
@@ -27360,7 +28022,1269 @@ function parseValue(value) {
   if (!isNaN(num)) return num;
   return value;
 }
-function isAgentStep$1(step2) {
+class WorkingMemory {
+  constructor() {
+    this.memory = /* @__PURE__ */ new Map();
+  }
+  /**
+   * Set a value in working memory
+   */
+  set(key, value) {
+    this.memory.set(key, value);
+  }
+  /**
+   * Get a value from working memory
+   */
+  get(key) {
+    return this.memory.get(key);
+  }
+  /**
+   * Check if key exists
+   */
+  has(key) {
+    return this.memory.has(key);
+  }
+  /**
+   * Delete a key
+   */
+  delete(key) {
+    return this.memory.delete(key);
+  }
+  /**
+   * Get all keys
+   */
+  keys() {
+    return Array.from(this.memory.keys());
+  }
+  /**
+   * Get all values as object
+   */
+  getAll() {
+    return Object.fromEntries(this.memory);
+  }
+  /**
+   * Clear all memory
+   */
+  clear() {
+    this.memory.clear();
+  }
+  /**
+   * Get memory size
+   */
+  size() {
+    return this.memory.size;
+  }
+  /**
+   * Merge another object into working memory
+   */
+  merge(data) {
+    for (const [key, value] of Object.entries(data)) {
+      this.memory.set(key, value);
+    }
+  }
+  /**
+   * Create a snapshot of working memory
+   */
+  snapshot() {
+    return { ...this.getAll() };
+  }
+  /**
+   * Restore from a snapshot
+   */
+  restore(snapshot) {
+    this.memory.clear();
+    this.merge(snapshot);
+  }
+}
+class SessionMemory {
+  constructor(env, sessionId, config) {
+    this.env = env;
+    this.sessionId = sessionId;
+    this.defaultTTL = 3600;
+    this.defaultMaxMessages = 50;
+    this.defaultMessageMaxAgeHours = 24;
+    this.defaultMaxConversationSize = 1024 * 1024;
+    if (typeof config === "number") {
+      this.ttl = config;
+      this.maxMessages = this.defaultMaxMessages;
+      this.messageMaxAgeHours = this.defaultMessageMaxAgeHours;
+      this.maxConversationSize = this.defaultMaxConversationSize;
+    } else {
+      this.ttl = config?.ttl ?? this.defaultTTL;
+      this.maxMessages = config?.maxMessages ?? this.defaultMaxMessages;
+      this.messageMaxAgeHours = config?.messageMaxAgeHours ?? this.defaultMessageMaxAgeHours;
+      this.maxConversationSize = config?.maxConversationSize ?? this.defaultMaxConversationSize;
+    }
+  }
+  /**
+   * Get the KV key for this session
+   */
+  getKey() {
+    if (!this.sessionId) {
+      throw new Error("Session ID is required for session memory");
+    }
+    return `session:${this.sessionId}`;
+  }
+  /**
+   * Filter messages by age (sliding window memory)
+   * Removes messages older than messageMaxAgeHours
+   * @private
+   */
+  filterByAge(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return [];
+    }
+    const cutoffTime = Date.now() - this.messageMaxAgeHours * 60 * 60 * 1e3;
+    return messages.filter((msg) => {
+      if (!msg.timestamp) return true;
+      return msg.timestamp > cutoffTime;
+    });
+  }
+  /**
+   * Enforce message count limit (keeps most recent)
+   * @private
+   */
+  enforceMaxMessages(messages) {
+    if (messages.length <= this.maxMessages) {
+      return messages;
+    }
+    const trimmed = messages.slice(-this.maxMessages);
+    if (trimmed.length > 0 && trimmed[0].role === "assistant") {
+      trimmed.shift();
+    }
+    return trimmed;
+  }
+  /**
+   * Enforce conversation size limit
+   * Progressively removes oldest message pairs until under limit
+   * @private
+   */
+  enforceMaxSize(messages) {
+    if (!Array.isArray(messages)) return [];
+    let conversationJson = JSON.stringify(messages);
+    while (conversationJson.length > this.maxConversationSize && messages.length > 2) {
+      messages.splice(0, 2);
+      conversationJson = JSON.stringify(messages);
+    }
+    return messages;
+  }
+  /**
+   * Apply all filters to messages (age, count, size)
+   * @private
+   */
+  applyFilters(messages) {
+    let filtered = this.filterByAge(messages);
+    filtered = this.enforceMaxMessages(filtered);
+    filtered = this.enforceMaxSize(filtered);
+    return filtered;
+  }
+  /**
+   * Get conversation history
+   * Automatically filters out old messages and enforces limits
+   */
+  async get() {
+    if (!this.sessionId) {
+      return { messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+    }
+    const key = this.getKey();
+    const data = await this.env.SESSIONS?.get(key);
+    if (!data) {
+      return { messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+    }
+    const history = JSON.parse(data);
+    history.messages = this.applyFilters(history.messages);
+    return history;
+  }
+  /**
+   * Add a message to conversation history
+   * Automatically enforces limits after adding
+   */
+  async add(message2) {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    history.messages.push(message2);
+    history.messages = this.applyFilters(history.messages);
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Add multiple messages
+   * Automatically enforces limits after adding
+   */
+  async addMany(messages) {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    history.messages.push(...messages);
+    history.messages = this.applyFilters(history.messages);
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Replace entire conversation history
+   */
+  async replace(history) {
+    if (!this.sessionId) {
+      return;
+    }
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Clear conversation history
+   */
+  async clear() {
+    if (!this.sessionId) {
+      return;
+    }
+    const key = this.getKey();
+    await this.env.SESSIONS?.delete(key);
+  }
+  /**
+   * Get last N messages
+   */
+  async getLastN(n) {
+    const history = await this.get();
+    return history.messages.slice(-n);
+  }
+  /**
+   * Get messages since timestamp
+   */
+  async getSince(timestamp2) {
+    const history = await this.get();
+    return history.messages.filter((m) => m.timestamp >= timestamp2);
+  }
+  /**
+   * Count messages
+   */
+  async count() {
+    const history = await this.get();
+    return history.messages.length;
+  }
+  /**
+   * Compress history by summarizing older messages
+   */
+  async compress(maxMessages) {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    if (history.messages.length <= maxMessages) {
+      return;
+    }
+    const recentMessages = history.messages.slice(-maxMessages);
+    const olderMessages = history.messages.slice(0, -maxMessages);
+    const summaryText = `[Previous conversation summary: ${olderMessages.length} messages]`;
+    const summaryMessage = {
+      role: "system",
+      content: summaryText,
+      timestamp: olderMessages[olderMessages.length - 1]?.timestamp || Date.now(),
+      metadata: { type: "summary", messageCount: olderMessages.length }
+    };
+    history.messages = [summaryMessage, ...recentMessages];
+    history.updatedAt = Date.now();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Extend TTL (reset expiration)
+   */
+  async extend() {
+    if (!this.sessionId) {
+      return;
+    }
+    const history = await this.get();
+    const key = this.getKey();
+    await this.env.SESSIONS?.put(key, JSON.stringify(history), {
+      expirationTtl: this.ttl
+    });
+  }
+  /**
+   * Format messages for AI model consumption
+   * Strips metadata, timestamps, model info - returns only role + content
+   * Limits to maxContext most recent messages
+   *
+   * @param maxContext - Maximum messages to include (default: 10 = 5 exchanges)
+   */
+  async formatForAI(maxContext = 10) {
+    const history = await this.get();
+    if (history.messages.length === 0) {
+      return [];
+    }
+    const recentMessages = history.messages.length > maxContext ? history.messages.slice(-maxContext) : history.messages;
+    return recentMessages.map((msg) => ({
+      role: msg.role,
+      content: msg.content
+    }));
+  }
+  /**
+   * Get conversation metadata (for debugging/analytics)
+   * Returns stats about the conversation without full message content
+   */
+  async getMetadata() {
+    const history = await this.get();
+    if (history.messages.length === 0) {
+      return null;
+    }
+    const modelsUsed = [...new Set(history.messages.map((m) => m.model).filter(Boolean))];
+    const totalTokens = history.messages.reduce(
+      (acc, msg) => ({
+        input: acc.input + (msg.tokens?.input ?? 0),
+        output: acc.output + (msg.tokens?.output ?? 0)
+      }),
+      { input: 0, output: 0 }
+    );
+    return {
+      sessionId: this.sessionId,
+      messageCount: history.messages.length,
+      modelsUsed,
+      firstMessage: history.messages[0]?.timestamp,
+      lastMessage: history.messages[history.messages.length - 1]?.timestamp,
+      userMessages: history.messages.filter((m) => m.role === "user").length,
+      assistantMessages: history.messages.filter((m) => m.role === "assistant").length,
+      totalTokens
+    };
+  }
+}
+class LongTermMemory {
+  constructor(env, userId) {
+    this.env = env;
+    this.userId = userId;
+    this.tableName = "long_term_memory";
+  }
+  /**
+   * Get a value by key
+   */
+  async get(key) {
+    if (!this.userId || !this.env.DB) {
+      return null;
+    }
+    const result = await this.env.DB.prepare(
+      `SELECT value, updated_at FROM ${this.tableName} WHERE user_id = ? AND key = ?`
+    ).bind(this.userId, key).first();
+    if (!result) {
+      return null;
+    }
+    return JSON.parse(result.value);
+  }
+  /**
+   * Set a value
+   */
+  async set(key, value) {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    await this.env.DB.prepare(
+      `INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, key) DO UPDATE SET
+       value = excluded.value,
+       updated_at = excluded.updated_at`
+    ).bind(this.userId, key, JSON.stringify(value), Date.now()).run();
+  }
+  /**
+   * Delete a key
+   */
+  async delete(key) {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ? AND key = ?`).bind(this.userId, key).run();
+  }
+  /**
+   * Check if key exists
+   */
+  async has(key) {
+    if (!this.userId || !this.env.DB) {
+      return false;
+    }
+    const result = await this.env.DB.prepare(
+      `SELECT 1 FROM ${this.tableName} WHERE user_id = ? AND key = ? LIMIT 1`
+    ).bind(this.userId, key).first();
+    return !!result;
+  }
+  /**
+   * Get all keys for this user
+   */
+  async keys() {
+    if (!this.userId || !this.env.DB) {
+      return [];
+    }
+    const results = await this.env.DB.prepare(
+      `SELECT key FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
+    ).bind(this.userId).all();
+    return results.results.map((row) => row.key);
+  }
+  /**
+   * Get all key-value pairs
+   */
+  async getAll() {
+    if (!this.userId || !this.env.DB) {
+      return {};
+    }
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`
+    ).bind(this.userId).all();
+    const data = {};
+    for (const row of results.results) {
+      data[row.key] = JSON.parse(row.value);
+    }
+    return data;
+  }
+  /**
+   * Get multiple values by keys
+   */
+  async getMany(keys) {
+    if (!this.userId || !this.env.DB || keys.length === 0) {
+      return {};
+    }
+    const placeholders = keys.map(() => "?").join(",");
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName} WHERE user_id = ? AND key IN (${placeholders})`
+    ).bind(this.userId, ...keys).all();
+    const data = {};
+    for (const row of results.results) {
+      data[row.key] = JSON.parse(row.value);
+    }
+    return data;
+  }
+  /**
+   * Set multiple key-value pairs
+   */
+  async setMany(data) {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    const timestamp2 = Date.now();
+    const batch = this.env.DB.batch(
+      Object.entries(data).map(
+        ([key, value]) => this.env.DB.prepare(
+          `INSERT INTO ${this.tableName} (user_id, key, value, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(user_id, key) DO UPDATE SET
+           value = excluded.value,
+           updated_at = excluded.updated_at`
+        ).bind(this.userId, key, JSON.stringify(value), timestamp2)
+      )
+    );
+    await batch;
+  }
+  /**
+   * Clear all data for this user
+   */
+  async clear() {
+    if (!this.userId || !this.env.DB) {
+      return;
+    }
+    await this.env.DB.prepare(`DELETE FROM ${this.tableName} WHERE user_id = ?`).bind(this.userId).run();
+  }
+  /**
+   * Count entries for this user
+   */
+  async count() {
+    if (!this.userId || !this.env.DB) {
+      return 0;
+    }
+    const result = await this.env.DB.prepare(
+      `SELECT COUNT(*) as count FROM ${this.tableName} WHERE user_id = ?`
+    ).bind(this.userId).first();
+    return result?.count || 0;
+  }
+  /**
+   * Search keys by prefix
+   */
+  async searchByPrefix(prefix) {
+    if (!this.userId || !this.env.DB) {
+      return {};
+    }
+    const results = await this.env.DB.prepare(
+      `SELECT key, value FROM ${this.tableName}
+       WHERE user_id = ? AND key LIKE ?
+       ORDER BY updated_at DESC`
+    ).bind(this.userId, `${prefix}%`).all();
+    const data = {};
+    for (const row of results.results) {
+      data[row.key] = JSON.parse(row.value);
+    }
+    return data;
+  }
+}
+const logger$9 = createLogger({ serviceName: "semantic-memory" });
+class SemanticMemory {
+  constructor(env, userId) {
+    this.env = env;
+    this.userId = userId;
+    this.embeddingModel = "@cf/baai/bge-base-en-v1.5";
+  }
+  /**
+   * Add a memory to semantic storage
+   */
+  async add(content, metadata) {
+    if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
+      return "";
+    }
+    const embedding = await this.generateEmbedding(content);
+    const userId = this.userId;
+    const id = `${userId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    await this.env.VECTORIZE.upsert([
+      {
+        id,
+        values: embedding,
+        metadata: {
+          user_id: userId,
+          content,
+          timestamp: Date.now(),
+          ...metadata
+        }
+      }
+    ]);
+    return id;
+  }
+  /**
+   * Add multiple memories
+   */
+  async addMany(memories) {
+    if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
+      return [];
+    }
+    const embeddings = await this.generateEmbeddings(memories.map((m) => m.content));
+    const userId = this.userId;
+    const vectors = memories.map((memory2, i) => ({
+      id: `${userId}-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}`,
+      values: embeddings[i],
+      metadata: {
+        user_id: userId,
+        content: memory2.content,
+        timestamp: Date.now(),
+        ...memory2.metadata
+      }
+    }));
+    await this.env.VECTORIZE.upsert(vectors);
+    return vectors.map((v) => v.id);
+  }
+  /**
+   * Search for semantically similar memories
+   */
+  async search(query, options) {
+    if (!this.userId || !this.env.VECTORIZE || !this.env.AI) {
+      return [];
+    }
+    const queryEmbedding = await this.generateEmbedding(query);
+    const results = await this.env.VECTORIZE.query(queryEmbedding, {
+      topK: options?.topK || 5,
+      filter: { user_id: this.userId, ...options?.filter },
+      returnValues: false,
+      returnMetadata: true
+    });
+    return results.matches.filter((match) => !options?.minScore || match.score >= options.minScore).map((match) => ({
+      id: match.id,
+      content: match.metadata.content,
+      timestamp: match.metadata.timestamp,
+      metadata: match.metadata,
+      score: match.score
+    }));
+  }
+  /**
+   * Get a specific memory by ID
+   */
+  async get(id) {
+    if (!this.userId || !this.env.VECTORIZE) {
+      return null;
+    }
+    return null;
+  }
+  /**
+   * Delete a memory
+   */
+  async delete(id) {
+    if (!this.userId || !this.env.VECTORIZE) {
+      return;
+    }
+    await this.env.VECTORIZE.deleteByIds([id]);
+  }
+  /**
+   * Delete multiple memories
+   */
+  async deleteMany(ids) {
+    if (!this.userId || !this.env.VECTORIZE || ids.length === 0) {
+      return;
+    }
+    await this.env.VECTORIZE.deleteByIds(ids);
+  }
+  /**
+   * Clear all memories for this user
+   */
+  async clear() {
+    if (!this.userId || !this.env.VECTORIZE) {
+      return;
+    }
+    logger$9.warn("Semantic memory clear not fully implemented - requires ID tracking", {
+      userId: this.userId
+    });
+  }
+  /**
+   * Generate embedding for a single text
+   */
+  async generateEmbedding(text) {
+    const result = await this.env.AI.run(this.embeddingModel, {
+      text: [text]
+    });
+    return Array.isArray(result.data[0]) ? result.data[0] : result.data;
+  }
+  /**
+   * Generate embeddings for multiple texts
+   */
+  async generateEmbeddings(texts) {
+    const result = await this.env.AI.run(this.embeddingModel, {
+      text: texts
+    });
+    return result.data;
+  }
+  /**
+   * Calculate similarity between two texts
+   */
+  async similarity(text1, text2) {
+    if (!this.env.AI) {
+      return 0;
+    }
+    const embeddings = await this.generateEmbeddings([text1, text2]);
+    return this.cosineSimilarity(embeddings[0], embeddings[1]);
+  }
+  /**
+   * Calculate cosine similarity between two vectors
+   */
+  cosineSimilarity(vec1, vec2) {
+    if (vec1.length !== vec2.length) {
+      return 0;
+    }
+    let dotProduct = 0;
+    let norm1 = 0;
+    let norm2 = 0;
+    for (let i = 0; i < vec1.length; i++) {
+      dotProduct += vec1[i] * vec2[i];
+      norm1 += vec1[i] * vec1[i];
+      norm2 += vec2[i] * vec2[i];
+    }
+    norm1 = Math.sqrt(norm1);
+    norm2 = Math.sqrt(norm2);
+    if (norm1 === 0 || norm2 === 0) {
+      return 0;
+    }
+    return dotProduct / (norm1 * norm2);
+  }
+}
+class AnalyticalMemory {
+  constructor(_env, config) {
+    this.config = config;
+    this.repositories = /* @__PURE__ */ new Map();
+    this.defaultDatabase = config.defaultDatabase;
+    if (config.enableCache && config.cacheKV) {
+      this.cache = new QueryCache({
+        kv: config.cacheKV,
+        defaultTTL: config.cacheTTL || 300,
+        keyPrefix: "analytical:",
+        enableStats: true
+      });
+    }
+    for (const [alias, dbConfig] of Object.entries(config.databases)) {
+      const repository = new HyperdriveRepository(dbConfig.binding, {
+        databaseType: dbConfig.type,
+        schema: dbConfig.schema,
+        options: {
+          readOnly: dbConfig.readOnly,
+          timeout: dbConfig.timeout,
+          maxRows: dbConfig.maxRows
+        }
+      });
+      this.repositories.set(alias, repository);
+    }
+  }
+  /**
+   * Query a specific database
+   */
+  async query(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    if (this.cache && QueryCache.shouldCache(sql)) {
+      const cachedResult = await this.cache.get(sql, params, dbAlias);
+      if (cachedResult.success && cachedResult.value) {
+        return cachedResult.value.rows;
+      }
+    }
+    const result = await repository.query(sql, params);
+    if (!result.success) {
+      throw new Error(`Query failed: ${result.error.message}`);
+    }
+    if (this.cache && QueryCache.shouldCache(sql)) {
+      const ttl = QueryCache.getRecommendedTTL(sql);
+      await this.cache.set(sql, result.value, params, dbAlias, ttl);
+    }
+    return result.value.rows;
+  }
+  /**
+   * Query with named parameters
+   */
+  async queryNamed(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    const result = await repository.queryNamed(sql, params);
+    if (!result.success) {
+      throw new Error(`Query failed: ${result.error.message}`);
+    }
+    return result.value.rows;
+  }
+  /**
+   * Query with full result metadata
+   */
+  async queryWithMetadata(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      return Result.err(Errors.internal("No database specified and no default database configured"));
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      return Result.err(Errors.internal(`Database not found: ${dbAlias}`));
+    }
+    return repository.query(sql, params);
+  }
+  /**
+   * Execute a write query (INSERT, UPDATE, DELETE)
+   */
+  async execute(sql, params, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    if (repository.isReadOnly()) {
+      throw new Error(`Database is read-only: ${dbAlias}`);
+    }
+    const result = await repository.execute(sql, params);
+    if (!result.success) {
+      throw new Error(`Execute failed: ${result.error.message}`);
+    }
+    return result.value.rowsAffected;
+  }
+  /**
+   * Execute queries across multiple databases (federated query)
+   */
+  async queryMultiple(queries) {
+    const results = /* @__PURE__ */ new Map();
+    const promises = queries.map(async (query) => {
+      const rows = await this.query(query.sql, query.params, query.database);
+      return { database: query.database, rows };
+    });
+    const queryResults = await Promise.all(promises);
+    for (const result of queryResults) {
+      results.set(result.database, result.rows);
+    }
+    return results;
+  }
+  /**
+   * Begin a transaction on a specific database
+   */
+  async transaction(database, callback) {
+    const repository = this.repositories.get(database);
+    if (!repository) {
+      throw new Error(`Database not found: ${database}`);
+    }
+    const result = await repository.transaction(async (tx) => {
+      return await callback(repository);
+    });
+    if (!result.success) {
+      throw new Error(`Transaction failed: ${result.error.message}`);
+    }
+    return result.value;
+  }
+  /**
+   * Get list of available databases
+   */
+  getDatabases() {
+    return Array.from(this.repositories.keys());
+  }
+  /**
+   * Check if a database is available
+   */
+  hasDatabase(alias) {
+    return this.repositories.has(alias);
+  }
+  /**
+   * Get database configuration
+   */
+  getDatabaseConfig(alias) {
+    return this.config.databases[alias];
+  }
+  /**
+   * Get repository for a database
+   */
+  getRepository(alias) {
+    return this.repositories.get(alias);
+  }
+  /**
+   * List tables in a database
+   */
+  async listTables(database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    const result = await repository.listTables();
+    if (!result.success) {
+      throw new Error(`Failed to list tables: ${result.error.message}`);
+    }
+    return result.value;
+  }
+  /**
+   * Get table metadata
+   */
+  async getTableInfo(tableName, database) {
+    const dbAlias = database || this.defaultDatabase;
+    if (!dbAlias) {
+      throw new Error("No database specified and no default database configured");
+    }
+    const repository = this.repositories.get(dbAlias);
+    if (!repository) {
+      throw new Error(`Database not found: ${dbAlias}`);
+    }
+    const result = await repository.getTableInfo(tableName);
+    if (!result.success) {
+      throw new Error(`Failed to get table info: ${result.error.message}`);
+    }
+    return result.value;
+  }
+  /**
+   * Get default database alias
+   */
+  getDefaultDatabase() {
+    return this.defaultDatabase;
+  }
+  /**
+   * Set default database
+   */
+  setDefaultDatabase(alias) {
+    if (!this.repositories.has(alias)) {
+      throw new Error(`Database not found: ${alias}`);
+    }
+    this.defaultDatabase = alias;
+  }
+  /**
+   * Get cache statistics (if caching is enabled)
+   */
+  getCacheStats() {
+    return this.cache?.getStats();
+  }
+  /**
+   * Clear cache for a specific database
+   */
+  async clearCache(database) {
+    if (!this.cache) {
+      return 0;
+    }
+    if (database) {
+      const result = await this.cache.clearDatabase(database);
+      return result.success ? result.value : 0;
+    } else {
+      const result = await this.cache.clearAll();
+      return result.success ? result.value : 0;
+    }
+  }
+  /**
+   * Reset cache statistics
+   */
+  resetCacheStats() {
+    this.cache?.resetStats();
+  }
+  /**
+   * Check if caching is enabled
+   */
+  isCacheEnabled() {
+    return this.cache !== void 0;
+  }
+}
+class MemoryManager {
+  constructor(env, config, userId, sessionId) {
+    this.env = env;
+    this.config = config;
+    this.userId = userId;
+    this.sessionId = sessionId;
+    this.sessionMemory = null;
+    this.longTermMemory = null;
+    this.semanticMemory = null;
+    this.analyticalMemory = null;
+    this.workingMemory = new WorkingMemory();
+    if (config.layers.session && sessionId) {
+      this.sessionMemory = new SessionMemory(env, sessionId, config.sessionTTL);
+    }
+    if (config.layers.longTerm && userId) {
+      this.longTermMemory = new LongTermMemory(env, userId);
+    }
+    if (config.layers.semantic && userId) {
+      this.semanticMemory = new SemanticMemory(env, userId);
+    }
+    if (config.layers.analytical && config.analyticalConfig) {
+      this.analyticalMemory = new AnalyticalMemory(env, config.analyticalConfig);
+    }
+  }
+  // ==================== Working Memory ====================
+  /**
+   * Set a value in working memory
+   */
+  setWorking(key, value) {
+    this.workingMemory.set(key, value);
+  }
+  /**
+   * Get a value from working memory
+   */
+  getWorking(key) {
+    return this.workingMemory.get(key);
+  }
+  /**
+   * Get all working memory
+   */
+  getWorkingAll() {
+    return this.workingMemory.getAll();
+  }
+  /**
+   * Clear working memory
+   */
+  clearWorking() {
+    this.workingMemory.clear();
+  }
+  // ==================== Session Memory ====================
+  /**
+   * Add a message to session memory
+   */
+  async addMessage(message2) {
+    if (!this.sessionMemory) {
+      return;
+    }
+    await this.sessionMemory.add(message2);
+  }
+  /**
+   * Get conversation history
+   */
+  async getConversationHistory() {
+    if (!this.sessionMemory) {
+      return [];
+    }
+    const history = await this.sessionMemory.get();
+    return history.messages;
+  }
+  /**
+   * Get last N messages
+   */
+  async getLastMessages(n) {
+    if (!this.sessionMemory) {
+      return [];
+    }
+    return await this.sessionMemory.getLastN(n);
+  }
+  /**
+   * Clear session memory
+   */
+  async clearSession() {
+    if (!this.sessionMemory) {
+      return;
+    }
+    await this.sessionMemory.clear();
+  }
+  /**
+   * Compress session memory
+   */
+  async compressSession(maxMessages) {
+    if (!this.sessionMemory) {
+      return;
+    }
+    await this.sessionMemory.compress(maxMessages);
+  }
+  /**
+   * Format messages for AI model consumption
+   * Strips metadata - returns only role + content
+   * Limits to maxContext most recent messages
+   *
+   * @param maxContext - Maximum messages to include (default: 10 = 5 exchanges)
+   */
+  async formatMessagesForAI(maxContext = 10) {
+    if (!this.sessionMemory) {
+      return [];
+    }
+    return await this.sessionMemory.formatForAI(maxContext);
+  }
+  /**
+   * Get conversation metadata (for debugging/analytics)
+   */
+  async getConversationMetadata() {
+    if (!this.sessionMemory) {
+      return null;
+    }
+    return await this.sessionMemory.getMetadata();
+  }
+  // ==================== Long-Term Memory ====================
+  /**
+   * Set a value in long-term memory
+   */
+  async setLongTerm(key, value) {
+    if (!this.longTermMemory) {
+      return;
+    }
+    await this.longTermMemory.set(key, value);
+  }
+  /**
+   * Get a value from long-term memory
+   */
+  async getLongTerm(key) {
+    if (!this.longTermMemory) {
+      return null;
+    }
+    return await this.longTermMemory.get(key);
+  }
+  /**
+   * Get all long-term memory
+   */
+  async getLongTermAll() {
+    if (!this.longTermMemory) {
+      return {};
+    }
+    return await this.longTermMemory.getAll();
+  }
+  /**
+   * Delete from long-term memory
+   */
+  async deleteLongTerm(key) {
+    if (!this.longTermMemory) {
+      return;
+    }
+    await this.longTermMemory.delete(key);
+  }
+  /**
+   * Clear long-term memory
+   */
+  async clearLongTerm() {
+    if (!this.longTermMemory) {
+      return;
+    }
+    await this.longTermMemory.clear();
+  }
+  // ==================== Semantic Memory ====================
+  /**
+   * Add a memory to semantic storage
+   */
+  async addSemantic(content, metadata) {
+    if (!this.semanticMemory) {
+      return "";
+    }
+    return await this.semanticMemory.add(content, metadata);
+  }
+  /**
+   * Search semantic memory
+   */
+  async searchSemantic(query, options) {
+    if (!this.semanticMemory) {
+      return [];
+    }
+    return await this.semanticMemory.search(query, options);
+  }
+  /**
+   * Delete from semantic memory
+   */
+  async deleteSemantic(id) {
+    if (!this.semanticMemory) {
+      return;
+    }
+    await this.semanticMemory.delete(id);
+  }
+  /**
+   * Clear semantic memory
+   */
+  async clearSemantic() {
+    if (!this.semanticMemory) {
+      return;
+    }
+    await this.semanticMemory.clear();
+  }
+  // ==================== Unified Operations ====================
+  /**
+   * Create a complete memory snapshot
+   */
+  async snapshot() {
+    const snapshot = {
+      working: this.workingMemory.getAll()
+    };
+    if (this.sessionMemory) {
+      snapshot.session = await this.sessionMemory.get();
+    }
+    if (this.longTermMemory) {
+      snapshot.longTerm = await this.longTermMemory.getAll();
+    }
+    if (this.semanticMemory) {
+      snapshot.semantic = [];
+    }
+    return snapshot;
+  }
+  /**
+   * Clear all memory layers
+   */
+  async clearAll() {
+    this.clearWorking();
+    await this.clearSession();
+    await this.clearLongTerm();
+    await this.clearSemantic();
+  }
+  /**
+   * Get memory statistics
+   */
+  async getStats() {
+    const stats = {
+      working: { size: this.workingMemory.size() }
+    };
+    if (this.sessionMemory) {
+      stats.session = {
+        messageCount: await this.sessionMemory.count()
+      };
+    }
+    if (this.longTermMemory) {
+      stats.longTerm = {
+        keyCount: await this.longTermMemory.count()
+      };
+    }
+    if (this.semanticMemory) {
+      stats.semantic = {
+        note: "Semantic memory count not available via Vectorize API"
+      };
+    }
+    if (this.analyticalMemory) {
+      stats.analytical = {
+        databases: this.analyticalMemory.getDatabases(),
+        databaseCount: this.analyticalMemory.getDatabases().length
+      };
+    }
+    return stats;
+  }
+  /**
+   * Check if a memory layer is enabled
+   */
+  isLayerEnabled(layer) {
+    switch (layer) {
+      case "working":
+        return true;
+      // Always enabled
+      case "session":
+        return !!this.sessionMemory;
+      case "longTerm":
+        return !!this.longTermMemory;
+      case "semantic":
+        return !!this.semanticMemory;
+      case "analytical":
+        return !!this.analyticalMemory;
+      default:
+        return false;
+    }
+  }
+  // ==================== Analytical Memory ====================
+  /**
+   * Query analytical database
+   */
+  async queryAnalytical(sql, params, database) {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return await this.analyticalMemory.query(sql, params, database);
+  }
+  /**
+   * Query analytical database with named parameters
+   */
+  async queryAnalyticalNamed(sql, params, database) {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return await this.analyticalMemory.queryNamed(sql, params, database);
+  }
+  /**
+   * Execute write query on analytical database
+   */
+  async executeAnalytical(sql, params, database) {
+    if (!this.analyticalMemory) {
+      return 0;
+    }
+    return await this.analyticalMemory.execute(sql, params, database);
+  }
+  /**
+   * Execute federated query across multiple databases
+   */
+  async queryMultiple(queries) {
+    if (!this.analyticalMemory) {
+      return /* @__PURE__ */ new Map();
+    }
+    return await this.analyticalMemory.queryMultiple(queries);
+  }
+  /**
+   * Get available analytical databases
+   */
+  getAnalyticalDatabases() {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return this.analyticalMemory.getDatabases();
+  }
+  /**
+   * Check if analytical database exists
+   */
+  hasAnalyticalDatabase(alias) {
+    if (!this.analyticalMemory) {
+      return false;
+    }
+    return this.analyticalMemory.hasDatabase(alias);
+  }
+  /**
+   * List tables in analytical database
+   */
+  async listAnalyticalTables(database) {
+    if (!this.analyticalMemory) {
+      return [];
+    }
+    return await this.analyticalMemory.listTables(database);
+  }
+  /**
+   * Get analytical memory instance (for advanced usage)
+   */
+  getAnalyticalMemory() {
+    return this.analyticalMemory;
+  }
+}
+function isAgentStep(step2) {
   return "agent" in step2 && typeof step2.agent === "string";
 }
 const DEFAULT_AGENT_TIMEOUT_MS = 3e4;
@@ -27513,7 +29437,7 @@ class Executor {
       return Parser$1.resolveInterpolation(step2.input, executionContext);
     } else if (stepIndex > 0 && ensemble.flow) {
       const previousStep = ensemble.flow[stepIndex - 1];
-      const previousAgentName = isAgentStep$1(previousStep) ? previousStep.agent : void 0;
+      const previousAgentName = isAgentStep(previousStep) ? previousStep.agent : void 0;
       if (previousAgentName) {
         const previousResult = executionContext[previousAgentName];
         return previousResult?.output || {};
@@ -27547,7 +29471,9 @@ class Executor {
       agentRegistry: flowContext.agentRegistry,
       ensembleRegistry: flowContext.ensembleRegistry,
       // Agent-specific config from ensemble definition
-      config: agentConfig
+      config: agentConfig,
+      // Memory manager for conversation history and persistent storage
+      memory: flowContext.memoryManager ?? void 0
     };
   }
   /**
@@ -27779,6 +29705,7 @@ class Executor {
   }
   /**
    * Execute ensemble flow from a given step
+   * Automatically uses GraphExecutor for flows with control flow steps (parallel, branch, etc.)
    * @private
    */
   async executeFlow(flowContext, startStep = 0) {
@@ -27800,16 +29727,18 @@ class Executor {
         )
       );
     }
+    const flowSteps = ensemble.flow.slice(startStep);
+    if (hasControlFlowSteps(flowSteps)) {
+      return this.executeFlowWithGraph(flowContext, startStep);
+    }
     for (let i = startStep; i < ensemble.flow.length; i++) {
       const step2 = ensemble.flow[i];
-      if (!isAgentStep$1(step2)) {
+      if (!isAgentStep(step2)) {
         return Result.err(
           new EnsembleExecutionError(
             ensemble.name,
             "flow",
-            new Error(
-              `Control flow step type "${step2.type}" requires GraphExecutor. Use GraphExecutor.execute() for ensembles with parallel, branch, foreach, try, switch, while, or map-reduce steps.`
-            )
+            new Error(`Unexpected control flow step at index ${i}`)
           )
         );
       }
@@ -27851,12 +29780,114 @@ class Executor {
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
       const lastStep = ensemble.flow[ensemble.flow.length - 1];
-      const lastMemberName = isAgentStep$1(lastStep) ? lastStep.agent : void 0;
+      const lastMemberName = isAgentStep(lastStep) ? lastStep.agent : void 0;
       if (lastMemberName) {
         const lastResult = executionContext[lastMemberName];
         finalOutput = lastResult?.output;
       } else {
         finalOutput = {};
+      }
+    } else {
+      finalOutput = {};
+    }
+    metrics.totalDuration = Date.now() - startTime;
+    const stateReport = flowContext.stateManager?.getAccessReport();
+    const executionOutput = {
+      output: finalOutput,
+      metrics,
+      stateReport,
+      response: responseMetadata
+    };
+    if (scoringState) {
+      executionOutput.scoring = scoringState;
+    }
+    return Result.ok(executionOutput);
+  }
+  /**
+   * Execute flow using GraphExecutor for control flow constructs
+   * Handles parallel, branch, foreach, try/catch, switch, while, and map-reduce steps
+   * @private
+   */
+  async executeFlowWithGraph(flowContext, startStep = 0) {
+    const {
+      ensemble,
+      executionContext,
+      metrics,
+      stateManager,
+      scoringState,
+      ensembleScorer,
+      startTime
+    } = flowContext;
+    const agentExecutorFn = async (step2, graphContext) => {
+      for (const [key, value] of graphContext.results) {
+        executionContext[key] = { output: value };
+      }
+      const stepIndex = ensemble.flow ? ensemble.flow.findIndex(
+        (s) => isAgentStep(s) && (s.id === step2.id || s.agent === step2.agent)
+      ) : -1;
+      const result = await this.executeStep(step2, flowContext, stepIndex >= 0 ? stepIndex : 0);
+      if (!result.success) {
+        throw result.error;
+      }
+      const contextKey = step2.id || step2.agent;
+      const agentResult = executionContext[contextKey];
+      return agentResult?.output;
+    };
+    const graphExecutor = new GraphExecutor(agentExecutorFn, ensemble.name);
+    const flowSteps = ensemble.flow?.slice(startStep) || [];
+    const graphResult = await graphExecutor.execute(flowSteps, {
+      input: executionContext.input,
+      state: stateManager ? stateManager.getState() : void 0
+    });
+    if (!graphResult.success) {
+      return Result.err(graphResult.error);
+    }
+    for (const [key, value] of Object.entries(graphResult.value)) {
+      executionContext[key] = { output: value };
+    }
+    if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
+      scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
+      scoringState.qualityMetrics = ensembleScorer.calculateQualityMetrics(
+        scoringState.scoreHistory
+      );
+    }
+    let finalOutput;
+    let responseMetadata;
+    if (ensemble.output) {
+      const resolved = resolveOutput(ensemble.output, executionContext);
+      if (resolved.redirect) {
+        finalOutput = {};
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          redirect: resolved.redirect
+        };
+      } else if (resolved.rawBody !== void 0) {
+        finalOutput = resolved.rawBody;
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers,
+          isRawBody: true
+        };
+      } else {
+        finalOutput = resolved.body ?? {};
+        responseMetadata = {
+          status: resolved.status,
+          headers: resolved.headers
+        };
+      }
+    } else if (ensemble.flow && ensemble.flow.length > 0) {
+      const lastStep = ensemble.flow[ensemble.flow.length - 1];
+      const lastKey = isAgentStep(lastStep) ? lastStep.id || lastStep.agent : `step_${ensemble.flow.length - 1}`;
+      if (graphResult.value[lastKey]) {
+        finalOutput = graphResult.value[lastKey];
+      } else {
+        const keys = Object.keys(graphResult.value);
+        if (keys.length > 0) {
+          finalOutput = graphResult.value[keys[keys.length - 1]];
+        } else {
+          finalOutput = {};
+        }
       }
     } else {
       finalOutput = {};
@@ -27978,6 +30009,54 @@ Script loader not initialized. For Cloudflare Workers:
     }
   }
   /**
+   * Create memory manager from ensemble config
+   * Extracts userId/sessionId from input and auth context
+   * @private
+   */
+  createMemoryManager(ensemble, input) {
+    if (!ensemble.memory || ensemble.memory.enabled === false) {
+      return null;
+    }
+    const memoryParsed = ensemble.memory;
+    const memoryConfig = {
+      enabled: memoryParsed.enabled !== false,
+      layers: {
+        working: true,
+        // Always enabled
+        session: memoryParsed.session?.enabled !== false && !!memoryParsed.session,
+        longTerm: memoryParsed.longTerm?.enabled !== false && !!memoryParsed.longTerm,
+        semantic: memoryParsed.semantic?.enabled !== false && !!memoryParsed.semantic,
+        analytical: memoryParsed.analytical?.enabled !== false && !!memoryParsed.analytical
+      },
+      sessionTTL: memoryParsed.session?.ttl ?? 3600,
+      // Default 1 hour
+      semanticModel: memoryParsed.semantic?.model
+    };
+    let userId;
+    if (memoryParsed.longTerm?.userId) {
+      const userIdTemplate = memoryParsed.longTerm.userId;
+      if (userIdTemplate.includes("{{") || userIdTemplate.includes("${")) {
+        userId = Parser$1.resolveInterpolation(userIdTemplate, {
+          input,
+          auth: this.auth
+        });
+      } else {
+        userId = userIdTemplate;
+      }
+    }
+    if (!userId && this.auth?.user?.id) {
+      userId = String(this.auth.user.id);
+    }
+    const sessionId = input.sessionId || input.conversationId || input.conversation_id || void 0;
+    this.logger.debug("Initializing memory manager", {
+      ensembleName: ensemble.name,
+      layers: memoryConfig.layers,
+      hasUserId: !!userId,
+      hasSessionId: !!sessionId
+    });
+    return new MemoryManager(this.env, memoryConfig, userId, sessionId);
+  }
+  /**
    * Execute an ensemble with Result-based error handling
    * @param ensemble - Parsed ensemble configuration
    * @param input - Input data for the ensemble
@@ -28015,6 +30094,7 @@ Script loader not initialized. For Cloudflare Workers:
       NotificationManager.emitExecutionStarted(ensemble, executionId, input, this.env)
     );
     const stateManager = ensemble.state ? new StateManager(ensemble.state) : null;
+    const memoryManager = this.createMemoryManager(ensemble, input);
     let scoringState = null;
     let ensembleScorer = null;
     const scoringExecutor = new ScoringExecutor();
@@ -28048,7 +30128,8 @@ Script loader not initialized. For Cloudflare Workers:
       executionId,
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
-      ensembleRegistry: ensembleDiscoveryRegistry
+      ensembleRegistry: ensembleDiscoveryRegistry,
+      memoryManager
     };
     const result = await this.executeFlow(flowContext, 0);
     const totalDuration = Date.now() - startTime;
@@ -28192,6 +30273,11 @@ Script loader not initialized. For Cloudflare Workers:
     const componentRegistry = createComponentRegistry(this.env);
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
     const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const originalInput = executionContext.input ?? {};
+    const memoryManager = this.createMemoryManager(ensemble, {
+      ...originalInput,
+      ...resumeInput
+    });
     const flowContext = {
       ensemble,
       executionContext,
@@ -28205,7 +30291,8 @@ Script loader not initialized. For Cloudflare Workers:
       executionId,
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
-      ensembleRegistry: ensembleDiscoveryRegistry
+      ensembleRegistry: ensembleDiscoveryRegistry,
+      memoryManager
     };
     const resumeFromStep = suspendedState.resumeFromStep;
     return await this.executeFlow(flowContext, resumeFromStep);
@@ -33910,36 +35997,6 @@ function isApprovalStep(step2) {
 function isAsyncStep(step2) {
   return isSuspendStep(step2) || isSleepStep(step2) || isScheduleStep(step2) || isApprovalStep(step2);
 }
-function isParallelStep(step2) {
-  return "type" in step2 && step2.type === "parallel";
-}
-function isBranchStep(step2) {
-  return "type" in step2 && step2.type === "branch";
-}
-function isForeachStep(step2) {
-  return "type" in step2 && step2.type === "foreach";
-}
-function isTryStep(step2) {
-  return "type" in step2 && step2.type === "try";
-}
-function isSwitchStep(step2) {
-  return "type" in step2 && step2.type === "switch";
-}
-function isWhileStep(step2) {
-  return "type" in step2 && step2.type === "while";
-}
-function isMapReduceStep(step2) {
-  return "type" in step2 && step2.type === "map-reduce";
-}
-function isAgentStep(step2) {
-  return "agent" in step2 && !("type" in step2);
-}
-function isControlFlowStep(step2) {
-  return "type" in step2;
-}
-function isFlowControlStep(step2) {
-  return isParallelStep(step2) || isBranchStep(step2) || isForeachStep(step2) || isTryStep(step2) || isSwitchStep(step2) || isWhileStep(step2) || isMapReduceStep(step2);
-}
 function createConductorHandler(config) {
   return {
     async fetch(request, env, ctx) {
@@ -33951,185 +36008,187 @@ function createConductorHandler(config) {
 }
 const workerEntry = {};
 export {
-  dataStep as $,
+  thinkStep as $,
   APIAgent as A,
   BaseAgent as B,
   CLIManager as C,
   DataAgent as D,
   Executor as E,
   FunctionAgent as F,
-  CacheKey as G,
+  GraphExecutor as G,
   HttpMiddlewareRegistry as H,
-  isLifecyclePlugin as I,
-  isFunctionalPlugin as J,
-  buildPlugin as K,
-  DocsManager as L,
+  ResumeToken as I,
+  CacheKey as J,
+  isLifecyclePlugin as K,
+  isFunctionalPlugin as L,
   MemberLoader as M,
-  getGlobalDocsManager as N,
+  buildPlugin as N,
   OperationRegistry as O,
   Parser$1 as P,
-  step as Q,
+  DocsManager as Q,
   Result as R,
   StateManager as S,
   TriggerRegistry as T,
   UnifiedRouter as U,
   VersionString as V,
-  sequence as W,
-  scriptStep as X,
-  httpStep as Y,
-  thinkStep as Z,
-  storageStep as _,
+  getGlobalDocsManager as W,
+  step as X,
+  sequence as Y,
+  scriptStep as Z,
+  httpStep as _,
   createConductorHandler as a,
-  template as a$,
-  emailStep as a0,
-  agentStep as a1,
-  parallel as a2,
-  race as a3,
-  branch as a4,
-  ifThen as a5,
-  ifThenElse as a6,
-  switchStep as a7,
-  foreach as a8,
-  map as a9,
-  dynamicInstruction as aA,
-  conditionalInstruction as aB,
-  combineInstructions as aC,
-  prompt as aD,
-  Instruction as aE,
-  isInstruction as aF,
-  isInstructionConfig as aG,
-  memory as aH,
-  kvMemory as aI,
-  r2Memory as aJ,
-  d1Memory as aK,
-  vectorMemory as aL,
-  durableMemory as aM,
-  customMemory as aN,
-  conversationMemory as aO,
-  knowledgeBase as aP,
-  Memory as aQ,
-  isMemory as aR,
-  isMemoryConfig as aS,
-  ref as aT,
-  inputRef as aU,
-  stateRef as aV,
-  envRef as aW,
-  stepRef as aX,
-  contextRef as aY,
-  outputRef as aZ,
-  computed as a_,
-  repeat as aa,
-  whileStep as ab,
-  doWhile as ac,
-  doUntil as ad,
-  tryStep as ae,
-  fallback as af,
-  mapReduce as ag,
-  createEnsemble as ah,
-  Ensemble as ai,
-  isEnsemble as aj,
-  ensembleFromConfig as ak,
-  createTool as al,
-  mcpTool as am,
-  customTool as an,
-  httpTool as ao,
-  skillTool as ap,
-  toolCollection as aq,
-  Tool as ar,
-  isTool as as,
-  isToolConfig as at,
-  instruction as au,
-  systemInstruction as av,
-  userInstruction as aw,
-  assistantInstruction as ax,
-  fileInstruction as ay,
-  templateInstruction as az,
+  outputRef as a$,
+  storageStep as a0,
+  dataStep as a1,
+  emailStep as a2,
+  agentStep as a3,
+  parallel as a4,
+  race as a5,
+  branch as a6,
+  ifThen as a7,
+  ifThenElse as a8,
+  switchStep as a9,
+  fileInstruction as aA,
+  templateInstruction as aB,
+  dynamicInstruction as aC,
+  conditionalInstruction as aD,
+  combineInstructions as aE,
+  prompt as aF,
+  Instruction as aG,
+  isInstruction as aH,
+  isInstructionConfig as aI,
+  memory as aJ,
+  kvMemory as aK,
+  r2Memory as aL,
+  d1Memory as aM,
+  vectorMemory as aN,
+  durableMemory as aO,
+  customMemory as aP,
+  conversationMemory as aQ,
+  knowledgeBase as aR,
+  Memory as aS,
+  isMemory as aT,
+  isMemoryConfig as aU,
+  ref as aV,
+  inputRef as aW,
+  stateRef as aX,
+  envRef as aY,
+  stepRef as aZ,
+  contextRef as a_,
+  foreach as aa,
+  map as ab,
+  repeat as ac,
+  whileStep as ad,
+  doWhile as ae,
+  doUntil as af,
+  tryStep as ag,
+  fallback as ah,
+  mapReduce as ai,
+  createEnsemble as aj,
+  Ensemble as ak,
+  isEnsemble as al,
+  ensembleFromConfig as am,
+  createTool as an,
+  mcpTool as ao,
+  customTool as ap,
+  httpTool as aq,
+  skillTool as ar,
+  toolCollection as as,
+  Tool as at,
+  isTool as au,
+  isToolConfig as av,
+  instruction as aw,
+  systemInstruction as ax,
+  userInstruction as ay,
+  assistantInstruction as az,
   PluginRegistry as b,
-  parseRef as b0,
-  refMap as b1,
-  Reference as b2,
-  isReference as b3,
-  isComputed as b4,
-  isTemplate as b5,
-  isRefExpression as b6,
-  suspend as b7,
-  checkpoint as b8,
-  sleep as b9,
-  CookieValidator as bA,
-  createCookieValidator as bB,
-  UnkeyValidator as bC,
-  createUnkeyValidator as bD,
-  StripeSignatureValidator as bE,
-  GitHubSignatureValidator as bF,
-  TwilioSignatureValidator as bG,
-  CustomValidatorRegistry as bH,
-  createCustomValidatorRegistry as bI,
-  SignatureValidator as bJ,
-  createSignatureValidator as bK,
-  signaturePresets as bL,
-  BasicAuthValidator as bM,
-  createBasicValidator as bN,
-  createBasicValidatorFromEnv as bO,
-  getValidatorForTrigger as bP,
-  createTriggerAuthMiddleware as bQ,
-  validateTriggerAuthConfig as bR,
-  hasPermission as bS,
-  hasAnyPermission as bT,
-  hasAllPermissions as bU,
-  getMissingPermissions as bV,
-  normalizePermission as bW,
-  isValidPermissionFormat as bX,
-  parsePermission as bY,
-  buildPermission as bZ,
-  sleepSeconds as ba,
-  sleepMinutes as bb,
-  sleepUntil as bc,
-  schedule as bd,
-  approval as be,
-  waitForWebhook as bf,
-  waitForInput as bg,
-  isSuspendStep as bh,
-  isSleepStep as bi,
-  isScheduleStep as bj,
-  isApprovalStep as bk,
-  isAsyncStep as bl,
-  isParallelStep as bm,
-  isAgentStep as bn,
-  isBranchStep as bo,
-  isForeachStep as bp,
-  isTryStep as bq,
-  isSwitchStep as br,
-  isWhileStep as bs,
-  isMapReduceStep as bt,
-  isFlowControlStep as bu,
-  isControlFlowStep as bv,
-  BearerValidator as bw,
-  createBearerValidator as bx,
-  ApiKeyValidator as by,
-  createApiKeyValidator as bz,
+  buildPermission as b$,
+  computed as b0,
+  template as b1,
+  parseRef as b2,
+  refMap as b3,
+  Reference as b4,
+  isReference as b5,
+  isComputed as b6,
+  isTemplate as b7,
+  isRefExpression as b8,
+  suspend as b9,
+  ApiKeyValidator as bA,
+  createApiKeyValidator as bB,
+  CookieValidator as bC,
+  createCookieValidator as bD,
+  UnkeyValidator as bE,
+  createUnkeyValidator as bF,
+  StripeSignatureValidator as bG,
+  GitHubSignatureValidator as bH,
+  TwilioSignatureValidator as bI,
+  CustomValidatorRegistry as bJ,
+  createCustomValidatorRegistry as bK,
+  SignatureValidator as bL,
+  createSignatureValidator as bM,
+  signaturePresets as bN,
+  BasicAuthValidator as bO,
+  createBasicValidator as bP,
+  createBasicValidatorFromEnv as bQ,
+  getValidatorForTrigger as bR,
+  createTriggerAuthMiddleware as bS,
+  validateTriggerAuthConfig as bT,
+  hasPermission as bU,
+  hasAnyPermission as bV,
+  hasAllPermissions as bW,
+  getMissingPermissions as bX,
+  normalizePermission as bY,
+  isValidPermissionFormat as bZ,
+  parsePermission as b_,
+  checkpoint as ba,
+  sleep as bb,
+  sleepSeconds as bc,
+  sleepMinutes as bd,
+  sleepUntil as be,
+  schedule as bf,
+  approval as bg,
+  waitForWebhook as bh,
+  waitForInput as bi,
+  isSuspendStep as bj,
+  isSleepStep as bk,
+  isScheduleStep as bl,
+  isApprovalStep as bm,
+  isAsyncStep as bn,
+  isParallelStep as bo,
+  isAgentStep$1 as bp,
+  isBranchStep as bq,
+  isForeachStep as br,
+  isTryStep as bs,
+  isSwitchStep as bt,
+  isWhileStep as bu,
+  isMapReduceStep as bv,
+  isFlowControlStep as bw,
+  isControlFlowStep as bx,
+  BearerValidator as by,
+  createBearerValidator as bz,
   createLogger as c,
   getOperationRegistry as d,
   getTriggerRegistry as e,
   getHttpMiddlewareRegistry as f,
   getPluginRegistry as g,
-  ThinkAgent as h,
-  createLoader as i,
-  EnsembleLoader as j,
-  createEnsembleLoader as k,
-  BuildManager as l,
-  getBuildManager as m,
-  getCLIManager as n,
-  resetCLIManager as o,
-  ModelId as p,
-  AgentName as q,
+  hasControlFlowSteps as h,
+  ThinkAgent as i,
+  createLoader as j,
+  EnsembleLoader as k,
+  createEnsembleLoader as l,
+  BuildManager as m,
+  getBuildManager as n,
+  getCLIManager as o,
+  resetCLIManager as p,
+  ModelId as q,
   resetBuildManager as r,
-  EnsembleName as s,
-  ProviderId as t,
-  PlatformName as u,
-  BindingName as v,
+  AgentName as s,
+  EnsembleName as t,
+  ProviderId as u,
+  PlatformName as v,
   workerEntry as w,
-  ExecutionId as x,
-  RequestId as y,
-  ResumeToken as z
+  BindingName as x,
+  ExecutionId as y,
+  RequestId as z
 };
-//# sourceMappingURL=worker-entry-BpsEbIVj.js.map
+//# sourceMappingURL=worker-entry-D_d7jZUq.js.map

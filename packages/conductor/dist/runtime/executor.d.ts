@@ -148,9 +148,16 @@ export declare class Executor {
     private executeStep;
     /**
      * Execute ensemble flow from a given step
+     * Automatically uses GraphExecutor for flows with control flow steps (parallel, branch, etc.)
      * @private
      */
     private executeFlow;
+    /**
+     * Execute flow using GraphExecutor for control flow constructs
+     * Handles parallel, branch, foreach, try/catch, switch, while, and map-reduce steps
+     * @private
+     */
+    private executeFlowWithGraph;
     /**
      * Register inline agents defined in an ensemble's agents array
      *
@@ -167,6 +174,12 @@ export declare class Executor {
      * @private
      */
     private resolveScriptHandler;
+    /**
+     * Create memory manager from ensemble config
+     * Extracts userId/sessionId from input and auth context
+     * @private
+     */
+    private createMemoryManager;
     /**
      * Execute an ensemble with Result-based error handling
      * @param ensemble - Parsed ensemble configuration

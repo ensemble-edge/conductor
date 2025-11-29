@@ -19,13 +19,33 @@ export interface MemoryConfig {
         analytical?: boolean;
     };
     sessionTTL?: number;
+    /** Maximum number of messages to keep in session memory (default: 50) */
+    maxMessages?: number;
+    /** Maximum age of individual messages in hours (default: 24) */
+    messageMaxAgeHours?: number;
+    /** Maximum conversation size in bytes (default: 1MB) */
+    maxConversationSize?: number;
     semanticModel?: string;
     analyticalConfig?: AnalyticalMemoryConfig;
 }
+/**
+ * Message in conversation history
+ *
+ * Enhanced from reference implementation with:
+ * - Model tracking (which AI model generated this)
+ * - Token usage tracking for cost analytics
+ */
 export interface Message {
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
+    /** Which AI model generated this message (e.g., "openai:gpt-4", "anthropic:claude-3") */
+    model?: string;
+    /** Token usage for this message (for cost tracking) */
+    tokens?: {
+        input?: number;
+        output?: number;
+    };
     metadata?: Record<string, unknown>;
 }
 export interface ConversationHistory {

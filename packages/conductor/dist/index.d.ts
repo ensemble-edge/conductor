@@ -7,6 +7,7 @@
 export { Executor } from './runtime/executor.js';
 export { Parser } from './runtime/parser.js';
 export { StateManager } from './runtime/state-manager.js';
+export { GraphExecutor, hasControlFlowSteps, type AgentExecutorFn, type GraphExecutionContext, type GraphExecutionResult, } from './runtime/graph-executor.js';
 export { PluginRegistry, getPluginRegistry, OperationRegistry, getOperationRegistry, type OperationHandler, type OperationContext, type OperationConfig, type OperationMetadata, } from './runtime/plugin-registry.js';
 export { TriggerRegistry, getTriggerRegistry, type TriggerHandler, type TriggerHandlerContext, type TriggerMetadata, } from './runtime/trigger-registry.js';
 export { HttpMiddlewareRegistry, getHttpMiddlewareRegistry, type HttpMiddlewareMetadata, } from './runtime/http-middleware-registry.js';

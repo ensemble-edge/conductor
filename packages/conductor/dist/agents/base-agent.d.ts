@@ -18,6 +18,7 @@ import type { TemplateRegistry } from '../components/templates.js';
 import type { AgentRegistry, EnsembleRegistry } from '../components/discovery.js';
 import type { SafeFetchOptions } from '../utils/safe-fetch.js';
 import type { ExecutionId, RequestId } from '../types/branded.js';
+import type { MemoryManager } from '../runtime/memory/memory-manager.js';
 /**
  * Execution context passed to agents
  *
@@ -336,6 +337,42 @@ export interface AgentExecutionContext {
      * ```
      */
     ensembleRegistry?: EnsembleRegistry;
+    /**
+     * Memory manager for persistent conversation and context
+     *
+     * Provides access to 5 memory tiers:
+     * - **Working**: In-memory storage for current execution
+     * - **Session**: KV-based conversation history with TTL
+     * - **Long-Term**: D1-based persistent user data
+     * - **Semantic**: Vectorize-based semantic search (RAG)
+     * - **Analytical**: Hyperdrive SQL database access
+     *
+     * @example
+     * ```typescript
+     * export default async function(context: AgentExecutionContext) {
+     *   const { memory, input } = context
+     *
+     *   // Get conversation history
+     *   const history = await memory?.getConversationHistory() ?? []
+     *
+     *   // Add a new message
+     *   await memory?.addMessage({
+     *     role: 'user',
+     *     content: input.message,
+     *     timestamp: Date.now()
+     *   })
+     *
+     *   // Search semantic memory (RAG)
+     *   const relevant = await memory?.searchSemantic(input.query, { topK: 5 }) ?? []
+     *
+     *   // Store in long-term memory
+     *   await memory?.setLongTerm('user.preferences', { theme: 'dark' })
+     *
+     *   return { history, relevant }
+     * }
+     * ```
+     */
+    memory?: MemoryManager;
     /**
      * SSRF-protected fetch function for making HTTP requests
      *

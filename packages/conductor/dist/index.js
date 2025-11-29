@@ -8,6 +8,7 @@
 export { Executor } from './runtime/executor.js';
 export { Parser } from './runtime/parser.js';
 export { StateManager } from './runtime/state-manager.js';
+export { GraphExecutor, hasControlFlowSteps, } from './runtime/graph-executor.js';
 export { PluginRegistry, getPluginRegistry, 
 // Backwards compatibility
 OperationRegistry, getOperationRegistry, } from './runtime/plugin-registry.js';

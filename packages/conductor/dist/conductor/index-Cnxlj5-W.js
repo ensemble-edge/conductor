@@ -1,4 +1,4 @@
-import { B as BaseAgent, c as createLogger } from "./worker-entry-BpsEbIVj.js";
+import { B as BaseAgent, c as createLogger } from "./worker-entry-D_d7jZUq.js";
 const logger = createLogger({ serviceName: "hitl-agent" });
 class HITLMember extends BaseAgent {
   constructor(config, env) {
@@ -224,4 +224,4 @@ class HITLMember extends BaseAgent {
 export {
   HITLMember
 };
-//# sourceMappingURL=index-DD6ZSvN1.js.map
+//# sourceMappingURL=index-Cnxlj5-W.js.map
