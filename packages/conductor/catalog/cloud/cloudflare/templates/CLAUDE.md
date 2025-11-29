@@ -229,7 +229,7 @@ Agents can introspect available components:
 - ctx.agentRegistry.list() / ctx.agentRegistry.get('name')
 - ctx.ensembleRegistry.list() / ctx.ensembleRegistry.get('name')
 
-## Operations (14 types)
+## Operations (13 types)
 
 | Operation | Purpose | Config Keys |
 |-----------|---------|-------------|
@@ -243,7 +243,6 @@ Agents can introspect available components:
 | sms | Send SMS | to, from, body |
 | html | Render HTML | template, data |
 | pdf | Generate PDF | html, filename, format |
-| page | Full-stack page | component, props |
 | form | Generate forms | fields, csrf |
 | queue | Queue messages | action: send|consume, queue, body |
 | docs | API docs | OpenAPI generation |
