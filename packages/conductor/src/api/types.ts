@@ -124,10 +124,12 @@ export interface AuthConfig {
 // Import the canonical AuthContext from auth module
 import type { AuthContext as CanonicalAuthContext } from '../auth/types.js'
 import type { SecurityConfig } from '../config/security.js'
+import type { ApiConfig } from '../config/types.js'
 
 // Re-export for external use
 export type { AuthContext as CanonicalAuthContext } from '../auth/types.js'
 export type { SecurityConfig } from '../config/security.js'
+export type { ApiConfig } from '../config/types.js'
 
 // Use the canonical AuthContext in this module
 // This type alias ensures proper typing for Hono context
@@ -158,6 +160,7 @@ export interface RateLimitResult {
  * - requestId: Unique request identifier for tracing
  * - startTime: Request start timestamp for duration tracking
  * - securityConfig: Security configuration for this request
+ * - apiConfig: API configuration for this request (Execute API controls)
  * - stealthMode: Whether stealth mode is enabled (auth failures return 404)
  * - stealthDelayMs: Minimum delay for stealth responses (timing attack protection)
  * - cacheHit: Whether response was served from cache
@@ -172,6 +175,8 @@ export type ConductorContext = Context<{
     startTime?: number
     // Security configuration (injected per-request, no global state)
     securityConfig?: SecurityConfig
+    // API configuration (Execute API controls)
+    apiConfig?: ApiConfig
     // Response standardization variables
     stealthMode?: boolean
     stealthDelayMs?: number

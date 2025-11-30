@@ -360,11 +360,7 @@ function matchEmailPattern(email, pattern) {
     }
     // Convert pattern to regex
     // Escape special chars except *, then replace * with .*
-    const regexPattern = '^' +
-        normalizedPattern
-            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-            .replace(/\*/g, '.*') +
-        '$';
+    const regexPattern = '^' + normalizedPattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$';
     try {
         const regex = new RegExp(regexPattern);
         return regex.test(email);

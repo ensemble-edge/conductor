@@ -15,7 +15,14 @@
  */
 import { BaseAgent, type AgentExecutionContext } from './base-agent.js';
 import type { AgentConfig } from '../runtime/parser.js';
-export type FunctionImplementation = (context: AgentExecutionContext) => Promise<unknown> | unknown;
+/**
+ * Function implementation type - supports two calling conventions:
+ * 1. Modern (1 param): handler(context: AgentExecutionContext)
+ * 2. Legacy (2 params): handler(input: unknown, context: AgentExecutionContext)
+ *
+ * The CodeAgent detects which convention to use via Function.length
+ */
+export type FunctionImplementation = ((context: AgentExecutionContext) => Promise<unknown> | unknown) | ((input: unknown, context: AgentExecutionContext) => Promise<unknown> | unknown);
 /**
  * Code Agent executes JavaScript/TypeScript from bundled scripts or handlers
  *

@@ -11,7 +11,7 @@
  */
 
 import { Hono } from 'hono'
-import type { ConductorContext, ExecuteRequest, ExecuteResponse } from '../types.js'
+import type { ConductorContext, ExecuteRequest, ExecuteResponse, ApiConfig } from '../types.js'
 import { getBuiltInRegistry } from '../../agents/built-in/registry.js'
 import { getMemberLoader, getEnsembleLoader } from '../auto-discovery.js'
 import type { AgentExecutionContext } from '../../agents/base-agent.js'
@@ -24,6 +24,7 @@ import {
   type SecurityConfig,
 } from '../../config/security.js'
 import { hasPermission } from '../../auth/permissions.js'
+import type { EnsembleConfig, AgentConfig } from '../../runtime/parser.js'
 
 const execute = new Hono<{ Bindings: Env }>()
 const logger = createLogger({ serviceName: 'api-execute' })
@@ -33,6 +34,61 @@ const logger = createLogger({ serviceName: 'api-execute' })
  */
 function getSecurityConfigFromContext(c: ConductorContext): SecurityConfig {
   return c.get('securityConfig') || DEFAULT_SECURITY_CONFIG
+}
+
+/**
+ * Default API config when none is provided
+ */
+const DEFAULT_API_CONFIG: ApiConfig = {
+  execution: {
+    agents: { requireExplicit: false },
+    ensembles: { requireExplicit: false },
+  },
+}
+
+/**
+ * Get API config from context, falling back to defaults
+ */
+function getApiConfigFromContext(c: ConductorContext): ApiConfig {
+  return c.get('apiConfig') || DEFAULT_API_CONFIG
+}
+
+/**
+ * Check if an ensemble is API executable based on config and ensemble settings
+ *
+ * Logic:
+ * - If requireExplicit: false (default) → executable unless apiExecutable: false
+ * - If requireExplicit: true → only executable if apiExecutable: true
+ */
+function isEnsembleApiExecutable(ensemble: EnsembleConfig, apiConfig: ApiConfig): boolean {
+  const requireExplicit = apiConfig.execution?.ensembles?.requireExplicit ?? false
+
+  if (requireExplicit) {
+    // Strict mode: must explicitly opt-in
+    return ensemble.apiExecutable === true
+  } else {
+    // Permissive mode (default): executable unless explicitly disabled
+    return ensemble.apiExecutable !== false
+  }
+}
+
+/**
+ * Check if an agent is API executable based on config and agent settings
+ *
+ * Logic:
+ * - If requireExplicit: false (default) → executable unless apiExecutable: false
+ * - If requireExplicit: true → only executable if apiExecutable: true
+ */
+function isAgentApiExecutable(agentConfig: AgentConfig, apiConfig: ApiConfig): boolean {
+  const requireExplicit = apiConfig.execution?.agents?.requireExplicit ?? false
+
+  if (requireExplicit) {
+    // Strict mode: must explicitly opt-in
+    return agentConfig.apiExecutable === true
+  } else {
+    // Permissive mode (default): executable unless explicitly disabled
+    return agentConfig.apiExecutable !== false
+  }
 }
 
 /**
@@ -120,6 +176,26 @@ async function executeEnsemble(
           requestId,
         },
         404
+      )
+    }
+
+    // Check if ensemble is API executable
+    const apiConfig = getApiConfigFromContext(c)
+    if (!isEnsembleApiExecutable(ensemble, apiConfig)) {
+      const requireExplicit = apiConfig.execution?.ensembles?.requireExplicit ?? false
+      const message = requireExplicit
+        ? `Ensemble '${ensembleName}' is not API executable. Set apiExecutable: true in the ensemble definition, or set api.execution.ensembles.requireExplicit: false in conductor config to make all ensembles executable by default.`
+        : `Ensemble '${ensembleName}' has API execution explicitly disabled via apiExecutable: false.`
+
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'EXECUTION_NOT_ALLOWED',
+            message,
+          },
+        },
+        403
       )
     }
 
@@ -266,6 +342,31 @@ async function executeAgent(
         },
         404
       ) as unknown as Response
+    }
+
+    // Check if custom agent is API executable (built-in agents are always executable)
+    if (isCustom) {
+      const customAgentConfig = memberLoader!.getAgentConfig(agentName)
+      if (customAgentConfig) {
+        const apiConfig = getApiConfigFromContext(c)
+        if (!isAgentApiExecutable(customAgentConfig, apiConfig)) {
+          const requireExplicit = apiConfig.execution?.agents?.requireExplicit ?? false
+          const message = requireExplicit
+            ? `Agent '${agentName}' is not API executable. Set apiExecutable: true in the agent definition, or set api.execution.agents.requireExplicit: false in conductor config to make all agents executable by default.`
+            : `Agent '${agentName}' has API execution explicitly disabled via apiExecutable: false.`
+
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'EXECUTION_NOT_ALLOWED',
+                message,
+              },
+            },
+            403
+          ) as unknown as Response
+        }
+      }
     }
 
     // Get agent instance

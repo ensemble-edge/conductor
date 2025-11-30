@@ -27,7 +27,7 @@
 		"wrangler": "^4.45.2"
 	},
 	"dependencies": {
-		"@ensemble-edge/conductor": "^__CONDUCTOR_VERSION__",
+		"@ensemble-edge/conductor": "file:./ensemble-edge-conductor-0.4.7.tgz",
 		"hono": "^4.10.6",
 		"mjml": "^4.17.1",
 		"yaml": "^2.4.0"

@@ -91,8 +91,7 @@ app.post('/:ensembleName/trigger', async (c) => {
             }, 404);
         }
         // Extract cron triggers with proper type narrowing
-        const cronTriggers = (ensemble.trigger?.filter((t) => t.type === 'cron') ||
-            []);
+        const cronTriggers = (ensemble.trigger?.filter((t) => t.type === 'cron') || []);
         if (cronTriggers.length === 0) {
             return c.json({
                 error: 'Ensemble has no schedules configured',

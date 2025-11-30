@@ -25,6 +25,41 @@ export interface ConductorConfig {
     execution?: ExecutionConfig;
     /** Storage configuration for debugging */
     storage?: StorageConfig;
+    /** API configuration (Execute API controls) */
+    api?: ApiConfig;
+}
+/**
+ * API configuration
+ */
+export interface ApiConfig {
+    /** Execute API controls */
+    execution?: ApiExecutionConfig;
+}
+/**
+ * Execute API controls
+ *
+ * Controls whether agents and ensembles can be executed via the Execute API
+ * (/api/v1/execute/agent/* and /api/v1/execute/ensemble/*)
+ */
+export interface ApiExecutionConfig {
+    /** Agent execution controls */
+    agents?: {
+        /**
+         * When true, agents need explicit apiExecutable: true to be API executable
+         * When false (default), agents are executable unless apiExecutable: false
+         * @default false
+         */
+        requireExplicit?: boolean;
+    };
+    /** Ensemble execution controls */
+    ensembles?: {
+        /**
+         * When true, ensembles need explicit apiExecutable: true to be API executable
+         * When false (default), ensembles are executable unless apiExecutable: false
+         * @default false
+         */
+        requireExplicit?: boolean;
+    };
 }
 /**
  * Security configuration options

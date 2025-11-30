@@ -3,10 +3,41 @@
  *
  * Shared type definitions for all Conductor primitives.
  * These types are the canonical definitions used by both YAML and TypeScript authoring.
+ *
+ * Flow step types are imported from flow-types.ts which is the single source of truth.
+ * This avoids circular dependencies between parser.ts, types.ts, and ensemble.ts.
  */
 
 import type { z } from 'zod'
 import type { Operation, OperationType } from '../types/operation.js'
+import type { FlowStepType } from '../runtime/flow-types.js'
+
+// Re-export flow step types from flow-types (single source of truth)
+export type {
+  FlowStepType,
+  AgentFlowStep,
+  ParallelFlowStep,
+  BranchFlowStep,
+  ForeachFlowStep,
+  TryFlowStep,
+  SwitchFlowStep,
+  WhileFlowStep,
+  MapReduceFlowStep,
+} from '../runtime/flow-types.js'
+
+// Re-export type guards for flow steps
+export {
+  isParallelStep,
+  isBranchStep,
+  isForeachStep,
+  isTryStep,
+  isSwitchStep,
+  isWhileStep,
+  isMapReduceStep,
+  isAgentStep,
+  isControlFlowStep,
+  isFlowControlStep,
+} from '../runtime/flow-types.js'
 
 // Re-export Operation for convenience
 export { Operation, type OperationType }
@@ -224,102 +255,6 @@ export interface MapReduceOptions {
 }
 
 // ============================================================================
-// Flow Step Types (matching parser.ts)
-// ============================================================================
-
-/**
- * Agent flow step
- */
-export interface AgentFlowStep extends BaseStepConfig {
-  /** Agent name to execute */
-  agent: string
-}
-
-/**
- * Parallel flow step
- */
-export interface ParallelFlowStep {
-  type: 'parallel'
-  steps: FlowStepType[]
-  waitFor?: 'all' | 'any' | 'first'
-}
-
-/**
- * Branch flow step
- */
-export interface BranchFlowStep {
-  type: 'branch'
-  condition: unknown
-  then: FlowStepType[]
-  else?: FlowStepType[]
-}
-
-/**
- * Foreach flow step
- */
-export interface ForeachFlowStep {
-  type: 'foreach'
-  items: unknown
-  step: FlowStepType
-  maxConcurrency?: number
-  breakWhen?: unknown
-}
-
-/**
- * Try flow step
- */
-export interface TryFlowStep {
-  type: 'try'
-  steps: FlowStepType[]
-  catch?: FlowStepType[]
-  finally?: FlowStepType[]
-}
-
-/**
- * Switch flow step
- */
-export interface SwitchFlowStep {
-  type: 'switch'
-  value: unknown
-  cases: Record<string, FlowStepType[]>
-  default?: FlowStepType[]
-}
-
-/**
- * While flow step
- */
-export interface WhileFlowStep {
-  type: 'while'
-  condition: unknown
-  steps: FlowStepType[]
-  maxIterations?: number
-}
-
-/**
- * Map-reduce flow step
- */
-export interface MapReduceFlowStep {
-  type: 'map-reduce'
-  items: unknown
-  map: FlowStepType
-  reduce: FlowStepType
-  maxConcurrency?: number
-}
-
-/**
- * Union of all flow step types
- */
-export type FlowStepType =
-  | AgentFlowStep
-  | ParallelFlowStep
-  | BranchFlowStep
-  | ForeachFlowStep
-  | TryFlowStep
-  | SwitchFlowStep
-  | WhileFlowStep
-  | MapReduceFlowStep
-
-// ============================================================================
 // Ensemble Types
 // ============================================================================
 
@@ -485,90 +420,6 @@ export interface SleepUntilStep {
   type: 'sleep-until'
   /** ISO timestamp to sleep until */
   until: string
-}
-
-// ============================================================================
-// Type Guards
-// ============================================================================
-
-/**
- * Check if a step is a parallel step
- */
-export function isParallelStep(step: FlowStepType): step is ParallelFlowStep {
-  return 'type' in step && step.type === 'parallel'
-}
-
-/**
- * Check if a step is a branch step
- */
-export function isBranchStep(step: FlowStepType): step is BranchFlowStep {
-  return 'type' in step && step.type === 'branch'
-}
-
-/**
- * Check if a step is a foreach step
- */
-export function isForeachStep(step: FlowStepType): step is ForeachFlowStep {
-  return 'type' in step && step.type === 'foreach'
-}
-
-/**
- * Check if a step is a try step
- */
-export function isTryStep(step: FlowStepType): step is TryFlowStep {
-  return 'type' in step && step.type === 'try'
-}
-
-/**
- * Check if a step is a switch step
- */
-export function isSwitchStep(step: FlowStepType): step is SwitchFlowStep {
-  return 'type' in step && step.type === 'switch'
-}
-
-/**
- * Check if a step is a while step
- */
-export function isWhileStep(step: FlowStepType): step is WhileFlowStep {
-  return 'type' in step && step.type === 'while'
-}
-
-/**
- * Check if a step is a map-reduce step
- */
-export function isMapReduceStep(step: FlowStepType): step is MapReduceFlowStep {
-  return 'type' in step && step.type === 'map-reduce'
-}
-
-/**
- * Check if a step is an agent step (no 'type' field)
- */
-export function isAgentStep(step: FlowStepType): step is AgentFlowStep {
-  return 'agent' in step && !('type' in step)
-}
-
-/**
- * Check if a step is a control flow step (has 'type' field)
- */
-export function isControlFlowStep(
-  step: FlowStepType
-): step is Exclude<FlowStepType, AgentFlowStep> {
-  return 'type' in step
-}
-
-/**
- * Check if a step is any flow control step
- */
-export function isFlowControlStep(step: FlowStepType): boolean {
-  return (
-    isParallelStep(step) ||
-    isBranchStep(step) ||
-    isForeachStep(step) ||
-    isTryStep(step) ||
-    isSwitchStep(step) ||
-    isWhileStep(step) ||
-    isMapReduceStep(step)
-  )
 }
 
 /**

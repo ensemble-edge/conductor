@@ -85,7 +85,7 @@ import {
   type AgentRegistry,
   type EnsembleRegistry,
 } from '../components/index.js'
-import { resolveOutput, type EnsembleOutput } from './output-resolver.js'
+import { resolveOutput, type EnsembleOutput, type OutputFormat } from './output-resolver.js'
 import { MemoryManager } from './memory/memory-manager.js'
 import type { MemoryConfig } from './memory/types.js'
 
@@ -153,6 +153,8 @@ export interface ResponseMetadata {
   }
   /** If true, output is raw string (not JSON) */
   isRawBody?: boolean
+  /** Output format for Content-Type and serialization (triggers only) */
+  format?: OutputFormat
 }
 
 /**
@@ -196,9 +198,12 @@ export interface AgentMetric {
 
 /**
  * Structure stored in execution context for each agent
+ * Available for interpolation in output blocks as ${agentName.output} and ${agentName.success}
  */
 interface AgentExecutionResult {
   output: unknown
+  /** Whether the agent completed successfully (true when we reach context storage) */
+  success: boolean
   [key: string]: unknown // Allow additional metadata
 }
 
@@ -792,6 +797,7 @@ export class Executor {
     const contextKey = step.id || step.agent
     executionContext[contextKey] = {
       output: response.data,
+      success: true,
     }
 
     // 13. Update state context with new state from immutable StateManager
@@ -901,11 +907,12 @@ export class Executor {
           isRawBody: true,
         }
       } else {
-        // JSON body
+        // JSON body (or formatted body for triggers)
         finalOutput = resolved.body ?? {}
         responseMetadata = {
           status: resolved.status,
           headers: resolved.headers,
+          format: resolved.format,
         }
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
@@ -973,7 +980,7 @@ export class Executor {
       // Merge graph context into flow context's execution context
       // This ensures previous step outputs are available
       for (const [key, value] of graphContext.results) {
-        executionContext[key] = { output: value }
+        executionContext[key] = { output: value, success: true }
       }
 
       // Execute the agent step using existing logic
@@ -1011,7 +1018,7 @@ export class Executor {
 
     // Merge graph results into execution context
     for (const [key, value] of Object.entries(graphResult.value)) {
-      executionContext[key] = { output: value }
+      executionContext[key] = { output: value, success: true }
     }
 
     // Calculate final ensemble score if scoring was enabled
@@ -1046,10 +1053,12 @@ export class Executor {
           isRawBody: true,
         }
       } else {
+        // JSON body (or formatted body for triggers)
         finalOutput = resolved.body ?? {}
         responseMetadata = {
           status: resolved.status,
           headers: resolved.headers,
+          format: resolved.format,
         }
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
@@ -1375,8 +1384,12 @@ export class Executor {
     }
 
     // Context for resolving interpolations
+    // Both 'input' and 'trigger' reference the same data for backwards compatibility
+    // - 'input' is the original key (for agent step inputs)
+    // - 'trigger' is an alias for HTTP request context (method, path, query, headers, body)
     const executionContext: ExecutionContextMap = {
       input,
+      trigger: input, // Alias for semantic clarity in YAML templates
       state: stateManager ? stateManager.getState() : {},
       scoring: scoringState || {},
     }

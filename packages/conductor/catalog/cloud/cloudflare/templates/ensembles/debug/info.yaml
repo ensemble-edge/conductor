@@ -14,12 +14,11 @@ trigger:
     path: /debug/info
     methods: [GET]
     auth:
-      requirement: required
-      methods: [bearer, apiKey]
+      type: bearer
+      secret: $env.DEBUG_SECRET
 
-agents:
-  - name: inspect
-    agent: inspect-context
+flow:
+  - agent: inspect-context
     input:
       includeEnv: true
       includeAuth: true
@@ -32,4 +31,4 @@ output:
     conductor:
       name: "Ensemble-Edge Conductor"
       version: "0.4.x"
-    runtime: ${{ agents.inspect.output.context }}
+    runtime: ${ inspect-context.output.context }

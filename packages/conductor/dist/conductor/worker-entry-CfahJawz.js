@@ -10205,9 +10205,35 @@ var DatabaseType = /* @__PURE__ */ ((DatabaseType2) => {
   DatabaseType2["PlanetScale"] = "planetscale";
   return DatabaseType2;
 })(DatabaseType || {});
+const FormatTypeSchema = enumType([
+  "json",
+  "text",
+  "html",
+  "xml",
+  "csv",
+  "markdown",
+  "yaml",
+  "ics",
+  "rss",
+  "atom"
+]);
+const FormatConfigSchema = objectType({
+  type: FormatTypeSchema,
+  extract: stringType().optional(),
+  contentType: stringType().optional()
+});
+const OutputFormatSchema = unionType([FormatTypeSchema, FormatConfigSchema]);
 const RedirectOutputSchema = objectType({
   url: stringType(),
-  status: unionType([literalType(301), literalType(302), literalType(307), literalType(308)]).optional()
+  status: unionType([
+    // Literal redirect status codes
+    literalType(301),
+    literalType(302),
+    literalType(307),
+    literalType(308),
+    // Template string that evaluates to a status code at runtime
+    stringType()
+  ]).optional()
 });
 const OutputBlockSchema = objectType({
   when: stringType().optional(),
@@ -10215,7 +10241,8 @@ const OutputBlockSchema = objectType({
   headers: recordType(stringType()).optional(),
   body: unknownType().optional(),
   rawBody: stringType().optional(),
-  redirect: RedirectOutputSchema.optional()
+  redirect: RedirectOutputSchema.optional(),
+  format: OutputFormatSchema.optional()
 });
 const EnsembleOutputSchema = unionType([
   // New: Array of conditional output blocks
@@ -10226,9 +10253,20 @@ const EnsembleOutputSchema = unionType([
 function isConditionalOutput(output) {
   return Array.isArray(output);
 }
+const OUTPUT_BLOCK_KEYS = /* @__PURE__ */ new Set(["when", "status", "headers", "body", "rawBody", "redirect", "format"]);
+function isOutputBlockLike(obj) {
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return false;
+  const hasOutputBlockKey = keys.some((k) => OUTPUT_BLOCK_KEYS.has(k));
+  if (!hasOutputBlockKey) return false;
+  return keys.every((k) => OUTPUT_BLOCK_KEYS.has(k));
+}
 function normalizeOutput(output) {
   if (isConditionalOutput(output)) {
     return output;
+  }
+  if (isOutputBlockLike(output)) {
+    return [output];
   }
   return [{ body: output }];
 }
@@ -10690,9 +10728,7 @@ const ExecutionId = {
     }
     const normalized = value.trim();
     if (!normalized.startsWith("exec_")) {
-      throw new Error(
-        `Invalid execution ID format: "${value}" (must start with 'exec_')`
-      );
+      throw new Error(`Invalid execution ID format: "${value}" (must start with 'exec_')`);
     }
     return normalized;
   },
@@ -10736,9 +10772,7 @@ const RequestId = {
     }
     const normalized = value.trim();
     if (!normalized.startsWith("req_")) {
-      throw new Error(
-        `Invalid request ID format: "${value}" (must start with 'req_')`
-      );
+      throw new Error(`Invalid request ID format: "${value}" (must start with 'req_')`);
     }
     return normalized;
   },
@@ -10782,9 +10816,7 @@ const ResumeToken = {
     }
     const normalized = value.trim();
     if (!normalized.startsWith("resume_")) {
-      throw new Error(
-        `Invalid resume token format: "${value}" (must start with 'resume_')`
-      );
+      throw new Error(`Invalid resume token format: "${value}" (must start with 'resume_')`);
     }
     return normalized;
   },
@@ -11202,6 +11234,7 @@ class Ensemble {
     this.notifications = options.notifications;
     this.inputs = options.inputs;
     this.output = options.output;
+    this.apiExecutable = options.apiExecutable;
     if (typeof options.steps === "function") {
       this.isDynamic = true;
       this.hooks = {
@@ -11391,6 +11424,16 @@ const FlowStepSchema = unionType([
 const EnsembleSchema = objectType({
   name: stringType().min(1, "Ensemble name is required"),
   description: stringType().optional(),
+  /**
+   * Controls whether this ensemble can be executed via the Execute API
+   * (/api/v1/execute/ensemble/:name)
+   *
+   * When api.execution.ensembles.requireExplicit is false (default):
+   *   - Ensembles are executable unless apiExecutable: false
+   * When api.execution.ensembles.requireExplicit is true:
+   *   - Ensembles need apiExecutable: true to be executable
+   */
+  apiExecutable: booleanType().optional(),
   state: objectType({
     schema: recordType(unknownType()).optional(),
     initial: recordType(unknownType()).optional()
@@ -11417,10 +11460,21 @@ const EnsembleSchema = objectType({
         path: stringType().min(1).optional(),
         // Defaults to /{ensemble-name}
         methods: arrayType(enumType(["POST", "GET", "PUT", "PATCH", "DELETE"])).optional(),
-        auth: objectType({
-          type: enumType(["bearer", "signature", "basic"]),
-          secret: stringType()
-        }).optional(),
+        auth: unionType([
+          // Legacy format: type + secret
+          objectType({
+            type: enumType(["bearer", "signature", "basic"]),
+            secret: stringType()
+          }),
+          // New format: requirement + methods (declarative auth config)
+          objectType({
+            requirement: enumType(["public", "optional", "required"]),
+            methods: arrayType(enumType(["bearer", "apiKey", "cookie", "custom"])).optional(),
+            customValidator: stringType().optional(),
+            roles: arrayType(stringType()).optional(),
+            permissions: arrayType(stringType()).optional()
+          })
+        ]).optional(),
         public: booleanType().optional(),
         // If true, no auth required
         mode: enumType(["trigger", "resume"]).optional(),
@@ -11483,10 +11537,21 @@ const EnsembleSchema = objectType({
             methods: arrayType(enumType(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])).optional()
           })
         ).optional(),
-        auth: objectType({
-          type: enumType(["bearer", "signature", "basic"]),
-          secret: stringType()
-        }).optional(),
+        auth: unionType([
+          // Legacy format: type + secret
+          objectType({
+            type: enumType(["bearer", "signature", "basic"]),
+            secret: stringType()
+          }),
+          // New format: requirement + methods (declarative auth config)
+          objectType({
+            requirement: enumType(["public", "optional", "required"]),
+            methods: arrayType(enumType(["bearer", "apiKey", "cookie", "custom"])).optional(),
+            customValidator: stringType().optional(),
+            roles: arrayType(stringType()).optional(),
+            permissions: arrayType(stringType()).optional()
+          })
+        ]).optional(),
         public: booleanType().optional(),
         mode: enumType(["trigger", "resume"]).optional(),
         async: booleanType().optional(),
@@ -11761,6 +11826,16 @@ const AgentSchema = objectType({
     input: recordType(unknownType()).optional(),
     output: recordType(unknownType()).optional()
   }).optional(),
+  /**
+   * Controls whether this agent can be executed via the Execute API
+   * (/api/v1/execute/agent/:name)
+   *
+   * When api.execution.agents.requireExplicit is false (default):
+   *   - Agents are executable unless apiExecutable: false
+   * When api.execution.agents.requireExplicit is true:
+   *   - Agents need apiExecutable: true to be executable
+   */
+  apiExecutable: booleanType().optional(),
   /** Agent-level logging configuration */
   logging: AgentLoggingSchema,
   /** Agent-level metrics configuration */
@@ -12892,13 +12967,7 @@ class GraphExecutor {
   evaluateJsExpression(expression, context) {
     try {
       const evalContext = this.buildResolutionContext(context);
-      const func = new Function(
-        "context",
-        "input",
-        "state",
-        "results",
-        `return ${expression}`
-      );
+      const func = new Function("context", "input", "state", "results", `return ${expression}`);
       return Boolean(
         func(evalContext, context.input, context.state || {}, Object.fromEntries(context.results))
       );
@@ -13292,10 +13361,21 @@ class FunctionAgent extends BaseAgent {
   }
   /**
    * Execute the user-provided function
+   *
+   * Supports two calling conventions:
+   * - Modern single-param: handler(context) where context.input contains the input
+   * - Legacy two-param: handler(input, context) for backward compatibility
+   *
+   * Detection uses Function.length to check declared parameter count.
    */
   async run(context) {
     try {
-      const result = await this.implementation(context);
+      let result;
+      if (this.implementation.length >= 2) {
+        result = await this.implementation(context.input, context);
+      } else {
+        result = await this.implementation(context);
+      }
       return result;
     } catch (error) {
       throw new Error(
@@ -13375,7 +13455,15 @@ class CodeAgent extends BaseAgent {
       if (!this.compiledFunction) {
         throw new Error("No code implementation available");
       }
-      const result = await this.compiledFunction(context);
+      let result;
+      if (this.compiledFunction.length >= 2) {
+        result = await this.compiledFunction(
+          context.input,
+          context
+        );
+      } else {
+        result = await this.compiledFunction(context);
+      }
       return result;
     } catch (error) {
       throw new Error(
@@ -19320,7 +19408,9 @@ function validateSqlIdentifier(identifier, type) {
     throw new Error(`Invalid ${type} name: must be a non-empty string`);
   }
   if (identifier.length > 128) {
-    throw new Error(`Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`);
+    throw new Error(
+      `Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`
+    );
   }
   const validIdentifierPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
   if (!validIdentifierPattern.test(identifier)) {
@@ -25223,7 +25313,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache2;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-BcDDTYOs.js");
+        const { MemoryCache } = await import("./cache-BAz9DXw_.js");
         cache2 = new MemoryCache({
           defaultTTL: 3600
         });
@@ -25309,7 +25399,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache2;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-BcDDTYOs.js");
+          const { MemoryCache } = await import("./cache-BAz9DXw_.js");
           cache2 = new MemoryCache({
             defaultTTL: 3600
           });
@@ -25901,7 +25991,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-CfQrJyuC.js");
+      const { RAGMember } = await import("./index-Cl74V6dK.js");
       return new RAGMember(config, env);
     }
   );
@@ -25937,7 +26027,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-BAdpaQlN.js");
+      const { HITLMember } = await import("./index-h_6LAwJk.js");
       return new HITLMember(config, env);
     }
   );
@@ -26704,7 +26794,9 @@ class NotificationManager {
         }
         default: {
           const exhaustiveCheck = config;
-          throw new Error(`Unknown notification type: ${exhaustiveCheck.type}`);
+          throw new Error(
+            `Unknown notification type: ${exhaustiveCheck.type}`
+          );
         }
       }
     } catch (error) {
@@ -27962,9 +28054,17 @@ function resolveOutputBlock(block, context) {
     }
   }
   if (block.redirect) {
+    let redirectStatus = void 0;
+    if (block.redirect.status !== void 0) {
+      const resolvedStatus = Parser$1.resolveInterpolation(block.redirect.status, context);
+      const numStatus = typeof resolvedStatus === "number" ? resolvedStatus : Number(resolvedStatus);
+      if ([301, 302, 307, 308].includes(numStatus)) {
+        redirectStatus = numStatus;
+      }
+    }
     resolved.redirect = {
       url: String(Parser$1.resolveInterpolation(block.redirect.url, context)),
-      status: block.redirect.status
+      status: redirectStatus
     };
     return resolved;
   }
@@ -27974,6 +28074,9 @@ function resolveOutputBlock(block, context) {
   }
   if (block.body !== void 0) {
     resolved.body = Parser$1.resolveInterpolation(block.body, context);
+  }
+  if (block.format !== void 0) {
+    resolved.format = block.format;
   }
   return resolved;
 }
@@ -28342,7 +28445,9 @@ class SessionMemory {
     if (history.messages.length === 0) {
       return null;
     }
-    const modelsUsed = [...new Set(history.messages.map((m) => m.model).filter(Boolean))];
+    const modelsUsed = [
+      ...new Set(history.messages.map((m) => m.model).filter(Boolean))
+    ];
     const totalTokens = history.messages.reduce(
       (acc, msg) => ({
         input: acc.input + (msg.tokens?.input ?? 0),
@@ -29484,17 +29589,20 @@ class Executor {
    */
   async executeAgentWithScoring(stepContext) {
     const { step: step2, flowContext, agent, agentContext, getPendingUpdates } = stepContext;
-    const { ensemble, executionContext, scoringState, ensembleScorer, scoringExecutor, stateManager } = flowContext;
+    const {
+      ensemble,
+      executionContext,
+      scoringState,
+      ensembleScorer,
+      scoringExecutor,
+      stateManager
+    } = flowContext;
     const agentTimeout = step2.timeout ?? this.defaultTimeout;
     const scoringConfig = step2.scoring;
     const scoredResult = await scoringExecutor.executeWithScoring(
       // Agent execution function (with timeout)
       async () => {
-        const resp = await withTimeout(
-          agent.execute(agentContext),
-          agentTimeout,
-          step2.agent
-        );
+        const resp = await withTimeout(agent.execute(agentContext), agentTimeout, step2.agent);
         if (stateManager && getPendingUpdates) {
           const { updates, newLog } = getPendingUpdates();
           flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
@@ -29571,11 +29679,7 @@ class Executor {
     const { step: step2, flowContext, agent, agentContext, getPendingUpdates } = stepContext;
     const { stateManager } = flowContext;
     const agentTimeout = step2.timeout ?? this.defaultTimeout;
-    const response = await withTimeout(
-      agent.execute(agentContext),
-      agentTimeout,
-      step2.agent
-    );
+    const response = await withTimeout(agent.execute(agentContext), agentTimeout, step2.agent);
     if (stateManager && getPendingUpdates) {
       const { updates, newLog } = getPendingUpdates();
       flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
@@ -29695,7 +29799,8 @@ class Executor {
     }
     const contextKey = step2.id || step2.agent;
     executionContext[contextKey] = {
-      output: response.data
+      output: response.data,
+      success: true
     };
     if (flowContext.stateManager) {
       executionContext.state = flowContext.stateManager.getState();
@@ -29777,7 +29882,8 @@ class Executor {
         finalOutput = resolved.body ?? {};
         responseMetadata = {
           status: resolved.status,
-          headers: resolved.headers
+          headers: resolved.headers,
+          format: resolved.format
         };
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
@@ -29822,7 +29928,7 @@ class Executor {
     } = flowContext;
     const agentExecutorFn = async (step2, graphContext) => {
       for (const [key, value] of graphContext.results) {
-        executionContext[key] = { output: value };
+        executionContext[key] = { output: value, success: true };
       }
       const stepIndex = ensemble.flow ? ensemble.flow.findIndex(
         (s) => isAgentStep(s) && (s.id === step2.id || s.agent === step2.agent)
@@ -29845,7 +29951,7 @@ class Executor {
       return Result.err(graphResult.error);
     }
     for (const [key, value] of Object.entries(graphResult.value)) {
-      executionContext[key] = { output: value };
+      executionContext[key] = { output: value, success: true };
     }
     if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
       scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
@@ -29875,7 +29981,8 @@ class Executor {
         finalOutput = resolved.body ?? {};
         responseMetadata = {
           status: resolved.status,
-          headers: resolved.headers
+          headers: resolved.headers,
+          format: resolved.format
         };
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
@@ -30111,6 +30218,8 @@ Script loader not initialized. For Cloudflare Workers:
     }
     const executionContext = {
       input,
+      trigger: input,
+      // Alias for semantic clarity in YAML templates
       state: stateManager ? stateManager.getState() : {},
       scoring: scoringState || {}
     };
@@ -31052,9 +31161,13 @@ class AgentLoader {
         this.registerAgent(config, implementation);
         logger$6.debug(`Auto-discovered agent: ${agentDef.name}`, { agentName: agentDef.name });
       } catch (error) {
-        logger$6.error(`Failed to load agent "${agentDef.name}"`, error instanceof Error ? error : void 0, {
-          agentName: agentDef.name
-        });
+        logger$6.error(
+          `Failed to load agent "${agentDef.name}"`,
+          error instanceof Error ? error : void 0,
+          {
+            agentName: agentDef.name
+          }
+        );
       }
     }
     logger$6.info(`Auto-discovery complete: ${this.loadedMembers.size} agents loaded`, {
@@ -32941,10 +33054,10 @@ class ApiKeyValidator {
       const url = new URL(request.url);
       const queryValue = url.searchParams.get(queryName);
       if (queryValue) {
-        logger$4.warn(
-          "API key extracted from query parameter - this is insecure",
-          { source: "query", warning: "URLs appear in logs, browser history, and Referer headers" }
-        );
+        logger$4.warn("API key extracted from query parameter - this is insecure", {
+          source: "query",
+          warning: "URLs appear in logs, browser history, and Referer headers"
+        });
         return queryValue;
       }
     }
@@ -33050,14 +33163,11 @@ function createApiKeyValidator(env) {
   }
   let sources = ["header"];
   if (env.API_KEY_SOURCES) {
-    sources = env.API_KEY_SOURCES.split(",").map(
-      (s) => s.trim()
-    );
+    sources = env.API_KEY_SOURCES.split(",").map((s) => s.trim());
     if (sources.includes("query")) {
-      logger$4.warn(
-        'API_KEY_SOURCES includes "query" - this is insecure',
-        { warning: "API keys in URLs appear in logs, browser history, and Referer headers" }
-      );
+      logger$4.warn('API_KEY_SOURCES includes "query" - this is insecure', {
+        warning: "API keys in URLs appear in logs, browser history, and Referer headers"
+      });
     }
   }
   return new ApiKeyValidator({
@@ -33450,7 +33560,10 @@ class StripeSignatureValidator {
       const expectedSignature = await this.computeHMAC(signedPayload, this.webhookSecret);
       return signatures.some((sig) => this.secureCompare(sig, expectedSignature));
     } catch (error) {
-      logger$1.error("Stripe signature verification error", error instanceof Error ? error : void 0);
+      logger$1.error(
+        "Stripe signature verification error",
+        error instanceof Error ? error : void 0
+      );
       return false;
     }
   }
@@ -33523,7 +33636,10 @@ class GitHubSignatureValidator {
       const expectedSignature = await this.computeHMAC(payload, this.webhookSecret);
       return this.secureCompare(receivedSignature, expectedSignature);
     } catch (error) {
-      logger$1.error("GitHub signature verification error", error instanceof Error ? error : void 0);
+      logger$1.error(
+        "GitHub signature verification error",
+        error instanceof Error ? error : void 0
+      );
       return false;
     }
   }
@@ -33599,7 +33715,10 @@ class TwilioSignatureValidator {
       const expectedSignature = await this.computeHMAC(data, this.authToken);
       return this.secureCompare(signature, expectedSignature);
     } catch (error) {
-      logger$1.error("Twilio signature verification error", error instanceof Error ? error : void 0);
+      logger$1.error(
+        "Twilio signature verification error",
+        error instanceof Error ? error : void 0
+      );
       return false;
     }
   }
@@ -36199,4 +36318,4 @@ export {
   ExecutionId as y,
   RequestId as z
 };
-//# sourceMappingURL=worker-entry-CSZwFgwd.js.map
+//# sourceMappingURL=worker-entry-CfahJawz.js.map

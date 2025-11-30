@@ -11,6 +11,7 @@ import { createLogger } from '../observability/index.js';
 import { cors } from 'hono/cors';
 import { getHttpMiddlewareRegistry } from './http-middleware-registry.js';
 import { createTriggerAuthMiddleware } from '../auth/trigger-auth.js';
+import { buildHttpResponse } from './output-resolver.js';
 const logger = createLogger({ serviceName: 'built-in-triggers' });
 /**
  * Rate limiter for HTTP-based triggers
@@ -153,11 +154,23 @@ async function handleHTTPTrigger(context) {
     for (const pathConfig of pathConfigs) {
         for (const method of pathConfig.methods) {
             const m = method.toLowerCase();
-            if (middlewareChain.length > 0) {
-                app[m](pathConfig.path, ...middlewareChain, handler);
+            // HEAD is not a built-in Hono method, so use app.on() for it
+            if (m === 'head') {
+                if (middlewareChain.length > 0) {
+                    app.on('HEAD', pathConfig.path, ...middlewareChain, handler);
+                }
+                else {
+                    app.on('HEAD', pathConfig.path, handler);
+                }
             }
             else {
-                app[m](pathConfig.path, handler);
+                const typedMethod = m;
+                if (middlewareChain.length > 0) {
+                    app[typedMethod](pathConfig.path, ...middlewareChain, handler);
+                }
+                else {
+                    app[typedMethod](pathConfig.path, handler);
+                }
             }
         }
     }
@@ -464,13 +477,47 @@ async function extractInput(c) {
 }
 /**
  * Render HTTP response
- * Handles ExecutionOutput from the executor
+ * Handles ExecutionOutput from the executor including response metadata
  */
 function renderResponse(c, executionOutput, trigger) {
     const accept = c.req.header('accept') || '';
     const output = executionOutput.output;
+    const responseMeta = executionOutput.response;
     // Apply HTTP cache headers from trigger config
     applyHttpCacheHeaders(c, trigger);
+    // Handle redirect from output block
+    if (responseMeta?.redirect) {
+        const status = responseMeta.redirect.status || 302;
+        return c.redirect(responseMeta.redirect.url, status);
+    }
+    // Handle raw body output (non-JSON string response with custom headers)
+    if (responseMeta?.isRawBody && typeof output === 'string') {
+        const headers = new Headers();
+        // Set custom headers from output block
+        if (responseMeta.headers) {
+            for (const [key, value] of Object.entries(responseMeta.headers)) {
+                headers.set(key, value);
+            }
+        }
+        // Default to text/plain if no Content-Type specified
+        if (!headers.has('Content-Type')) {
+            headers.set('Content-Type', 'text/plain');
+        }
+        return new Response(output, {
+            status: responseMeta.status || 200,
+            headers,
+        });
+    }
+    // Handle format-based response (triggers only - not Execute API)
+    // Uses buildHttpResponse for Content-Type mapping and field extraction
+    if (responseMeta?.format) {
+        return buildHttpResponse({
+            status: responseMeta.status || 200,
+            headers: responseMeta.headers,
+            body: output,
+            format: responseMeta.format,
+        });
+    }
     // HTML rendering
     if (trigger.responses?.html?.enabled && accept.includes('text/html')) {
         // Check if output has HTML (from html agent)

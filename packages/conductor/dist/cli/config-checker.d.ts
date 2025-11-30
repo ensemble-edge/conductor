@@ -31,19 +31,6 @@ export interface ModelInfo {
     endOfLife?: string;
     replacementModel?: string;
 }
-export interface AgentConfig {
-    name: string;
-    type: string;
-    config?: {
-        model?: string;
-        [key: string]: unknown;
-    };
-}
-export interface EnsembleConfig {
-    name: string;
-    flow: unknown[];
-    [key: string]: unknown;
-}
 /**
  * Configuration checker for Conductor projects
  */

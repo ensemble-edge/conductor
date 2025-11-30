@@ -22,6 +22,16 @@ export interface CreateAgentOptions {
         input?: Record<string, unknown>;
         output?: Record<string, unknown>;
     };
+    /**
+     * Control whether this agent can be executed via the Execute API
+     * (/api/v1/execute/agent/:name)
+     *
+     * When api.execution.agents.requireExplicit is false (default):
+     *   - Agents are executable unless apiExecutable: false
+     * When api.execution.agents.requireExplicit is true:
+     *   - Agents need apiExecutable: true to be executable
+     */
+    apiExecutable?: boolean;
     handler: MemberHandler;
 }
 /**

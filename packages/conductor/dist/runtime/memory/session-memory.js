@@ -255,9 +255,7 @@ export class SessionMemory {
             return [];
         }
         // Take only the most recent messages
-        const recentMessages = history.messages.length > maxContext
-            ? history.messages.slice(-maxContext)
-            : history.messages;
+        const recentMessages = history.messages.length > maxContext ? history.messages.slice(-maxContext) : history.messages;
         return recentMessages.map((msg) => ({
             role: msg.role,
             content: msg.content,
@@ -272,7 +270,9 @@ export class SessionMemory {
         if (history.messages.length === 0) {
             return null;
         }
-        const modelsUsed = [...new Set(history.messages.map((m) => m.model).filter(Boolean))];
+        const modelsUsed = [
+            ...new Set(history.messages.map((m) => m.model).filter(Boolean)),
+        ];
         // Sum up token usage
         const totalTokens = history.messages.reduce((acc, msg) => ({
             input: acc.input + (msg.tokens?.input ?? 0),

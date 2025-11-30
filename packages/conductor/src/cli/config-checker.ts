@@ -9,6 +9,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
 import * as YAML from 'yaml'
+import type { AgentConfig, EnsembleConfig } from '../runtime/parser.js'
 
 export interface CheckResult {
   passed: boolean
@@ -40,21 +41,6 @@ export interface ModelInfo {
   deprecatedReason?: string
   endOfLife?: string
   replacementModel?: string
-}
-
-export interface AgentConfig {
-  name: string
-  type: string
-  config?: {
-    model?: string
-    [key: string]: unknown
-  }
-}
-
-export interface EnsembleConfig {
-  name: string
-  flow: unknown[]
-  [key: string]: unknown
 }
 
 /**
@@ -129,7 +115,7 @@ export class ConfigChecker {
       const config: AgentConfig = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' })
 
       // Check Think agents for model validation
-      if (config.type === 'Think' && config.config?.model) {
+      if (config.operation === 'think' && config.config?.model) {
         const modelIssues = this.checkModel(file, config)
         issues.push(...modelIssues)
       }
@@ -149,7 +135,7 @@ export class ConfigChecker {
    */
   private checkModel(file: string, config: AgentConfig): Issue[] {
     const issues: Issue[] = []
-    const modelId = config.config?.model
+    const modelId = config.config?.model as string | undefined
 
     if (!modelId) return issues
 

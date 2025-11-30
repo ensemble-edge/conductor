@@ -11,6 +11,11 @@
  * - YAML → Parser → EnsembleConfig → ensembleFromConfig() → Ensemble
  * - TypeScript → createEnsemble() → Ensemble
  * - Both paths produce identical Ensemble instances
+ *
+ * Type Unification:
+ * - Zod schemas are the SINGLE SOURCE OF TRUTH for all type definitions
+ * - TypeScript types are derived using z.infer<typeof Schema>
+ * - This ensures runtime validation and TypeScript types are always in sync
  */
 import * as YAML from 'yaml';
 import { z } from 'zod';
@@ -23,10 +28,13 @@ const logger = createLogger({ serviceName: 'parser' });
 import { ensembleFromConfig, Ensemble, isEnsemble } from '../primitives/ensemble.js';
 // Re-export for convenience
 export { ensembleFromConfig, Ensemble, isEnsemble };
+// ============================================================================
+// Flow Step Schemas (Source of Truth)
+// ============================================================================
 /**
  * Base schema for agent flow steps (the most common type)
  */
-const AgentFlowStepSchema = z.object({
+export const AgentFlowStepSchema = z.object({
     agent: z.string().min(1, 'Agent name is required'),
     id: z.string().optional(),
     input: z.record(z.unknown()).optional(),
@@ -82,7 +90,7 @@ const AgentFlowStepSchema = z.object({
 /**
  * Parallel execution step - runs multiple steps concurrently
  */
-const ParallelFlowStepSchema = z.object({
+export const ParallelFlowStepSchema = z.object({
     type: z.literal('parallel'),
     steps: z.array(z.lazy(() => FlowStepSchema)),
     waitFor: z.enum(['all', 'any', 'first']).optional(), // Default: 'all'
@@ -90,7 +98,7 @@ const ParallelFlowStepSchema = z.object({
 /**
  * Branch step - conditional branching with then/else
  */
-const BranchFlowStepSchema = z.object({
+export const BranchFlowStepSchema = z.object({
     type: z.literal('branch'),
     condition: z.unknown(),
     then: z.array(z.lazy(() => FlowStepSchema)),
@@ -99,7 +107,7 @@ const BranchFlowStepSchema = z.object({
 /**
  * Foreach step - iterate over items
  */
-const ForeachFlowStepSchema = z.object({
+export const ForeachFlowStepSchema = z.object({
     type: z.literal('foreach'),
     items: z.unknown(), // Expression like ${input.items}
     maxConcurrency: z.number().positive().optional(),
@@ -109,7 +117,7 @@ const ForeachFlowStepSchema = z.object({
 /**
  * Try/catch step - error handling
  */
-const TryFlowStepSchema = z.object({
+export const TryFlowStepSchema = z.object({
     type: z.literal('try'),
     steps: z.array(z.lazy(() => FlowStepSchema)),
     catch: z.array(z.lazy(() => FlowStepSchema)).optional(),
@@ -118,7 +126,7 @@ const TryFlowStepSchema = z.object({
 /**
  * Switch/case step - multi-way branching
  */
-const SwitchFlowStepSchema = z.object({
+export const SwitchFlowStepSchema = z.object({
     type: z.literal('switch'),
     value: z.unknown(), // Expression to evaluate
     cases: z.record(z.array(z.lazy(() => FlowStepSchema))),
@@ -127,7 +135,7 @@ const SwitchFlowStepSchema = z.object({
 /**
  * While loop step - repeat while condition is true
  */
-const WhileFlowStepSchema = z.object({
+export const WhileFlowStepSchema = z.object({
     type: z.literal('while'),
     condition: z.unknown(),
     maxIterations: z.number().positive().optional(), // Safety limit
@@ -136,7 +144,7 @@ const WhileFlowStepSchema = z.object({
 /**
  * Map-reduce step - parallel processing with aggregation
  */
-const MapReduceFlowStepSchema = z.object({
+export const MapReduceFlowStepSchema = z.object({
     type: z.literal('map-reduce'),
     items: z.unknown(),
     maxConcurrency: z.number().positive().optional(),
@@ -144,10 +152,10 @@ const MapReduceFlowStepSchema = z.object({
     reduce: z.lazy(() => FlowStepSchema),
 });
 /**
- * Union of all flow step types
- * Agent steps don't have a 'type' field, control flow steps do
+ * Union schema for all flow step types
+ * Used for runtime validation of both YAML and TypeScript ensembles
  */
-const FlowStepSchema = z.union([
+export const FlowStepSchema = z.union([
     // Control flow steps (identified by 'type' field)
     ParallelFlowStepSchema,
     BranchFlowStepSchema,
@@ -159,12 +167,25 @@ const FlowStepSchema = z.union([
     // Agent steps (no 'type' field, has 'agent' field)
     AgentFlowStepSchema,
 ]);
+// ============================================================================
+// Ensemble and Agent Schemas (Source of Truth)
+// ============================================================================
 /**
  * Schema for validating ensemble configuration
  */
-const EnsembleSchema = z.object({
+export const EnsembleSchema = z.object({
     name: z.string().min(1, 'Ensemble name is required'),
     description: z.string().optional(),
+    /**
+     * Controls whether this ensemble can be executed via the Execute API
+     * (/api/v1/execute/ensemble/:name)
+     *
+     * When api.execution.ensembles.requireExplicit is false (default):
+     *   - Ensembles are executable unless apiExecutable: false
+     * When api.execution.ensembles.requireExplicit is true:
+     *   - Ensembles need apiExecutable: true to be executable
+     */
+    apiExecutable: z.boolean().optional(),
     state: z
         .object({
         schema: z.record(z.unknown()).optional(),
@@ -195,10 +216,21 @@ const EnsembleSchema = z.object({
             path: z.string().min(1).optional(), // Defaults to /{ensemble-name}
             methods: z.array(z.enum(['POST', 'GET', 'PUT', 'PATCH', 'DELETE'])).optional(),
             auth: z
-                .object({
-                type: z.enum(['bearer', 'signature', 'basic']),
-                secret: z.string(),
-            })
+                .union([
+                // Legacy format: type + secret
+                z.object({
+                    type: z.enum(['bearer', 'signature', 'basic']),
+                    secret: z.string(),
+                }),
+                // New format: requirement + methods (declarative auth config)
+                z.object({
+                    requirement: z.enum(['public', 'optional', 'required']),
+                    methods: z.array(z.enum(['bearer', 'apiKey', 'cookie', 'custom'])).optional(),
+                    customValidator: z.string().optional(),
+                    roles: z.array(z.string()).optional(),
+                    permissions: z.array(z.string()).optional(),
+                }),
+            ])
                 .optional(),
             public: z.boolean().optional(), // If true, no auth required
             mode: z.enum(['trigger', 'resume']).optional(),
@@ -264,10 +296,21 @@ const EnsembleSchema = z.object({
             }))
                 .optional(),
             auth: z
-                .object({
-                type: z.enum(['bearer', 'signature', 'basic']),
-                secret: z.string(),
-            })
+                .union([
+                // Legacy format: type + secret
+                z.object({
+                    type: z.enum(['bearer', 'signature', 'basic']),
+                    secret: z.string(),
+                }),
+                // New format: requirement + methods (declarative auth config)
+                z.object({
+                    requirement: z.enum(['public', 'optional', 'required']),
+                    methods: z.array(z.enum(['bearer', 'apiKey', 'cookie', 'custom'])).optional(),
+                    customValidator: z.string().optional(),
+                    roles: z.array(z.string()).optional(),
+                    permissions: z.array(z.string()).optional(),
+                }),
+            ])
                 .optional(),
             public: z.boolean().optional(),
             mode: z.enum(['trigger', 'resume']).optional(),
@@ -503,7 +546,7 @@ const EnsembleSchema = z.object({
  * Agent-level logging configuration schema
  * Can override global logging settings for specific agents
  */
-const AgentLoggingSchema = z
+export const AgentLoggingSchema = z
     .object({
     /** Override log level for this agent */
     level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
@@ -525,7 +568,7 @@ const AgentLoggingSchema = z
 /**
  * Agent-level metrics configuration schema
  */
-const AgentMetricsSchema = z
+export const AgentMetricsSchema = z
     .object({
     /** Enable/disable metrics for this agent */
     enabled: z.boolean().optional(),
@@ -543,7 +586,7 @@ const AgentMetricsSchema = z
  * Security settings for agents
  * Controls automatic security features like SSRF protection
  */
-const AgentSecuritySchema = z
+export const AgentSecuritySchema = z
     .object({
     /**
      * Enable SSRF protection for fetch requests
@@ -556,7 +599,7 @@ const AgentSecuritySchema = z
     // rateLimiting: z.boolean().optional(),
 })
     .optional();
-const AgentSchema = z.object({
+export const AgentSchema = z.object({
     name: z.string().min(1, 'Agent name is required'),
     operation: z.enum([
         Operation.think,
@@ -582,6 +625,16 @@ const AgentSchema = z.object({
         output: z.record(z.unknown()).optional(),
     })
         .optional(),
+    /**
+     * Controls whether this agent can be executed via the Execute API
+     * (/api/v1/execute/agent/:name)
+     *
+     * When api.execution.agents.requireExplicit is false (default):
+     *   - Agents are executable unless apiExecutable: false
+     * When api.execution.agents.requireExplicit is true:
+     *   - Agents need apiExecutable: true to be executable
+     */
+    apiExecutable: z.boolean().optional(),
     /** Agent-level logging configuration */
     logging: AgentLoggingSchema,
     /** Agent-level metrics configuration */

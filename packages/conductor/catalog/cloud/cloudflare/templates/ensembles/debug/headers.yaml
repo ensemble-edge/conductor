@@ -1,6 +1,6 @@
 # Debug Headers Endpoint
 #
-# Returns all request headers, categorized by type.
+# Returns all request headers for debugging.
 # Useful for debugging:
 # - CORS configuration
 # - Auth header propagation
@@ -8,7 +8,7 @@
 
 name: debug-headers
 version: 1.0.0
-description: Inspect and categorize request headers
+description: Inspect request headers
 
 trigger:
   - type: http
@@ -16,45 +16,14 @@ trigger:
     methods: [GET]
     public: true
 
-agents:
-  - name: extract-headers
-    operation: code
-    config:
-      inline: |
-        export default async function(input) {
-          const cf = {}
-          const auth = {}
-          const standard = {}
-          const custom = {}
-
-          for (const [key, value] of Object.entries(input.headers || {})) {
-            const lk = key.toLowerCase()
-            if (lk.startsWith('cf-')) {
-              cf[key] = value
-            } else if (lk === 'authorization' || lk.startsWith('x-api')) {
-              auth[key] = '[REDACTED]'
-            } else if (['host', 'user-agent', 'accept', 'content-type', 'accept-encoding'].includes(lk)) {
-              standard[key] = value
-            } else {
-              custom[key] = value
-            }
-          }
-
-          return {
-            cloudflare: cf,
-            auth,
-            standard,
-            custom,
-            total: Object.keys(input.headers || {}).length
-          }
-        }
-
 flow:
-  - agent: extract-headers
+  - agent: echo
     input:
-      headers: ${{ trigger.headers }}
+      data:
+        headers: ${ trigger.headers }
 
 output:
   status: 200
   body:
-    headers: ${{ agents.extract-headers.output }}
+    headers: ${ echo.output.echo.headers }
+    receivedAt: ${ echo.output.receivedAt }

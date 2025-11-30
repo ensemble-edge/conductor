@@ -64,7 +64,10 @@ export class ApiKeyValidator {
             const queryValue = url.searchParams.get(queryName);
             if (queryValue) {
                 // Log a warning - API keys in URLs are a security risk
-                logger.warn('API key extracted from query parameter - this is insecure', { source: 'query', warning: 'URLs appear in logs, browser history, and Referer headers' });
+                logger.warn('API key extracted from query parameter - this is insecure', {
+                    source: 'query',
+                    warning: 'URLs appear in logs, browser history, and Referer headers',
+                });
                 return queryValue;
             }
         }
@@ -199,7 +202,9 @@ export function createApiKeyValidator(env) {
         sources = env.API_KEY_SOURCES.split(',').map((s) => s.trim());
         // Warn if query is enabled
         if (sources.includes('query')) {
-            logger.warn('API_KEY_SOURCES includes "query" - this is insecure', { warning: 'API keys in URLs appear in logs, browser history, and Referer headers' });
+            logger.warn('API_KEY_SOURCES includes "query" - this is insecure', {
+                warning: 'API keys in URLs appear in logs, browser history, and Referer headers',
+            });
         }
     }
     return new ApiKeyValidator({

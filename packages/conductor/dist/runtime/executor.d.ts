@@ -15,6 +15,7 @@ import { type SuspendedExecutionState } from './resumption-manager.js';
 import { type Logger } from '../observability/index.js';
 import type { RequestId } from '../types/branded.js';
 import type { ObservabilityConfig } from '../config/types.js';
+import { type OutputFormat } from './output-resolver.js';
 import type { AuthContext } from '../auth/types.js';
 export interface ExecutorConfig {
     env: ConductorEnv;
@@ -44,6 +45,8 @@ export interface ResponseMetadata {
     };
     /** If true, output is raw string (not JSON) */
     isRawBody?: boolean;
+    /** Output format for Content-Type and serialization (triggers only) */
+    format?: OutputFormat;
 }
 /**
  * Successful execution output

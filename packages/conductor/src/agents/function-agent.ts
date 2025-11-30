@@ -50,11 +50,27 @@ export class FunctionAgent extends BaseAgent {
 
   /**
    * Execute the user-provided function
+   *
+   * Supports two calling conventions:
+   * - Modern single-param: handler(context) where context.input contains the input
+   * - Legacy two-param: handler(input, context) for backward compatibility
+   *
+   * Detection uses Function.length to check declared parameter count.
    */
   protected async run(context: AgentExecutionContext): Promise<unknown> {
     try {
-      // Execute the user's function with full context
-      const result = await this.implementation(context)
+      let result: unknown
+
+      // Detect calling convention based on function signature
+      // Function.length returns the number of declared parameters
+      if (this.implementation.length >= 2) {
+        // Legacy two-parameter style: handler(input, context)
+        // Cast to any to call with two arguments
+        result = await (this.implementation as any)(context.input, context)
+      } else {
+        // Modern single-parameter style: handler(context)
+        result = await this.implementation(context)
+      }
 
       return result
     } catch (error) {

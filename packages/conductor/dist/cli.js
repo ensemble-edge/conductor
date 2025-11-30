@@ -616,9 +616,7 @@ var init_branded = __esm({
         }
         const normalized = value.trim();
         if (!normalized.startsWith("exec_")) {
-          throw new Error(
-            `Invalid execution ID format: "${value}" (must start with 'exec_')`
-          );
+          throw new Error(`Invalid execution ID format: "${value}" (must start with 'exec_')`);
         }
         return normalized;
       },
@@ -662,9 +660,7 @@ var init_branded = __esm({
         }
         const normalized = value.trim();
         if (!normalized.startsWith("req_")) {
-          throw new Error(
-            `Invalid request ID format: "${value}" (must start with 'req_')`
-          );
+          throw new Error(`Invalid request ID format: "${value}" (must start with 'req_')`);
         }
         return normalized;
       },
@@ -1357,15 +1353,17 @@ var init_hitl_agent = __esm({
         };
         const doId = this.env.HITL_STATE.idFromName(token);
         const stub = this.env.HITL_STATE.get(doId);
-        const response = await stub.fetch(new Request("https://hitl/suspend", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token,
-            suspendedState,
-            ttl: ttlSeconds
+        const response = await stub.fetch(
+          new Request("https://hitl/suspend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token,
+              suspendedState,
+              ttl: ttlSeconds
+            })
           })
-        }));
+        );
         if (!response.ok) {
           const error = await response.text();
           throw new Error(`Failed to suspend execution: ${error}`);
@@ -1402,9 +1400,11 @@ var init_hitl_agent = __esm({
         }
         const doId = this.env.HITL_STATE.idFromName(input.executionId);
         const stub = this.env.HITL_STATE.get(doId);
-        const statusResponse = await stub.fetch(new Request("https://hitl/status", {
-          method: "GET"
-        }));
+        const statusResponse = await stub.fetch(
+          new Request("https://hitl/status", {
+            method: "GET"
+          })
+        );
         if (!statusResponse.ok) {
           if (statusResponse.status === 404) {
             return {
@@ -1432,14 +1432,16 @@ var init_hitl_agent = __esm({
           };
         }
         if (input.approved) {
-          const approveResponse = await stub.fetch(new Request("https://hitl/approve", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              actor: input.actor || "system",
-              approvalData: input.approvalData
+          const approveResponse = await stub.fetch(
+            new Request("https://hitl/approve", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                actor: input.actor || "system",
+                approvalData: input.approvalData
+              })
             })
-          }));
+          );
           if (!approveResponse.ok) {
             const error = await approveResponse.text();
             throw new Error(`Failed to approve: ${error}`);
@@ -1453,14 +1455,16 @@ var init_hitl_agent = __esm({
             comments: input.comments
           };
         } else {
-          const rejectResponse = await stub.fetch(new Request("https://hitl/reject", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              actor: input.actor || "system",
-              reason: input.comments
+          const rejectResponse = await stub.fetch(
+            new Request("https://hitl/reject", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                actor: input.actor || "system",
+                reason: input.comments
+              })
             })
-          }));
+          );
           if (!rejectResponse.ok) {
             const error = await rejectResponse.text();
             throw new Error(`Failed to reject: ${error}`);
@@ -13748,9 +13752,35 @@ function getInterpolator() {
 }
 
 // src/runtime/output-types.ts
+var FormatTypeSchema = external_exports.enum([
+  "json",
+  "text",
+  "html",
+  "xml",
+  "csv",
+  "markdown",
+  "yaml",
+  "ics",
+  "rss",
+  "atom"
+]);
+var FormatConfigSchema = external_exports.object({
+  type: FormatTypeSchema,
+  extract: external_exports.string().optional(),
+  contentType: external_exports.string().optional()
+});
+var OutputFormatSchema = external_exports.union([FormatTypeSchema, FormatConfigSchema]);
 var RedirectOutputSchema = external_exports.object({
   url: external_exports.string(),
-  status: external_exports.union([external_exports.literal(301), external_exports.literal(302), external_exports.literal(307), external_exports.literal(308)]).optional()
+  status: external_exports.union([
+    // Literal redirect status codes
+    external_exports.literal(301),
+    external_exports.literal(302),
+    external_exports.literal(307),
+    external_exports.literal(308),
+    // Template string that evaluates to a status code at runtime
+    external_exports.string()
+  ]).optional()
 });
 var OutputBlockSchema = external_exports.object({
   when: external_exports.string().optional(),
@@ -13758,7 +13788,8 @@ var OutputBlockSchema = external_exports.object({
   headers: external_exports.record(external_exports.string()).optional(),
   body: external_exports.unknown().optional(),
   rawBody: external_exports.string().optional(),
-  redirect: RedirectOutputSchema.optional()
+  redirect: RedirectOutputSchema.optional(),
+  format: OutputFormatSchema.optional()
 });
 var EnsembleOutputSchema = external_exports.union([
   // New: Array of conditional output blocks
@@ -13769,9 +13800,20 @@ var EnsembleOutputSchema = external_exports.union([
 function isConditionalOutput(output) {
   return Array.isArray(output);
 }
+var OUTPUT_BLOCK_KEYS = /* @__PURE__ */ new Set(["when", "status", "headers", "body", "rawBody", "redirect", "format"]);
+function isOutputBlockLike(obj) {
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return false;
+  const hasOutputBlockKey = keys.some((k) => OUTPUT_BLOCK_KEYS.has(k));
+  if (!hasOutputBlockKey) return false;
+  return keys.every((k) => OUTPUT_BLOCK_KEYS.has(k));
+}
 function normalizeOutput(output) {
   if (isConditionalOutput(output)) {
     return output;
+  }
+  if (isOutputBlockLike(output)) {
+    return [output];
   }
   return [{ body: output }];
 }
@@ -13792,6 +13834,7 @@ var Ensemble = class {
     this.notifications = options.notifications;
     this.inputs = options.inputs;
     this.output = options.output;
+    this.apiExecutable = options.apiExecutable;
     if (typeof options.steps === "function") {
       this.isDynamic = true;
       this.hooks = {
@@ -13974,6 +14017,16 @@ var FlowStepSchema = external_exports.union([
 var EnsembleSchema = external_exports.object({
   name: external_exports.string().min(1, "Ensemble name is required"),
   description: external_exports.string().optional(),
+  /**
+   * Controls whether this ensemble can be executed via the Execute API
+   * (/api/v1/execute/ensemble/:name)
+   *
+   * When api.execution.ensembles.requireExplicit is false (default):
+   *   - Ensembles are executable unless apiExecutable: false
+   * When api.execution.ensembles.requireExplicit is true:
+   *   - Ensembles need apiExecutable: true to be executable
+   */
+  apiExecutable: external_exports.boolean().optional(),
   state: external_exports.object({
     schema: external_exports.record(external_exports.unknown()).optional(),
     initial: external_exports.record(external_exports.unknown()).optional()
@@ -14000,10 +14053,21 @@ var EnsembleSchema = external_exports.object({
         path: external_exports.string().min(1).optional(),
         // Defaults to /{ensemble-name}
         methods: external_exports.array(external_exports.enum(["POST", "GET", "PUT", "PATCH", "DELETE"])).optional(),
-        auth: external_exports.object({
-          type: external_exports.enum(["bearer", "signature", "basic"]),
-          secret: external_exports.string()
-        }).optional(),
+        auth: external_exports.union([
+          // Legacy format: type + secret
+          external_exports.object({
+            type: external_exports.enum(["bearer", "signature", "basic"]),
+            secret: external_exports.string()
+          }),
+          // New format: requirement + methods (declarative auth config)
+          external_exports.object({
+            requirement: external_exports.enum(["public", "optional", "required"]),
+            methods: external_exports.array(external_exports.enum(["bearer", "apiKey", "cookie", "custom"])).optional(),
+            customValidator: external_exports.string().optional(),
+            roles: external_exports.array(external_exports.string()).optional(),
+            permissions: external_exports.array(external_exports.string()).optional()
+          })
+        ]).optional(),
         public: external_exports.boolean().optional(),
         // If true, no auth required
         mode: external_exports.enum(["trigger", "resume"]).optional(),
@@ -14066,10 +14130,21 @@ var EnsembleSchema = external_exports.object({
             methods: external_exports.array(external_exports.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])).optional()
           })
         ).optional(),
-        auth: external_exports.object({
-          type: external_exports.enum(["bearer", "signature", "basic"]),
-          secret: external_exports.string()
-        }).optional(),
+        auth: external_exports.union([
+          // Legacy format: type + secret
+          external_exports.object({
+            type: external_exports.enum(["bearer", "signature", "basic"]),
+            secret: external_exports.string()
+          }),
+          // New format: requirement + methods (declarative auth config)
+          external_exports.object({
+            requirement: external_exports.enum(["public", "optional", "required"]),
+            methods: external_exports.array(external_exports.enum(["bearer", "apiKey", "cookie", "custom"])).optional(),
+            customValidator: external_exports.string().optional(),
+            roles: external_exports.array(external_exports.string()).optional(),
+            permissions: external_exports.array(external_exports.string()).optional()
+          })
+        ]).optional(),
         public: external_exports.boolean().optional(),
         mode: external_exports.enum(["trigger", "resume"]).optional(),
         async: external_exports.boolean().optional(),
@@ -14344,6 +14419,16 @@ var AgentSchema = external_exports.object({
     input: external_exports.record(external_exports.unknown()).optional(),
     output: external_exports.record(external_exports.unknown()).optional()
   }).optional(),
+  /**
+   * Controls whether this agent can be executed via the Execute API
+   * (/api/v1/execute/agent/:name)
+   *
+   * When api.execution.agents.requireExplicit is false (default):
+   *   - Agents are executable unless apiExecutable: false
+   * When api.execution.agents.requireExplicit is true:
+   *   - Agents need apiExecutable: true to be executable
+   */
+  apiExecutable: external_exports.boolean().optional(),
   /** Agent-level logging configuration */
   logging: AgentLoggingSchema,
   /** Agent-level metrics configuration */
@@ -15011,6 +15096,16 @@ var DEFAULT_CONFIG = {
   storage: {
     type: "filesystem",
     path: "./.conductor"
+  },
+  api: {
+    execution: {
+      agents: {
+        requireExplicit: false
+      },
+      ensembles: {
+        requireExplicit: false
+      }
+    }
   }
 };
 
@@ -15173,13 +15268,7 @@ var RoutingConfigSchema = external_exports.object({
   basePath: external_exports.string().optional().describe("Base path for all routes"),
   auth: AuthConfigSchema.optional()
 });
-var DocsUIFrameworkSchema = external_exports.enum([
-  "stoplight",
-  "redoc",
-  "swagger",
-  "scalar",
-  "rapidoc"
-]);
+var DocsUIFrameworkSchema = external_exports.enum(["stoplight", "redoc", "swagger", "scalar", "rapidoc"]);
 var DocsThemeSchema = external_exports.object({
   primaryColor: external_exports.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color (e.g., #3B82F6)").optional(),
   customCss: external_exports.string().optional(),
@@ -15295,6 +15384,19 @@ var ExecutionConfigSchema = external_exports.object({
   maxHistoryEntries: external_exports.number().int().positive().optional(),
   storeStateSnapshots: external_exports.boolean().optional()
 });
+var ApiAgentsExecutionConfigSchema = external_exports.object({
+  requireExplicit: external_exports.boolean().optional().describe("When true, agents need explicit apiExecutable: true to be API executable")
+});
+var ApiEnsemblesExecutionConfigSchema = external_exports.object({
+  requireExplicit: external_exports.boolean().optional().describe("When true, ensembles need explicit apiExecutable: true to be API executable")
+});
+var ApiExecutionConfigSchema = external_exports.object({
+  agents: ApiAgentsExecutionConfigSchema.optional(),
+  ensembles: ApiEnsemblesExecutionConfigSchema.optional()
+});
+var ApiConfigSchema = external_exports.object({
+  execution: ApiExecutionConfigSchema.optional()
+});
 var StorageConfigSchema = external_exports.object({
   type: external_exports.enum(["filesystem", "d1", "kv"]).optional(),
   path: external_exports.string().optional(),
@@ -15310,7 +15412,8 @@ var ConductorConfigSchema = external_exports.object({
   testing: TestingConfigSchema.optional(),
   observability: ObservabilityConfigSchema.optional(),
   execution: ExecutionConfigSchema.optional(),
-  storage: StorageConfigSchema.optional()
+  storage: StorageConfigSchema.optional(),
+  api: ApiConfigSchema.optional()
 });
 
 // src/cli/commands/docs.ts
@@ -15997,6 +16100,19 @@ var AGENT_CONFIG_PROPERTIES = {
   data: ["source", "transform", "output"],
   scoring: ["criteria", "weights", "threshold"]
 };
+var VALID_FORMAT_TYPES = /* @__PURE__ */ new Set([
+  "json",
+  "text",
+  "html",
+  "xml",
+  "csv",
+  "markdown",
+  "yaml",
+  "ics",
+  "rss",
+  "atom"
+]);
+var TRIGGERS_REQUIRING_AUTH = /* @__PURE__ */ new Set(["http", "webhook", "mcp", "email"]);
 function detectFlatConfigProperties(agent, operation) {
   const configProps = AGENT_CONFIG_PROPERTIES[operation];
   if (!configProps) return [];
@@ -16202,6 +16318,65 @@ output:
     content = modifiedContent;
   }
   const parsed = YAML4.parse(modifiedContent, { mapAsMap: false, logLevel: "silent" });
+  if (parsed.output && typeof parsed.output === "object") {
+    if ("rawBody" in parsed.output) {
+      errors.push({
+        file: filePath,
+        message: "output.rawBody is deprecated. Use output.format instead.",
+        severity: "warning",
+        fixable: false,
+        suggestion: `Replace:
+  output:
+    rawBody: true
+With:
+  output:
+    format: text  # or html, xml, csv, markdown, yaml, ics, rss, atom`
+      });
+    }
+    if ("format" in parsed.output) {
+      const format = parsed.output.format;
+      const formatType = typeof format === "string" ? format : typeof format === "object" && format !== null ? format.type : void 0;
+      if (typeof formatType === "string" && !VALID_FORMAT_TYPES.has(formatType)) {
+        errors.push({
+          file: filePath,
+          message: `Invalid output.format type: "${formatType}"`,
+          severity: "error",
+          fixable: false,
+          suggestion: `Valid format types: ${[...VALID_FORMAT_TYPES].join(", ")}`
+        });
+      }
+    }
+  }
+  if (parsed.trigger && Array.isArray(parsed.trigger)) {
+    for (let i = 0; i < parsed.trigger.length; i++) {
+      const trigger = parsed.trigger[i];
+      if (!trigger || typeof trigger !== "object") continue;
+      const triggerType = trigger.type;
+      if (TRIGGERS_REQUIRING_AUTH.has(triggerType)) {
+        const hasAuth = trigger.auth !== void 0;
+        const isPublic = trigger.public === true;
+        if (!hasAuth && !isPublic) {
+          errors.push({
+            file: filePath,
+            message: `Trigger ${i + 1} (${triggerType}): Missing authentication configuration`,
+            severity: "warning",
+            fixable: false,
+            suggestion: `Add either "public: true" for public access, or "auth:" configuration:
+
+trigger:
+  - type: ${triggerType}
+    path: ${trigger.path || "/api/..."}
+    public: true  # For public access
+    # OR
+    auth:
+      type: apiKey  # or bearer`
+          });
+        }
+      }
+    }
+  }
+  if (parsed.apiExecutable === false) {
+  }
   if (parsed.agents && Array.isArray(parsed.agents)) {
     for (const agent of parsed.agents) {
       if (agent.operation && typeof agent.operation === "string") {
@@ -16344,6 +16519,35 @@ operation: ${parsed.operation}
 config:
   ${flatProps[0]}: ... # Move properties here`
       });
+    }
+  }
+  if (parsed.output && typeof parsed.output === "object") {
+    if ("rawBody" in parsed.output) {
+      errors.push({
+        file: filePath,
+        message: "output.rawBody is deprecated. Use output.format instead.",
+        severity: "warning",
+        fixable: false,
+        suggestion: `Replace:
+  output:
+    rawBody: true
+With:
+  output:
+    format: text  # or html, xml, csv, markdown, yaml, ics, rss, atom`
+      });
+    }
+    if ("format" in parsed.output) {
+      const format = parsed.output.format;
+      const formatType = typeof format === "string" ? format : typeof format === "object" && format !== null ? format.type : void 0;
+      if (typeof formatType === "string" && !VALID_FORMAT_TYPES.has(formatType)) {
+        errors.push({
+          file: filePath,
+          message: `Invalid output.format type: "${formatType}"`,
+          severity: "error",
+          fixable: false,
+          suggestion: `Valid format types: ${[...VALID_FORMAT_TYPES].join(", ")}`
+        });
+      }
     }
   }
   try {
@@ -17645,7 +17849,7 @@ async function handleKeysCommand(subcommand, args) {
 import { Command as Command13 } from "commander";
 import chalk13 from "chalk";
 
-// src/primitives/types.ts
+// src/runtime/flow-types.ts
 function isParallelStep(step) {
   return "type" in step && step.type === "parallel";
 }
@@ -18036,13 +18240,7 @@ var GraphExecutor = class {
   evaluateJsExpression(expression, context) {
     try {
       const evalContext = this.buildResolutionContext(context);
-      const func = new Function(
-        "context",
-        "input",
-        "state",
-        "results",
-        `return ${expression}`
-      );
+      const func = new Function("context", "input", "state", "results", `return ${expression}`);
       return Boolean(
         func(evalContext, context.input, context.state || {}, Object.fromEntries(context.results))
       );
@@ -18228,10 +18426,21 @@ var FunctionAgent = class _FunctionAgent extends BaseAgent {
   }
   /**
    * Execute the user-provided function
+   *
+   * Supports two calling conventions:
+   * - Modern single-param: handler(context) where context.input contains the input
+   * - Legacy two-param: handler(input, context) for backward compatibility
+   *
+   * Detection uses Function.length to check declared parameter count.
    */
   async run(context) {
     try {
-      const result = await this.implementation(context);
+      let result;
+      if (this.implementation.length >= 2) {
+        result = await this.implementation(context.input, context);
+      } else {
+        result = await this.implementation(context);
+      }
       return result;
     } catch (error) {
       throw new Error(
@@ -18330,7 +18539,15 @@ var CodeAgent = class _CodeAgent extends BaseAgent {
       if (!this.compiledFunction) {
         throw new Error("No code implementation available");
       }
-      const result = await this.compiledFunction(context);
+      let result;
+      if (this.compiledFunction.length >= 2) {
+        result = await this.compiledFunction(
+          context.input,
+          context
+        );
+      } else {
+        result = await this.compiledFunction(context);
+      }
       return result;
     } catch (error) {
       throw new Error(
@@ -19741,7 +19958,9 @@ function validateSqlIdentifier(identifier, type) {
     throw new Error(`Invalid ${type} name: must be a non-empty string`);
   }
   if (identifier.length > 128) {
-    throw new Error(`Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`);
+    throw new Error(
+      `Invalid ${type} name "${identifier}": exceeds maximum length of 128 characters`
+    );
   }
   const validIdentifierPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
   if (!validIdentifierPattern.test(identifier)) {
@@ -25093,7 +25312,9 @@ var NotificationManager = class {
         }
         default: {
           const exhaustiveCheck = config;
-          throw new Error(`Unknown notification type: ${exhaustiveCheck.type}`);
+          throw new Error(
+            `Unknown notification type: ${exhaustiveCheck.type}`
+          );
         }
       }
     } catch (error) {
@@ -26369,9 +26590,17 @@ function resolveOutputBlock(block, context) {
     }
   }
   if (block.redirect) {
+    let redirectStatus = void 0;
+    if (block.redirect.status !== void 0) {
+      const resolvedStatus = Parser.resolveInterpolation(block.redirect.status, context);
+      const numStatus = typeof resolvedStatus === "number" ? resolvedStatus : Number(resolvedStatus);
+      if ([301, 302, 307, 308].includes(numStatus)) {
+        redirectStatus = numStatus;
+      }
+    }
     resolved.redirect = {
       url: String(Parser.resolveInterpolation(block.redirect.url, context)),
-      status: block.redirect.status
+      status: redirectStatus
     };
     return resolved;
   }
@@ -26381,6 +26610,9 @@ function resolveOutputBlock(block, context) {
   }
   if (block.body !== void 0) {
     resolved.body = Parser.resolveInterpolation(block.body, context);
+  }
+  if (block.format !== void 0) {
+    resolved.format = block.format;
   }
   return resolved;
 }
@@ -26754,7 +26986,9 @@ var SessionMemory = class {
     if (history.messages.length === 0) {
       return null;
     }
-    const modelsUsed = [...new Set(history.messages.map((m) => m.model).filter(Boolean))];
+    const modelsUsed = [
+      ...new Set(history.messages.map((m) => m.model).filter(Boolean))
+    ];
     const totalTokens = history.messages.reduce(
       (acc, msg) => ({
         input: acc.input + (msg.tokens?.input ?? 0),
@@ -27909,17 +28143,20 @@ var Executor = class {
    */
   async executeAgentWithScoring(stepContext) {
     const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext;
-    const { ensemble, executionContext, scoringState, ensembleScorer, scoringExecutor, stateManager } = flowContext;
+    const {
+      ensemble,
+      executionContext,
+      scoringState,
+      ensembleScorer,
+      scoringExecutor,
+      stateManager
+    } = flowContext;
     const agentTimeout = step.timeout ?? this.defaultTimeout;
     const scoringConfig = step.scoring;
     const scoredResult = await scoringExecutor.executeWithScoring(
       // Agent execution function (with timeout)
       async () => {
-        const resp = await withTimeout(
-          agent.execute(agentContext),
-          agentTimeout,
-          step.agent
-        );
+        const resp = await withTimeout(agent.execute(agentContext), agentTimeout, step.agent);
         if (stateManager && getPendingUpdates) {
           const { updates, newLog } = getPendingUpdates();
           flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
@@ -27996,11 +28233,7 @@ var Executor = class {
     const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext;
     const { stateManager } = flowContext;
     const agentTimeout = step.timeout ?? this.defaultTimeout;
-    const response = await withTimeout(
-      agent.execute(agentContext),
-      agentTimeout,
-      step.agent
-    );
+    const response = await withTimeout(agent.execute(agentContext), agentTimeout, step.agent);
     if (stateManager && getPendingUpdates) {
       const { updates, newLog } = getPendingUpdates();
       flowContext.stateManager = stateManager.applyPendingUpdates(updates, newLog);
@@ -28120,7 +28353,8 @@ var Executor = class {
     }
     const contextKey = step.id || step.agent;
     executionContext[contextKey] = {
-      output: response.data
+      output: response.data,
+      success: true
     };
     if (flowContext.stateManager) {
       executionContext.state = flowContext.stateManager.getState();
@@ -28202,7 +28436,8 @@ var Executor = class {
         finalOutput = resolved.body ?? {};
         responseMetadata = {
           status: resolved.status,
-          headers: resolved.headers
+          headers: resolved.headers,
+          format: resolved.format
         };
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
@@ -28247,7 +28482,7 @@ var Executor = class {
     } = flowContext;
     const agentExecutorFn = async (step, graphContext) => {
       for (const [key, value] of graphContext.results) {
-        executionContext[key] = { output: value };
+        executionContext[key] = { output: value, success: true };
       }
       const stepIndex = ensemble.flow ? ensemble.flow.findIndex(
         (s) => isAgentStep3(s) && (s.id === step.id || s.agent === step.agent)
@@ -28270,7 +28505,7 @@ var Executor = class {
       return Result.err(graphResult.error);
     }
     for (const [key, value] of Object.entries(graphResult.value)) {
-      executionContext[key] = { output: value };
+      executionContext[key] = { output: value, success: true };
     }
     if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
       scoringState.finalScore = ensembleScorer.calculateEnsembleScore(scoringState.scoreHistory);
@@ -28300,7 +28535,8 @@ var Executor = class {
         finalOutput = resolved.body ?? {};
         responseMetadata = {
           status: resolved.status,
-          headers: resolved.headers
+          headers: resolved.headers,
+          format: resolved.format
         };
       }
     } else if (ensemble.flow && ensemble.flow.length > 0) {
@@ -28541,6 +28777,8 @@ Script loader not initialized. For Cloudflare Workers:
     }
     const executionContext = {
       input,
+      trigger: input,
+      // Alias for semantic clarity in YAML templates
       state: stateManager ? stateManager.getState() : {},
       scoring: scoringState || {}
     };

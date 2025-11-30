@@ -305,8 +305,7 @@ export async function listComponentVersions(componentName, env, componentType = 
         return parts[parts.length - 1];
     })
         .filter((v) => !!v && !v.startsWith('_')) // Exclude metadata keys like _versions
-        .filter((v) => /^v?\d+\.\d+\.\d+/.test(v) ||
-        ['prod', 'staging', 'canary', 'latest', 'dev'].includes(v));
+        .filter((v) => /^v?\d+\.\d+\.\d+/.test(v) || ['prod', 'staging', 'canary', 'latest', 'dev'].includes(v));
     return versions;
 }
 /**

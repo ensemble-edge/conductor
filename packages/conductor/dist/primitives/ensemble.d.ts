@@ -215,6 +215,16 @@ export interface EnsembleOptions {
     /** Output mapping */
     output?: Record<string, unknown>;
     /**
+     * Control whether this ensemble can be executed via the Execute API
+     * (/api/v1/execute/ensemble/:name)
+     *
+     * When api.execution.ensembles.requireExplicit is false (default):
+     *   - Ensembles are executable unless apiExecutable: false
+     * When api.execution.ensembles.requireExplicit is true:
+     *   - Ensembles need apiExecutable: true to be executable
+     */
+    apiExecutable?: boolean;
+    /**
      * Called before execution starts
      *
      * @example
@@ -288,6 +298,8 @@ export declare class Ensemble {
     readonly hooks?: EnsembleHooks;
     /** Whether steps are dynamically generated */
     readonly isDynamic: boolean;
+    /** Control Execute API access */
+    readonly apiExecutable?: boolean;
     constructor(options: EnsembleOptions);
     /**
      * Resolve steps for execution

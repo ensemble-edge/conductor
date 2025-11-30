@@ -37,6 +37,12 @@ export declare class FunctionAgent extends BaseAgent {
     constructor(config: AgentConfig, implementation: FunctionImplementation);
     /**
      * Execute the user-provided function
+     *
+     * Supports two calling conventions:
+     * - Modern single-param: handler(context) where context.input contains the input
+     * - Legacy two-param: handler(input, context) for backward compatibility
+     *
+     * Detection uses Function.length to check declared parameter count.
      */
     protected run(context: AgentExecutionContext): Promise<unknown>;
     /**

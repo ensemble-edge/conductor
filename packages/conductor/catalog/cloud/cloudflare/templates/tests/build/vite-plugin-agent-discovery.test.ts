@@ -295,4 +295,88 @@ description: Echo agent for debugging`
     expect(code).toContain('name: "debug/echo"')
     expect(code).toContain('name: "user/custom"')
   })
+
+  it('should discover handlers from YAML handler field', () => {
+    // Create agent with explicit handler field (like system agents)
+    const agentsDir = path.join(tempDir, 'agents')
+    const validateDir = path.join(agentsDir, 'system', 'validate')
+    fs.mkdirSync(validateDir, { recursive: true })
+
+    // Create agent YAML with explicit handler field
+    fs.writeFileSync(
+      path.join(validateDir, 'validate.yaml'),
+      `name: validate
+operation: code
+handler: ./validate.ts
+description: Validation agent`
+    )
+    // Create handler file with custom name (not index.ts)
+    fs.writeFileSync(path.join(validateDir, 'validate.ts'), 'export default function() {}')
+
+    const plugin = agentDiscoveryPlugin()
+    const config = { root: tempDir }
+    callHook(plugin.configResolved as any, config)
+
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+
+    // Agent should be discovered with its handler
+    expect(code).toContain('name: "system/validate"')
+    expect(code).toContain('import * as handler_system_validate from')
+    expect(code).toContain('validate.ts')
+    expect(code).toContain('handler: () => Promise.resolve(handler_system_validate.default || handler_system_validate)')
+  })
+
+  it('should prefer handler field over index.ts convention', () => {
+    // Create agent with both handler field AND index.ts
+    const agentsDir = path.join(tempDir, 'agents')
+    const agentDir = path.join(agentsDir, 'custom')
+    fs.mkdirSync(agentDir, { recursive: true })
+
+    // Create agent YAML with explicit handler field
+    fs.writeFileSync(
+      path.join(agentDir, 'agent.yaml'),
+      `name: custom
+operation: code
+handler: ./custom-handler.ts`
+    )
+    // Create both files
+    fs.writeFileSync(path.join(agentDir, 'index.ts'), 'export default function indexHandler() {}')
+    fs.writeFileSync(path.join(agentDir, 'custom-handler.ts'), 'export default function customHandler() {}')
+
+    const plugin = agentDiscoveryPlugin()
+    const config = { root: tempDir }
+    callHook(plugin.configResolved as any, config)
+
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+
+    // Should import custom-handler.ts, NOT index.ts
+    expect(code).toContain('custom-handler.ts')
+    expect(code).not.toMatch(/from.*index\.ts/)
+  })
+
+  it('should fall back to index.ts when handler field is missing', () => {
+    // Create agent without handler field
+    const agentsDir = path.join(tempDir, 'agents')
+    const agentDir = path.join(agentsDir, 'fallback')
+    fs.mkdirSync(agentDir, { recursive: true })
+
+    // Create agent YAML without handler field
+    fs.writeFileSync(
+      path.join(agentDir, 'agent.yaml'),
+      `name: fallback
+operation: code`
+    )
+    // Create index.ts
+    fs.writeFileSync(path.join(agentDir, 'index.ts'), 'export default function() {}')
+
+    const plugin = agentDiscoveryPlugin()
+    const config = { root: tempDir }
+    callHook(plugin.configResolved as any, config)
+
+    const code = callHook(plugin.load as any, '\0virtual:conductor-agents') as string
+
+    // Should import index.ts via convention
+    expect(code).toContain('index.ts')
+    expect(code).toContain('handler: () => Promise.resolve(handler_fallback.default || handler_fallback)')
+  })
 })

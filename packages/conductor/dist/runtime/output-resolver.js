@@ -6,8 +6,9 @@
  *
  * @module runtime/output-resolver
  */
-import { normalizeOutput, } from './output-types.js';
+import { normalizeOutput, getFormatContentType, getFormatType, getFormatExtract, } from './output-types.js';
 import { Parser } from './parser.js';
+export { getFormatContentType, getFormatType, getFormatExtract } from './output-types.js';
 /**
  * Resolve output blocks against evaluation context
  *
@@ -71,9 +72,18 @@ function resolveOutputBlock(block, context) {
     }
     // Handle redirect
     if (block.redirect) {
+        // Interpolate status if it's a template string
+        let redirectStatus = undefined;
+        if (block.redirect.status !== undefined) {
+            const resolvedStatus = Parser.resolveInterpolation(block.redirect.status, context);
+            const numStatus = typeof resolvedStatus === 'number' ? resolvedStatus : Number(resolvedStatus);
+            if ([301, 302, 307, 308].includes(numStatus)) {
+                redirectStatus = numStatus;
+            }
+        }
         resolved.redirect = {
             url: String(Parser.resolveInterpolation(block.redirect.url, context)),
-            status: block.redirect.status,
+            status: redirectStatus,
         };
         return resolved;
     }
@@ -85,6 +95,10 @@ function resolveOutputBlock(block, context) {
     // Handle JSON body
     if (block.body !== undefined) {
         resolved.body = Parser.resolveInterpolation(block.body, context);
+    }
+    // Pass through format for triggers (Execute API ignores this)
+    if (block.format !== undefined) {
+        resolved.format = block.format;
     }
     return resolved;
 }
@@ -176,11 +190,15 @@ function parseValue(value) {
 /**
  * Build an HTTP Response from resolved output
  *
+ * This function handles format-based serialization for trigger responses.
+ * Execute API ignores the format field and always returns JSON.
+ *
  * @param output - Resolved output
- * @param c - Hono context (optional, for redirect helper)
+ * @param options - Options for response building
+ * @param options.ignoreFormat - If true, always return JSON (used by Execute API)
  * @returns HTTP Response
  */
-export function buildHttpResponse(output) {
+export function buildHttpResponse(output, options) {
     const headers = new Headers();
     // Apply custom headers
     if (output.headers) {
@@ -202,10 +220,175 @@ export function buildHttpResponse(output) {
         }
         return new Response(output.rawBody, { status: output.status, headers });
     }
-    // Handle JSON body
+    // Handle format-based response (only for triggers, not Execute API)
+    if (output.format && !options?.ignoreFormat && output.body !== undefined) {
+        return buildFormattedResponse(output, headers);
+    }
+    // Default: JSON body
     headers.set('Content-Type', 'application/json');
     const body = output.body !== undefined ? JSON.stringify(output.body) : '{}';
     return new Response(body, { status: output.status, headers });
+}
+/**
+ * Build a response using the format specification
+ *
+ * Handles field extraction and Content-Type mapping based on format.
+ */
+function buildFormattedResponse(output, headers) {
+    const format = output.format;
+    const body = output.body;
+    // Get Content-Type from format
+    const contentType = getFormatContentType(format);
+    // Get format type and extract field
+    const formatType = getFormatType(format);
+    const extractField = getFormatExtract(format);
+    // Determine what content to return
+    let content;
+    if (extractField) {
+        // Extract specific field
+        content = body[extractField];
+        if (content === undefined) {
+            // Field not found - return error
+            headers.set('Content-Type', 'application/json');
+            return new Response(JSON.stringify({
+                success: false,
+                error: {
+                    code: 'FORMAT_EXTRACTION_FAILED',
+                    message: `Field '${extractField}' not found in body for format extraction.`,
+                },
+            }), { status: 500, headers });
+        }
+    }
+    else if (typeof body === 'object' && body !== null) {
+        // No extract field - for non-JSON formats, try to find a single field
+        const keys = Object.keys(body);
+        if (keys.length === 1) {
+            content = body[keys[0]];
+        }
+        else if (formatType !== 'json') {
+            // Multiple fields without extract - error for non-JSON formats
+            headers.set('Content-Type', 'application/json');
+            return new Response(JSON.stringify({
+                success: false,
+                error: {
+                    code: 'FORMAT_EXTRACTION_FAILED',
+                    message: `Cannot extract single field for format '${formatType}': body has multiple fields (${keys.join(', ')}). Specify format.extract to indicate which field to use.`,
+                },
+            }), { status: 500, headers });
+        }
+        else {
+            // JSON format with multiple fields - just return the whole body
+            content = body;
+        }
+    }
+    else {
+        // Body is not an object - use directly
+        content = body;
+    }
+    // Serialize based on format type
+    let serialized;
+    switch (formatType) {
+        case 'json':
+            serialized = JSON.stringify(content);
+            break;
+        case 'yaml':
+            // Simple YAML serialization for objects
+            serialized = serializeToYaml(content);
+            break;
+        case 'csv':
+            // Simple CSV serialization
+            serialized = serializeToCsv(content);
+            break;
+        default:
+            // text, html, xml, markdown, ics, rss, atom - use string value directly
+            serialized = String(content);
+    }
+    // Set Content-Type (can be overridden by custom headers)
+    if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', contentType);
+    }
+    return new Response(serialized, { status: output.status, headers });
+}
+/**
+ * Simple YAML serialization
+ * For complex objects, this is a basic implementation
+ */
+function serializeToYaml(value, indent = 0) {
+    const spaces = '  '.repeat(indent);
+    if (value === null || value === undefined) {
+        return 'null';
+    }
+    if (typeof value === 'string') {
+        // Check if string needs quoting
+        if (value.includes('\n') || value.includes(':') || value.includes('#')) {
+            return `"${value.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
+        }
+        return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+    if (Array.isArray(value)) {
+        if (value.length === 0)
+            return '[]';
+        return value.map((item) => `${spaces}- ${serializeToYaml(item, indent + 1)}`).join('\n');
+    }
+    if (typeof value === 'object') {
+        const entries = Object.entries(value);
+        if (entries.length === 0)
+            return '{}';
+        return entries
+            .map(([key, val]) => {
+            const serializedVal = serializeToYaml(val, indent + 1);
+            if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+                return `${spaces}${key}:\n${serializedVal}`;
+            }
+            return `${spaces}${key}: ${serializedVal}`;
+        })
+            .join('\n');
+    }
+    return String(value);
+}
+/**
+ * Simple CSV serialization
+ * Handles arrays of objects or arrays of arrays
+ */
+function serializeToCsv(value) {
+    if (!Array.isArray(value)) {
+        // Single value - just return it
+        return String(value);
+    }
+    if (value.length === 0) {
+        return '';
+    }
+    const first = value[0];
+    // Array of objects - use keys as headers
+    if (typeof first === 'object' && first !== null && !Array.isArray(first)) {
+        const headers = Object.keys(first);
+        const headerRow = headers.map(escapeCsvField).join(',');
+        const dataRows = value
+            .map((row) => {
+            const obj = row;
+            return headers.map((h) => escapeCsvField(String(obj[h] ?? ''))).join(',');
+        })
+            .join('\n');
+        return `${headerRow}\n${dataRows}`;
+    }
+    // Array of arrays
+    if (Array.isArray(first)) {
+        return value.map((row) => row.map((cell) => escapeCsvField(String(cell))).join(',')).join('\n');
+    }
+    // Array of primitives - one per line
+    return value.map((v) => escapeCsvField(String(v))).join('\n');
+}
+/**
+ * Escape a CSV field
+ */
+function escapeCsvField(value) {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
 }
 /**
  * Check if output indicates a redirect response

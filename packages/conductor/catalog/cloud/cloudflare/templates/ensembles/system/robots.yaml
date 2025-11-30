@@ -76,4 +76,7 @@ input:
     default: https://example.com/sitemap.xml
 
 output:
-  robots: ${generate-robots.output}
+  status: 200
+  format: text
+  body:
+    content: ${generate-robots.output.html}

@@ -7,6 +7,7 @@ export { errorHandler } from './error-handler.js';
 export { requestId } from './request-id.js';
 export { timing } from './timing.js';
 export { securityConfig } from './security-config.js';
+export { apiConfig, createApiConfig, DEFAULT_API_CONFIG } from './api-config.js';
 // Security & headers middleware
 export { securityHeaders, apiSecurityPreset, strictSecurityPreset, } from './security-headers.js';
 export { conductorHeader } from './conductor-header.js';

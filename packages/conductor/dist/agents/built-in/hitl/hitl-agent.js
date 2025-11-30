@@ -94,8 +94,7 @@ export class HITLMember extends BaseAgent {
             await this.sendNotification(token, input.approvalData);
         }
         // Build callback URL - user should configure their base URL via notificationConfig.baseUrl
-        const baseUrl = this.hitlConfig.notificationConfig?.baseUrl ||
-            'https://your-worker.workers.dev';
+        const baseUrl = this.hitlConfig.notificationConfig?.baseUrl || 'https://your-worker.workers.dev';
         const approvalUrl = `${baseUrl}/callback/${token}`;
         return {
             status: 'suspended',
@@ -134,7 +133,7 @@ export class HITLMember extends BaseAgent {
             const error = await statusResponse.text();
             throw new Error(`Failed to get HITL status: ${error}`);
         }
-        const currentState = await statusResponse.json();
+        const currentState = (await statusResponse.json());
         // Check if already processed
         if (currentState.status !== 'pending') {
             return {
@@ -165,7 +164,7 @@ export class HITLMember extends BaseAgent {
                 const error = await approveResponse.text();
                 throw new Error(`Failed to approve: ${error}`);
             }
-            const result = await approveResponse.json();
+            const result = (await approveResponse.json());
             logger.info('Execution approved', { executionId: input.executionId });
             return {
                 status: 'approved',

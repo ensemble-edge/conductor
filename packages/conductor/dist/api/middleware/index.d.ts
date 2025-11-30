@@ -6,6 +6,7 @@ export { errorHandler } from './error-handler.js';
 export { requestId } from './request-id.js';
 export { timing } from './timing.js';
 export { securityConfig } from './security-config.js';
+export { apiConfig, createApiConfig, DEFAULT_API_CONFIG } from './api-config.js';
 export { securityHeaders, apiSecurityPreset, strictSecurityPreset, type SecurityHeadersConfig, } from './security-headers.js';
 export { conductorHeader, type ConductorHeaderConfig } from './conductor-header.js';
 export { debugHeaders, isProductionEnvironment, type DebugHeadersConfig } from './debug-headers.js';
