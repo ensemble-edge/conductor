@@ -60,8 +60,19 @@ export class CodeAgent extends BaseAgent {
             if (!this.compiledFunction) {
                 throw new Error('No code implementation available');
             }
-            // Execute the function with full context
-            const result = await this.compiledFunction(context);
+            // Execute the function - detect calling convention by parameter count
+            // Function.length returns the number of declared parameters
+            // - length === 1: Modern style handler(context)
+            // - length >= 2: Legacy style handler(input, context)
+            let result;
+            if (this.compiledFunction.length >= 2) {
+                // Legacy two-parameter style: handler(input, context)
+                result = await this.compiledFunction(context.input, context);
+            }
+            else {
+                // Modern single-parameter style: handler(context)
+                result = await this.compiledFunction(context);
+            }
             return result;
         }
         catch (error) {

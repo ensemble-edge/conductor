@@ -14,34 +14,19 @@ trigger:
     methods: [GET, POST, PUT, PATCH, DELETE]
     public: true
 
-agents:
-  - name: build-echo
-    operation: code
-    config:
-      inline: |
-        export default async function(input) {
-          return {
-            request: {
-              method: input.method,
-              path: input.path,
-              query: input.query,
-              headers: input.headers,
-              body: input.body,
-            },
-            echoed_at: new Date().toISOString(),
-          }
-        }
-
 flow:
-  - agent: build-echo
+  - agent: echo
     input:
-      method: ${{ trigger.method }}
-      path: ${{ trigger.path }}
-      query: ${{ trigger.query }}
-      headers: ${{ trigger.headers }}
-      body: ${{ trigger.body }}
+      data:
+        request:
+          method: ${ trigger.method }
+          path: ${ trigger.path }
+          query: ${ trigger.query }
+          headers: ${ trigger.headers }
+          body: ${ trigger.body }
 
 output:
   status: 200
   body:
-    echo: ${{ agents.build-echo.output }}
+    request: ${ echo.output.echo.request }
+    echoed_at: ${ echo.output.receivedAt }

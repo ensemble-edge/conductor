@@ -6,6 +6,7 @@
 import { Hono } from 'hono';
 import type { ConductorContext } from './types.js';
 import { type SecurityHeadersConfig } from './middleware/index.js';
+import type { ApiConfig } from '../config/types.js';
 import { type ScheduledEvent } from '../runtime/schedule-manager.js';
 import type { ConductorEnv } from '../types/env.js';
 export interface APIConfig {
@@ -99,6 +100,12 @@ export interface APIConfig {
          */
         debugHeaders?: boolean;
     };
+    /**
+     * API execution controls
+     * Controls which agents/ensembles can be executed via the Execute API
+     * (/api/v1/execute/agent/* and /api/v1/execute/ensemble/*)
+     */
+    api?: ApiConfig;
 }
 /** Typed Hono app with Conductor context */
 export type ConductorApp = Hono<{

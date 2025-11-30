@@ -98,14 +98,14 @@ export declare const AuthRuleSchema: z.ZodObject<{
         preserveReturn?: boolean | undefined;
     } | undefined;
     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+    customValidator?: string | undefined;
+    roles?: string[] | undefined;
+    permissions?: string[] | undefined;
     rateLimit?: {
         requests: number;
         window: number;
         keyBy: "apiKey" | "ip" | "user";
     } | undefined;
-    roles?: string[] | undefined;
-    permissions?: string[] | undefined;
-    customValidator?: string | undefined;
 }, {
     requirement?: "public" | "optional" | "required" | undefined;
     onFailure?: {
@@ -115,14 +115,14 @@ export declare const AuthRuleSchema: z.ZodObject<{
         preserveReturn?: boolean | undefined;
     } | undefined;
     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+    customValidator?: string | undefined;
+    roles?: string[] | undefined;
+    permissions?: string[] | undefined;
     rateLimit?: {
         requests: number;
         window: number;
         keyBy: "apiKey" | "ip" | "user";
     } | undefined;
-    roles?: string[] | undefined;
-    permissions?: string[] | undefined;
-    customValidator?: string | undefined;
 }>;
 /**
  * Path-based authentication rule schema
@@ -173,14 +173,14 @@ export declare const PathAuthRuleSchema: z.ZodObject<{
             preserveReturn?: boolean | undefined;
         } | undefined;
         methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+        customValidator?: string | undefined;
+        roles?: string[] | undefined;
+        permissions?: string[] | undefined;
         rateLimit?: {
             requests: number;
             window: number;
             keyBy: "apiKey" | "ip" | "user";
         } | undefined;
-        roles?: string[] | undefined;
-        permissions?: string[] | undefined;
-        customValidator?: string | undefined;
     }, {
         requirement?: "public" | "optional" | "required" | undefined;
         onFailure?: {
@@ -190,14 +190,14 @@ export declare const PathAuthRuleSchema: z.ZodObject<{
             preserveReturn?: boolean | undefined;
         } | undefined;
         methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+        customValidator?: string | undefined;
+        roles?: string[] | undefined;
+        permissions?: string[] | undefined;
         rateLimit?: {
             requests: number;
             window: number;
             keyBy: "apiKey" | "ip" | "user";
         } | undefined;
-        roles?: string[] | undefined;
-        permissions?: string[] | undefined;
-        customValidator?: string | undefined;
     }>>;
     priority: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
@@ -211,14 +211,14 @@ export declare const PathAuthRuleSchema: z.ZodObject<{
             preserveReturn?: boolean | undefined;
         } | undefined;
         methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+        customValidator?: string | undefined;
+        roles?: string[] | undefined;
+        permissions?: string[] | undefined;
         rateLimit?: {
             requests: number;
             window: number;
             keyBy: "apiKey" | "ip" | "user";
         } | undefined;
-        roles?: string[] | undefined;
-        permissions?: string[] | undefined;
-        customValidator?: string | undefined;
     } | undefined;
     priority?: number | undefined;
 }, {
@@ -232,14 +232,14 @@ export declare const PathAuthRuleSchema: z.ZodObject<{
             preserveReturn?: boolean | undefined;
         } | undefined;
         methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+        customValidator?: string | undefined;
+        roles?: string[] | undefined;
+        permissions?: string[] | undefined;
         rateLimit?: {
             requests: number;
             window: number;
             keyBy: "apiKey" | "ip" | "user";
         } | undefined;
-        roles?: string[] | undefined;
-        permissions?: string[] | undefined;
-        customValidator?: string | undefined;
     } | undefined;
     priority?: number | undefined;
 }>;
@@ -292,14 +292,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }, {
             requirement?: "public" | "optional" | "required" | undefined;
             onFailure?: {
@@ -309,14 +309,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }>>;
         api: z.ZodOptional<z.ZodObject<{
             requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -362,14 +362,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }, {
             requirement?: "public" | "optional" | "required" | undefined;
             onFailure?: {
@@ -379,14 +379,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }>>;
         webhooks: z.ZodOptional<z.ZodObject<{
             requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -432,14 +432,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }, {
             requirement?: "public" | "optional" | "required" | undefined;
             onFailure?: {
@@ -449,14 +449,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }>>;
         forms: z.ZodOptional<z.ZodObject<{
             requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -502,14 +502,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }, {
             requirement?: "public" | "optional" | "required" | undefined;
             onFailure?: {
@@ -519,14 +519,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }>>;
         docs: z.ZodOptional<z.ZodObject<{
             requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -572,14 +572,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }, {
             requirement?: "public" | "optional" | "required" | undefined;
             onFailure?: {
@@ -589,14 +589,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }>>;
     }, "strip", z.ZodTypeAny, {
         docs?: {
@@ -608,14 +608,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         api?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -626,14 +626,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         webhooks?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -644,14 +644,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         forms?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -662,14 +662,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         pages?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -680,14 +680,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
     }, {
         docs?: {
@@ -699,14 +699,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         api?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -717,14 +717,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         webhooks?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -735,14 +735,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         forms?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -753,14 +753,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         pages?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -771,14 +771,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
     }>>;
     rules: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -827,14 +827,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }, {
             requirement?: "public" | "optional" | "required" | undefined;
             onFailure?: {
@@ -844,14 +844,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         }>>;
         priority: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
@@ -865,14 +865,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         priority?: number | undefined;
     }, {
@@ -886,14 +886,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         priority?: number | undefined;
     }>, "many">>;
@@ -908,14 +908,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         api?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -926,14 +926,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         webhooks?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -944,14 +944,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         forms?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -962,14 +962,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         pages?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -980,14 +980,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
     } | undefined;
     rules?: {
@@ -1001,14 +1001,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         priority?: number | undefined;
     }[] | undefined;
@@ -1023,14 +1023,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         api?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -1041,14 +1041,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         webhooks?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -1059,14 +1059,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         forms?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -1077,14 +1077,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         pages?: {
             requirement?: "public" | "optional" | "required" | undefined;
@@ -1095,14 +1095,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
     } | undefined;
     rules?: {
@@ -1116,14 +1116,14 @@ export declare const AuthConfigSchema: z.ZodObject<{
                 preserveReturn?: boolean | undefined;
             } | undefined;
             methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+            customValidator?: string | undefined;
+            roles?: string[] | undefined;
+            permissions?: string[] | undefined;
             rateLimit?: {
                 requests: number;
                 window: number;
                 keyBy: "apiKey" | "ip" | "user";
             } | undefined;
-            roles?: string[] | undefined;
-            permissions?: string[] | undefined;
-            customValidator?: string | undefined;
         } | undefined;
         priority?: number | undefined;
     }[] | undefined;
@@ -1199,14 +1199,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }, {
                 requirement?: "public" | "optional" | "required" | undefined;
                 onFailure?: {
@@ -1216,14 +1216,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }>>;
             api: z.ZodOptional<z.ZodObject<{
                 requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -1269,14 +1269,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }, {
                 requirement?: "public" | "optional" | "required" | undefined;
                 onFailure?: {
@@ -1286,14 +1286,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }>>;
             webhooks: z.ZodOptional<z.ZodObject<{
                 requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -1339,14 +1339,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }, {
                 requirement?: "public" | "optional" | "required" | undefined;
                 onFailure?: {
@@ -1356,14 +1356,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }>>;
             forms: z.ZodOptional<z.ZodObject<{
                 requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -1409,14 +1409,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }, {
                 requirement?: "public" | "optional" | "required" | undefined;
                 onFailure?: {
@@ -1426,14 +1426,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }>>;
             docs: z.ZodOptional<z.ZodObject<{
                 requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -1479,14 +1479,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }, {
                 requirement?: "public" | "optional" | "required" | undefined;
                 onFailure?: {
@@ -1496,14 +1496,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }>>;
         }, "strip", z.ZodTypeAny, {
             docs?: {
@@ -1515,14 +1515,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             api?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1533,14 +1533,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             webhooks?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1551,14 +1551,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             forms?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1569,14 +1569,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             pages?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1587,14 +1587,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
         }, {
             docs?: {
@@ -1606,14 +1606,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             api?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1624,14 +1624,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             webhooks?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1642,14 +1642,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             forms?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1660,14 +1660,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             pages?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1678,14 +1678,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
         }>>;
         rules: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -1734,14 +1734,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }, {
                 requirement?: "public" | "optional" | "required" | undefined;
                 onFailure?: {
@@ -1751,14 +1751,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             }>>;
             priority: z.ZodOptional<z.ZodNumber>;
         }, "strip", z.ZodTypeAny, {
@@ -1772,14 +1772,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             priority?: number | undefined;
         }, {
@@ -1793,14 +1793,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             priority?: number | undefined;
         }>, "many">>;
@@ -1815,14 +1815,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             api?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1833,14 +1833,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             webhooks?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1851,14 +1851,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             forms?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1869,14 +1869,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             pages?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1887,14 +1887,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
         } | undefined;
         rules?: {
@@ -1908,14 +1908,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             priority?: number | undefined;
         }[] | undefined;
@@ -1930,14 +1930,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             api?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1948,14 +1948,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             webhooks?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1966,14 +1966,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             forms?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -1984,14 +1984,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             pages?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2002,14 +2002,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
         } | undefined;
         rules?: {
@@ -2023,14 +2023,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             priority?: number | undefined;
         }[] | undefined;
@@ -2047,14 +2047,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             api?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2065,14 +2065,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             webhooks?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2083,14 +2083,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             forms?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2101,14 +2101,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             pages?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2119,14 +2119,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
         } | undefined;
         rules?: {
@@ -2140,14 +2140,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             priority?: number | undefined;
         }[] | undefined;
@@ -2166,14 +2166,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             api?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2184,14 +2184,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             webhooks?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2202,14 +2202,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             forms?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2220,14 +2220,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             pages?: {
                 requirement?: "public" | "optional" | "required" | undefined;
@@ -2238,14 +2238,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
         } | undefined;
         rules?: {
@@ -2259,14 +2259,14 @@ export declare const RoutingConfigSchema: z.ZodObject<{
                     preserveReturn?: boolean | undefined;
                 } | undefined;
                 methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                customValidator?: string | undefined;
+                roles?: string[] | undefined;
+                permissions?: string[] | undefined;
                 rateLimit?: {
                     requests: number;
                     window: number;
                     keyBy: "apiKey" | "ip" | "user";
                 } | undefined;
-                roles?: string[] | undefined;
-                permissions?: string[] | undefined;
-                customValidator?: string | undefined;
             } | undefined;
             priority?: number | undefined;
         }[] | undefined;
@@ -2420,11 +2420,11 @@ export declare const DocsConfigSchema: z.ZodObject<{
         enabled?: boolean | undefined;
         ttl?: number | undefined;
     } | undefined;
+    format?: "json" | "yaml" | undefined;
     title?: string | undefined;
     ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
     includeExamples?: boolean | undefined;
     includeSecurity?: boolean | undefined;
-    format?: "json" | "yaml" | undefined;
     outputDir?: string | undefined;
     description?: string | undefined;
     auth?: {
@@ -2457,11 +2457,11 @@ export declare const DocsConfigSchema: z.ZodObject<{
         enabled?: boolean | undefined;
         ttl?: number | undefined;
     } | undefined;
+    format?: "json" | "yaml" | undefined;
     title?: string | undefined;
     ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
     includeExamples?: boolean | undefined;
     includeSecurity?: boolean | undefined;
-    format?: "json" | "yaml" | undefined;
     outputDir?: string | undefined;
     description?: string | undefined;
     auth?: {
@@ -2575,15 +2575,15 @@ export declare const LoggingConfigSchema: z.ZodObject<{
     redact: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     events: z.ZodOptional<z.ZodArray<z.ZodEnum<["request", "response", "agent:start", "agent:complete", "agent:error", "ensemble:start", "ensemble:complete", "ensemble:error", "cache:hit", "cache:miss"]>, "many">>;
 }, "strip", z.ZodTypeAny, {
-    level?: "debug" | "info" | "warn" | "error" | undefined;
     format?: "json" | "pretty" | undefined;
+    level?: "debug" | "info" | "warn" | "error" | undefined;
     enabled?: boolean | undefined;
     context?: string[] | undefined;
     redact?: string[] | undefined;
     events?: ("request" | "response" | "agent:start" | "agent:complete" | "agent:error" | "ensemble:start" | "ensemble:complete" | "ensemble:error" | "cache:hit" | "cache:miss")[] | undefined;
 }, {
-    level?: "debug" | "info" | "warn" | "error" | undefined;
     format?: "json" | "pretty" | undefined;
+    level?: "debug" | "info" | "warn" | "error" | undefined;
     enabled?: boolean | undefined;
     context?: string[] | undefined;
     redact?: string[] | undefined;
@@ -2640,15 +2640,15 @@ export declare const ObservabilityConfigSchema: z.ZodObject<{
         redact: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         events: z.ZodOptional<z.ZodArray<z.ZodEnum<["request", "response", "agent:start", "agent:complete", "agent:error", "ensemble:start", "ensemble:complete", "ensemble:error", "cache:hit", "cache:miss"]>, "many">>;
     }, "strip", z.ZodTypeAny, {
-        level?: "debug" | "info" | "warn" | "error" | undefined;
         format?: "json" | "pretty" | undefined;
+        level?: "debug" | "info" | "warn" | "error" | undefined;
         enabled?: boolean | undefined;
         context?: string[] | undefined;
         redact?: string[] | undefined;
         events?: ("request" | "response" | "agent:start" | "agent:complete" | "agent:error" | "ensemble:start" | "ensemble:complete" | "ensemble:error" | "cache:hit" | "cache:miss")[] | undefined;
     }, {
-        level?: "debug" | "info" | "warn" | "error" | undefined;
         format?: "json" | "pretty" | undefined;
+        level?: "debug" | "info" | "warn" | "error" | undefined;
         enabled?: boolean | undefined;
         context?: string[] | undefined;
         redact?: string[] | undefined;
@@ -2690,8 +2690,8 @@ export declare const ObservabilityConfigSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     trackTokenUsage?: boolean | undefined;
     logging?: boolean | {
-        level?: "debug" | "info" | "warn" | "error" | undefined;
         format?: "json" | "pretty" | undefined;
+        level?: "debug" | "info" | "warn" | "error" | undefined;
         enabled?: boolean | undefined;
         context?: string[] | undefined;
         redact?: string[] | undefined;
@@ -2712,8 +2712,8 @@ export declare const ObservabilityConfigSchema: z.ZodObject<{
 }, {
     trackTokenUsage?: boolean | undefined;
     logging?: boolean | {
-        level?: "debug" | "info" | "warn" | "error" | undefined;
         format?: "json" | "pretty" | undefined;
+        level?: "debug" | "info" | "warn" | "error" | undefined;
         enabled?: boolean | undefined;
         context?: string[] | undefined;
         redact?: string[] | undefined;
@@ -2752,6 +2752,112 @@ export declare const ExecutionConfigSchema: z.ZodObject<{
     storeStateSnapshots?: boolean | undefined;
 }>;
 /**
+ * API execution controls for agents
+ */
+export declare const ApiAgentsExecutionConfigSchema: z.ZodObject<{
+    requireExplicit: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    requireExplicit?: boolean | undefined;
+}, {
+    requireExplicit?: boolean | undefined;
+}>;
+/**
+ * API execution controls for ensembles
+ */
+export declare const ApiEnsemblesExecutionConfigSchema: z.ZodObject<{
+    requireExplicit: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    requireExplicit?: boolean | undefined;
+}, {
+    requireExplicit?: boolean | undefined;
+}>;
+/**
+ * API execution configuration schema
+ */
+export declare const ApiExecutionConfigSchema: z.ZodObject<{
+    agents: z.ZodOptional<z.ZodObject<{
+        requireExplicit: z.ZodOptional<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        requireExplicit?: boolean | undefined;
+    }, {
+        requireExplicit?: boolean | undefined;
+    }>>;
+    ensembles: z.ZodOptional<z.ZodObject<{
+        requireExplicit: z.ZodOptional<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        requireExplicit?: boolean | undefined;
+    }, {
+        requireExplicit?: boolean | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    agents?: {
+        requireExplicit?: boolean | undefined;
+    } | undefined;
+    ensembles?: {
+        requireExplicit?: boolean | undefined;
+    } | undefined;
+}, {
+    agents?: {
+        requireExplicit?: boolean | undefined;
+    } | undefined;
+    ensembles?: {
+        requireExplicit?: boolean | undefined;
+    } | undefined;
+}>;
+/**
+ * API configuration schema
+ */
+export declare const ApiConfigSchema: z.ZodObject<{
+    execution: z.ZodOptional<z.ZodObject<{
+        agents: z.ZodOptional<z.ZodObject<{
+            requireExplicit: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            requireExplicit?: boolean | undefined;
+        }, {
+            requireExplicit?: boolean | undefined;
+        }>>;
+        ensembles: z.ZodOptional<z.ZodObject<{
+            requireExplicit: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            requireExplicit?: boolean | undefined;
+        }, {
+            requireExplicit?: boolean | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        agents?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+        ensembles?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+    }, {
+        agents?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+        ensembles?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+    }>>;
+}, "strip", z.ZodTypeAny, {
+    execution?: {
+        agents?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+        ensembles?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+    } | undefined;
+}, {
+    execution?: {
+        agents?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+        ensembles?: {
+            requireExplicit?: boolean | undefined;
+        } | undefined;
+    } | undefined;
+}>;
+/**
  * Storage configuration schema
  */
 export declare const StorageConfigSchema: z.ZodObject<{
@@ -2760,13 +2866,13 @@ export declare const StorageConfigSchema: z.ZodObject<{
     d1Binding: z.ZodOptional<z.ZodString>;
     kvBinding: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    path?: string | undefined;
     type?: "kv" | "d1" | "filesystem" | undefined;
+    path?: string | undefined;
     d1Binding?: string | undefined;
     kvBinding?: string | undefined;
 }, {
-    path?: string | undefined;
     type?: "kv" | "d1" | "filesystem" | undefined;
+    path?: string | undefined;
     d1Binding?: string | undefined;
     kvBinding?: string | undefined;
 }>;
@@ -2841,14 +2947,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }, {
                     requirement?: "public" | "optional" | "required" | undefined;
                     onFailure?: {
@@ -2858,14 +2964,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }>>;
                 api: z.ZodOptional<z.ZodObject<{
                     requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -2911,14 +3017,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }, {
                     requirement?: "public" | "optional" | "required" | undefined;
                     onFailure?: {
@@ -2928,14 +3034,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }>>;
                 webhooks: z.ZodOptional<z.ZodObject<{
                     requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -2981,14 +3087,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }, {
                     requirement?: "public" | "optional" | "required" | undefined;
                     onFailure?: {
@@ -2998,14 +3104,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }>>;
                 forms: z.ZodOptional<z.ZodObject<{
                     requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -3051,14 +3157,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }, {
                     requirement?: "public" | "optional" | "required" | undefined;
                     onFailure?: {
@@ -3068,14 +3174,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }>>;
                 docs: z.ZodOptional<z.ZodObject<{
                     requirement: z.ZodOptional<z.ZodEnum<["public", "optional", "required"]>>;
@@ -3121,14 +3227,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }, {
                     requirement?: "public" | "optional" | "required" | undefined;
                     onFailure?: {
@@ -3138,14 +3244,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }>>;
             }, "strip", z.ZodTypeAny, {
                 docs?: {
@@ -3157,14 +3263,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3175,14 +3281,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3193,14 +3299,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3211,14 +3317,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3229,14 +3335,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             }, {
                 docs?: {
@@ -3248,14 +3354,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3266,14 +3372,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3284,14 +3390,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3302,14 +3408,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3320,14 +3426,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             }>>;
             rules: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -3376,14 +3482,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }, {
                     requirement?: "public" | "optional" | "required" | undefined;
                     onFailure?: {
@@ -3393,14 +3499,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 }>>;
                 priority: z.ZodOptional<z.ZodNumber>;
             }, "strip", z.ZodTypeAny, {
@@ -3414,14 +3520,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }, {
@@ -3435,14 +3541,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }>, "many">>;
@@ -3457,14 +3563,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3475,14 +3581,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3493,14 +3599,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3511,14 +3617,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3529,14 +3635,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             } | undefined;
             rules?: {
@@ -3550,14 +3656,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }[] | undefined;
@@ -3572,14 +3678,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3590,14 +3696,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3608,14 +3714,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3626,14 +3732,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3644,14 +3750,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             } | undefined;
             rules?: {
@@ -3665,14 +3771,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }[] | undefined;
@@ -3689,14 +3795,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3707,14 +3813,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3725,14 +3831,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3743,14 +3849,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3761,14 +3867,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             } | undefined;
             rules?: {
@@ -3782,14 +3888,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }[] | undefined;
@@ -3808,14 +3914,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3826,14 +3932,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3844,14 +3950,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3862,14 +3968,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -3880,14 +3986,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             } | undefined;
             rules?: {
@@ -3901,14 +4007,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }[] | undefined;
@@ -3994,11 +4100,11 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             enabled?: boolean | undefined;
             ttl?: number | undefined;
         } | undefined;
+        format?: "json" | "yaml" | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
         includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
-        format?: "json" | "yaml" | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
         auth?: {
@@ -4031,11 +4137,11 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             enabled?: boolean | undefined;
             ttl?: number | undefined;
         } | undefined;
+        format?: "json" | "yaml" | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
         includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
-        format?: "json" | "yaml" | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
         auth?: {
@@ -4117,15 +4223,15 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             redact: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
             events: z.ZodOptional<z.ZodArray<z.ZodEnum<["request", "response", "agent:start", "agent:complete", "agent:error", "ensemble:start", "ensemble:complete", "ensemble:error", "cache:hit", "cache:miss"]>, "many">>;
         }, "strip", z.ZodTypeAny, {
-            level?: "debug" | "info" | "warn" | "error" | undefined;
             format?: "json" | "pretty" | undefined;
+            level?: "debug" | "info" | "warn" | "error" | undefined;
             enabled?: boolean | undefined;
             context?: string[] | undefined;
             redact?: string[] | undefined;
             events?: ("request" | "response" | "agent:start" | "agent:complete" | "agent:error" | "ensemble:start" | "ensemble:complete" | "ensemble:error" | "cache:hit" | "cache:miss")[] | undefined;
         }, {
-            level?: "debug" | "info" | "warn" | "error" | undefined;
             format?: "json" | "pretty" | undefined;
+            level?: "debug" | "info" | "warn" | "error" | undefined;
             enabled?: boolean | undefined;
             context?: string[] | undefined;
             redact?: string[] | undefined;
@@ -4167,8 +4273,8 @@ export declare const ConductorConfigSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         trackTokenUsage?: boolean | undefined;
         logging?: boolean | {
-            level?: "debug" | "info" | "warn" | "error" | undefined;
             format?: "json" | "pretty" | undefined;
+            level?: "debug" | "info" | "warn" | "error" | undefined;
             enabled?: boolean | undefined;
             context?: string[] | undefined;
             redact?: string[] | undefined;
@@ -4189,8 +4295,8 @@ export declare const ConductorConfigSchema: z.ZodObject<{
     }, {
         trackTokenUsage?: boolean | undefined;
         logging?: boolean | {
-            level?: "debug" | "info" | "warn" | "error" | undefined;
             format?: "json" | "pretty" | undefined;
+            level?: "debug" | "info" | "warn" | "error" | undefined;
             enabled?: boolean | undefined;
             context?: string[] | undefined;
             redact?: string[] | undefined;
@@ -4231,20 +4337,70 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         d1Binding: z.ZodOptional<z.ZodString>;
         kvBinding: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        path?: string | undefined;
         type?: "kv" | "d1" | "filesystem" | undefined;
+        path?: string | undefined;
         d1Binding?: string | undefined;
         kvBinding?: string | undefined;
     }, {
-        path?: string | undefined;
         type?: "kv" | "d1" | "filesystem" | undefined;
+        path?: string | undefined;
         d1Binding?: string | undefined;
         kvBinding?: string | undefined;
     }>>;
+    api: z.ZodOptional<z.ZodObject<{
+        execution: z.ZodOptional<z.ZodObject<{
+            agents: z.ZodOptional<z.ZodObject<{
+                requireExplicit: z.ZodOptional<z.ZodBoolean>;
+            }, "strip", z.ZodTypeAny, {
+                requireExplicit?: boolean | undefined;
+            }, {
+                requireExplicit?: boolean | undefined;
+            }>>;
+            ensembles: z.ZodOptional<z.ZodObject<{
+                requireExplicit: z.ZodOptional<z.ZodBoolean>;
+            }, "strip", z.ZodTypeAny, {
+                requireExplicit?: boolean | undefined;
+            }, {
+                requireExplicit?: boolean | undefined;
+            }>>;
+        }, "strip", z.ZodTypeAny, {
+            agents?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+            ensembles?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+        }, {
+            agents?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+            ensembles?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        execution?: {
+            agents?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+            ensembles?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+        } | undefined;
+    }, {
+        execution?: {
+            agents?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+            ensembles?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+        } | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     storage?: {
-        path?: string | undefined;
         type?: "kv" | "d1" | "filesystem" | undefined;
+        path?: string | undefined;
         d1Binding?: string | undefined;
         kvBinding?: string | undefined;
     } | undefined;
@@ -4261,11 +4417,11 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             enabled?: boolean | undefined;
             ttl?: number | undefined;
         } | undefined;
+        format?: "json" | "yaml" | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
         includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
-        format?: "json" | "yaml" | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
         auth?: {
@@ -4294,6 +4450,22 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         useAI?: boolean | undefined;
         aiAgent?: string | undefined;
     } | undefined;
+    api?: {
+        execution?: {
+            agents?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+            ensembles?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+        } | undefined;
+    } | undefined;
+    execution?: {
+        defaultTimeout?: number | undefined;
+        trackHistory?: boolean | undefined;
+        maxHistoryEntries?: number | undefined;
+        storeStateSnapshots?: boolean | undefined;
+    } | undefined;
     routing?: {
         auth?: {
             defaults?: {
@@ -4306,14 +4478,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4324,14 +4496,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4342,14 +4514,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4360,14 +4532,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4378,14 +4550,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             } | undefined;
             rules?: {
@@ -4399,26 +4571,20 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }[] | undefined;
         } | undefined;
         basePath?: string | undefined;
         autoDiscover?: boolean | undefined;
-    } | undefined;
-    execution?: {
-        defaultTimeout?: number | undefined;
-        trackHistory?: boolean | undefined;
-        maxHistoryEntries?: number | undefined;
-        storeStateSnapshots?: boolean | undefined;
     } | undefined;
     testing?: {
         environment?: "node" | "jsdom" | "edge-runtime" | undefined;
@@ -4435,8 +4601,8 @@ export declare const ConductorConfigSchema: z.ZodObject<{
     observability?: {
         trackTokenUsage?: boolean | undefined;
         logging?: boolean | {
-            level?: "debug" | "info" | "warn" | "error" | undefined;
             format?: "json" | "pretty" | undefined;
+            level?: "debug" | "info" | "warn" | "error" | undefined;
             enabled?: boolean | undefined;
             context?: string[] | undefined;
             redact?: string[] | undefined;
@@ -4457,8 +4623,8 @@ export declare const ConductorConfigSchema: z.ZodObject<{
     } | undefined;
 }, {
     storage?: {
-        path?: string | undefined;
         type?: "kv" | "d1" | "filesystem" | undefined;
+        path?: string | undefined;
         d1Binding?: string | undefined;
         kvBinding?: string | undefined;
     } | undefined;
@@ -4475,11 +4641,11 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             enabled?: boolean | undefined;
             ttl?: number | undefined;
         } | undefined;
+        format?: "json" | "yaml" | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
         includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
-        format?: "json" | "yaml" | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
         auth?: {
@@ -4508,6 +4674,22 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         useAI?: boolean | undefined;
         aiAgent?: string | undefined;
     } | undefined;
+    api?: {
+        execution?: {
+            agents?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+            ensembles?: {
+                requireExplicit?: boolean | undefined;
+            } | undefined;
+        } | undefined;
+    } | undefined;
+    execution?: {
+        defaultTimeout?: number | undefined;
+        trackHistory?: boolean | undefined;
+        maxHistoryEntries?: number | undefined;
+        storeStateSnapshots?: boolean | undefined;
+    } | undefined;
     routing?: {
         auth?: {
             defaults?: {
@@ -4520,14 +4702,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 api?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4538,14 +4720,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 webhooks?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4556,14 +4738,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 forms?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4574,14 +4756,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 pages?: {
                     requirement?: "public" | "optional" | "required" | undefined;
@@ -4592,14 +4774,14 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
             } | undefined;
             rules?: {
@@ -4613,26 +4795,20 @@ export declare const ConductorConfigSchema: z.ZodObject<{
                         preserveReturn?: boolean | undefined;
                     } | undefined;
                     methods?: ("custom" | "bearer" | "apiKey" | "cookie")[] | undefined;
+                    customValidator?: string | undefined;
+                    roles?: string[] | undefined;
+                    permissions?: string[] | undefined;
                     rateLimit?: {
                         requests: number;
                         window: number;
                         keyBy: "apiKey" | "ip" | "user";
                     } | undefined;
-                    roles?: string[] | undefined;
-                    permissions?: string[] | undefined;
-                    customValidator?: string | undefined;
                 } | undefined;
                 priority?: number | undefined;
             }[] | undefined;
         } | undefined;
         basePath?: string | undefined;
         autoDiscover?: boolean | undefined;
-    } | undefined;
-    execution?: {
-        defaultTimeout?: number | undefined;
-        trackHistory?: boolean | undefined;
-        maxHistoryEntries?: number | undefined;
-        storeStateSnapshots?: boolean | undefined;
     } | undefined;
     testing?: {
         environment?: "node" | "jsdom" | "edge-runtime" | undefined;
@@ -4649,8 +4825,8 @@ export declare const ConductorConfigSchema: z.ZodObject<{
     observability?: {
         trackTokenUsage?: boolean | undefined;
         logging?: boolean | {
-            level?: "debug" | "info" | "warn" | "error" | undefined;
             format?: "json" | "pretty" | undefined;
+            level?: "debug" | "info" | "warn" | "error" | undefined;
             enabled?: boolean | undefined;
             context?: string[] | undefined;
             redact?: string[] | undefined;
@@ -4682,6 +4858,8 @@ export type ValidatedTestingConfig = z.infer<typeof TestingConfigSchema>;
 export type ValidatedObservabilityConfig = z.infer<typeof ObservabilityConfigSchema>;
 export type ValidatedExecutionConfig = z.infer<typeof ExecutionConfigSchema>;
 export type ValidatedStorageConfig = z.infer<typeof StorageConfigSchema>;
+export type ValidatedApiConfig = z.infer<typeof ApiConfigSchema>;
+export type ValidatedApiExecutionConfig = z.infer<typeof ApiExecutionConfigSchema>;
 /**
  * Validation result type
  */

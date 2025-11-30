@@ -111,7 +111,7 @@ export function createTestHonoApp(options = {}) {
         // Inject request ID (convert string to branded type if needed)
         const reqId = options.requestId !== undefined
             ? typeof options.requestId === 'string'
-                ? RequestId.tryCreate(options.requestId) ?? RequestId.generate()
+                ? (RequestId.tryCreate(options.requestId) ?? RequestId.generate())
                 : options.requestId
             : RequestId.generate();
         c.set('requestId', reqId);

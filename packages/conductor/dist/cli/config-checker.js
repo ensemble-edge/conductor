@@ -69,7 +69,7 @@ export class ConfigChecker {
             const content = fs.readFileSync(filePath, 'utf-8');
             const config = YAML.parse(content, { mapAsMap: false, logLevel: 'silent' });
             // Check Think agents for model validation
-            if (config.type === 'Think' && config.config?.model) {
+            if (config.operation === 'think' && config.config?.model) {
                 const modelIssues = this.checkModel(file, config);
                 issues.push(...modelIssues);
             }

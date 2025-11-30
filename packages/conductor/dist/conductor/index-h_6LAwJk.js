@@ -1,4 +1,4 @@
-import { B as BaseAgent, c as createLogger } from "./worker-entry-CSZwFgwd.js";
+import { B as BaseAgent, c as createLogger } from "./worker-entry-CfahJawz.js";
 const logger = createLogger({ serviceName: "hitl-agent" });
 class HITLMember extends BaseAgent {
   constructor(config, env) {
@@ -53,15 +53,17 @@ class HITLMember extends BaseAgent {
     };
     const doId = this.env.HITL_STATE.idFromName(token);
     const stub = this.env.HITL_STATE.get(doId);
-    const response = await stub.fetch(new Request("https://hitl/suspend", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token,
-        suspendedState,
-        ttl: ttlSeconds
+    const response = await stub.fetch(
+      new Request("https://hitl/suspend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          suspendedState,
+          ttl: ttlSeconds
+        })
       })
-    }));
+    );
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Failed to suspend execution: ${error}`);
@@ -98,9 +100,11 @@ class HITLMember extends BaseAgent {
     }
     const doId = this.env.HITL_STATE.idFromName(input.executionId);
     const stub = this.env.HITL_STATE.get(doId);
-    const statusResponse = await stub.fetch(new Request("https://hitl/status", {
-      method: "GET"
-    }));
+    const statusResponse = await stub.fetch(
+      new Request("https://hitl/status", {
+        method: "GET"
+      })
+    );
     if (!statusResponse.ok) {
       if (statusResponse.status === 404) {
         return {
@@ -128,14 +132,16 @@ class HITLMember extends BaseAgent {
       };
     }
     if (input.approved) {
-      const approveResponse = await stub.fetch(new Request("https://hitl/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          actor: input.actor || "system",
-          approvalData: input.approvalData
+      const approveResponse = await stub.fetch(
+        new Request("https://hitl/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actor: input.actor || "system",
+            approvalData: input.approvalData
+          })
         })
-      }));
+      );
       if (!approveResponse.ok) {
         const error = await approveResponse.text();
         throw new Error(`Failed to approve: ${error}`);
@@ -149,14 +155,16 @@ class HITLMember extends BaseAgent {
         comments: input.comments
       };
     } else {
-      const rejectResponse = await stub.fetch(new Request("https://hitl/reject", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          actor: input.actor || "system",
-          reason: input.comments
+      const rejectResponse = await stub.fetch(
+        new Request("https://hitl/reject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actor: input.actor || "system",
+            reason: input.comments
+          })
         })
-      }));
+      );
       if (!rejectResponse.ok) {
         const error = await rejectResponse.text();
         throw new Error(`Failed to reject: ${error}`);
@@ -414,4 +422,4 @@ This request will expire in ${Math.round(this.hitlConfig.timeout / 36e5)} hours.
 export {
   HITLMember
 };
-//# sourceMappingURL=index-BAdpaQlN.js.map
+//# sourceMappingURL=index-h_6LAwJk.js.map

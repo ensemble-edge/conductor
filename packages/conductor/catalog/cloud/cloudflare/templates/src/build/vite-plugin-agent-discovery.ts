@@ -2,6 +2,7 @@ import type { Plugin } from 'vite';
 import { globSync } from 'glob';
 import path from 'path';
 import fs from 'fs';
+import * as YAML from 'yaml';
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-agents';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;
@@ -135,9 +136,30 @@ export const agentsMap = new Map();
     // Read YAML content
     const yamlContent = fs.readFileSync(agentFilePath, 'utf-8');
 
-    // Check if handler file exists
-    const handlerPath = path.join(agentDir, 'index.ts');
-    const handlerExists = fs.existsSync(handlerPath);
+    // Parse YAML to extract handler field
+    let parsedYaml: { handler?: string; operation?: string } = {};
+    try {
+      parsedYaml = YAML.parse(yamlContent) || {};
+    } catch {
+      // If YAML parsing fails, continue with default behavior
+    }
+
+    // Determine handler path:
+    // 1. If YAML has explicit `handler` field, use that (e.g., "./validate.ts")
+    // 2. Otherwise, fall back to convention-based `index.ts`
+    let handlerPath: string;
+    let handlerExists: boolean;
+
+    if (parsedYaml.handler) {
+      // Resolve handler path relative to the agent directory
+      // Handler field is like "./validate.ts" or "./tools.ts"
+      handlerPath = path.resolve(agentDir, parsedYaml.handler);
+      handlerExists = fs.existsSync(handlerPath);
+    } else {
+      // Fall back to convention: index.ts in agent directory
+      handlerPath = path.join(agentDir, 'index.ts');
+      handlerExists = fs.existsSync(handlerPath);
+    }
 
     // Use the full relative path for unique variable names
     const handlerVarName = `handler_${agentName.replace(/[^a-zA-Z0-9]/g, '_')}`;

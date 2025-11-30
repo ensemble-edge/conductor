@@ -64,6 +64,27 @@ const AGENT_CONFIG_PROPERTIES: Record<string, string[]> = {
 }
 
 /**
+ * Valid output format types
+ */
+const VALID_FORMAT_TYPES = new Set([
+  'json',
+  'text',
+  'html',
+  'xml',
+  'csv',
+  'markdown',
+  'yaml',
+  'ics',
+  'rss',
+  'atom',
+])
+
+/**
+ * Trigger types that require auth or public: true
+ */
+const TRIGGERS_REQUIRING_AUTH = new Set(['http', 'webhook', 'mcp', 'email'])
+
+/**
  * Check if an inline agent config has flat properties that should be nested
  * Returns list of properties that are incorrectly at root level
  */
@@ -330,6 +351,70 @@ async function validateEnsemble(
 
   // Check for inline code in code operation agents (not supported in Cloudflare Workers)
   const parsed = YAML.parse(modifiedContent, { mapAsMap: false, logLevel: 'silent' })
+
+  // Check for deprecated rawBody usage - suggest format instead
+  if (parsed.output && typeof parsed.output === 'object') {
+    if ('rawBody' in parsed.output) {
+      errors.push({
+        file: filePath,
+        message: 'output.rawBody is deprecated. Use output.format instead.',
+        severity: 'warning',
+        fixable: false,
+        suggestion: `Replace:\n  output:\n    rawBody: true\nWith:\n  output:\n    format: text  # or html, xml, csv, markdown, yaml, ics, rss, atom`,
+      })
+    }
+
+    // Validate format field if present
+    if ('format' in parsed.output) {
+      const format = parsed.output.format
+      // Handle both simple string format and object format { type: "..." }
+      const formatType =
+        typeof format === 'string'
+          ? format
+          : typeof format === 'object' && format !== null
+            ? (format as Record<string, unknown>).type
+            : undefined
+      if (typeof formatType === 'string' && !VALID_FORMAT_TYPES.has(formatType)) {
+        errors.push({
+          file: filePath,
+          message: `Invalid output.format type: "${formatType}"`,
+          severity: 'error',
+          fixable: false,
+          suggestion: `Valid format types: ${[...VALID_FORMAT_TYPES].join(', ')}`,
+        })
+      }
+    }
+  }
+
+  // Check for trigger authentication configuration
+  if (parsed.trigger && Array.isArray(parsed.trigger)) {
+    for (let i = 0; i < parsed.trigger.length; i++) {
+      const trigger = parsed.trigger[i]
+      if (!trigger || typeof trigger !== 'object') continue
+
+      const triggerType = trigger.type
+      if (TRIGGERS_REQUIRING_AUTH.has(triggerType)) {
+        const hasAuth = trigger.auth !== undefined
+        const isPublic = trigger.public === true
+
+        if (!hasAuth && !isPublic) {
+          errors.push({
+            file: filePath,
+            message: `Trigger ${i + 1} (${triggerType}): Missing authentication configuration`,
+            severity: 'warning',
+            fixable: false,
+            suggestion: `Add either "public: true" for public access, or "auth:" configuration:\n\ntrigger:\n  - type: ${triggerType}\n    path: ${trigger.path || '/api/...'}\n    public: true  # For public access\n    # OR\n    auth:\n      type: apiKey  # or bearer`,
+          })
+        }
+      }
+    }
+  }
+
+  // Check for apiExecutable flag usage (informational)
+  if (parsed.apiExecutable === false) {
+    // This is fine, just informational that Execute API access is disabled
+  }
+
   if (parsed.agents && Array.isArray(parsed.agents)) {
     for (const agent of parsed.agents) {
       // Check for flat config pattern (agent-specific properties at root level instead of nested in config:)
@@ -481,6 +566,39 @@ async function validateAgent(
         fixable: false,
         suggestion: `Move operation-specific properties under "config:":\n\nname: ${parsed.name || 'my-agent'}\noperation: ${parsed.operation}\nconfig:\n  ${flatProps[0]}: ... # Move properties here`,
       })
+    }
+  }
+
+  // Check for deprecated rawBody usage in agent output
+  if (parsed.output && typeof parsed.output === 'object') {
+    if ('rawBody' in parsed.output) {
+      errors.push({
+        file: filePath,
+        message: 'output.rawBody is deprecated. Use output.format instead.',
+        severity: 'warning',
+        fixable: false,
+        suggestion: `Replace:\n  output:\n    rawBody: true\nWith:\n  output:\n    format: text  # or html, xml, csv, markdown, yaml, ics, rss, atom`,
+      })
+    }
+
+    // Validate format field if present
+    if ('format' in parsed.output) {
+      const format = parsed.output.format
+      const formatType =
+        typeof format === 'string'
+          ? format
+          : typeof format === 'object' && format !== null
+            ? (format as Record<string, unknown>).type
+            : undefined
+      if (typeof formatType === 'string' && !VALID_FORMAT_TYPES.has(formatType)) {
+        errors.push({
+          file: filePath,
+          message: `Invalid output.format type: "${formatType}"`,
+          severity: 'error',
+          fixable: false,
+          suggestion: `Valid format types: ${[...VALID_FORMAT_TYPES].join(', ')}`,
+        })
+      }
     }
   }
 

@@ -21,6 +21,7 @@ export class Ensemble {
         this.notifications = options.notifications;
         this.inputs = options.inputs;
         this.output = options.output;
+        this.apiExecutable = options.apiExecutable;
         // Determine if steps are static or dynamic
         if (typeof options.steps === 'function') {
             this.isDynamic = true;

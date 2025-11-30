@@ -13,22 +13,16 @@ trigger:
     methods: [GET, HEAD]
     public: true
 
-agents:
-  - name: pong
-    operation: code
-    config:
-      inline: |
-        export default async function() {
-          return {
-            pong: true,
-            timestamp: Date.now(),
-            message: "Conductor is running"
-          }
-        }
+flow:
+  - agent: echo
+    input:
+      data:
+        pong: true
+        message: "Conductor is running"
 
 output:
   status: 200
   body:
-    pong: ${{ agents.pong.output.pong }}
-    timestamp: ${{ agents.pong.output.timestamp }}
-    message: ${{ agents.pong.output.message }}
+    pong: ${echo.output.echo.pong}
+    timestamp: ${echo.output.receivedAt}
+    message: ${echo.output.echo.message}

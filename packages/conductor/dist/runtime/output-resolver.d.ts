@@ -7,7 +7,8 @@
  * @module runtime/output-resolver
  */
 import { type ResolvedOutput, type EnsembleOutput } from './output-types.js';
-export type { ResolvedOutput, EnsembleOutput, OutputBlock } from './output-types.js';
+export type { ResolvedOutput, EnsembleOutput, OutputBlock, OutputFormat } from './output-types.js';
+export { getFormatContentType, getFormatType, getFormatExtract } from './output-types.js';
 /**
  * Evaluation context for output resolution
  */
@@ -42,11 +43,17 @@ export declare function resolveOutput(output: EnsembleOutput | undefined, contex
 /**
  * Build an HTTP Response from resolved output
  *
+ * This function handles format-based serialization for trigger responses.
+ * Execute API ignores the format field and always returns JSON.
+ *
  * @param output - Resolved output
- * @param c - Hono context (optional, for redirect helper)
+ * @param options - Options for response building
+ * @param options.ignoreFormat - If true, always return JSON (used by Execute API)
  * @returns HTTP Response
  */
-export declare function buildHttpResponse(output: ResolvedOutput): Response;
+export declare function buildHttpResponse(output: ResolvedOutput, options?: {
+    ignoreFormat?: boolean;
+}): Response;
 /**
  * Check if output indicates a redirect response
  */

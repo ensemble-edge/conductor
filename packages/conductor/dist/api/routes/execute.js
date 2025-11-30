@@ -25,6 +25,57 @@ function getSecurityConfigFromContext(c) {
     return c.get('securityConfig') || DEFAULT_SECURITY_CONFIG;
 }
 /**
+ * Default API config when none is provided
+ */
+const DEFAULT_API_CONFIG = {
+    execution: {
+        agents: { requireExplicit: false },
+        ensembles: { requireExplicit: false },
+    },
+};
+/**
+ * Get API config from context, falling back to defaults
+ */
+function getApiConfigFromContext(c) {
+    return c.get('apiConfig') || DEFAULT_API_CONFIG;
+}
+/**
+ * Check if an ensemble is API executable based on config and ensemble settings
+ *
+ * Logic:
+ * - If requireExplicit: false (default) → executable unless apiExecutable: false
+ * - If requireExplicit: true → only executable if apiExecutable: true
+ */
+function isEnsembleApiExecutable(ensemble, apiConfig) {
+    const requireExplicit = apiConfig.execution?.ensembles?.requireExplicit ?? false;
+    if (requireExplicit) {
+        // Strict mode: must explicitly opt-in
+        return ensemble.apiExecutable === true;
+    }
+    else {
+        // Permissive mode (default): executable unless explicitly disabled
+        return ensemble.apiExecutable !== false;
+    }
+}
+/**
+ * Check if an agent is API executable based on config and agent settings
+ *
+ * Logic:
+ * - If requireExplicit: false (default) → executable unless apiExecutable: false
+ * - If requireExplicit: true → only executable if apiExecutable: true
+ */
+function isAgentApiExecutable(agentConfig, apiConfig) {
+    const requireExplicit = apiConfig.execution?.agents?.requireExplicit ?? false;
+    if (requireExplicit) {
+        // Strict mode: must explicitly opt-in
+        return agentConfig.apiExecutable === true;
+    }
+    else {
+        // Permissive mode (default): executable unless explicitly disabled
+        return agentConfig.apiExecutable !== false;
+    }
+}
+/**
  * Check if user has required permission for resource
  * Returns error response if permission check fails, null if allowed
  */
@@ -80,6 +131,21 @@ async function executeEnsemble(c, ensembleName, input, startTime, requestId, rou
                 timestamp: Date.now(),
                 requestId,
             }, 404);
+        }
+        // Check if ensemble is API executable
+        const apiConfig = getApiConfigFromContext(c);
+        if (!isEnsembleApiExecutable(ensemble, apiConfig)) {
+            const requireExplicit = apiConfig.execution?.ensembles?.requireExplicit ?? false;
+            const message = requireExplicit
+                ? `Ensemble '${ensembleName}' is not API executable. Set apiExecutable: true in the ensemble definition, or set api.execution.ensembles.requireExplicit: false in conductor config to make all ensembles executable by default.`
+                : `Ensemble '${ensembleName}' has API execution explicitly disabled via apiExecutable: false.`;
+            return c.json({
+                success: false,
+                error: {
+                    code: 'EXECUTION_NOT_ALLOWED',
+                    message,
+                },
+            }, 403);
         }
         // Create executor with auth context
         const auth = c.get('auth');
@@ -187,6 +253,26 @@ async function executeAgent(c, agentName, input, config, startTime, requestId, r
                 timestamp: Date.now(),
                 requestId,
             }, 404);
+        }
+        // Check if custom agent is API executable (built-in agents are always executable)
+        if (isCustom) {
+            const customAgentConfig = memberLoader.getAgentConfig(agentName);
+            if (customAgentConfig) {
+                const apiConfig = getApiConfigFromContext(c);
+                if (!isAgentApiExecutable(customAgentConfig, apiConfig)) {
+                    const requireExplicit = apiConfig.execution?.agents?.requireExplicit ?? false;
+                    const message = requireExplicit
+                        ? `Agent '${agentName}' is not API executable. Set apiExecutable: true in the agent definition, or set api.execution.agents.requireExplicit: false in conductor config to make all agents executable by default.`
+                        : `Agent '${agentName}' has API execution explicitly disabled via apiExecutable: false.`;
+                    return c.json({
+                        success: false,
+                        error: {
+                            code: 'EXECUTION_NOT_ALLOWED',
+                            message,
+                        },
+                    }, 403);
+                }
+            }
         }
         // Get agent instance
         let agent;

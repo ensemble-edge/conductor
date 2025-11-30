@@ -6,7 +6,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { createAuthMiddleware, errorHandler, requestId, timing, securityHeaders, securityConfig as securityConfigMiddleware, conductorHeader, debugHeaders, apiSecurityPreset, } from './middleware/index.js';
+import { createAuthMiddleware, errorHandler, requestId, timing, securityHeaders, securityConfig as securityConfigMiddleware, apiConfig as apiConfigMiddleware, conductorHeader, debugHeaders, apiSecurityPreset, } from './middleware/index.js';
 import { execute, agents, ensembles, health, stream, async, webhooks, executions, schedules, mcp, email, callbacks, } from './routes/index.js';
 import { openapi } from './openapi/index.js';
 import { ScheduleManager } from '../runtime/schedule-manager.js';
@@ -31,6 +31,8 @@ export function createConductorAPI(config = {}) {
     app.use('*', timing());
     // Security configuration (injected into context for all routes)
     app.use('*', securityConfigMiddleware(securityConfig));
+    // API configuration (injected into context for execute routes)
+    app.use('*', apiConfigMiddleware(config.api || {}));
     // Logger (if enabled)
     if (config.logging !== false) {
         app.use('*', logger());

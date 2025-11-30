@@ -41,7 +41,7 @@ app.get('/', async (c) => {
             path: t.path,
             methods: t.methods || ['POST'],
             public: t.public || false,
-            auth: t.auth ? { type: t.auth.type } : undefined,
+            auth: t.auth ? { type: 'type' in t.auth ? t.auth.type : t.auth.requirement } : undefined,
         })));
         return c.json({
             webhooks,

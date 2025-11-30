@@ -15,11 +15,13 @@ import {
   timing,
   securityHeaders,
   securityConfig as securityConfigMiddleware,
+  apiConfig as apiConfigMiddleware,
   conductorHeader,
   debugHeaders,
   apiSecurityPreset,
   type SecurityHeadersConfig,
 } from './middleware/index.js'
+import type { ApiConfig } from '../config/types.js'
 import {
   execute,
   agents,
@@ -139,6 +141,13 @@ export interface APIConfig {
      */
     debugHeaders?: boolean
   }
+
+  /**
+   * API execution controls
+   * Controls which agents/ensembles can be executed via the Execute API
+   * (/api/v1/execute/agent/* and /api/v1/execute/ensemble/*)
+   */
+  api?: ApiConfig
 }
 
 /** Typed Hono app with Conductor context */
@@ -167,6 +176,9 @@ export function createConductorAPI(config: APIConfig = {}): ConductorApp {
 
   // Security configuration (injected into context for all routes)
   app.use('*', securityConfigMiddleware(securityConfig))
+
+  // API configuration (injected into context for execute routes)
+  app.use('*', apiConfigMiddleware(config.api || {}))
 
   // Logger (if enabled)
   if (config.logging !== false) {

@@ -144,49 +144,97 @@ const config: ConductorConfig = {
 				}
 			]
 		}
-	}
+	},
+
+	/**
+	 * API execution controls
+	 *
+	 * Controls which agents and ensembles can be executed via the Execute API
+	 * (/api/v1/execute/agent/* and /api/v1/execute/ensemble/*).
+	 *
+	 * By default (requireExplicit: false), all agents/ensembles are executable
+	 * unless they explicitly set apiExecutable: false.
+	 *
+	 * When requireExplicit: true, agents/ensembles must explicitly set
+	 * apiExecutable: true to be executable via the API.
+	 */
+	api: {
+		execution: {
+			agents: {
+				// When true, agents must have apiExecutable: true to be API executable
+				requireExplicit: false
+			},
+			ensembles: {
+				// When true, ensembles must have apiExecutable: true to be API executable
+				requireExplicit: false
+			}
+		}
+	},
 
 	/**
 	 * Documentation generation settings
-	 * NOTE: Docs configuration is not yet integrated with the routing ConductorConfig type.
-	 * This section is commented out until the types are merged.
 	 */
-	// docs: {
-	// 	useAI: true,
-	// 	aiAgent: 'docs-writer',
-	// 	format: 'yaml' as 'yaml' | 'json',
-	// 	includeExamples: true,
-	// 	includeSecurity: true,
-	// 	cache: {
-	// 		enabled: true,
-	// 		ttl: 3600 // 1 hour
-	// 	}
-	// }
+	docs: {
+		// UI framework for API docs
+		ui: 'stoplight',
+
+		// AI-powered documentation enhancement
+		ai: {
+			enabled: false,
+			model: '@cf/meta/llama-3.1-8b-instruct',
+			provider: 'cloudflare'
+		},
+
+		// Output format for CLI-generated docs
+		format: 'yaml',
+
+		// Include examples and security in generated docs
+		includeExamples: true,
+		includeSecurity: true,
+
+		// Cache settings
+		cache: {
+			enabled: true,
+			ttl: 3600 // 1 hour
+		}
+	},
 
 	/**
 	 * Testing configuration
-	 * NOTE: Testing configuration is not yet integrated with the routing ConductorConfig type.
-	 * This section is commented out until the types are merged.
 	 */
-	// testing: {
-	// 	coverage: {
-	// 		lines: 70,
-	// 		functions: 70,
-	// 		branches: 65,
-	// 		statements: 70
-	// 	}
-	// }
+	testing: {
+		// Coverage thresholds
+		coverage: {
+			lines: 70,
+			functions: 70,
+			branches: 65,
+			statements: 70
+		},
+
+		// Test timeout in milliseconds
+		timeout: 30000
+	},
 
 	/**
 	 * Observability configuration
-	 * NOTE: Observability configuration is not yet integrated with the routing ConductorConfig type.
-	 * This section is commented out until the types are merged.
 	 */
-	// observability: {
-	// 	logging: true,
-	// 	logLevel: 'info' as 'debug' | 'info' | 'warn' | 'error',
-	// 	metrics: true
-	// }
+	observability: {
+		// Logging configuration
+		logging: {
+			enabled: true,
+			level: 'info',
+			format: 'json'
+		},
+
+		// Metrics configuration (Cloudflare Analytics Engine)
+		metrics: {
+			enabled: true,
+			binding: 'ANALYTICS'
+		},
+
+		// Track AI token usage
+		trackTokenUsage: true
+	}
 };
 
 export default config;

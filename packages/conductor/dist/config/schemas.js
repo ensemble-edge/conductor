@@ -109,13 +109,7 @@ export const RoutingConfigSchema = z.object({
 /**
  * Documentation UI framework type
  */
-export const DocsUIFrameworkSchema = z.enum([
-    'stoplight',
-    'redoc',
-    'swagger',
-    'scalar',
-    'rapidoc',
-]);
+export const DocsUIFrameworkSchema = z.enum(['stoplight', 'redoc', 'swagger', 'scalar', 'rapidoc']);
 /**
  * Documentation theme schema
  */
@@ -289,6 +283,40 @@ export const ExecutionConfigSchema = z.object({
     storeStateSnapshots: z.boolean().optional(),
 });
 // ============================================================================
+// API Schema
+// ============================================================================
+/**
+ * API execution controls for agents
+ */
+export const ApiAgentsExecutionConfigSchema = z.object({
+    requireExplicit: z
+        .boolean()
+        .optional()
+        .describe('When true, agents need explicit apiExecutable: true to be API executable'),
+});
+/**
+ * API execution controls for ensembles
+ */
+export const ApiEnsemblesExecutionConfigSchema = z.object({
+    requireExplicit: z
+        .boolean()
+        .optional()
+        .describe('When true, ensembles need explicit apiExecutable: true to be API executable'),
+});
+/**
+ * API execution configuration schema
+ */
+export const ApiExecutionConfigSchema = z.object({
+    agents: ApiAgentsExecutionConfigSchema.optional(),
+    ensembles: ApiEnsemblesExecutionConfigSchema.optional(),
+});
+/**
+ * API configuration schema
+ */
+export const ApiConfigSchema = z.object({
+    execution: ApiExecutionConfigSchema.optional(),
+});
+// ============================================================================
 // Storage Schema
 // ============================================================================
 /**
@@ -316,6 +344,7 @@ export const ConductorConfigSchema = z.object({
     observability: ObservabilityConfigSchema.optional(),
     execution: ExecutionConfigSchema.optional(),
     storage: StorageConfigSchema.optional(),
+    api: ApiConfigSchema.optional(),
 });
 /**
  * Validate a ConductorConfig object

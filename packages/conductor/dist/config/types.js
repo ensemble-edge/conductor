@@ -65,4 +65,14 @@ export const DEFAULT_CONFIG = {
         type: 'filesystem',
         path: './.conductor',
     },
+    api: {
+        execution: {
+            agents: {
+                requireExplicit: false,
+            },
+            ensembles: {
+                requireExplicit: false,
+            },
+        },
+    },
 };

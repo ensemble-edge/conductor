@@ -241,7 +241,7 @@ export class Executor {
      */
     async executeAgentWithScoring(stepContext) {
         const { step, flowContext, agent, agentContext, getPendingUpdates } = stepContext;
-        const { ensemble, executionContext, scoringState, ensembleScorer, scoringExecutor, stateManager } = flowContext;
+        const { ensemble, executionContext, scoringState, ensembleScorer, scoringExecutor, stateManager, } = flowContext;
         const agentTimeout = step.timeout ?? this.defaultTimeout;
         const scoringConfig = step.scoring;
         const scoredResult = await scoringExecutor.executeWithScoring(
@@ -465,6 +465,7 @@ export class Executor {
         const contextKey = step.id || step.agent;
         executionContext[contextKey] = {
             output: response.data,
+            success: true,
         };
         // 13. Update state context with new state from immutable StateManager
         if (flowContext.stateManager) {
@@ -537,11 +538,12 @@ export class Executor {
                 };
             }
             else {
-                // JSON body
+                // JSON body (or formatted body for triggers)
                 finalOutput = resolved.body ?? {};
                 responseMetadata = {
                     status: resolved.status,
                     headers: resolved.headers,
+                    format: resolved.format,
                 };
             }
         }
@@ -591,7 +593,7 @@ export class Executor {
             // Merge graph context into flow context's execution context
             // This ensures previous step outputs are available
             for (const [key, value] of graphContext.results) {
-                executionContext[key] = { output: value };
+                executionContext[key] = { output: value, success: true };
             }
             // Execute the agent step using existing logic
             const stepIndex = ensemble.flow
@@ -619,7 +621,7 @@ export class Executor {
         }
         // Merge graph results into execution context
         for (const [key, value] of Object.entries(graphResult.value)) {
-            executionContext[key] = { output: value };
+            executionContext[key] = { output: value, success: true };
         }
         // Calculate final ensemble score if scoring was enabled
         if (scoringState && ensembleScorer && scoringState.scoreHistory.length > 0) {
@@ -650,10 +652,12 @@ export class Executor {
                 };
             }
             else {
+                // JSON body (or formatted body for triggers)
                 finalOutput = resolved.body ?? {};
                 responseMetadata = {
                     status: resolved.status,
                     headers: resolved.headers,
+                    format: resolved.format,
                 };
             }
         }
@@ -919,8 +923,12 @@ export class Executor {
             };
         }
         // Context for resolving interpolations
+        // Both 'input' and 'trigger' reference the same data for backwards compatibility
+        // - 'input' is the original key (for agent step inputs)
+        // - 'trigger' is an alias for HTTP request context (method, path, query, headers, body)
         const executionContext = {
             input,
+            trigger: input, // Alias for semantic clarity in YAML templates
             state: stateManager ? stateManager.getState() : {},
             scoring: scoringState || {},
         };

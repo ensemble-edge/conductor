@@ -260,6 +260,17 @@ export interface EnsembleOptions {
   /** Output mapping */
   output?: Record<string, unknown>
 
+  /**
+   * Control whether this ensemble can be executed via the Execute API
+   * (/api/v1/execute/ensemble/:name)
+   *
+   * When api.execution.ensembles.requireExplicit is false (default):
+   *   - Ensembles are executable unless apiExecutable: false
+   * When api.execution.ensembles.requireExplicit is true:
+   *   - Ensembles need apiExecutable: true to be executable
+   */
+  apiExecutable?: boolean
+
   // =========================================================================
   // Lifecycle Hooks (TypeScript-only feature)
   // =========================================================================
@@ -354,6 +365,9 @@ export class Ensemble {
   /** Whether steps are dynamically generated */
   public readonly isDynamic: boolean
 
+  /** Control Execute API access */
+  public readonly apiExecutable?: boolean
+
   constructor(options: EnsembleOptions) {
     this.name = options.name
     this.version = options.version
@@ -365,6 +379,7 @@ export class Ensemble {
     this.notifications = options.notifications
     this.inputs = options.inputs
     this.output = options.output
+    this.apiExecutable = options.apiExecutable
 
     // Determine if steps are static or dynamic
     if (typeof options.steps === 'function') {

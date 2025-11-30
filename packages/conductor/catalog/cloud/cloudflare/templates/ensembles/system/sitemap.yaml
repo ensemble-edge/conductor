@@ -63,7 +63,12 @@ input:
         priority: 0.5
 
 output:
-  sitemap: ${generate-sitemap.output}
+  status: 200
+  format:
+    type: xml
+    extract: sitemap
+  body:
+    sitemap: ${generate-sitemap.output.html}
 
 # Example with dynamic content generation:
 # agents:
