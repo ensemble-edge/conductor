@@ -417,46 +417,95 @@ curl -X POST http://localhost:9999/api/v1/execute \
 - `/docs/*` routes return **HTML** pages for human-readable documentation (browser viewing)
 - `/api/v1/*` routes return **JSON** for programmatic access
 
-### 7.1 HTML Documentation (Human-Readable)
+### 7.1 All Documentation Routes (Complete Test)
+
+Run this comprehensive test of all documentation endpoints:
 
 ```bash
-# Docs UI - returns HTML page
-curl -s http://localhost:9999/docs | head -20
+echo "=== Testing all docs routes ==="
 
-# Agent documentation page - returns HTML
-curl -s http://localhost:9999/docs/agents | head -20
+# 1. Landing Page
+echo "--- /docs (Landing Page) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs | head -5
 
-# Ensemble documentation page - returns HTML
-curl -s http://localhost:9999/docs/ensembles | head -20
+# 2. Agents List
+echo "--- /docs/agents (Agents List) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs/agents | head -5
+
+# 3. Agent Detail (use a known agent like 'docs' or 'greeting')
+echo "--- /docs/agents/:name (Agent Detail) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs/agents/greeting | head -5
+
+# 4. Ensembles List
+echo "--- /docs/ensembles (Ensembles List) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs/ensembles | head -5
+
+# 5. Ensemble Detail (use a known ensemble)
+echo "--- /docs/ensembles/:name (Ensemble Detail) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs/ensembles/hello-world | head -5
+
+# 6. API Reference (Stoplight Elements UI)
+echo "--- /docs/api (API Reference UI) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs/api | head -5
+
+# 7. OpenAPI JSON Spec
+echo "--- /docs/openapi.json (OpenAPI Spec) ---"
+curl -s http://localhost:9999/docs/openapi.json | jq '.info, .paths | keys | length'
+
+# 8. OpenAPI YAML Spec
+echo "--- /docs/openapi.yaml (OpenAPI YAML) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs/openapi.yaml | head -10
+
+# 9. Markdown Doc Page (if docs/ directory has .md files)
+echo "--- /docs/:slug (Markdown Page) ---"
+curl -s -w "\nHTTP: %{http_code}\n" http://localhost:9999/docs/getting-started | head -5
 ```
 
-**Expected**: All `/docs/*` routes return HTML (not JSON). These are meant for browser viewing.
+### 7.2 Expected Results Table
 
-**Check for issues**:
-- [ ] Docs UI returns HTML with `<!DOCTYPE html>` or similar
-- [ ] `/docs/agents` returns HTML documentation page
-- [ ] `/docs/ensembles` returns HTML documentation page
+| Route | Action | Expected Status | Content |
+|-------|--------|-----------------|---------|
+| `/docs` | render-landing | 200 | HTML landing page |
+| `/docs/agents` | render-agents | 200 | `<h1>Agents</h1>` |
+| `/docs/agents/:name` | render-agent-detail | 200 | Agent detail page |
+| `/docs/ensembles` | render-ensembles | 200 | `<h1>Ensembles</h1>` |
+| `/docs/ensembles/:name` | render-ensemble-detail | 200 | Ensemble detail page |
+| `/docs/api` | render-api | 200 | Stoplight Elements UI |
+| `/docs/openapi.json` | generate-openapi | 200 | Valid JSON spec |
+| `/docs/openapi.yaml` | generate-openapi | 200 | Valid YAML spec |
+| `/docs/:slug` | render-page | 200 | Rendered markdown |
 
-### 7.2 JSON API (Programmatic Access)
+### 7.3 Check for Issues
+
+- [ ] All routes return HTTP 200 (not 404 or 500)
+- [ ] `/docs` returns HTML landing page with navigation
+- [ ] `/docs/agents` lists all discovered agents
+- [ ] `/docs/agents/:name` shows agent schema and description
+- [ ] `/docs/ensembles` lists all discovered ensembles
+- [ ] `/docs/ensembles/:name` shows ensemble flow and triggers
+- [ ] `/docs/api` loads Stoplight Elements API documentation UI
+- [ ] `/docs/openapi.json` returns valid JSON with paths
+- [ ] `/docs/openapi.yaml` returns valid YAML format
+- [ ] `/docs/:slug` renders markdown files from `docs/` directory
+- [ ] Custom agents/ensembles appear in documentation
+
+### 7.4 JSON API (Programmatic Access)
 
 ```bash
-# OpenAPI spec - returns JSON
-curl http://localhost:9999/docs/openapi.json | jq '.info'
-
 # Agent list API - returns JSON array
 curl http://localhost:9999/api/v1/agents | jq '.agents[].name'
 
 # Ensemble list API - returns JSON array
 curl http://localhost:9999/api/v1/ensembles | jq '.ensembles[].name'
+
+# Single agent details
+curl http://localhost:9999/api/v1/agents/greeting | jq .
 ```
 
-**Expected**: OpenAPI spec and `/api/v1/*` routes return valid JSON.
-
 **Check for issues**:
-- [ ] OpenAPI spec is valid JSON with correct structure
 - [ ] `/api/v1/agents` returns JSON with agents array
 - [ ] `/api/v1/ensembles` returns JSON with ensembles array
-- [ ] Custom agents/ensembles appear in both HTML and JSON endpoints
+- [ ] Custom agents/ensembles appear in JSON endpoints
 
 ---
 
@@ -978,14 +1027,19 @@ Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
 - [ ] API works: ✅/❌
 - [ ] Returns execution ID: ✅/❌
 
-### Phase 7: Documentation
-- [ ] OpenAPI spec (JSON): ✅/❌
-- [ ] Docs UI (HTML): ✅/❌
-- [ ] `/docs/agents` returns HTML: ✅/❌
-- [ ] `/docs/ensembles` returns HTML: ✅/❌
-- [ ] `/api/v1/agents` returns JSON: ✅/❌
-- [ ] `/api/v1/ensembles` returns JSON: ✅/❌
-- [ ] Auto-discovery works: ✅/❌
+### Phase 7: Documentation Endpoints
+- [ ] `/docs` landing page (200): ✅/❌
+- [ ] `/docs/agents` agents list (200): ✅/❌
+- [ ] `/docs/agents/:name` agent detail (200): ✅/❌
+- [ ] `/docs/ensembles` ensembles list (200): ✅/❌
+- [ ] `/docs/ensembles/:name` ensemble detail (200): ✅/❌
+- [ ] `/docs/api` Stoplight Elements UI (200): ✅/❌
+- [ ] `/docs/openapi.json` JSON spec (200): ✅/❌
+- [ ] `/docs/openapi.yaml` YAML spec (200): ✅/❌
+- [ ] `/docs/:slug` markdown page (200): ✅/❌
+- [ ] `/api/v1/agents` JSON list: ✅/❌
+- [ ] `/api/v1/ensembles` JSON list: ✅/❌
+- [ ] Custom agents/ensembles appear: ✅/❌
 
 ### Phase 8: Trigger Authentication
 - [ ] Bearer auth (missing token → 401): ✅/❌
@@ -1092,6 +1146,25 @@ Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
 **Body Parsing Works**: ✅/❌
 **Route Structure Correct**: ✅/❌
 
+## Documentation Endpoints Verification Results
+
+| Route | Expected | Actual Status | Content Verified |
+|-------|----------|---------------|------------------|
+| `/docs` | 200 | | HTML landing page |
+| `/docs/agents` | 200 | | `<h1>Agents</h1>` |
+| `/docs/agents/:name` | 200 | | Agent detail page |
+| `/docs/ensembles` | 200 | | `<h1>Ensembles</h1>` |
+| `/docs/ensembles/:name` | 200 | | Ensemble detail page |
+| `/docs/api` | 200 | | Stoplight Elements API |
+| `/docs/openapi.json` | 200 | | Valid JSON with paths |
+| `/docs/openapi.yaml` | 200 | | Valid YAML format |
+| `/docs/:slug` | 200 | | Rendered markdown |
+
+**All Routes Return 200**: ✅/❌
+**HTML Pages Render Correctly**: ✅/❌
+**OpenAPI Spec Valid**: ✅/❌
+**Custom Agents/Ensembles Listed**: ✅/❌
+
 ## Performance Metrics
 
 | Metric | Value |
@@ -1176,5 +1249,5 @@ Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
 
 ---
 
-**Last Updated**: 2025-11-29
-**Version**: 2.3 - Added Cloudflare compatibility check (nodejs_compat), updated test count to 45+, simplified test directory setup
+**Last Updated**: 2025-12-01
+**Version**: 2.4 - Enhanced Phase 7 with comprehensive documentation endpoints testing (all 9 /docs/* routes)

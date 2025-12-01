@@ -30,7 +30,7 @@ import {
   excludeDirsToIgnore,
   DEFAULT_AGENT_DISCOVERY,
 } from './config-loader.js';
-import type { AgentDiscoveryConfig } from '../../../../../src/config/discovery.js';
+import type { AgentDiscoveryConfig } from '@ensemble-edge/conductor';
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-agents';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;

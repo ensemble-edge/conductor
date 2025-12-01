@@ -15,14 +15,14 @@ import type {
   EnsembleDiscoveryConfig,
   DocsDiscoveryConfig,
   ScriptsDiscoveryConfig,
-} from '../../../../../src/config/discovery.js';
+} from '@ensemble-edge/conductor';
 import {
   DEFAULT_AGENT_DISCOVERY,
   DEFAULT_ENSEMBLE_DISCOVERY,
   DEFAULT_DOCS_DISCOVERY,
   DEFAULT_SCRIPTS_DISCOVERY,
   mergeDiscoveryConfig,
-} from '../../../../../src/config/discovery.js';
+} from '@ensemble-edge/conductor';
 
 /**
  * Config file names to look for (in order of preference)
