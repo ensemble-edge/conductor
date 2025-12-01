@@ -18,6 +18,16 @@ import type {
 } from './types.js'
 
 /**
+ * Schema configuration for output mapping (think agents)
+ */
+export interface SchemaConfig {
+  /** Input schema */
+  input?: Record<string, unknown>
+  /** Output schema for mapping AI response to named fields */
+  output?: Record<string, unknown>
+}
+
+/**
  * Configuration options for creating a step
  */
 export interface StepOptions {
@@ -62,6 +72,12 @@ export interface StepOptions {
 
   /** State access configuration */
   state?: StateAccessConfig
+
+  /** Schema for output mapping (think agents) */
+  schema?: SchemaConfig
+
+  /** Prompt template (think agents) - alternative to config.prompt */
+  prompt?: string
 }
 
 /**
@@ -118,6 +134,8 @@ export function step(name: string, options: StepOptions = {}): AgentFlowStep {
     cache,
     scoring,
     state,
+    schema,
+    prompt,
   } = options
 
   // Build the step object
@@ -138,15 +156,25 @@ export function step(name: string, options: StepOptions = {}): AgentFlowStep {
   if (scoring !== undefined) agentStep.scoring = scoring
   if (state !== undefined) agentStep.state = state
 
-  // Handle operation/script/config - these go into the step for inline agents
+  // Handle operation/script/config/schema/prompt - these go into the step for inline agents
   // When the step references a pre-defined agent, these are ignored
   // When the step IS the agent definition, these define it
-  if (operation !== undefined || script !== undefined || config !== undefined) {
+  if (
+    operation !== undefined ||
+    script !== undefined ||
+    config !== undefined ||
+    schema !== undefined ||
+    prompt !== undefined
+  ) {
     // For inline agent definition, we store these in a way the executor understands
     // The executor will create an inline agent from these properties
-    ;(agentStep as AgentFlowStep & AgentStepConfig).operation = operation
-    ;(agentStep as AgentFlowStep & AgentStepConfig).script = script
-    ;(agentStep as AgentFlowStep & AgentStepConfig).config = config
+    const extendedStep = agentStep as AgentFlowStep &
+      AgentStepConfig & { schema?: SchemaConfig; prompt?: string }
+    if (operation !== undefined) extendedStep.operation = operation
+    if (script !== undefined) extendedStep.script = script
+    if (config !== undefined) extendedStep.config = config
+    if (schema !== undefined) extendedStep.schema = schema
+    if (prompt !== undefined) extendedStep.prompt = prompt
   }
 
   return agentStep

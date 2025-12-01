@@ -270,7 +270,15 @@ export function isConditionalOutput(output: EnsembleOutput): output is OutputBlo
 /**
  * Known OutputBlock keys - used to detect if an object is an OutputBlock
  */
-const OUTPUT_BLOCK_KEYS = new Set(['when', 'status', 'headers', 'body', 'rawBody', 'redirect', 'format'])
+const OUTPUT_BLOCK_KEYS = new Set([
+  'when',
+  'status',
+  'headers',
+  'body',
+  'rawBody',
+  'redirect',
+  'format',
+])
 
 /**
  * Check if an object looks like an OutputBlock (has OutputBlock-specific keys)
