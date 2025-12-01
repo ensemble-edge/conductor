@@ -87,6 +87,23 @@ export type {
 // Config Module (full config type for conductor.config.ts)
 export type { ConductorConfig as FullConductorConfig } from './config/types.js'
 
+// Discovery Configuration (for build-time Vite plugins)
+export type {
+  DiscoveryConfig,
+  AgentDiscoveryConfig,
+  EnsembleDiscoveryConfig,
+  DocsDiscoveryConfig,
+  ScriptsDiscoveryConfig,
+} from './config/discovery.js'
+export {
+  DEFAULT_DISCOVERY_CONFIG,
+  DEFAULT_AGENT_DISCOVERY,
+  DEFAULT_ENSEMBLE_DISCOVERY,
+  DEFAULT_DOCS_DISCOVERY,
+  DEFAULT_SCRIPTS_DISCOVERY,
+  mergeDiscoveryConfig,
+} from './config/discovery.js'
+
 // Types
 export type {
   EnsembleConfig,
