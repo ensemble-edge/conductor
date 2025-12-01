@@ -1,5 +1,57 @@
 # @ensemble-edge/conductor
 
+## 0.4.8
+
+### Patch Changes
+
+- 1b0dcb1: ### Runtime & Memory System
+  - Consolidate graph executor by removing separate graph-types.ts
+  - Add `GraphState` interface with comprehensive node execution tracking
+  - Add `getMemoryManager()` accessor to `BaseAgent` for easier memory access
+  - Add `getFullHistory()`, `getAllShortTerm()`, and `getRecentShortTerm()` methods to session memory
+  - Add `MessageRole` type and `MemoryExportData` interface for memory serialization
+
+  ### Security & Auth
+  - Add timing-safe comparison for JWT signature verification
+  - Implement SSRF protection with URL/IP validation in safe-fetch utility
+  - Add PII redaction in logger for sensitive data patterns
+  - Use constant-time string comparison for API key/token validation
+  - Add Unkey validator integration via dynamic import
+
+  ### RAG Agent (Cloudflare AI & Vectorize)
+  - Real embedding generation with `@cf/baai/bge-base-en-v1.5`
+  - Real vector storage/search with Cloudflare Vectorize
+  - Optional reranking with `@cf/baai/bge-reranker-base`
+  - Batching: 100 texts/embedding, 1000 vectors/upsert
+  - Multi-tenant isolation via namespace config
+
+  ### HITL Agent (Durable Object Integration)
+  - Full integration with `HITLState` Durable Object
+  - Slack webhook notifications with Block Kit UI
+  - Email notifications via MailChannels API
+  - Webhook notifications with callback URLs
+
+  ### MCP Routes (Model Context Protocol)
+  - `discoverExposedEnsembles()` via CatalogLoader
+  - `buildInputSchema()` for JSON Schema generation
+  - JWT authentication with env var resolution
+
+  ### Email Trigger
+  - Complete RFC822 header parsing with continuations
+  - RFC 2047 encoded word decoding
+  - MIME multipart handling with attachment extraction
+
+  ### Template & Test Fixes
+  - Fix hello-world.yaml conditional output evaluation
+  - Fix basic.test.ts assertions for output structure
+  - Fix trigger-auth.test.ts for async validator functions
+  - Fix mcp-integration.test.ts for MCP protocol error responses
+
+  ### Cloudflare Compatibility
+  - Move CLI-only dependencies to optionalDependencies
+  - Add `nodejs_compat` flag to wrangler.toml
+  - Document CLI-only functions in loader.ts
+
 ## 0.4.7
 
 ### Patch Changes
