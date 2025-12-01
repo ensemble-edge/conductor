@@ -39,6 +39,7 @@ export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js
 export * from './auth/index.js';
 // Routing Module
 export { UnifiedRouter } from './routing/router.js';
+export { DEFAULT_DISCOVERY_CONFIG, DEFAULT_AGENT_DISCOVERY, DEFAULT_ENSEMBLE_DISCOVERY, DEFAULT_DOCS_DISCOVERY, DEFAULT_SCRIPTS_DISCOVERY, mergeDiscoveryConfig, } from './config/discovery.js';
 // Build and CLI Managers
 export { BuildManager, getBuildManager, resetBuildManager } from './runtime/build-manager.js';
 export { CLIManager, getCLIManager, resetCLIManager } from './runtime/cli-manager.js';

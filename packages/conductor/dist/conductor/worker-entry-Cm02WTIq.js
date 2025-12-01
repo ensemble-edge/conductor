@@ -25400,7 +25400,7 @@ class HtmlAgent extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache2;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-ful1ANox.js");
+        const { MemoryCache } = await import("./cache-D9rKffMB.js");
         cache2 = new MemoryCache({
           defaultTTL: 3600
         });
@@ -25486,7 +25486,7 @@ class HtmlAgent extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache2;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-ful1ANox.js");
+          const { MemoryCache } = await import("./cache-D9rKffMB.js");
           cache2 = new MemoryCache({
             defaultTTL: 3600
           });
@@ -26080,7 +26080,7 @@ function registerAllBuiltInAgents(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-D8J_oiXa.js");
+      const { RAGMember } = await import("./index-BzdIOnn7.js");
       return new RAGMember(config, env);
     }
   );
@@ -26116,7 +26116,7 @@ function registerAllBuiltInAgents(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-DbS6WBaI.js");
+      const { HITLMember } = await import("./index-PLEcoRUJ.js");
       return new HITLMember(config, env);
     }
   );
@@ -34921,6 +34921,82 @@ class UnifiedRouter {
     );
   }
 }
+const DEFAULT_AGENT_DISCOVERY = {
+  enabled: true,
+  directory: "agents",
+  patterns: ["**/*.yaml", "**/*.yml"],
+  configFile: "agent.yaml",
+  excludeDirs: ["generate-docs", "node_modules"],
+  includeExamples: true,
+  handlerExtensions: [".ts"]
+};
+const DEFAULT_ENSEMBLE_DISCOVERY = {
+  enabled: true,
+  directory: "ensembles",
+  patterns: ["**/*.yaml", "**/*.yml", "**/*.ts"],
+  configFile: "ensemble.yaml",
+  excludeDirs: ["node_modules"],
+  includeExamples: true,
+  supportTypeScript: true
+};
+const DEFAULT_DOCS_DISCOVERY = {
+  enabled: true,
+  directory: "docs",
+  patterns: ["**/*.md"],
+  excludeDirs: ["node_modules"],
+  excludeReadme: true
+};
+const DEFAULT_SCRIPTS_DISCOVERY = {
+  enabled: false,
+  // Scripts disabled by default
+  directory: "scripts",
+  patterns: ["**/*.ts"],
+  excludeDirs: ["node_modules"],
+  entryPoint: "index.ts"
+};
+const DEFAULT_DISCOVERY_CONFIG = {
+  agents: DEFAULT_AGENT_DISCOVERY,
+  ensembles: DEFAULT_ENSEMBLE_DISCOVERY,
+  docs: DEFAULT_DOCS_DISCOVERY,
+  scripts: DEFAULT_SCRIPTS_DISCOVERY
+};
+const DiscoveryTypeConfigSchema = objectType({
+  enabled: booleanType().optional().describe("Whether this discovery type is enabled"),
+  directory: stringType().min(1).describe("Directory to scan for files"),
+  patterns: arrayType(stringType()).min(1).describe("Glob patterns to match files"),
+  configFile: stringType().optional().describe("Config filename to look for"),
+  excludeDirs: arrayType(stringType()).optional().describe("Directories to exclude"),
+  includeExamples: booleanType().optional().describe("Include example files")
+});
+const AgentDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  handlerExtensions: arrayType(stringType()).optional().describe("Handler file extensions")
+});
+const EnsembleDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  supportTypeScript: booleanType().optional().describe("Support TypeScript ensembles")
+});
+const DocsDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  excludeReadme: booleanType().optional().describe("Exclude README files")
+});
+const ScriptsDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  entryPoint: stringType().optional().describe("Entry point file pattern")
+});
+objectType({
+  agents: AgentDiscoveryConfigSchema.optional(),
+  ensembles: EnsembleDiscoveryConfigSchema.optional(),
+  docs: DocsDiscoveryConfigSchema.optional(),
+  scripts: ScriptsDiscoveryConfigSchema.optional()
+});
+function mergeDiscoveryConfig(userConfig) {
+  if (!userConfig) {
+    return DEFAULT_DISCOVERY_CONFIG;
+  }
+  return {
+    agents: userConfig.agents ? { ...DEFAULT_AGENT_DISCOVERY, ...userConfig.agents } : DEFAULT_AGENT_DISCOVERY,
+    ensembles: userConfig.ensembles ? { ...DEFAULT_ENSEMBLE_DISCOVERY, ...userConfig.ensembles } : DEFAULT_ENSEMBLE_DISCOVERY,
+    docs: userConfig.docs ? { ...DEFAULT_DOCS_DISCOVERY, ...userConfig.docs } : DEFAULT_DOCS_DISCOVERY,
+    scripts: userConfig.scripts ? { ...DEFAULT_SCRIPTS_DISCOVERY, ...userConfig.scripts } : DEFAULT_SCRIPTS_DISCOVERY
+  };
+}
 class BuildManager {
   constructor(logger2) {
     this.ensembles = /* @__PURE__ */ new Map();
@@ -36308,7 +36384,7 @@ function createConductorHandler(config) {
 }
 const workerEntry = {};
 export {
-  thinkStep as $,
+  DocsManager as $,
   APIAgent as A,
   BaseAgent as B,
   CLIManager as C,
@@ -36317,156 +36393,162 @@ export {
   FunctionAgent as F,
   GraphExecutor as G,
   HttpMiddlewareRegistry as H,
-  ResumeToken as I,
-  CacheKey as J,
-  isLifecyclePlugin as K,
-  isFunctionalPlugin as L,
+  EnsembleName as I,
+  ProviderId as J,
+  PlatformName as K,
+  BindingName as L,
   MemberLoader as M,
-  buildPlugin as N,
+  ExecutionId as N,
   OperationRegistry as O,
   Parser$1 as P,
-  DocsManager as Q,
+  RequestId as Q,
   Result as R,
   StateManager as S,
   TriggerRegistry as T,
   UnifiedRouter as U,
   VersionString as V,
-  getGlobalDocsManager as W,
-  step as X,
-  sequence as Y,
-  scriptStep as Z,
-  httpStep as _,
+  ResumeToken as W,
+  CacheKey as X,
+  isLifecyclePlugin as Y,
+  isFunctionalPlugin as Z,
+  buildPlugin as _,
   createConductorHandler as a,
-  outputRef as a$,
-  storageStep as a0,
-  dataStep as a1,
-  emailStep as a2,
-  agentStep as a3,
-  parallel as a4,
-  race as a5,
-  branch as a6,
-  ifThen as a7,
-  ifThenElse as a8,
-  switchStep as a9,
-  fileInstruction as aA,
-  templateInstruction as aB,
-  dynamicInstruction as aC,
-  conditionalInstruction as aD,
-  combineInstructions as aE,
-  prompt as aF,
-  Instruction as aG,
-  isInstruction as aH,
-  isInstructionConfig as aI,
-  memory as aJ,
-  kvMemory as aK,
-  r2Memory as aL,
-  d1Memory as aM,
-  vectorMemory as aN,
-  durableMemory as aO,
-  customMemory as aP,
-  conversationMemory as aQ,
-  knowledgeBase as aR,
-  Memory as aS,
-  isMemory as aT,
-  isMemoryConfig as aU,
-  ref as aV,
-  inputRef as aW,
-  stateRef as aX,
-  envRef as aY,
-  stepRef as aZ,
-  contextRef as a_,
-  foreach as aa,
-  map as ab,
-  repeat as ac,
-  whileStep as ad,
-  doWhile as ae,
-  doUntil as af,
-  tryStep as ag,
-  fallback as ah,
-  mapReduce as ai,
-  createEnsemble as aj,
-  Ensemble as ak,
-  isEnsemble as al,
-  ensembleFromConfig as am,
-  createTool as an,
-  mcpTool as ao,
-  customTool as ap,
-  httpTool as aq,
-  skillTool as ar,
-  toolCollection as as,
-  Tool as at,
-  isTool as au,
-  isToolConfig as av,
-  instruction as aw,
-  systemInstruction as ax,
-  userInstruction as ay,
-  assistantInstruction as az,
+  ref as a$,
+  getGlobalDocsManager as a0,
+  step as a1,
+  sequence as a2,
+  scriptStep as a3,
+  httpStep as a4,
+  thinkStep as a5,
+  storageStep as a6,
+  dataStep as a7,
+  emailStep as a8,
+  agentStep as a9,
+  isTool as aA,
+  isToolConfig as aB,
+  instruction as aC,
+  systemInstruction as aD,
+  userInstruction as aE,
+  assistantInstruction as aF,
+  fileInstruction as aG,
+  templateInstruction as aH,
+  dynamicInstruction as aI,
+  conditionalInstruction as aJ,
+  combineInstructions as aK,
+  prompt as aL,
+  Instruction as aM,
+  isInstruction as aN,
+  isInstructionConfig as aO,
+  memory as aP,
+  kvMemory as aQ,
+  r2Memory as aR,
+  d1Memory as aS,
+  vectorMemory as aT,
+  durableMemory as aU,
+  customMemory as aV,
+  conversationMemory as aW,
+  knowledgeBase as aX,
+  Memory as aY,
+  isMemory as aZ,
+  isMemoryConfig as a_,
+  parallel as aa,
+  race as ab,
+  branch as ac,
+  ifThen as ad,
+  ifThenElse as ae,
+  switchStep as af,
+  foreach as ag,
+  map as ah,
+  repeat as ai,
+  whileStep as aj,
+  doWhile as ak,
+  doUntil as al,
+  tryStep as am,
+  fallback as an,
+  mapReduce as ao,
+  createEnsemble as ap,
+  Ensemble as aq,
+  isEnsemble as ar,
+  ensembleFromConfig as as,
+  createTool as at,
+  mcpTool as au,
+  customTool as av,
+  httpTool as aw,
+  skillTool as ax,
+  toolCollection as ay,
+  Tool as az,
   PluginRegistry as b,
-  buildPermission as b$,
-  computed as b0,
-  template as b1,
-  parseRef as b2,
-  refMap as b3,
-  Reference as b4,
-  isReference as b5,
-  isComputed as b6,
-  isTemplate as b7,
-  isRefExpression as b8,
-  suspend as b9,
-  ApiKeyValidator as bA,
-  createApiKeyValidator as bB,
-  CookieValidator as bC,
-  createCookieValidator as bD,
-  UnkeyValidator as bE,
-  createUnkeyValidator as bF,
-  StripeSignatureValidator as bG,
-  GitHubSignatureValidator as bH,
-  TwilioSignatureValidator as bI,
-  CustomValidatorRegistry as bJ,
-  createCustomValidatorRegistry as bK,
-  SignatureValidator as bL,
-  createSignatureValidator as bM,
-  signaturePresets as bN,
-  BasicAuthValidator as bO,
-  createBasicValidator as bP,
-  createBasicValidatorFromEnv as bQ,
-  getValidatorForTrigger as bR,
-  createTriggerAuthMiddleware as bS,
-  validateTriggerAuthConfig as bT,
-  hasPermission as bU,
-  hasAnyPermission as bV,
-  hasAllPermissions as bW,
-  getMissingPermissions as bX,
-  normalizePermission as bY,
-  isValidPermissionFormat as bZ,
-  parsePermission as b_,
-  checkpoint as ba,
-  sleep as bb,
-  sleepSeconds as bc,
-  sleepMinutes as bd,
-  sleepUntil as be,
-  schedule as bf,
-  approval as bg,
-  waitForWebhook as bh,
-  waitForInput as bi,
-  isSuspendStep as bj,
-  isSleepStep as bk,
-  isScheduleStep as bl,
-  isApprovalStep as bm,
-  isAsyncStep as bn,
-  isParallelStep as bo,
-  isAgentStep$1 as bp,
-  isBranchStep as bq,
-  isForeachStep as br,
-  isTryStep as bs,
-  isSwitchStep as bt,
-  isWhileStep as bu,
-  isMapReduceStep as bv,
-  isFlowControlStep as bw,
-  isControlFlowStep as bx,
-  BearerValidator as by,
-  createBearerValidator as bz,
+  hasAnyPermission as b$,
+  inputRef as b0,
+  stateRef as b1,
+  envRef as b2,
+  stepRef as b3,
+  contextRef as b4,
+  outputRef as b5,
+  computed as b6,
+  template as b7,
+  parseRef as b8,
+  refMap as b9,
+  isWhileStep as bA,
+  isMapReduceStep as bB,
+  isFlowControlStep as bC,
+  isControlFlowStep as bD,
+  BearerValidator as bE,
+  createBearerValidator as bF,
+  ApiKeyValidator as bG,
+  createApiKeyValidator as bH,
+  CookieValidator as bI,
+  createCookieValidator as bJ,
+  UnkeyValidator as bK,
+  createUnkeyValidator as bL,
+  StripeSignatureValidator as bM,
+  GitHubSignatureValidator as bN,
+  TwilioSignatureValidator as bO,
+  CustomValidatorRegistry as bP,
+  createCustomValidatorRegistry as bQ,
+  SignatureValidator as bR,
+  createSignatureValidator as bS,
+  signaturePresets as bT,
+  BasicAuthValidator as bU,
+  createBasicValidator as bV,
+  createBasicValidatorFromEnv as bW,
+  getValidatorForTrigger as bX,
+  createTriggerAuthMiddleware as bY,
+  validateTriggerAuthConfig as bZ,
+  hasPermission as b_,
+  Reference as ba,
+  isReference as bb,
+  isComputed as bc,
+  isTemplate as bd,
+  isRefExpression as be,
+  suspend as bf,
+  checkpoint as bg,
+  sleep as bh,
+  sleepSeconds as bi,
+  sleepMinutes as bj,
+  sleepUntil as bk,
+  schedule as bl,
+  approval as bm,
+  waitForWebhook as bn,
+  waitForInput as bo,
+  isSuspendStep as bp,
+  isSleepStep as bq,
+  isScheduleStep as br,
+  isApprovalStep as bs,
+  isAsyncStep as bt,
+  isParallelStep as bu,
+  isAgentStep$1 as bv,
+  isBranchStep as bw,
+  isForeachStep as bx,
+  isTryStep as by,
+  isSwitchStep as bz,
   createLogger as c,
+  hasAllPermissions as c0,
+  getMissingPermissions as c1,
+  normalizePermission as c2,
+  isValidPermissionFormat as c3,
+  parsePermission as c4,
+  buildPermission as c5,
   getOperationRegistry as d,
   getTriggerRegistry as e,
   getHttpMiddlewareRegistry as f,
@@ -36476,19 +36558,19 @@ export {
   createLoader as j,
   EnsembleLoader as k,
   createEnsembleLoader as l,
-  BuildManager as m,
-  getBuildManager as n,
-  getCLIManager as o,
-  resetCLIManager as p,
-  ModelId as q,
-  resetBuildManager as r,
-  AgentName as s,
-  EnsembleName as t,
-  ProviderId as u,
-  PlatformName as v,
+  DEFAULT_DISCOVERY_CONFIG as m,
+  DEFAULT_AGENT_DISCOVERY as n,
+  DEFAULT_ENSEMBLE_DISCOVERY as o,
+  DEFAULT_DOCS_DISCOVERY as p,
+  DEFAULT_SCRIPTS_DISCOVERY as q,
+  mergeDiscoveryConfig as r,
+  BuildManager as s,
+  getBuildManager as t,
+  resetBuildManager as u,
+  getCLIManager as v,
   workerEntry as w,
-  BindingName as x,
-  ExecutionId as y,
-  RequestId as z
+  resetCLIManager as x,
+  ModelId as y,
+  AgentName as z
 };
-//# sourceMappingURL=worker-entry-CJJEx_P-.js.map
+//# sourceMappingURL=worker-entry-Cm02WTIq.js.map

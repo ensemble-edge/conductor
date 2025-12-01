@@ -23,6 +23,8 @@ export * from './auth/index.js';
 export { UnifiedRouter } from './routing/router.js';
 export type { ConductorConfig, RoutingConfig, RouteConfig, RouteAuthConfig as RoutingAuthConfig, ResolvedRouteAuthConfig, RouteMatch, Operation, AuthDefaults, RateLimitConfig as RoutingRateLimitConfig, AuthFailureAction, } from './routing/config.js';
 export type { ConductorConfig as FullConductorConfig } from './config/types.js';
+export type { DiscoveryConfig, AgentDiscoveryConfig, EnsembleDiscoveryConfig, DocsDiscoveryConfig, ScriptsDiscoveryConfig, } from './config/discovery.js';
+export { DEFAULT_DISCOVERY_CONFIG, DEFAULT_AGENT_DISCOVERY, DEFAULT_ENSEMBLE_DISCOVERY, DEFAULT_DOCS_DISCOVERY, DEFAULT_SCRIPTS_DISCOVERY, mergeDiscoveryConfig, } from './config/discovery.js';
 export type { EnsembleConfig, AgentConfig, FlowStep, ExposeConfig, NotificationConfig, ScheduleConfig, BuildTriggerConfig, CLITriggerConfig, } from './runtime/parser.js';
 export { BuildManager, getBuildManager, resetBuildManager } from './runtime/build-manager.js';
 export type { BuildExecutionResult } from './runtime/build-manager.js';

@@ -1,4 +1,4 @@
-import { B as BaseAgent, c as createLogger } from "./worker-entry-CJJEx_P-.js";
+import { B as BaseAgent, c as createLogger } from "./worker-entry-Cm02WTIq.js";
 const logger = createLogger({ serviceName: "hitl-agent" });
 class HITLMember extends BaseAgent {
   constructor(config, env) {
@@ -422,4 +422,4 @@ This request will expire in ${Math.round(this.hitlConfig.timeout / 36e5)} hours.
 export {
   HITLMember
 };
-//# sourceMappingURL=index-DbS6WBaI.js.map
+//# sourceMappingURL=index-PLEcoRUJ.js.map
