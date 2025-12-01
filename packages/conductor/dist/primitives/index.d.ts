@@ -15,6 +15,7 @@
 export type { Context, FlowStepType, AgentFlowStep, ParallelFlowStep, BranchFlowStep, ForeachFlowStep, TryFlowStep, SwitchFlowStep, WhileFlowStep, MapReduceFlowStep, StepOptions, AgentSchemaConfig, AgentConfig, StateConfig, EnsembleHooks, OutputConfig, ParallelOptions, BranchOptions, ForeachOptions, TryOptions, WhileOptions, MapReduceOptions, } from './types.js';
 export { isParallelStep, isAgentStep, isBranchStep, isForeachStep, isTryStep, isSwitchStep, isWhileStep, isMapReduceStep, isFlowControlStep, isControlFlowStep, } from './types.js';
 export { step, sequence, scriptStep, httpStep, thinkStep, storageStep, dataStep, emailStep, agentStep, } from './step.js';
+export type { StepOptions as StepOptionsWithSchema, SchemaConfig } from './step.js';
 export { parallel, race, branch, ifThen, ifThenElse, switchStep, foreach, map, repeat, whileStep, doWhile, doUntil, tryStep, fallback, mapReduce, } from './flow.js';
 export type { LoopOptions } from './flow.js';
 export { createEnsemble, Ensemble, isEnsemble, ensembleFromConfig, } from './ensemble.js';

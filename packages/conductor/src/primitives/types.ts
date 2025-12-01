@@ -454,6 +454,10 @@ export interface StepOptions {
   scoring?: ScoringConfig
   /** State access configuration */
   state?: StateAccessConfig
+  /** Schema for output mapping (think agents) */
+  schema?: AgentSchemaConfig
+  /** Prompt template (think agents) */
+  prompt?: string
 }
 
 /**

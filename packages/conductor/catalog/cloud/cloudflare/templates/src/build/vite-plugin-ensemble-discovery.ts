@@ -25,6 +25,8 @@ import fs from 'fs';
 import {
   getEnsembleDiscoveryConfig,
   DEFAULT_ENSEMBLE_DISCOVERY,
+  detectCollisions,
+  logCollisionWarnings,
 } from './config-loader.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-ensembles';
@@ -154,6 +156,7 @@ function getFileExtension(filePath: string): string {
   return ext;
 }
 
+
 function generateEnsemblesModule(
   root: string,
   ensemblesDir: string,
@@ -182,6 +185,13 @@ export const tsEnsembleImports = {};
     cwd: ensemblesDirPath,
     ignore: ['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**'],
   });
+
+  // Detect and warn about name collisions at build time
+  const collisions = detectCollisions(ensembleFiles, (file) => {
+    const ext = getFileExtension(file);
+    return path.basename(file, ext);
+  });
+  logCollisionWarnings('ensemble-discovery', collisions, 'ensembles', ensemblesDir);
 
   // Separate YAML and TypeScript files
   const yamlFiles = ensembleFiles.filter((f) => !isTypeScriptFile(f));
@@ -245,10 +255,11 @@ export const tsEnsembleImports = {};
     tsImports.push(`import ${importName} from '/${relativePath}';`);
 
     // Generate ensemble entry for TypeScript
+    // Uses 'instance' to provide the Ensemble object directly to EnsembleLoader
     const ensembleEntry = `
   {
     name: ${JSON.stringify(ensembleName)},
-    module: ${importName},
+    instance: ${importName},
     type: 'typescript',
   }`;
 
@@ -258,7 +269,7 @@ export const tsEnsembleImports = {};
     const mapEntry = `
   [${JSON.stringify(ensembleName)}, {
     name: ${JSON.stringify(ensembleName)},
-    module: ${importName},
+    instance: ${importName},
     type: 'typescript',
   }]`;
 
@@ -277,7 +288,7 @@ ${tsImports.join('\n')}
  * Each ensemble includes:
  * - name: Ensemble identifier (from filename)
  * - config: Raw YAML content as string (for YAML files)
- * - module: Imported Ensemble instance (for TypeScript files)
+ * - instance: Ensemble object created by createEnsemble() (for TypeScript files)
  * - type: 'yaml' | 'typescript'
  */
 export const ensembles = [${ensembleEntries.join(',')}

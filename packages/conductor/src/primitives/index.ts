@@ -80,6 +80,9 @@ export {
   agentStep,
 } from './step.js'
 
+// Re-export StepOptions from step.ts (includes schema and prompt support)
+export type { StepOptions as StepOptionsWithSchema, SchemaConfig } from './step.js'
+
 // ============================================================================
 // Flow Control Primitives - Orchestrate step execution
 // ============================================================================

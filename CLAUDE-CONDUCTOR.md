@@ -79,7 +79,7 @@ No magic. Framework must support all use cases.
 
 | Operation | Purpose | Config Keys |
 |-----------|---------|-------------|
-| think | LLM reasoning | provider, model, prompt, schema, temperature |
+| think | LLM reasoning | provider, model, prompt, schema, temperature, maxTokens |
 | code | JS/TS execution | handler: ./file.ts OR script: scripts/path |
 | storage | KV/R2 access | type: kv|r2, action: get|put|delete, key |
 | data | D1/Hyperdrive/Vectorize | backend: d1|hyperdrive|vectorize, binding, query|operation |
@@ -375,7 +375,43 @@ conductor agent:run NAME INPUT
 |----------|--------|
 | openai | gpt-4o, gpt-4o-mini, text-embedding-3-small |
 | anthropic | claude-3-5-sonnet-20241022, claude-sonnet-4 |
-| cloudflare | @cf/meta/llama-3-8b-instruct |
+| workers-ai | @cf/meta/llama-3.1-8b-instruct, @cf/meta/llama-3-8b-instruct |
 | groq | llama3-70b-8192, mixtral-8x7b-32768 |
+
+## Think Agent Schema Output Mapping
+
+For inline think agents, use schema.output to map AI response to named fields:
+
+```yaml
+agents:
+  - name: greet
+    operation: think
+    config:
+      provider: workers-ai
+      model: "@cf/meta/llama-3.1-8b-instruct"
+      temperature: 0.7
+    schema:
+      output:
+        greeting: string    # AI response maps to this field
+    prompt: "Generate a friendly greeting for ${input.name}"
+
+output:
+  message: ${greet.output.greeting}  # Access via schema field name
+  model: ${greet.output._meta.model} # Metadata available via _meta
+```
+
+## Workers AI Local Development
+
+For local dev with Workers AI, configure wrangler.toml:
+
+```toml
+account_id = "your-account-id"  # Required for remote binding
+
+[ai]
+binding = "AI"
+remote = true  # Required for local dev
+```
+
+Add CLOUDFLARE_API_TOKEN to .dev.vars for authentication.
 
 Machine context ends. The humans thank you for building their ensembles.

@@ -6,6 +6,15 @@
  */
 import type { AgentFlowStep, FlowStepType, OperationType, RetryConfig, CacheConfig, ScoringConfig, StateAccessConfig, TimeoutConfig } from './types.js';
 /**
+ * Schema configuration for output mapping (think agents)
+ */
+export interface SchemaConfig {
+    /** Input schema */
+    input?: Record<string, unknown>;
+    /** Output schema for mapping AI response to named fields */
+    output?: Record<string, unknown>;
+}
+/**
  * Configuration options for creating a step
  */
 export interface StepOptions {
@@ -37,6 +46,10 @@ export interface StepOptions {
     scoring?: ScoringConfig;
     /** State access configuration */
     state?: StateAccessConfig;
+    /** Schema for output mapping (think agents) */
+    schema?: SchemaConfig;
+    /** Prompt template (think agents) - alternative to config.prompt */
+    prompt?: string;
 }
 /**
  * Create an agent execution step

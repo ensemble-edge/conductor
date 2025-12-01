@@ -81,6 +81,7 @@ export declare class EnsembleLoader {
         name: string;
         config?: string;
         instance?: Ensemble;
+        type?: 'yaml' | 'typescript';
     }>): Promise<void>;
     /**
      * Register an ensemble from a config object or YAML string

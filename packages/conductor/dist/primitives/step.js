@@ -43,7 +43,7 @@
  * ```
  */
 export function step(name, options = {}) {
-    const { operation, script, config, input, condition, when, id, depends_on, retry, timeout, onTimeout, cache, scoring, state, } = options;
+    const { operation, script, config, input, condition, when, id, depends_on, retry, timeout, onTimeout, cache, scoring, state, schema, prompt, } = options;
     // Build the step object
     const agentStep = {
         agent: name,
@@ -71,16 +71,27 @@ export function step(name, options = {}) {
         agentStep.scoring = scoring;
     if (state !== undefined)
         agentStep.state = state;
-    // Handle operation/script/config - these go into the step for inline agents
+    // Handle operation/script/config/schema/prompt - these go into the step for inline agents
     // When the step references a pre-defined agent, these are ignored
     // When the step IS the agent definition, these define it
-    if (operation !== undefined || script !== undefined || config !== undefined) {
+    if (operation !== undefined ||
+        script !== undefined ||
+        config !== undefined ||
+        schema !== undefined ||
+        prompt !== undefined) {
         // For inline agent definition, we store these in a way the executor understands
         // The executor will create an inline agent from these properties
-        ;
-        agentStep.operation = operation;
-        agentStep.script = script;
-        agentStep.config = config;
+        const extendedStep = agentStep;
+        if (operation !== undefined)
+            extendedStep.operation = operation;
+        if (script !== undefined)
+            extendedStep.script = script;
+        if (config !== undefined)
+            extendedStep.config = config;
+        if (schema !== undefined)
+            extendedStep.schema = schema;
+        if (prompt !== undefined)
+            extendedStep.prompt = prompt;
     }
     return agentStep;
 }

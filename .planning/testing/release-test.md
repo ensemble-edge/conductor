@@ -969,6 +969,175 @@ curl -i -X POST http://localhost:9999/callbacks/reject/some-token
 
 ---
 
+## 🧪 Phase 10: AI / Workers AI Testing (Optional)
+
+This phase tests Cloudflare Workers AI integration with think agents. It requires a Cloudflare API token and account.
+
+### Prerequisites
+
+**⚠️ IMPORTANT**: Before running these tests, you need:
+1. A Cloudflare API token with Workers AI permissions
+2. Your Cloudflare account ID
+
+**Ask the user**: "To test Workers AI functionality, I need your Cloudflare API token. Do you have one you'd like to use for testing?"
+
+### 10.1 Get Account Information
+
+Once you have the API token, get the account ID:
+
+```bash
+# Set the API token temporarily
+export CLOUDFLARE_API_TOKEN="your-token-here"
+
+# Get account information using wrangler
+npx wrangler whoami
+
+# Look for the account ID in the output, it will show something like:
+# Getting User settings...
+# 👋 You are logged in with an API Token, associated with the email: user@example.com!
+# ┌─────────────────────────────────────┬──────────────────────────────────┐
+# │ Account Name                        │ Account ID                       │
+# ├─────────────────────────────────────┼──────────────────────────────────┤
+# │ Your Account                        │ a608afaa5d472a1eb71d249ed7724c9b │
+# └─────────────────────────────────────┴──────────────────────────────────┘
+```
+
+### 10.2 Configure Workers AI Binding
+
+```bash
+# Add API token to .dev.vars
+echo "CLOUDFLARE_API_TOKEN=your-token-here" >> .dev.vars
+
+# Update wrangler.toml with account_id and AI binding
+# Add these lines if not present:
+cat >> wrangler.toml << 'EOF'
+
+# Cloudflare Account (required for remote AI binding)
+account_id = "your-account-id-here"
+
+# Workers AI binding (remote mode for local dev)
+[ai]
+binding = "AI"
+remote = true
+EOF
+```
+
+**Check for issues**:
+- [ ] API token added to `.dev.vars`
+- [ ] `account_id` added to `wrangler.toml`
+- [ ] `[ai]` binding configured with `remote = true`
+
+### 10.3 Test AI Greeting Endpoint
+
+The template includes an `ai-greeting` example ensemble that uses Workers AI:
+
+```bash
+# Restart wrangler to pick up new config
+# (Kill existing wrangler process first if running)
+
+npx wrangler dev --port 9999 --ip 0.0.0.0
+
+# Test the AI greeting endpoint
+curl http://localhost:9999/ai/hello/Developer
+```
+
+**Expected Response**:
+```json
+{
+  "greeting": "Hello Developer! It's wonderful to meet you...",
+  "model": "@cf/meta/llama-3.1-8b-instruct"
+}
+```
+
+**Check for issues**:
+- [ ] Endpoint returns 200 (not 500)
+- [ ] `greeting` field contains AI-generated text (not empty/null)
+- [ ] `model` field shows the Workers AI model used
+- [ ] Response time is reasonable (< 5 seconds for cold start)
+
+### 10.4 Test with Custom Name
+
+```bash
+# Test with different names
+curl "http://localhost:9999/ai/hello/Alice"
+curl "http://localhost:9999/ai/hello/Conductor%20User"
+```
+
+**Check for issues**:
+- [ ] Each request generates unique, personalized greeting
+- [ ] Special characters in name handled correctly
+
+### 10.5 Verify Think Agent Schema Output Mapping
+
+This tests that the `schema.output` field mapping works correctly:
+
+```bash
+# The ai-greeting ensemble uses this schema:
+#   schema:
+#     output:
+#       greeting: string
+#
+# The AI response should map to the 'greeting' field
+
+curl -s http://localhost:9999/ai/hello/Test | jq 'keys'
+
+# Expected: ["greeting", "model"]
+# NOT: ["model"] alone (would indicate broken schema mapping)
+```
+
+**Check for issues**:
+- [ ] Response includes `greeting` field (schema output mapping works)
+- [ ] Response includes `model` field (from `_meta`)
+- [ ] No `content` field (raw response should be mapped to schema field)
+
+### 10.6 Check Server Logs for AI Execution
+
+Look at the wrangler dev console for agent execution logs:
+
+```
+Agent execution started - generate-greeting
+Agent execution completed - generate-greeting: XXXms
+POST /ai/hello/Developer 200 OK (XXXms)
+```
+
+**Check for issues**:
+- [ ] Agent execution logged with timing
+- [ ] No errors in console
+- [ ] Reasonable execution time (typically 500ms-3s)
+
+### 10.7 Test Error Handling (No AI Binding)
+
+If testing without AI binding configured:
+
+```bash
+# Remove or comment out the [ai] section in wrangler.toml
+# Then test:
+curl http://localhost:9999/ai/hello/Test
+```
+
+**Expected Error**:
+```json
+{
+  "error": "Cloudflare AI binding not available. Add [ai] binding = \"AI\" to wrangler.toml"
+}
+```
+
+**Check for issues**:
+- [ ] Clear error message (not generic 500)
+- [ ] Tells user exactly what to configure
+
+### 10.8 Common AI Issues & Fixes
+
+| Issue | Symptom | Fix |
+|-------|---------|-----|
+| "Binding AI needs to be run remotely" | 500 error in local dev | Add `remote = true` to `[ai]` section |
+| "Authentication error for /memberships" | 401 from Cloudflare API | Add `account_id` to wrangler.toml |
+| Empty `greeting` field | `{"model":"..."}` only | Bug in schema passthrough - update conductor |
+| "AI binding not available" | Clear error message | Add `[ai]` binding to wrangler.toml |
+| Slow response (>10s) | Timeout or slow AI | Normal for first request (cold start) |
+
+---
+
 ## 📊 Report Template
 
 Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
@@ -1059,6 +1228,17 @@ Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
 - [ ] Nested paths return 404: ✅/❌
 - [ ] Various token formats accepted: ✅/❌
 - [ ] Legacy routes removed (404): ✅/❌
+
+### Phase 10: AI / Workers AI Testing (Optional)
+- [ ] Cloudflare API token obtained: ✅/❌/⏭️ Skipped
+- [ ] Account ID retrieved via `wrangler whoami`: ✅/❌/⏭️ Skipped
+- [ ] AI binding configured in wrangler.toml: ✅/❌/⏭️ Skipped
+- [ ] `/ai/hello/:name` returns 200: ✅/❌/⏭️ Skipped
+- [ ] `greeting` field contains AI-generated text: ✅/❌/⏭️ Skipped
+- [ ] `model` field shows Workers AI model: ✅/❌/⏭️ Skipped
+- [ ] Schema output mapping works (greeting not empty): ✅/❌/⏭️ Skipped
+- [ ] Agent execution logged in console: ✅/❌/⏭️ Skipped
+- [ ] Error handling clear when AI not configured: ✅/❌/⏭️ Skipped
 
 ## Issues Found
 
@@ -1165,6 +1345,25 @@ Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
 **OpenAPI Spec Valid**: ✅/❌
 **Custom Agents/Ensembles Listed**: ✅/❌
 
+## AI / Workers AI Verification Results (Optional)
+
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| API token configured | In .dev.vars | | ✅/❌/⏭️ |
+| Account ID configured | In wrangler.toml | | ✅/❌/⏭️ |
+| AI binding configured | `[ai]` with `remote = true` | | ✅/❌/⏭️ |
+| `/ai/hello/:name` status | 200 | | ✅/❌/⏭️ |
+| `greeting` field present | Non-empty string | | ✅/❌/⏭️ |
+| `model` field present | `@cf/meta/...` | | ✅/❌/⏭️ |
+| Response time | < 5s | | ✅/❌/⏭️ |
+| Agent execution logged | In console | | ✅/❌/⏭️ |
+
+**Workers AI Integration Works**: ✅/❌/⏭️ Skipped
+**Schema Output Mapping Works**: ✅/❌/⏭️ Skipped
+**Error Messages Clear**: ✅/❌/⏭️ Skipped
+
+**Note**: This phase is optional and requires a Cloudflare API token with Workers AI permissions. Mark as "⏭️ Skipped" if not testing AI functionality.
+
 ## Performance Metrics
 
 | Metric | Value |
@@ -1250,4 +1449,4 @@ Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
 ---
 
 **Last Updated**: 2025-12-01
-**Version**: 2.4 - Enhanced Phase 7 with comprehensive documentation endpoints testing (all 9 /docs/* routes)
+**Version**: 2.5 - Added Phase 10: AI / Workers AI Testing (optional) with ai-greeting example, API token setup, and wrangler whoami for account ID
