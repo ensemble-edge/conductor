@@ -11,7 +11,7 @@
  * - HITL: Requires Durable Objects runtime coordination for workflow suspension
  */
 // Export registry
-export { BuiltInMemberRegistry, getBuiltInRegistry } from './registry.js';
+export { BuiltInAgentRegistry, BuiltInMemberRegistry, getBuiltInRegistry } from './registry.js';
 // Export built-in agents (only those requiring deep framework integration)
 export { RAGMember } from './rag/index.js';
 export { HITLMember } from './hitl/index.js';

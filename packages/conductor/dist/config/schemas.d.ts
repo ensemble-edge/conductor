@@ -2421,9 +2421,9 @@ export declare const DocsConfigSchema: z.ZodObject<{
         ttl?: number | undefined;
     } | undefined;
     format?: "json" | "yaml" | undefined;
+    includeExamples?: boolean | undefined;
     title?: string | undefined;
     ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
-    includeExamples?: boolean | undefined;
     includeSecurity?: boolean | undefined;
     outputDir?: string | undefined;
     description?: string | undefined;
@@ -2458,9 +2458,9 @@ export declare const DocsConfigSchema: z.ZodObject<{
         ttl?: number | undefined;
     } | undefined;
     format?: "json" | "yaml" | undefined;
+    includeExamples?: boolean | undefined;
     title?: string | undefined;
     ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
-    includeExamples?: boolean | undefined;
     includeSecurity?: boolean | undefined;
     outputDir?: string | undefined;
     description?: string | undefined;
@@ -4101,9 +4101,9 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             ttl?: number | undefined;
         } | undefined;
         format?: "json" | "yaml" | undefined;
+        includeExamples?: boolean | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
-        includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
@@ -4138,9 +4138,9 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             ttl?: number | undefined;
         } | undefined;
         format?: "json" | "yaml" | undefined;
+        includeExamples?: boolean | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
-        includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
@@ -4397,6 +4397,186 @@ export declare const ConductorConfigSchema: z.ZodObject<{
             } | undefined;
         } | undefined;
     }>>;
+    discovery: z.ZodOptional<z.ZodObject<{
+        agents: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            directory: z.ZodString;
+            patterns: z.ZodArray<z.ZodString, "many">;
+            configFile: z.ZodOptional<z.ZodString>;
+            excludeDirs: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            includeExamples: z.ZodOptional<z.ZodBoolean>;
+        } & {
+            handlerExtensions: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        }, "strip", z.ZodTypeAny, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            handlerExtensions?: string[] | undefined;
+        }, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            handlerExtensions?: string[] | undefined;
+        }>>;
+        ensembles: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            directory: z.ZodString;
+            patterns: z.ZodArray<z.ZodString, "many">;
+            configFile: z.ZodOptional<z.ZodString>;
+            excludeDirs: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            includeExamples: z.ZodOptional<z.ZodBoolean>;
+        } & {
+            supportTypeScript: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            supportTypeScript?: boolean | undefined;
+        }, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            supportTypeScript?: boolean | undefined;
+        }>>;
+        docs: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            directory: z.ZodString;
+            patterns: z.ZodArray<z.ZodString, "many">;
+            configFile: z.ZodOptional<z.ZodString>;
+            excludeDirs: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            includeExamples: z.ZodOptional<z.ZodBoolean>;
+        } & {
+            excludeReadme: z.ZodOptional<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            excludeReadme?: boolean | undefined;
+        }, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            excludeReadme?: boolean | undefined;
+        }>>;
+        scripts: z.ZodOptional<z.ZodObject<{
+            enabled: z.ZodOptional<z.ZodBoolean>;
+            directory: z.ZodString;
+            patterns: z.ZodArray<z.ZodString, "many">;
+            configFile: z.ZodOptional<z.ZodString>;
+            excludeDirs: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            includeExamples: z.ZodOptional<z.ZodBoolean>;
+        } & {
+            entryPoint: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            entryPoint?: string | undefined;
+        }, {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            entryPoint?: string | undefined;
+        }>>;
+    }, "strip", z.ZodTypeAny, {
+        agents?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            handlerExtensions?: string[] | undefined;
+        } | undefined;
+        ensembles?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            supportTypeScript?: boolean | undefined;
+        } | undefined;
+        docs?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            excludeReadme?: boolean | undefined;
+        } | undefined;
+        scripts?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            entryPoint?: string | undefined;
+        } | undefined;
+    }, {
+        agents?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            handlerExtensions?: string[] | undefined;
+        } | undefined;
+        ensembles?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            supportTypeScript?: boolean | undefined;
+        } | undefined;
+        docs?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            excludeReadme?: boolean | undefined;
+        } | undefined;
+        scripts?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            entryPoint?: string | undefined;
+        } | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     storage?: {
         type?: "kv" | "d1" | "filesystem" | undefined;
@@ -4405,22 +4585,15 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         kvBinding?: string | undefined;
     } | undefined;
     name?: string | undefined;
-    security?: {
-        requireAuth?: boolean | undefined;
-        allowDirectAgentExecution?: boolean | undefined;
-        autoPermissions?: boolean | undefined;
-        productionEnvironments?: string[] | undefined;
-    } | undefined;
-    version?: string | undefined;
     docs?: {
         cache?: {
             enabled?: boolean | undefined;
             ttl?: number | undefined;
         } | undefined;
         format?: "json" | "yaml" | undefined;
+        includeExamples?: boolean | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
-        includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
@@ -4450,6 +4623,13 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         useAI?: boolean | undefined;
         aiAgent?: string | undefined;
     } | undefined;
+    security?: {
+        requireAuth?: boolean | undefined;
+        allowDirectAgentExecution?: boolean | undefined;
+        autoPermissions?: boolean | undefined;
+        productionEnvironments?: string[] | undefined;
+    } | undefined;
+    version?: string | undefined;
     api?: {
         execution?: {
             agents?: {
@@ -4465,6 +4645,44 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         trackHistory?: boolean | undefined;
         maxHistoryEntries?: number | undefined;
         storeStateSnapshots?: boolean | undefined;
+    } | undefined;
+    discovery?: {
+        agents?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            handlerExtensions?: string[] | undefined;
+        } | undefined;
+        ensembles?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            supportTypeScript?: boolean | undefined;
+        } | undefined;
+        docs?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            excludeReadme?: boolean | undefined;
+        } | undefined;
+        scripts?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            entryPoint?: string | undefined;
+        } | undefined;
     } | undefined;
     routing?: {
         auth?: {
@@ -4629,22 +4847,15 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         kvBinding?: string | undefined;
     } | undefined;
     name?: string | undefined;
-    security?: {
-        requireAuth?: boolean | undefined;
-        allowDirectAgentExecution?: boolean | undefined;
-        autoPermissions?: boolean | undefined;
-        productionEnvironments?: string[] | undefined;
-    } | undefined;
-    version?: string | undefined;
     docs?: {
         cache?: {
             enabled?: boolean | undefined;
             ttl?: number | undefined;
         } | undefined;
         format?: "json" | "yaml" | undefined;
+        includeExamples?: boolean | undefined;
         title?: string | undefined;
         ui?: "stoplight" | "redoc" | "swagger" | "scalar" | "rapidoc" | undefined;
-        includeExamples?: boolean | undefined;
         includeSecurity?: boolean | undefined;
         outputDir?: string | undefined;
         description?: string | undefined;
@@ -4674,6 +4885,13 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         useAI?: boolean | undefined;
         aiAgent?: string | undefined;
     } | undefined;
+    security?: {
+        requireAuth?: boolean | undefined;
+        allowDirectAgentExecution?: boolean | undefined;
+        autoPermissions?: boolean | undefined;
+        productionEnvironments?: string[] | undefined;
+    } | undefined;
+    version?: string | undefined;
     api?: {
         execution?: {
             agents?: {
@@ -4689,6 +4907,44 @@ export declare const ConductorConfigSchema: z.ZodObject<{
         trackHistory?: boolean | undefined;
         maxHistoryEntries?: number | undefined;
         storeStateSnapshots?: boolean | undefined;
+    } | undefined;
+    discovery?: {
+        agents?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            handlerExtensions?: string[] | undefined;
+        } | undefined;
+        ensembles?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            supportTypeScript?: boolean | undefined;
+        } | undefined;
+        docs?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            excludeReadme?: boolean | undefined;
+        } | undefined;
+        scripts?: {
+            directory: string;
+            patterns: string[];
+            enabled?: boolean | undefined;
+            configFile?: string | undefined;
+            excludeDirs?: string[] | undefined;
+            includeExamples?: boolean | undefined;
+            entryPoint?: string | undefined;
+        } | undefined;
     } | undefined;
     routing?: {
         auth?: {

@@ -87,9 +87,23 @@ export class EnsembleLoader {
      * loader.registerEnsemble(blogWorkflowConfig);
      * ```
      */
-    registerEnsemble(ensembleConfig) {
+    registerEnsemble(ensembleConfig, isFromCatalog = false) {
         // Parse config if it's a string (YAML)
         const config = typeof ensembleConfig === 'string' ? Parser.parseEnsemble(ensembleConfig) : ensembleConfig;
+        // Check for naming conflicts
+        const existing = this.loadedEnsembles.get(config.name);
+        if (existing) {
+            if (existing.isFromCatalog && !isFromCatalog) {
+                // User ensemble overriding catalog ensemble - warn them
+                logger.warn(`Ensemble name conflict: "${config.name}" already exists in the catalog. ` +
+                    `Your ensemble will override it. Consider renaming to avoid confusion.`);
+            }
+            else if (!existing.isFromCatalog && !isFromCatalog) {
+                // Two user ensembles with same name - warn them
+                logger.warn(`Duplicate ensemble name: "${config.name}" is defined multiple times. ` +
+                    `The later definition will override the earlier one.`);
+            }
+        }
         // Create Ensemble instance from config
         // Cast to primitive EnsembleConfig - Zod schema is source of truth for runtime validation
         const instance = ensembleFromConfig(config);
@@ -113,6 +127,7 @@ export class EnsembleLoader {
             config,
             instance,
             source: 'yaml',
+            isFromCatalog,
         });
         return instance;
     }
@@ -136,9 +151,23 @@ export class EnsembleLoader {
      * loader.registerEnsembleInstance(myPipeline);
      * ```
      */
-    registerEnsembleInstance(ensemble) {
+    registerEnsembleInstance(ensemble, isFromCatalog = false) {
         if (!isEnsemble(ensemble)) {
             throw new Error('registerEnsembleInstance expects an Ensemble instance');
+        }
+        // Check for naming conflicts
+        const existing = this.loadedEnsembles.get(ensemble.name);
+        if (existing) {
+            if (existing.isFromCatalog && !isFromCatalog) {
+                // User ensemble overriding catalog ensemble - warn them
+                logger.warn(`Ensemble name conflict: "${ensemble.name}" already exists in the catalog. ` +
+                    `Your ensemble will override it. Consider renaming to avoid confusion.`);
+            }
+            else if (!existing.isFromCatalog && !isFromCatalog) {
+                // Two user ensembles with same name - warn them
+                logger.warn(`Duplicate ensemble name: "${ensemble.name}" is defined multiple times. ` +
+                    `The later definition will override the earlier one.`);
+            }
         }
         // Register inline agents if present and agent loader is available
         if (ensemble.agents && ensemble.agents.length > 0 && this.config.agentLoader) {
@@ -159,6 +188,7 @@ export class EnsembleLoader {
             config: ensemble.toConfig(),
             instance: ensemble,
             source: 'typescript',
+            isFromCatalog,
         });
         return ensemble;
     }
@@ -205,6 +235,17 @@ export class EnsembleLoader {
      */
     getAllLoadedEnsembles() {
         return Array.from(this.loadedEnsembles.values());
+    }
+    /**
+     * Get ensemble data in registry format for createEnsembleRegistry()
+     * Returns a Map suitable for passing to the Executor's discovery data
+     */
+    getRegistryData() {
+        const result = new Map();
+        for (const [name, loaded] of this.loadedEnsembles) {
+            result.set(name, { config: loaded.config, source: loaded.source });
+        }
+        return result;
     }
     /**
      * Get all ensemble names

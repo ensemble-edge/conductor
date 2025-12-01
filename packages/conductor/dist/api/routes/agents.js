@@ -27,7 +27,7 @@ agents.get('/', async (c) => {
         // Add custom agents from auto-discovery
         const memberLoader = getMemberLoader();
         if (memberLoader) {
-            const customAgentNames = memberLoader.getMemberNames();
+            const customAgentNames = memberLoader.getAgentNames();
             for (const name of customAgentNames) {
                 const config = memberLoader.getAgentConfig(name);
                 if (config) {

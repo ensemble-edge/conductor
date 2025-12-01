@@ -35,18 +35,14 @@ flow:
     agent: docs
     input:
       action: generate-openapi
-      format: ${{ trigger.options.format || 'yaml' }}
+      format: "${trigger.options.format || 'yaml'}"
     config:
       title: API Documentation
       description: Auto-generated API documentation
 
 output:
-  success: ${{ flow.generate.output.success }}
-  spec: ${{ flow.generate.output.spec }}
-  specYaml: ${{ flow.generate.output.specYaml }}
-  specJson: ${{ flow.generate.output.specJson }}
-  message: ${{
-    trigger.type == 'build' ? 'OpenAPI spec generated for build' :
-    trigger.type == 'cron' ? 'Scheduled docs regeneration complete' :
-    'Documentation generated successfully'
-  }}
+  success: "${flow.generate.output.success}"
+  spec: "${flow.generate.output.spec}"
+  specYaml: "${flow.generate.output.specYaml}"
+  specJson: "${flow.generate.output.specJson}"
+  message: "${trigger.type == 'build' ? 'OpenAPI spec generated for build' : trigger.type == 'cron' ? 'Scheduled docs regeneration complete' : 'Documentation generated successfully'}"

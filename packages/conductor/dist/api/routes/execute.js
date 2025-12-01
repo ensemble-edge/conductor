@@ -157,7 +157,7 @@ async function executeEnsemble(c, ensembleName, input, startTime, requestId, rou
         // Register all agents from memberLoader
         const memberLoader = getMemberLoader();
         if (memberLoader) {
-            for (const agent of memberLoader.getAllMembers()) {
+            for (const agent of memberLoader.getAllAgents()) {
                 executor.registerAgent(agent);
             }
         }
@@ -244,7 +244,7 @@ async function executeAgent(c, agentName, input, config, startTime, requestId, r
         const memberLoader = getMemberLoader();
         // Check if agent exists (built-in or custom)
         const isBuiltIn = builtInRegistry.isBuiltIn(agentName);
-        const isCustom = memberLoader?.hasMember(agentName) || false;
+        const isCustom = memberLoader?.hasAgent(agentName) || false;
         if (!isBuiltIn && !isCustom) {
             return c.json({
                 error: 'NotFound',

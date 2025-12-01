@@ -166,7 +166,7 @@ export default async function docs(
       return renderLanding(ctx, config)
 
     case 'render-page':
-      return renderPage(input.slug, input.pages, config)
+      return renderPage(input.slug, input.pages, config, ctx)
 
     case 'render-agents':
       return renderAgentsList(ctx, config)
@@ -187,7 +187,7 @@ export default async function docs(
       return generateOpenAPI(input.format || 'json', ctx, config)
 
     case 'list-pages':
-      return listPages(input.pages)
+      return listPages(input.pages, ctx)
 
     default:
       return {
@@ -229,14 +229,33 @@ function renderLanding(ctx: AgentExecutionContext, config: DocsConfig): DocsOutp
 
 function renderPage(
   slug: string | undefined,
-  pages: DocsPage[] | undefined,
-  config: DocsConfig
+  inputPages: DocsPage[] | undefined,
+  config: DocsConfig,
+  ctx: AgentExecutionContext
 ): DocsOutput {
   if (!slug) {
     return {
       success: false,
       error: 'not_found',
       errorMessage: 'No page slug provided',
+    }
+  }
+
+  // Try to get pages from input first, then fall back to docsRegistry
+  let pages: DocsPage[] | undefined = inputPages
+  if (!pages || pages.length === 0) {
+    // Use docsRegistry from context if available
+    const docsRegistry = ctx.docsRegistry
+    if (docsRegistry) {
+      const registryPages = docsRegistry.list()
+      if (registryPages.length > 0) {
+        pages = registryPages.map((p) => ({
+          slug: p.slug,
+          title: p.title,
+          content: p.content,
+          order: p.order ?? 999,
+        }))
+      }
     }
   }
 
@@ -518,7 +537,24 @@ function generateOpenAPI(
   }
 }
 
-function listPages(pages: DocsPage[] | undefined): DocsOutput {
+function listPages(inputPages: DocsPage[] | undefined, ctx: AgentExecutionContext): DocsOutput {
+  // Try to get pages from input first, then fall back to docsRegistry
+  let pages: DocsPage[] | undefined = inputPages
+  if (!pages || pages.length === 0) {
+    const docsRegistry = ctx.docsRegistry
+    if (docsRegistry) {
+      const registryPages = docsRegistry.list()
+      if (registryPages.length > 0) {
+        pages = registryPages.map((p) => ({
+          slug: p.slug,
+          title: p.title,
+          content: p.content,
+          order: p.order ?? 999,
+        }))
+      }
+    }
+  }
+
   if (!pages || pages.length === 0) {
     return {
       success: true,

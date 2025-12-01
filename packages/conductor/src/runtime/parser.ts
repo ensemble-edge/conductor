@@ -44,6 +44,7 @@ export { ensembleFromConfig, Ensemble, isEnsemble }
 export const AgentFlowStepSchema = z.object({
   agent: z.string().min(1, 'Agent name is required'),
   id: z.string().optional(),
+  name: z.string().optional(), // Alias for id - used for output references like ${name.output}
   input: z.record(z.unknown()).optional(),
   state: z
     .object({
@@ -180,6 +181,7 @@ export const MapReduceFlowStepSchema = z.object({
 export interface AgentFlowStep {
   agent: string
   id?: string
+  name?: string // Alias for id - used for output references like ${name.output}
   input?: Record<string, unknown>
   state?: { use?: string[]; set?: string[] }
   cache?: { ttl?: number; bypass?: boolean }

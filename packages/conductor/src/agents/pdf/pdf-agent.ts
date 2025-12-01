@@ -14,12 +14,12 @@ import { BaseAgent, type AgentExecutionContext } from '../base-agent.js'
 import type { AgentConfig } from '../../runtime/parser.js'
 import { Operation } from '../../types/constants.js'
 import type {
-  PdfMemberConfig,
-  PdfMemberInput,
-  PdfMemberOutput,
+  PdfAgentConfig,
+  PdfAgentInput,
+  PdfAgentOutput,
   PdfHeaderFooter,
 } from './types/index.js'
-import { HtmlMember } from '../html/html-agent.js'
+import { HtmlAgent } from '../html/html-agent.js'
 import { generatePdf, validatePageConfig } from './utils/pdf-generator.js'
 import {
   storePdfToR2,
@@ -29,8 +29,8 @@ import {
 } from './utils/storage.js'
 import { createTemplateEngine, type BaseTemplateEngine } from '../../utils/templates/index.js'
 
-export class PdfMember extends BaseAgent {
-  private pdfConfig: PdfMemberConfig
+export class PdfAgent extends BaseAgent {
+  private pdfConfig: PdfAgentConfig
   private templateEngine: BaseTemplateEngine
 
   constructor(config: AgentConfig) {
@@ -70,9 +70,9 @@ export class PdfMember extends BaseAgent {
   /**
    * Execute PDF generation
    */
-  protected async run(context: AgentExecutionContext): Promise<PdfMemberOutput> {
+  protected async run(context: AgentExecutionContext): Promise<PdfAgentOutput> {
     const startTime = Date.now()
-    const input = context.input as PdfMemberInput
+    const input = context.input as PdfAgentInput
 
     // Merge config with input
     const htmlSource = input.html || this.pdfConfig.html
@@ -120,7 +120,7 @@ export class PdfMember extends BaseAgent {
         },
       }
 
-      const htmlMember = new HtmlMember(htmlMemberConfig)
+      const htmlAgent = new HtmlAgent(htmlMemberConfig)
       // Create child context (security features injected by BaseAgent.execute)
       const htmlContext: AgentExecutionContext = {
         input: { data: htmlSource.data || {} },
@@ -129,7 +129,7 @@ export class PdfMember extends BaseAgent {
         previousOutputs: context.previousOutputs,
       }
 
-      const htmlResponse = await htmlMember.execute(htmlContext)
+      const htmlResponse = await htmlAgent.execute(htmlContext)
 
       if (!htmlResponse.success) {
         throw new Error(`HTML rendering failed: ${htmlResponse.error}`)
@@ -219,3 +219,9 @@ export class PdfMember extends BaseAgent {
     return rendered
   }
 }
+
+// Backward compatibility aliases
+export const PdfMember = PdfAgent
+export type PdfMemberConfig = PdfAgentConfig
+export type PdfMemberInput = PdfAgentInput
+export type PdfMemberOutput = PdfAgentOutput

@@ -9,7 +9,7 @@
  * - Headers and footers with page numbers
  */
 
-import type { HtmlMemberInput, TemplateSource } from '../../html/types/index.js'
+import type { HtmlAgentInput, TemplateSource } from '../../html/types/index.js'
 import type { TemplateEngine } from '../../../utils/templates/index.js'
 
 /**
@@ -101,7 +101,7 @@ export interface PdfMetadata {
 /**
  * PDF agent configuration
  */
-export interface PdfMemberConfig {
+export interface PdfAgentConfig {
   /** HTML source for PDF generation */
   html?: {
     /** Inline HTML */
@@ -132,7 +132,7 @@ export interface PdfMemberConfig {
 /**
  * PDF agent input
  */
-export interface PdfMemberInput {
+export interface PdfAgentInput {
   /** Override HTML source */
   html?: {
     inline?: string
@@ -157,7 +157,7 @@ export interface PdfMemberInput {
 /**
  * PDF agent output
  */
-export interface PdfMemberOutput {
+export interface PdfAgentOutput {
   /** PDF binary data (ArrayBuffer) */
   pdf: ArrayBuffer
   /** PDF size in bytes */
@@ -204,3 +204,8 @@ export const PDF_PAGE_SIZES: Record<PdfPageSize, { width: number; height: number
   Legal: { width: 216, height: 356 }, // 8.5" x 14"
   Tabloid: { width: 279, height: 432 }, // 11" x 17"
 }
+
+// Backward compatibility aliases
+export type PdfMemberConfig = PdfAgentConfig
+export type PdfMemberInput = PdfAgentInput
+export type PdfMemberOutput = PdfAgentOutput

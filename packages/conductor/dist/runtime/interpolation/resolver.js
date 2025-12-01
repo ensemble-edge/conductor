@@ -26,8 +26,22 @@ import { applyFilters } from './filters.js';
  * - ${input.name || "default"} → returns input.name if truthy, else "default"
  * - Catches "", 0, false, null, undefined (unlike ?? which only catches null/undefined)
  *
- * Supports ternary conditionals:
+ * Supports ternary conditionals with comparison operators:
  * - ${input.enabled ? "yes" : "no"} → returns "yes" if truthy, "no" otherwise
+ * - ${input.path == '/docs' ? "landing" : "other"} → equality comparison in condition
+ * - ${input.count > 10 ? "many" : "few"} → numeric comparison in condition
+ * - ${input.name != null && input.age >= 18 ? "valid" : "invalid"} → logical AND with comparisons
+ *
+ * Supports comparison operators in ternary conditions:
+ * - == and != (loose equality)
+ * - === and !== (strict equality)
+ * - >, <, >=, <= (numeric comparison)
+ * - && and || (logical AND/OR)
+ *
+ * Supports string method calls in conditions:
+ * - ${input.path.includes('/api/') ? "api" : "other"} → string includes check
+ * - ${input.url.startsWith('https') ? "secure" : "insecure"} → string prefix check
+ * - ${input.file.endsWith('.json') ? "json" : "other"} → string suffix check
  *
  * Supports boolean negation (!):
  * - ${!input.disabled} → returns true if input.disabled is falsy
@@ -89,6 +103,7 @@ export class StringResolver {
      * Traverse context using dot-separated path with optional operators and filter chain
      * Supports (in order of precedence):
      * - input.enabled ? "yes" : "no" (ternary conditional)
+     * - input.path == '/docs' ? "landing" : "other" (ternary with equality comparison)
      * - input.name ?? "default" (nullish coalescing - null/undefined only)
      * - input.name || "default" (falsy coalescing - catches "", 0, false too)
      * - input.text | split(' ') | length (filters)
@@ -101,8 +116,9 @@ export class StringResolver {
         // The ? must be followed by a space or non-dot character to be a ternary operator
         const ternaryMatch = path.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/);
         if (ternaryMatch) {
-            const [, conditionPath, trueExpr, falseExpr] = ternaryMatch;
-            const condition = this.resolvePathWithFilters(conditionPath.trim(), context);
+            const [, conditionExpr, trueExpr, falseExpr] = ternaryMatch;
+            // Evaluate the condition - may include comparison operators
+            const condition = this.evaluateCondition(conditionExpr.trim(), context);
             // Evaluate the appropriate branch
             const selectedExpr = condition ? trueExpr.trim() : falseExpr.trim();
             return this.resolveLiteralOrPath(selectedExpr, context);
@@ -122,7 +138,8 @@ export class StringResolver {
         }
         // Handle falsy coalescing (||) - similar to ?? but catches all falsy values
         // Must check this AFTER ?? to avoid conflicts, and ensure we don't confuse with filter |
-        if (/\|\|/.test(path)) {
+        // Only treat as || if not part of a comparison expression
+        if (/\|\|/.test(path) && !this.hasComparisonOperator(path)) {
             const alternatives = path.split('||').map((alt) => alt.trim());
             for (const alt of alternatives) {
                 const value = this.resolveLiteralOrPath(alt, context);
@@ -135,8 +152,112 @@ export class StringResolver {
             const lastAlt = alternatives[alternatives.length - 1];
             return this.resolveLiteralOrPath(lastAlt, context);
         }
-        // No coalescing operators, check for filters
+        // Handle standalone comparison expressions (not in a ternary)
+        // This allows ${input.path == '/docs'} to return true/false
+        if (this.hasComparisonOperator(path)) {
+            return this.evaluateCondition(path, context);
+        }
+        // No coalescing or comparison operators, check for filters
         return this.resolvePathWithFilters(path, context);
+    }
+    /**
+     * Check if an expression contains comparison operators
+     * Used to detect expressions like "input.path == '/docs'" that should be evaluated as conditions
+     */
+    hasComparisonOperator(expr) {
+        // Check for comparison operators (must be careful about string literals)
+        // Look for patterns like: value == 'string', value != other, value > 10
+        // Using word boundary-like patterns to avoid false positives
+        return (/\s*(===|!==|==|!=|>=|<=|>|<|&&)\s*/.test(expr) ||
+            // Also check for string method calls that return boolean
+            /\.includes\(/.test(expr) ||
+            /\.startsWith\(/.test(expr) ||
+            /\.endsWith\(/.test(expr));
+    }
+    /**
+     * Evaluate a condition expression which may include comparison operators
+     * Supports: ==, !=, ===, !==, >, <, >=, <=, &&, ||
+     * Also supports string method calls like includes()
+     */
+    evaluateCondition(expr, context) {
+        // Check for && (logical AND) - lowest precedence, evaluate left to right
+        if (expr.includes('&&')) {
+            const parts = expr.split('&&').map((p) => p.trim());
+            return parts.every((part) => this.evaluateCondition(part, context));
+        }
+        // Check for logical || in condition (not to be confused with falsy coalescing)
+        // This pattern looks for || that's part of a boolean expression
+        if (/\s*\|\|\s*/.test(expr) && !expr.includes('?')) {
+            const parts = expr.split(/\s*\|\|\s*/).map((p) => p.trim());
+            return parts.some((part) => this.evaluateCondition(part, context));
+        }
+        // Handle string method calls like input.path.includes('/agents/')
+        const includesMatch = expr.match(/^(.+?)\.includes\(\s*(['"])(.+?)\2\s*\)$/);
+        if (includesMatch) {
+            const [, pathExpr, , searchStr] = includesMatch;
+            const value = this.resolvePathWithFilters(pathExpr.trim(), context);
+            if (typeof value === 'string') {
+                return value.includes(searchStr);
+            }
+            return false;
+        }
+        // Handle string method startsWith
+        const startsWithMatch = expr.match(/^(.+?)\.startsWith\(\s*(['"])(.+?)\2\s*\)$/);
+        if (startsWithMatch) {
+            const [, pathExpr, , prefix] = startsWithMatch;
+            const value = this.resolvePathWithFilters(pathExpr.trim(), context);
+            if (typeof value === 'string') {
+                return value.startsWith(prefix);
+            }
+            return false;
+        }
+        // Handle string method endsWith
+        const endsWithMatch = expr.match(/^(.+?)\.endsWith\(\s*(['"])(.+?)\2\s*\)$/);
+        if (endsWithMatch) {
+            const [, pathExpr, , suffix] = endsWithMatch;
+            const value = this.resolvePathWithFilters(pathExpr.trim(), context);
+            if (typeof value === 'string') {
+                return value.endsWith(suffix);
+            }
+            return false;
+        }
+        // Check for comparison operators (in order of specificity)
+        // === and !== (strict equality)
+        const strictEqMatch = expr.match(/^(.+?)\s*(===|!==)\s*(.+)$/);
+        if (strictEqMatch) {
+            const [, leftExpr, op, rightExpr] = strictEqMatch;
+            const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+            const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+            return op === '===' ? leftValue === rightValue : leftValue !== rightValue;
+        }
+        // == and != (loose equality)
+        const eqMatch = expr.match(/^(.+?)\s*(==|!=)\s*(.+)$/);
+        if (eqMatch) {
+            const [, leftExpr, op, rightExpr] = eqMatch;
+            const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+            const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+            // eslint-disable-next-line eqeqeq
+            return op === '==' ? leftValue == rightValue : leftValue != rightValue;
+        }
+        // >= and <= (comparison)
+        const compEqMatch = expr.match(/^(.+?)\s*(>=|<=)\s*(.+)$/);
+        if (compEqMatch) {
+            const [, leftExpr, op, rightExpr] = compEqMatch;
+            const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+            const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+            return op === '>=' ? leftValue >= rightValue : leftValue <= rightValue;
+        }
+        // > and < (comparison)
+        const compMatch = expr.match(/^(.+?)\s*([><])\s*(.+)$/);
+        if (compMatch) {
+            const [, leftExpr, op, rightExpr] = compMatch;
+            const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+            const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+            return op === '>' ? leftValue > rightValue : leftValue < rightValue;
+        }
+        // No comparison operator found - resolve as truthy/falsy value
+        const value = this.resolvePathWithFilters(expr, context);
+        return Boolean(value);
     }
     /**
      * Resolve a value that could be a literal or a path expression
@@ -160,8 +281,8 @@ export class StringResolver {
         // Check if this is null literal
         if (expr === 'null')
             return null;
-        // Try to resolve as a path (may include filters)
-        return this.resolvePathWithFilters(expr, context);
+        // Use traversePath to handle nested ternaries, comparisons, and filters
+        return this.traversePath(expr, context);
     }
     /**
      * Resolve a path that may include filter chains

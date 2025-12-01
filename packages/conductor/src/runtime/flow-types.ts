@@ -19,6 +19,7 @@
 export interface AgentFlowStep {
   agent: string
   id?: string
+  name?: string // Alias for id - used for output references like ${name.output}
   input?: Record<string, unknown>
   state?: { use?: string[]; set?: string[] }
   cache?: { ttl?: number; bypass?: boolean }

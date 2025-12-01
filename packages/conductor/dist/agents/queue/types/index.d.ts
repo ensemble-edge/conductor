@@ -105,7 +105,7 @@ export interface QueueAgentConfig extends AgentConfig {
 /**
  * Queue agent input
  */
-export interface QueueMemberInput {
+export interface QueueAgentInput {
     /** Operation mode (overrides config) */
     mode?: QueueMode;
     /** Single message (for send mode) */
@@ -120,7 +120,7 @@ export interface QueueMemberInput {
 /**
  * Queue agent output
  */
-export interface QueueMemberOutput {
+export interface QueueAgentOutput {
     /** Operation mode that was executed */
     mode: QueueMode;
     /** Success status */
@@ -192,4 +192,6 @@ export interface QueueStats {
     /** Approximate age of oldest message (seconds) */
     approximateAgeOfOldestMessage?: number;
 }
+export type QueueMemberInput = QueueAgentInput;
+export type QueueMemberOutput = QueueAgentOutput;
 //# sourceMappingURL=index.d.ts.map

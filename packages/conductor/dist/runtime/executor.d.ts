@@ -4,7 +4,7 @@
  * Orchestrates ensemble execution with explicit error handling using Result types.
  * Makes all error cases explicit and checked at compile time.
  */
-import { type EnsembleConfig } from './parser.js';
+import { type EnsembleConfig, type AgentConfig } from './parser.js';
 import { type AccessReport } from './state-manager.js';
 import type { BaseAgent } from '../agents/base-agent.js';
 import type { ConductorEnv } from '../types/env.js';
@@ -17,6 +17,70 @@ import type { RequestId } from '../types/branded.js';
 import type { ObservabilityConfig } from '../config/types.js';
 import { type OutputFormat } from './output-resolver.js';
 import type { AuthContext } from '../auth/types.js';
+/**
+ * Discovery data for agents, ensembles, and other resources
+ *
+ * Allows agents to discover and enumerate available resources at runtime.
+ * This is the canonical way to pass auto-discovered resources to the executor.
+ *
+ * The interface is designed to be extensible for future resource types.
+ * Each resource type provides the Map format expected by its registry.
+ *
+ * @example
+ * ```typescript
+ * const executor = new Executor({
+ *   env,
+ *   ctx,
+ *   discovery: {
+ *     ensembles: ensembleLoader.getRegistryData(),
+ *     agents: agentLoader.getRegistryData(),
+ *     docs: docsLoader.getRegistryData(),
+ *   }
+ * });
+ * ```
+ */
+export interface DiscoveryData {
+    /**
+     * Ensemble registry data from EnsembleLoader.getRegistryData()
+     * Used to populate ctx.ensembleRegistry for agent access
+     */
+    ensembles?: Map<string, {
+        config: EnsembleConfig;
+        source: 'yaml' | 'typescript';
+    }>;
+    /**
+     * Agent metadata for discovery (agents are also passed via registerAgent)
+     * This provides additional discovery data beyond what's in the agent registry
+     */
+    agents?: Map<string, {
+        config: AgentConfig;
+        source: 'yaml' | 'typescript';
+    }>;
+    /**
+     * Docs pages from DocsDirectoryLoader
+     * Allows agents to discover available documentation pages
+     */
+    docs?: Map<string, {
+        content: string;
+        title: string;
+        slug: string;
+    }>;
+    /**
+     * Extensible custom discovery data
+     * Use this for project-specific or future resource types
+     *
+     * @example
+     * ```typescript
+     * discovery: {
+     *   custom: {
+     *     'workflows': myWorkflowsMap,
+     *     'integrations': myIntegrationsMap,
+     *   }
+     * }
+     * ```
+     */
+    custom?: Record<string, Map<string, unknown>>;
+}
 export interface ExecutorConfig {
     env: ConductorEnv;
     ctx: ExecutionContext;
@@ -29,6 +93,8 @@ export interface ExecutorConfig {
     auth?: AuthContext;
     /** Default timeout for agent execution in milliseconds (default: 30000) */
     defaultTimeout?: number;
+    /** Discovery data for agents and ensembles - enables ctx.agentRegistry and ctx.ensembleRegistry */
+    discovery?: DiscoveryData;
 }
 /**
  * Response metadata for HTTP responses
@@ -95,6 +161,7 @@ export declare class Executor {
     private requestId?;
     private auth?;
     private defaultTimeout;
+    private discoveryData?;
     constructor(config: ExecutorConfig);
     /**
      * Register an agent for use in ensembles
@@ -205,7 +272,7 @@ export declare class Executor {
     /**
      * Get all built-in agent metadata
      */
-    getBuiltInMembers(): import("../agents/built-in/types.js").BuiltInMemberMetadata[];
+    getBuiltInMembers(): import("../agents/built-in/types.js").BuiltInAgentMetadata[];
     /**
      * Resume execution from suspended state
      * Used for HITL approval workflows and webhook resumption

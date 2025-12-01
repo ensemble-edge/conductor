@@ -82,8 +82,10 @@ import {
   createComponentRegistry,
   createAgentRegistry,
   createEnsembleRegistry,
+  createDocsRegistry,
   type AgentRegistry,
   type EnsembleRegistry,
+  type DocsRegistry,
 } from '../components/index.js'
 import { resolveOutput, type EnsembleOutput, type OutputFormat } from './output-resolver.js'
 import { MemoryManager } from './memory/memory-manager.js'
@@ -93,6 +95,64 @@ import type { AuthContext } from '../auth/types.js'
 
 /** Default timeout for agent execution (30 seconds) */
 const DEFAULT_AGENT_TIMEOUT_MS = 30000
+
+/**
+ * Discovery data for agents, ensembles, and other resources
+ *
+ * Allows agents to discover and enumerate available resources at runtime.
+ * This is the canonical way to pass auto-discovered resources to the executor.
+ *
+ * The interface is designed to be extensible for future resource types.
+ * Each resource type provides the Map format expected by its registry.
+ *
+ * @example
+ * ```typescript
+ * const executor = new Executor({
+ *   env,
+ *   ctx,
+ *   discovery: {
+ *     ensembles: ensembleLoader.getRegistryData(),
+ *     agents: agentLoader.getRegistryData(),
+ *     docs: docsLoader.getRegistryData(),
+ *   }
+ * });
+ * ```
+ */
+export interface DiscoveryData {
+  /**
+   * Ensemble registry data from EnsembleLoader.getRegistryData()
+   * Used to populate ctx.ensembleRegistry for agent access
+   */
+  ensembles?: Map<string, { config: EnsembleConfig; source: 'yaml' | 'typescript' }>
+
+  /**
+   * Agent metadata for discovery (agents are also passed via registerAgent)
+   * This provides additional discovery data beyond what's in the agent registry
+   */
+  agents?: Map<string, { config: AgentConfig; source: 'yaml' | 'typescript' }>
+
+  /**
+   * Docs pages from DocsDirectoryLoader
+   * Allows agents to discover available documentation pages
+   */
+  docs?: Map<string, { content: string; title: string; slug: string }>
+
+  /**
+   * Extensible custom discovery data
+   * Use this for project-specific or future resource types
+   *
+   * @example
+   * ```typescript
+   * discovery: {
+   *   custom: {
+   *     'workflows': myWorkflowsMap,
+   *     'integrations': myIntegrationsMap,
+   *   }
+   * }
+   * ```
+   */
+  custom?: Record<string, Map<string, unknown>>
+}
 
 export interface ExecutorConfig {
   env: ConductorEnv
@@ -106,6 +166,8 @@ export interface ExecutorConfig {
   auth?: AuthContext
   /** Default timeout for agent execution in milliseconds (default: 30000) */
   defaultTimeout?: number
+  /** Discovery data for agents and ensembles - enables ctx.agentRegistry and ctx.ensembleRegistry */
+  discovery?: DiscoveryData
 }
 
 /**
@@ -239,6 +301,8 @@ interface FlowExecutionContext {
   agentRegistry: AgentRegistry
   /** Ensemble registry for discovering available ensembles */
   ensembleRegistry: EnsembleRegistry
+  /** Docs registry for discovering documentation pages */
+  docsRegistry: DocsRegistry
   /** Memory manager for conversation history and persistent storage */
   memoryManager: MemoryManager | null
 }
@@ -271,6 +335,7 @@ export class Executor {
   private requestId?: RequestId
   private auth?: AuthContext
   private defaultTimeout: number
+  private discoveryData?: DiscoveryData
 
   constructor(config: ExecutorConfig) {
     this.env = config.env
@@ -281,6 +346,7 @@ export class Executor {
     this.auth = config.auth
     this.defaultTimeout = config.defaultTimeout ?? DEFAULT_AGENT_TIMEOUT_MS
     this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS)
+    this.discoveryData = config.discovery
   }
 
   /**
@@ -485,9 +551,10 @@ export class Executor {
       queries: flowContext.componentRegistry.queries,
       scripts: flowContext.componentRegistry.scripts,
       templates: flowContext.componentRegistry.templates,
-      // Discovery registries for agents and ensembles
+      // Discovery registries for agents, ensembles, and docs
       agentRegistry: flowContext.agentRegistry,
       ensembleRegistry: flowContext.ensembleRegistry,
+      docsRegistry: flowContext.docsRegistry,
       // Agent-specific config from ensemble definition
       config: agentConfig,
       // Memory manager for conversation history and persistent storage
@@ -794,7 +861,8 @@ export class Executor {
     }
 
     // 12. Store agent output in context for future interpolations
-    const contextKey = step.id || step.agent
+    // Priority: id > name > agent (name is an alias for id, more natural for YAML authors)
+    const contextKey = step.id || step.name || step.agent
     executionContext[contextKey] = {
       output: response.data,
       success: true,
@@ -1398,9 +1466,18 @@ export class Executor {
     const componentRegistry = createComponentRegistry(this.env)
 
     // Create discovery registries for agents and ensembles
+    // Agent registry uses the executor's internal agent map (registered via registerAgent)
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry)
-    // Create an empty ensemble registry (ensembles loaded via EnsembleLoader at API level)
-    const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map())
+
+    // Ensemble registry uses discovery data passed from API layer (via EnsembleLoader.getRegistryData())
+    // This enables agents to discover all loaded ensembles for documentation, OpenAPI generation, etc.
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(
+      this.discoveryData?.ensembles || new Map()
+    )
+
+    // Docs registry uses discovery data passed from API layer (via DocsDirectoryLoader.getRegistryData())
+    // This enables agents to discover documentation pages for rendering
+    const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || new Map())
 
     // Create flow execution context with observability
     const flowContext: FlowExecutionContext = {
@@ -1417,6 +1494,7 @@ export class Executor {
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
       ensembleRegistry: ensembleDiscoveryRegistry,
+      docsRegistry: docsDiscoveryRegistry,
       memoryManager,
     }
 
@@ -1610,9 +1688,12 @@ export class Executor {
     // Create component registry for resumed execution
     const componentRegistry = createComponentRegistry(this.env)
 
-    // Create discovery registries for agents and ensembles
+    // Create discovery registries for agents, ensembles, and docs
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry)
-    const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map())
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(
+      this.discoveryData?.ensembles || new Map()
+    )
+    const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || new Map())
 
     // Re-create memory manager for resumed execution
     // Use original input from suspended state plus any resumeInput
@@ -1637,6 +1718,7 @@ export class Executor {
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
       ensembleRegistry: ensembleDiscoveryRegistry,
+      docsRegistry: docsDiscoveryRegistry,
       memoryManager,
     }
 

@@ -37,6 +37,7 @@ export { ensembleFromConfig, Ensemble, isEnsemble };
 export const AgentFlowStepSchema = z.object({
     agent: z.string().min(1, 'Agent name is required'),
     id: z.string().optional(),
+    name: z.string().optional(), // Alias for id - used for output references like ${name.output}
     input: z.record(z.unknown()).optional(),
     state: z
         .object({

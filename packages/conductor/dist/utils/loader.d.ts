@@ -17,7 +17,7 @@ export interface LoaderConfig {
      * Base directory where agents are located
      * @default './agents'
      */
-    membersDir?: string;
+    agentsDir?: string;
     /**
      * Base directory where ensembles are located
      * @default './ensembles'
@@ -32,22 +32,22 @@ export interface LoaderConfig {
      */
     ctx: ExecutionContext;
 }
-export interface LoadedMember {
+export interface LoadedAgent {
     config: AgentConfig;
     instance: BaseAgent;
 }
 /**
- * MemberLoader handles dynamic loading of user-created agents
+ * AgentLoader handles dynamic loading of user-created agents
  *
  * Note: In Cloudflare Workers, we can't use Node.js fs module.
- * Members must be bundled at build time using wrangler's module imports.
+ * Agents must be bundled at build time using wrangler's module imports.
  *
  * For now, users will need to manually import and register their agents.
  * Future: We can build a CLI tool that generates the registration code.
  */
 export declare class AgentLoader {
     private config;
-    private loadedMembers;
+    private loadedAgents;
     constructor(config: LoaderConfig);
     /**
      * Auto-discover and register agents from virtual module
@@ -61,7 +61,7 @@ export declare class AgentLoader {
      * ```typescript
      * import { agents as discoveredAgents } from 'virtual:conductor-agents';
      *
-     * const loader = new MemberLoader({ env, ctx });
+     * const loader = new AgentLoader({ env, ctx });
      * await loader.autoDiscover(discoveredAgents);
      * ```
      */
@@ -83,7 +83,7 @@ export declare class AgentLoader {
      */
     registerAgent(agentConfig: AgentConfig | string, implementation?: FunctionImplementation): BaseAgent;
     /**
-     * Load a agent from Edgit by version reference
+     * Load an agent from Edgit by version reference
      *
      * This enables loading versioned agent configs at runtime for A/B testing,
      * environment-specific configs, and config-only deployments.
@@ -91,17 +91,17 @@ export declare class AgentLoader {
      * @example
      * ```typescript
      * // Load specific version
-     * await loader.loadMemberFromEdgit('analyze-company@v1.0.0');
+     * await loader.loadAgentFromEdgit('analyze-company@v1.0.0');
      *
      * // Load production deployment
-     * await loader.loadMemberFromEdgit('analyze-company@production');
+     * await loader.loadAgentFromEdgit('analyze-company@production');
      * ```
      */
-    loadMemberFromEdgit(memberRef: string): Promise<BaseAgent>;
+    loadAgentFromEdgit(agentRef: string): Promise<BaseAgent>;
     /**
-     * Create a agent instance based on type
+     * Create an agent instance based on type
      */
-    private createMemberInstance;
+    private createAgentInstance;
     /**
      * Get a loaded agent by name
      */
@@ -113,15 +113,15 @@ export declare class AgentLoader {
     /**
      * Get all loaded agents
      */
-    getAllMembers(): BaseAgent[];
+    getAllAgents(): BaseAgent[];
     /**
      * Get all agent names
      */
-    getMemberNames(): string[];
+    getAgentNames(): string[];
     /**
-     * Check if a agent is loaded
+     * Check if an agent is loaded
      */
-    hasMember(name: string): boolean;
+    hasAgent(name: string): boolean;
     /**
      * Clear all loaded agents
      */
@@ -132,4 +132,5 @@ export declare class AgentLoader {
  */
 export declare function createLoader(config: LoaderConfig): AgentLoader;
 export declare const MemberLoader: typeof AgentLoader;
+export type LoadedMember = LoadedAgent;
 //# sourceMappingURL=loader.d.ts.map

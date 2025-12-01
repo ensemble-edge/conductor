@@ -10,6 +10,7 @@ import type { z } from 'zod';
 import type { EnsembleConfig } from './parser.js';
 import type { BaseAgent } from '../agents/base-agent.js';
 import type { ConductorEnv } from '../types/env.js';
+import type { DiscoveryData } from './executor.js';
 /**
  * Trigger handler context provided to trigger handlers
  * Uses generic Hono to accept any app typing (ConductorApp or bare Hono)
@@ -21,6 +22,11 @@ export interface TriggerHandlerContext {
     agents: BaseAgent[];
     env: ConductorEnv;
     ctx: ExecutionContext;
+    /**
+     * Discovery data for agents, ensembles, and docs
+     * Passed to Executor to enable ctx.agentRegistry and ctx.ensembleRegistry
+     */
+    discovery?: DiscoveryData;
 }
 /**
  * Trigger handler function
@@ -104,8 +110,15 @@ export declare class TriggerRegistry {
     /**
      * Register all triggers for an ensemble
      * Called during auto-discovery initialization
+     *
+     * @param app - Hono app instance
+     * @param ensemble - Ensemble configuration
+     * @param agents - Array of agent instances
+     * @param env - Cloudflare environment
+     * @param ctx - Execution context
+     * @param discovery - Optional discovery data for agents/ensembles/docs
      */
-    registerEnsembleTriggers(app: Hono<any, any, any>, ensemble: EnsembleConfig, agents: BaseAgent[], env: ConductorEnv, ctx: ExecutionContext): Promise<void>;
+    registerEnsembleTriggers(app: Hono<any, any, any>, ensemble: EnsembleConfig, agents: BaseAgent[], env: ConductorEnv, ctx: ExecutionContext, discovery?: DiscoveryData): Promise<void>;
 }
 /**
  * Get the global trigger registry instance

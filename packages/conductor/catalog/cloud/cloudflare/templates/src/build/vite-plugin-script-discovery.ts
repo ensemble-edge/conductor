@@ -4,6 +4,20 @@
  * Scans scripts/ directory for TypeScript files and automatically generates
  * imports and registration code via virtual module.
  *
+ * Supports centralized configuration via conductor.config.json:
+ * ```json
+ * {
+ *   "discovery": {
+ *     "scripts": {
+ *       "enabled": true,
+ *       "directory": "scripts",
+ *       "patterns": ["**\/*.ts"],
+ *       "excludeDirs": []
+ *     }
+ *   }
+ * }
+ * ```
+ *
  * This enables the `script://` URI pattern for referencing reusable code
  * in ensembles without using `new Function()` (which is blocked in Workers).
  *
@@ -17,42 +31,88 @@ import type { Plugin } from 'vite';
 import { globSync } from 'glob';
 import path from 'path';
 import fs from 'fs';
+import { getScriptsDiscoveryConfig, DEFAULT_SCRIPTS_DISCOVERY } from './config-loader.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-scripts';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;
 
+/**
+ * Script discovery plugin options
+ *
+ * Options can be provided directly OR loaded from conductor.config.json.
+ * Direct options take precedence over config file settings.
+ */
 export interface ScriptDiscoveryOptions {
   /**
    * Directory to search for script files
-   * @default 'scripts'
+   * @default 'scripts' (or from conductor.config.json)
    */
   scriptsDir?: string;
 
   /**
    * File extension for script files
-   * @default '.ts'
+   * @default '.ts' (or from conductor.config.json)
    */
   fileExtension?: string;
 
   /**
    * Directories to exclude from discovery
-   * @default []
+   * @default [] (or from conductor.config.json)
    */
   excludeDirs?: string[];
+
+  /**
+   * Load configuration from conductor.config.json
+   * When true, options from config file are used as defaults
+   * @default true
+   */
+  useConfigFile?: boolean;
 }
 
 export function scriptDiscoveryPlugin(options: ScriptDiscoveryOptions = {}): Plugin {
-  const scriptsDir = options.scriptsDir || 'scripts';
-  const fileExtension = options.fileExtension || '.ts';
-  const excludeDirs = options.excludeDirs || [];
+  const useConfigFile = options.useConfigFile !== false;
 
   let root: string;
+  let resolvedConfig: {
+    scriptsDir: string;
+    fileExtension: string;
+    excludeDirs: string[];
+    enabled: boolean;
+  };
 
   return {
     name: 'conductor:script-discovery',
 
     configResolved(config) {
       root = config.root;
+
+      // Load config from file or use defaults
+      const configFromFile = useConfigFile
+        ? getScriptsDiscoveryConfig(root)
+        : DEFAULT_SCRIPTS_DISCOVERY;
+
+      // Merge with explicit options (explicit options take precedence)
+      const scriptsDir = options.scriptsDir || configFromFile.directory;
+
+      // Get file extension from patterns
+      let fileExtension: string;
+      if (options.fileExtension) {
+        fileExtension = options.fileExtension;
+      } else {
+        // Extract extension from first pattern like "**/*.ts"
+        const firstPattern = configFromFile.patterns[0];
+        const match = firstPattern.match(/\*\.(\w+)$/);
+        fileExtension = match ? `.${match[1]}` : '.ts';
+      }
+
+      const excludeDirs = options.excludeDirs || configFromFile.excludeDirs || [];
+
+      resolvedConfig = {
+        scriptsDir,
+        fileExtension,
+        excludeDirs,
+        enabled: configFromFile.enabled !== false,
+      };
     },
 
     resolveId(id) {
@@ -63,15 +123,34 @@ export function scriptDiscoveryPlugin(options: ScriptDiscoveryOptions = {}): Plu
 
     load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
-        const code = generateScriptsModule(root, scriptsDir, fileExtension, excludeDirs);
+        // If scripts discovery is disabled, return empty module
+        if (!resolvedConfig.enabled) {
+          return `
+/**
+ * Script discovery is disabled in conductor.config.json.
+ * Set "discovery.scripts.enabled": true to enable.
+ */
+export const scripts = [];
+export const scriptsMap = new Map();
+`;
+        }
+
+        const code = generateScriptsModule(
+          root,
+          resolvedConfig.scriptsDir,
+          resolvedConfig.fileExtension,
+          resolvedConfig.excludeDirs
+        );
         return code;
       }
     },
 
     // Hot reload support for development
     handleHotUpdate({ file, server }) {
-      const scriptsDirPath = path.resolve(root, scriptsDir);
-      if (file.startsWith(scriptsDirPath) && file.endsWith(fileExtension)) {
+      if (!resolvedConfig.enabled) return;
+
+      const scriptsDirPath = path.resolve(root, resolvedConfig.scriptsDir);
+      if (file.startsWith(scriptsDirPath) && file.endsWith(resolvedConfig.fileExtension)) {
         const module = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
         if (module) {
           server.moduleGraph.invalidateModule(module);

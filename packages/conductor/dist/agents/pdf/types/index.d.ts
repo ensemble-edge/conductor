@@ -92,7 +92,7 @@ export interface PdfMetadata {
 /**
  * PDF agent configuration
  */
-export interface PdfMemberConfig {
+export interface PdfAgentConfig {
     /** HTML source for PDF generation */
     html?: {
         /** Inline HTML */
@@ -122,7 +122,7 @@ export interface PdfMemberConfig {
 /**
  * PDF agent input
  */
-export interface PdfMemberInput {
+export interface PdfAgentInput {
     /** Override HTML source */
     html?: {
         inline?: string;
@@ -146,7 +146,7 @@ export interface PdfMemberInput {
 /**
  * PDF agent output
  */
-export interface PdfMemberOutput {
+export interface PdfAgentOutput {
     /** PDF binary data (ArrayBuffer) */
     pdf: ArrayBuffer;
     /** PDF size in bytes */
@@ -187,4 +187,7 @@ export declare const PDF_PAGE_SIZES: Record<PdfPageSize, {
     width: number;
     height: number;
 }>;
+export type PdfMemberConfig = PdfAgentConfig;
+export type PdfMemberInput = PdfAgentInput;
+export type PdfMemberOutput = PdfAgentOutput;
 //# sourceMappingURL=index.d.ts.map

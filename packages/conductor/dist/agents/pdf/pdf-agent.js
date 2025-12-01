@@ -11,11 +11,11 @@
  */
 import { BaseAgent } from '../base-agent.js';
 import { Operation } from '../../types/constants.js';
-import { HtmlMember } from '../html/html-agent.js';
+import { HtmlAgent } from '../html/html-agent.js';
 import { generatePdf, validatePageConfig } from './utils/pdf-generator.js';
 import { storePdfToR2, generateFilename, createContentDisposition, validateStorageConfig, } from './utils/storage.js';
 import { createTemplateEngine } from '../../utils/templates/index.js';
-export class PdfMember extends BaseAgent {
+export class PdfAgent extends BaseAgent {
     constructor(config) {
         super(config);
         // Extract nested config (config.config contains the agent-specific settings)
@@ -94,7 +94,7 @@ export class PdfMember extends BaseAgent {
                     },
                 },
             };
-            const htmlMember = new HtmlMember(htmlMemberConfig);
+            const htmlAgent = new HtmlAgent(htmlMemberConfig);
             // Create child context (security features injected by BaseAgent.execute)
             const htmlContext = {
                 input: { data: htmlSource.data || {} },
@@ -102,7 +102,7 @@ export class PdfMember extends BaseAgent {
                 ctx: context.ctx,
                 previousOutputs: context.previousOutputs,
             };
-            const htmlResponse = await htmlMember.execute(htmlContext);
+            const htmlResponse = await htmlAgent.execute(htmlContext);
             if (!htmlResponse.success) {
                 throw new Error(`HTML rendering failed: ${htmlResponse.error}`);
             }
@@ -172,3 +172,5 @@ export class PdfMember extends BaseAgent {
         return rendered;
     }
 }
+// Backward compatibility aliases
+export const PdfMember = PdfAgent;

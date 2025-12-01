@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { MemberLoader } from '../loader'
+import { AgentLoader } from '../loader'
 import { BaseAgent } from '../../agents/base-agent'
 
 // Mock environment and context
 const mockEnv = {} as Env
 const mockCtx = {} as ExecutionContext
 
-describe('MemberLoader', () => {
-  let loader: MemberLoader
+describe('AgentLoader', () => {
+  let loader: AgentLoader
 
   beforeEach(() => {
-    loader = new MemberLoader({
+    loader = new AgentLoader({
       env: mockEnv,
       ctx: mockCtx,
     })
@@ -30,8 +30,8 @@ prompt: Say hello to {{name}}`,
 
       await loader.autoDiscover(discoveredAgents)
 
-      expect(loader.hasMember('hello-think')).toBe(true)
-      expect(loader.getMemberNames()).toContain('hello-think')
+      expect(loader.hasAgent('hello-think')).toBe(true)
+      expect(loader.getAgentNames()).toContain('hello-think')
     })
 
     it('should handle agents with handlers', async () => {
@@ -49,7 +49,7 @@ description: A code agent`,
 
       await loader.autoDiscover(discoveredAgents)
 
-      expect(loader.hasMember('hello-code')).toBe(true)
+      expect(loader.hasAgent('hello-code')).toBe(true)
       const agent = loader.getAgent('hello-code')
       expect(agent).toBeInstanceOf(BaseAgent)
     })
@@ -78,8 +78,8 @@ prompt: Agent 3`,
 
       await loader.autoDiscover(discoveredAgents)
 
-      expect(loader.getMemberNames()).toHaveLength(3)
-      expect(loader.getMemberNames()).toEqual(
+      expect(loader.getAgentNames()).toHaveLength(3)
+      expect(loader.getAgentNames()).toEqual(
         expect.arrayContaining(['agent1', 'agent2', 'agent3'])
       )
     })
@@ -107,14 +107,14 @@ prompt: Another valid`,
       await loader.autoDiscover(discoveredAgents)
 
       // Should register valid agents despite one failing
-      expect(loader.hasMember('valid-agent')).toBe(true)
-      expect(loader.hasMember('another-valid')).toBe(true)
-      expect(loader.hasMember('invalid-agent')).toBe(false)
+      expect(loader.hasAgent('valid-agent')).toBe(true)
+      expect(loader.hasAgent('another-valid')).toBe(true)
+      expect(loader.hasAgent('invalid-agent')).toBe(false)
     })
 
     it('should handle empty discovered agents array', async () => {
       await loader.autoDiscover([])
-      expect(loader.getMemberNames()).toHaveLength(0)
+      expect(loader.getAgentNames()).toHaveLength(0)
     })
 
     it('should handle agents with default export handlers', async () => {
@@ -130,7 +130,7 @@ operation: code`,
       ]
 
       await loader.autoDiscover(discoveredAgents)
-      expect(loader.hasMember('with-default')).toBe(true)
+      expect(loader.hasAgent('with-default')).toBe(true)
     })
 
     it('should handle agents with named export handlers', async () => {
@@ -146,7 +146,7 @@ operation: code`,
       ]
 
       await loader.autoDiscover(discoveredAgents)
-      expect(loader.hasMember('with-named')).toBe(true)
+      expect(loader.hasAgent('with-named')).toBe(true)
     })
   })
 
@@ -158,7 +158,7 @@ prompt: Test prompt`
 
       const agent = loader.registerAgent(yaml)
       expect(agent).toBeInstanceOf(BaseAgent)
-      expect(loader.hasMember('test-agent')).toBe(true)
+      expect(loader.hasAgent('test-agent')).toBe(true)
     })
 
     it('should register agent from config object', () => {
@@ -171,7 +171,7 @@ prompt: Test prompt`
 
       const agent = loader.registerAgent(config)
       expect(agent).toBeInstanceOf(BaseAgent)
-      expect(loader.hasMember('test-agent')).toBe(true)
+      expect(loader.hasAgent('test-agent')).toBe(true)
     })
   })
 
@@ -191,16 +191,16 @@ prompt: Test`
     })
   })
 
-  describe('getAllMembers', () => {
+  describe('getAllAgents', () => {
     it('should return empty array initially', () => {
-      expect(loader.getAllMembers()).toHaveLength(0)
+      expect(loader.getAllAgents()).toHaveLength(0)
     })
 
     it('should return all registered agents', () => {
       loader.registerAgent(`name: agent1\noperation: think\nprompt: Test1`)
       loader.registerAgent(`name: agent2\noperation: think\nprompt: Test2`)
 
-      const agents = loader.getAllMembers()
+      const agents = loader.getAllAgents()
       expect(agents).toHaveLength(2)
       expect(agents.every((a) => a instanceof BaseAgent)).toBe(true)
     })
@@ -209,10 +209,10 @@ prompt: Test`
   describe('clear', () => {
     it('should clear all registered agents', () => {
       loader.registerAgent(`name: agent1\noperation: think\nprompt: Test`)
-      expect(loader.getMemberNames()).toHaveLength(1)
+      expect(loader.getAgentNames()).toHaveLength(1)
 
       loader.clear()
-      expect(loader.getMemberNames()).toHaveLength(0)
+      expect(loader.getAgentNames()).toHaveLength(0)
     })
   })
 })

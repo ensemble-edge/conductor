@@ -123,7 +123,7 @@ Email: hello@example.com
 				true
 			);
 			expect(needsResolution('agents/analyzer@latest')).toBe(true);
-			expect(needsResolution('pages/dashboard@production')).toBe(
+			expect(needsResolution('ensembles/dashboard@production')).toBe(
 				true
 			);
 			expect(
@@ -178,7 +178,7 @@ Email: hello@example.com
 		it('should detect unversioned component paths', () => {
 			expect(needsResolution('prompts/extraction')).toBe(true);
 			expect(needsResolution('agents/analyzer')).toBe(true);
-			expect(needsResolution('pages/dashboard')).toBe(true);
+			expect(needsResolution('ensembles/dashboard')).toBe(true);
 		});
 
 		it('should add @latest to unversioned components', async () => {

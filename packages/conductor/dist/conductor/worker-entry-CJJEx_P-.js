@@ -9942,6 +9942,7 @@ class StringResolver {
    * Traverse context using dot-separated path with optional operators and filter chain
    * Supports (in order of precedence):
    * - input.enabled ? "yes" : "no" (ternary conditional)
+   * - input.path == '/docs' ? "landing" : "other" (ternary with equality comparison)
    * - input.name ?? "default" (nullish coalescing - null/undefined only)
    * - input.name || "default" (falsy coalescing - catches "", 0, false too)
    * - input.text | split(' ') | length (filters)
@@ -9950,8 +9951,8 @@ class StringResolver {
   traversePath(path, context) {
     const ternaryMatch = path.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/);
     if (ternaryMatch) {
-      const [, conditionPath, trueExpr, falseExpr] = ternaryMatch;
-      const condition = this.resolvePathWithFilters(conditionPath.trim(), context);
+      const [, conditionExpr, trueExpr, falseExpr] = ternaryMatch;
+      const condition = this.evaluateCondition(conditionExpr.trim(), context);
       const selectedExpr = condition ? trueExpr.trim() : falseExpr.trim();
       return this.resolveLiteralOrPath(selectedExpr, context);
     }
@@ -9965,7 +9966,7 @@ class StringResolver {
       }
       return void 0;
     }
-    if (/\|\|/.test(path)) {
+    if (/\|\|/.test(path) && !this.hasComparisonOperator(path)) {
       const alternatives = path.split("||").map((alt) => alt.trim());
       for (const alt of alternatives) {
         const value = this.resolveLiteralOrPath(alt, context);
@@ -9976,7 +9977,90 @@ class StringResolver {
       const lastAlt = alternatives[alternatives.length - 1];
       return this.resolveLiteralOrPath(lastAlt, context);
     }
+    if (this.hasComparisonOperator(path)) {
+      return this.evaluateCondition(path, context);
+    }
     return this.resolvePathWithFilters(path, context);
+  }
+  /**
+   * Check if an expression contains comparison operators
+   * Used to detect expressions like "input.path == '/docs'" that should be evaluated as conditions
+   */
+  hasComparisonOperator(expr) {
+    return /\s*(===|!==|==|!=|>=|<=|>|<|&&)\s*/.test(expr) || // Also check for string method calls that return boolean
+    /\.includes\(/.test(expr) || /\.startsWith\(/.test(expr) || /\.endsWith\(/.test(expr);
+  }
+  /**
+   * Evaluate a condition expression which may include comparison operators
+   * Supports: ==, !=, ===, !==, >, <, >=, <=, &&, ||
+   * Also supports string method calls like includes()
+   */
+  evaluateCondition(expr, context) {
+    if (expr.includes("&&")) {
+      const parts = expr.split("&&").map((p) => p.trim());
+      return parts.every((part) => this.evaluateCondition(part, context));
+    }
+    if (/\s*\|\|\s*/.test(expr) && !expr.includes("?")) {
+      const parts = expr.split(/\s*\|\|\s*/).map((p) => p.trim());
+      return parts.some((part) => this.evaluateCondition(part, context));
+    }
+    const includesMatch = expr.match(/^(.+?)\.includes\(\s*(['"])(.+?)\2\s*\)$/);
+    if (includesMatch) {
+      const [, pathExpr, , searchStr] = includesMatch;
+      const value2 = this.resolvePathWithFilters(pathExpr.trim(), context);
+      if (typeof value2 === "string") {
+        return value2.includes(searchStr);
+      }
+      return false;
+    }
+    const startsWithMatch = expr.match(/^(.+?)\.startsWith\(\s*(['"])(.+?)\2\s*\)$/);
+    if (startsWithMatch) {
+      const [, pathExpr, , prefix] = startsWithMatch;
+      const value2 = this.resolvePathWithFilters(pathExpr.trim(), context);
+      if (typeof value2 === "string") {
+        return value2.startsWith(prefix);
+      }
+      return false;
+    }
+    const endsWithMatch = expr.match(/^(.+?)\.endsWith\(\s*(['"])(.+?)\2\s*\)$/);
+    if (endsWithMatch) {
+      const [, pathExpr, , suffix] = endsWithMatch;
+      const value2 = this.resolvePathWithFilters(pathExpr.trim(), context);
+      if (typeof value2 === "string") {
+        return value2.endsWith(suffix);
+      }
+      return false;
+    }
+    const strictEqMatch = expr.match(/^(.+?)\s*(===|!==)\s*(.+)$/);
+    if (strictEqMatch) {
+      const [, leftExpr, op, rightExpr] = strictEqMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === "===" ? leftValue === rightValue : leftValue !== rightValue;
+    }
+    const eqMatch = expr.match(/^(.+?)\s*(==|!=)\s*(.+)$/);
+    if (eqMatch) {
+      const [, leftExpr, op, rightExpr] = eqMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === "==" ? leftValue == rightValue : leftValue != rightValue;
+    }
+    const compEqMatch = expr.match(/^(.+?)\s*(>=|<=)\s*(.+)$/);
+    if (compEqMatch) {
+      const [, leftExpr, op, rightExpr] = compEqMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === ">=" ? leftValue >= rightValue : leftValue <= rightValue;
+    }
+    const compMatch = expr.match(/^(.+?)\s*([><])\s*(.+)$/);
+    if (compMatch) {
+      const [, leftExpr, op, rightExpr] = compMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === ">" ? leftValue > rightValue : leftValue < rightValue;
+    }
+    const value = this.resolvePathWithFilters(expr, context);
+    return Boolean(value);
   }
   /**
    * Resolve a value that could be a literal or a path expression
@@ -9993,7 +10077,7 @@ class StringResolver {
     if (expr === "true") return true;
     if (expr === "false") return false;
     if (expr === "null") return null;
-    return this.resolvePathWithFilters(expr, context);
+    return this.traversePath(expr, context);
   }
   /**
    * Resolve a path that may include filter chains
@@ -11322,6 +11406,8 @@ const logger$f = createLogger({ serviceName: "parser" });
 const AgentFlowStepSchema = objectType({
   agent: stringType().min(1, "Agent name is required"),
   id: stringType().optional(),
+  name: stringType().optional(),
+  // Alias for id - used for output references like ${name.output}
   input: recordType(unknownType()).optional(),
   state: objectType({
     use: arrayType(stringType()).optional(),
@@ -24001,7 +24087,7 @@ function createSmsProvider(config) {
       throw new Error(`Unknown SMS provider: ${config.provider}`);
   }
 }
-class SmsMember extends BaseAgent {
+class SmsAgent extends BaseAgent {
   constructor(config) {
     super(config);
     const smsConfig = config.config;
@@ -24121,6 +24207,7 @@ class SmsMember extends BaseAgent {
     return new Promise((resolve2) => setTimeout(resolve2, ms));
   }
 }
+const SmsMember = SmsAgent;
 async function validateField(field, value, allData, context) {
   const errors = [];
   if (field.disabled || field.readonly) {
@@ -25230,7 +25317,7 @@ function mergeCookieOptions(options, defaults) {
     ...options
   };
 }
-class HtmlMember extends BaseAgent {
+class HtmlAgent extends BaseAgent {
   constructor(config) {
     super(config);
     const rawConfig = config.config || {};
@@ -25313,7 +25400,7 @@ class HtmlMember extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache2;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-BAz9DXw_.js");
+        const { MemoryCache } = await import("./cache-ful1ANox.js");
         cache2 = new MemoryCache({
           defaultTTL: 3600
         });
@@ -25399,7 +25486,7 @@ class HtmlMember extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache2;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-BAz9DXw_.js");
+          const { MemoryCache } = await import("./cache-ful1ANox.js");
           cache2 = new MemoryCache({
             defaultTTL: 3600
           });
@@ -25507,6 +25594,7 @@ class HtmlMember extends BaseAgent {
     return html.replace(/<!--[\s\S]*?-->/g, "").replace(/>\s+</g, "><").trim();
   }
 }
+const HtmlMember = HtmlAgent;
 async function generatePdf(options, env) {
   if (env?.BROWSER) {
     return await generatePdfWithBrowser(options, env.BROWSER);
@@ -25740,7 +25828,7 @@ function validateStorageConfig(config) {
     errors: errors.length > 0 ? errors : void 0
   };
 }
-class PdfMember extends BaseAgent {
+class PdfAgent extends BaseAgent {
   constructor(config) {
     super(config);
     this.pdfConfig = config.config || {};
@@ -25807,14 +25895,14 @@ class PdfMember extends BaseAgent {
           }
         }
       };
-      const htmlMember = new HtmlMember(htmlMemberConfig);
+      const htmlAgent = new HtmlAgent(htmlMemberConfig);
       const htmlContext = {
         input: { data: htmlSource.data || {} },
         env: context.env,
         ctx: context.ctx,
         previousOutputs: context.previousOutputs
       };
-      const htmlResponse = await htmlMember.execute(htmlContext);
+      const htmlResponse = await htmlAgent.execute(htmlContext);
       if (!htmlResponse.success) {
         throw new Error(`HTML rendering failed: ${htmlResponse.error}`);
       }
@@ -25880,7 +25968,8 @@ class PdfMember extends BaseAgent {
     return rendered;
   }
 }
-class BuiltInMemberRegistry {
+const PdfMember = PdfAgent;
+class BuiltInAgentRegistry {
   constructor() {
     this.agents = /* @__PURE__ */ new Map();
   }
@@ -25947,12 +26036,12 @@ class BuiltInMemberRegistry {
 let registry = null;
 function getBuiltInRegistry() {
   if (!registry) {
-    registry = new BuiltInMemberRegistry();
-    registerAllBuiltInMembers(registry);
+    registry = new BuiltInAgentRegistry();
+    registerAllBuiltInAgents(registry);
   }
   return registry;
 }
-function registerAllBuiltInMembers(registry2) {
+function registerAllBuiltInAgents(registry2) {
   registry2.register(
     {
       name: "rag",
@@ -25991,7 +26080,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-Cl74V6dK.js");
+      const { RAGMember } = await import("./index-D8J_oiXa.js");
       return new RAGMember(config, env);
     }
   );
@@ -26027,7 +26116,7 @@ function registerAllBuiltInMembers(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-h_6LAwJk.js");
+      const { HITLMember } = await import("./index-DbS6WBaI.js");
       return new HITLMember(config, env);
     }
   );
@@ -28027,6 +28116,35 @@ function extractEnsembleMetadata(name, config, source) {
     stepCount: Array.isArray(config.flow) ? config.flow.length : 0
   };
 }
+function createDocsRegistry(docs) {
+  return {
+    list() {
+      const result = [];
+      for (const [slug, page] of docs) {
+        result.push({
+          slug,
+          title: page.title,
+          content: page.content,
+          order: page.order
+        });
+      }
+      return result.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    },
+    get(slug) {
+      const page = docs.get(slug);
+      if (!page) return void 0;
+      return {
+        slug,
+        title: page.title,
+        content: page.content,
+        order: page.order
+      };
+    },
+    has(slug) {
+      return docs.has(slug);
+    }
+  };
+}
 function resolveOutput(output, context) {
   if (!output) {
     return { status: 200 };
@@ -29421,6 +29539,7 @@ class Executor {
     this.auth = config.auth;
     this.defaultTimeout = config.defaultTimeout ?? DEFAULT_AGENT_TIMEOUT_MS;
     this.logger = config.logger || createLogger({ serviceName: "executor" }, this.env.ANALYTICS);
+    this.discoveryData = config.discovery;
   }
   /**
    * Register an agent for use in ensembles
@@ -29574,9 +29693,10 @@ class Executor {
       queries: flowContext.componentRegistry.queries,
       scripts: flowContext.componentRegistry.scripts,
       templates: flowContext.componentRegistry.templates,
-      // Discovery registries for agents and ensembles
+      // Discovery registries for agents, ensembles, and docs
       agentRegistry: flowContext.agentRegistry,
       ensembleRegistry: flowContext.ensembleRegistry,
+      docsRegistry: flowContext.docsRegistry,
       // Agent-specific config from ensemble definition
       config: agentConfig,
       // Memory manager for conversation history and persistent storage
@@ -29797,7 +29917,7 @@ class Executor {
         cached: response.cached
       });
     }
-    const contextKey = step2.id || step2.agent;
+    const contextKey = step2.id || step2.name || step2.agent;
     executionContext[contextKey] = {
       output: response.data,
       success: true
@@ -30225,7 +30345,10 @@ Script loader not initialized. For Cloudflare Workers:
     };
     const componentRegistry = createComponentRegistry(this.env);
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
-    const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(
+      this.discoveryData?.ensembles || /* @__PURE__ */ new Map()
+    );
+    const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || /* @__PURE__ */ new Map());
     const flowContext = {
       ensemble,
       executionContext,
@@ -30240,6 +30363,7 @@ Script loader not initialized. For Cloudflare Workers:
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
       ensembleRegistry: ensembleDiscoveryRegistry,
+      docsRegistry: docsDiscoveryRegistry,
       memoryManager
     };
     const result = await this.executeFlow(flowContext, 0);
@@ -30383,7 +30507,10 @@ Script loader not initialized. For Cloudflare Workers:
     );
     const componentRegistry = createComponentRegistry(this.env);
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
-    const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(
+      this.discoveryData?.ensembles || /* @__PURE__ */ new Map()
+    );
+    const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || /* @__PURE__ */ new Map());
     const originalInput = executionContext.input ?? {};
     const memoryManager = this.createMemoryManager(ensemble, {
       ...originalInput,
@@ -30403,6 +30530,7 @@ Script loader not initialized. For Cloudflare Workers:
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
       ensembleRegistry: ensembleDiscoveryRegistry,
+      docsRegistry: docsDiscoveryRegistry,
       memoryManager
     };
     const resumeFromStep = suspendedState.resumeFromStep;
@@ -30746,8 +30874,15 @@ class TriggerRegistry {
   /**
    * Register all triggers for an ensemble
    * Called during auto-discovery initialization
+   *
+   * @param app - Hono app instance
+   * @param ensemble - Ensemble configuration
+   * @param agents - Array of agent instances
+   * @param env - Cloudflare environment
+   * @param ctx - Execution context
+   * @param discovery - Optional discovery data for agents/ensembles/docs
    */
-  async registerEnsembleTriggers(app, ensemble, agents, env, ctx) {
+  async registerEnsembleTriggers(app, ensemble, agents, env, ctx, discovery) {
     if (!ensemble.trigger || ensemble.trigger.length === 0) {
       return;
     }
@@ -30767,7 +30902,8 @@ class TriggerRegistry {
           trigger,
           agents,
           env,
-          ctx
+          ctx,
+          discovery
         });
         logger$8.info(
           `[TriggerRegistry] Registered ${trigger.type} trigger for ensemble: ${ensemble.name}`
@@ -30886,7 +31022,7 @@ class HttpMiddlewareRegistry {
 function getHttpMiddlewareRegistry() {
   return HttpMiddlewareRegistry.getInstance();
 }
-class QueueMember extends BaseAgent {
+class QueueAgent extends BaseAgent {
   constructor(config) {
     super(config);
     this.queueConfig = config.config || {};
@@ -31126,12 +31262,12 @@ const logger$6 = createLogger({ serviceName: "agent-loader" });
 class AgentLoader {
   constructor(config) {
     this.config = {
-      membersDir: config.membersDir || "./agents",
+      agentsDir: config.agentsDir || "./agents",
       ensemblesDir: config.ensemblesDir || "./ensembles",
       env: config.env,
       ctx: config.ctx
     };
-    this.loadedMembers = /* @__PURE__ */ new Map();
+    this.loadedAgents = /* @__PURE__ */ new Map();
   }
   /**
    * Auto-discover and register agents from virtual module
@@ -31145,7 +31281,7 @@ class AgentLoader {
    * ```typescript
    * import { agents as discoveredAgents } from 'virtual:conductor-agents';
    *
-   * const loader = new MemberLoader({ env, ctx });
+   * const loader = new AgentLoader({ env, ctx });
    * await loader.autoDiscover(discoveredAgents);
    * ```
    */
@@ -31170,8 +31306,8 @@ class AgentLoader {
         );
       }
     }
-    logger$6.info(`Auto-discovery complete: ${this.loadedMembers.size} agents loaded`, {
-      agentCount: this.loadedMembers.size
+    logger$6.info(`Auto-discovery complete: ${this.loadedAgents.size} agents loaded`, {
+      agentCount: this.loadedAgents.size
     });
   }
   /**
@@ -31187,15 +31323,15 @@ class AgentLoader {
    */
   registerAgent(agentConfig, implementation) {
     const config = typeof agentConfig === "string" ? Parser$1.parseAgent(agentConfig) : agentConfig;
-    const instance = this.createMemberInstance(config, implementation);
-    this.loadedMembers.set(config.name, {
+    const instance = this.createAgentInstance(config, implementation);
+    this.loadedAgents.set(config.name, {
       config,
       instance
     });
     return instance;
   }
   /**
-   * Load a agent from Edgit by version reference
+   * Load an agent from Edgit by version reference
    *
    * This enables loading versioned agent configs at runtime for A/B testing,
    * environment-specific configs, and config-only deployments.
@@ -31203,29 +31339,29 @@ class AgentLoader {
    * @example
    * ```typescript
    * // Load specific version
-   * await loader.loadMemberFromEdgit('analyze-company@v1.0.0');
+   * await loader.loadAgentFromEdgit('analyze-company@v1.0.0');
    *
    * // Load production deployment
-   * await loader.loadMemberFromEdgit('analyze-company@production');
+   * await loader.loadAgentFromEdgit('analyze-company@production');
    * ```
    */
-  async loadMemberFromEdgit(memberRef) {
-    const { name, version } = Parser$1.parseAgentReference(memberRef);
+  async loadAgentFromEdgit(agentRef) {
+    const { name, version } = Parser$1.parseAgentReference(agentRef);
     if (!version) {
-      throw new Error(`Agent reference must include version: ${memberRef}`);
+      throw new Error(`Agent reference must include version: ${agentRef}`);
     }
     const versionedKey = `${name}@${version}`;
-    if (this.loadedMembers.has(versionedKey)) {
-      return this.loadedMembers.get(versionedKey).instance;
+    if (this.loadedAgents.has(versionedKey)) {
+      return this.loadedAgents.get(versionedKey).instance;
     }
     throw new Error(
-      `Cannot load versioned agent from Edgit: ${memberRef}. Edgit integration not yet available. Use loader.registerAgent() for now.`
+      `Cannot load versioned agent from Edgit: ${agentRef}. Edgit integration not yet available. Use loader.registerAgent() for now.`
     );
   }
   /**
-   * Create a agent instance based on type
+   * Create an agent instance based on type
    */
-  createMemberInstance(config, implementation) {
+  createAgentInstance(config, implementation) {
     switch (config.operation) {
       case "code":
         if (!implementation) {
@@ -31243,15 +31379,15 @@ class AgentLoader {
       case "email":
         return new EmailAgent(config);
       case "sms":
-        return new SmsMember(config);
+        return new SmsAgent(config);
       case "form":
         return new FormAgent(config);
       case "html":
-        return new HtmlMember(config);
+        return new HtmlAgent(config);
       case "pdf":
-        return new PdfMember(config);
+        return new PdfAgent(config);
       case "queue":
-        return new QueueMember(config);
+        return new QueueAgent(config);
       default:
         throw new Error(
           `Unknown agent operation type: "${config.operation}". If using tools, validate, or autorag, these are now template-based agents. Use 'operation: code' with a handler instead. See: catalog/cloud/cloudflare/templates/agents/system/`
@@ -31262,37 +31398,37 @@ class AgentLoader {
    * Get a loaded agent by name
    */
   getAgent(name) {
-    return this.loadedMembers.get(name)?.instance;
+    return this.loadedAgents.get(name)?.instance;
   }
   /**
    * Get agent config by name
    */
   getAgentConfig(name) {
-    return this.loadedMembers.get(name)?.config;
+    return this.loadedAgents.get(name)?.config;
   }
   /**
    * Get all loaded agents
    */
-  getAllMembers() {
-    return Array.from(this.loadedMembers.values()).map((m) => m.instance);
+  getAllAgents() {
+    return Array.from(this.loadedAgents.values()).map((a) => a.instance);
   }
   /**
    * Get all agent names
    */
-  getMemberNames() {
-    return Array.from(this.loadedMembers.keys());
+  getAgentNames() {
+    return Array.from(this.loadedAgents.keys());
   }
   /**
-   * Check if a agent is loaded
+   * Check if an agent is loaded
    */
-  hasMember(name) {
-    return this.loadedMembers.has(name);
+  hasAgent(name) {
+    return this.loadedAgents.has(name);
   }
   /**
    * Clear all loaded agents
    */
   clear() {
-    this.loadedMembers.clear();
+    this.loadedAgents.clear();
   }
 }
 function createLoader(config) {
@@ -31363,8 +31499,20 @@ class EnsembleLoader {
    * loader.registerEnsemble(blogWorkflowConfig);
    * ```
    */
-  registerEnsemble(ensembleConfig) {
+  registerEnsemble(ensembleConfig, isFromCatalog = false) {
     const config = typeof ensembleConfig === "string" ? Parser$1.parseEnsemble(ensembleConfig) : ensembleConfig;
+    const existing = this.loadedEnsembles.get(config.name);
+    if (existing) {
+      if (existing.isFromCatalog && !isFromCatalog) {
+        logger$5.warn(
+          `Ensemble name conflict: "${config.name}" already exists in the catalog. Your ensemble will override it. Consider renaming to avoid confusion.`
+        );
+      } else if (!existing.isFromCatalog && !isFromCatalog) {
+        logger$5.warn(
+          `Duplicate ensemble name: "${config.name}" is defined multiple times. The later definition will override the earlier one.`
+        );
+      }
+    }
     const instance = ensembleFromConfig(
       config
     );
@@ -31387,7 +31535,8 @@ class EnsembleLoader {
     this.loadedEnsembles.set(config.name, {
       config,
       instance,
-      source: "yaml"
+      source: "yaml",
+      isFromCatalog
     });
     return instance;
   }
@@ -31411,9 +31560,21 @@ class EnsembleLoader {
    * loader.registerEnsembleInstance(myPipeline);
    * ```
    */
-  registerEnsembleInstance(ensemble) {
+  registerEnsembleInstance(ensemble, isFromCatalog = false) {
     if (!isEnsemble(ensemble)) {
       throw new Error("registerEnsembleInstance expects an Ensemble instance");
+    }
+    const existing = this.loadedEnsembles.get(ensemble.name);
+    if (existing) {
+      if (existing.isFromCatalog && !isFromCatalog) {
+        logger$5.warn(
+          `Ensemble name conflict: "${ensemble.name}" already exists in the catalog. Your ensemble will override it. Consider renaming to avoid confusion.`
+        );
+      } else if (!existing.isFromCatalog && !isFromCatalog) {
+        logger$5.warn(
+          `Duplicate ensemble name: "${ensemble.name}" is defined multiple times. The later definition will override the earlier one.`
+        );
+      }
     }
     if (ensemble.agents && ensemble.agents.length > 0 && this.config.agentLoader) {
       for (const agentDef of ensemble.agents) {
@@ -31431,7 +31592,8 @@ class EnsembleLoader {
     this.loadedEnsembles.set(ensemble.name, {
       config: ensemble.toConfig(),
       instance: ensemble,
-      source: "typescript"
+      source: "typescript",
+      isFromCatalog
     });
     return ensemble;
   }
@@ -31478,6 +31640,17 @@ class EnsembleLoader {
    */
   getAllLoadedEnsembles() {
     return Array.from(this.loadedEnsembles.values());
+  }
+  /**
+   * Get ensemble data in registry format for createEnsembleRegistry()
+   * Returns a Map suitable for passing to the Executor's discovery data
+   */
+  getRegistryData() {
+    const result = /* @__PURE__ */ new Map();
+    for (const [name, loaded] of this.loadedEnsembles) {
+      result.set(name, { config: loaded.config, source: loaded.source });
+    }
+    return result;
   }
   /**
    * Get all ensemble names
@@ -36318,4 +36491,4 @@ export {
   ExecutionId as y,
   RequestId as z
 };
-//# sourceMappingURL=worker-entry-CfahJawz.js.map
+//# sourceMappingURL=worker-entry-CJJEx_P-.js.map

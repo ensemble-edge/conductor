@@ -9,8 +9,8 @@
  */
 import { BaseAgent, type AgentExecutionContext } from '../base-agent.js';
 import type { AgentConfig } from '../../runtime/parser.js';
-import type { QueueMemberOutput } from './types/index.js';
-export declare class QueueMember extends BaseAgent {
+import type { QueueAgentInput, QueueAgentOutput } from './types/index.js';
+export declare class QueueAgent extends BaseAgent {
     private queueConfig;
     constructor(config: AgentConfig);
     /**
@@ -20,7 +20,7 @@ export declare class QueueMember extends BaseAgent {
     /**
      * Execute queue operation
      */
-    protected run(context: AgentExecutionContext): Promise<QueueMemberOutput>;
+    protected run(context: AgentExecutionContext): Promise<QueueAgentOutput>;
     /**
      * Send single message
      */
@@ -66,4 +66,7 @@ export declare class QueueMember extends BaseAgent {
      */
     private generateMessageId;
 }
+export declare const QueueMember: typeof QueueAgent;
+export type QueueMemberInput = QueueAgentInput;
+export type QueueMemberOutput = QueueAgentOutput;
 //# sourceMappingURL=queue-agent.d.ts.map

@@ -259,9 +259,9 @@ export function createConductorAPI(config: APIConfig = {}): ConductorApp {
   // Health checks (public, no auth)
   app.route('/health', health)
 
-  // NOTE: Documentation routes (/docs/*) are now provided via the docs-serve ensemble
+  // NOTE: Documentation routes (/docs/*) are provided via the docs-serve ensemble
   // Include ensembles/system/docs/serve.yaml in your project and use createAutoDiscoveryAPI
-  // Or manually add docs routes: import { docs } from '@ensemble-edge/conductor/api/routes'
+  // The built-in docs route was removed in favor of the agent/ensemble approach
 
   // OpenAPI documentation (public, no auth)
   app.route('/', openapi)

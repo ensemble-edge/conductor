@@ -12,17 +12,17 @@
 
 import type { BaseAgent } from '../base-agent.js'
 import type { AgentConfig } from '../../runtime/parser.js'
-import type { BuiltInMemberMetadata, BuiltInMemberFactory, BuiltInMemberEntry } from './types.js'
+import type { BuiltInAgentMetadata, BuiltInAgentFactory, BuiltInAgentEntry } from './types.js'
 import { Operation } from '../../types/constants.js'
 import type { ConductorEnv } from '../../types/env.js'
 
-export class BuiltInMemberRegistry {
-  private agents = new Map<string, BuiltInMemberEntry>()
+export class BuiltInAgentRegistry {
+  private agents = new Map<string, BuiltInAgentEntry>()
 
   /**
    * Register a built-in agent
    */
-  register(metadata: BuiltInMemberMetadata, factory: BuiltInMemberFactory): void {
+  register(metadata: BuiltInAgentMetadata, factory: BuiltInAgentFactory): void {
     this.agents.set(metadata.name, {
       metadata,
       factory,
@@ -57,14 +57,14 @@ export class BuiltInMemberRegistry {
   /**
    * Get metadata for a built-in agent
    */
-  getMetadata(name: string): BuiltInMemberMetadata | undefined {
+  getMetadata(name: string): BuiltInAgentMetadata | undefined {
     return this.agents.get(name)?.metadata
   }
 
   /**
    * List all built-in agents
    */
-  list(): BuiltInMemberMetadata[] {
+  list(): BuiltInAgentMetadata[] {
     return Array.from(this.agents.values()).map((entry) => entry.metadata)
   }
 
@@ -78,28 +78,28 @@ export class BuiltInMemberRegistry {
   /**
    * Get agents by type
    */
-  listByType(type: string): BuiltInMemberMetadata[] {
+  listByType(type: string): BuiltInAgentMetadata[] {
     return this.list().filter((m) => m.operation === type)
   }
 
   /**
    * Get agents by tag
    */
-  listByTag(tag: string): BuiltInMemberMetadata[] {
+  listByTag(tag: string): BuiltInAgentMetadata[] {
     return this.list().filter((m) => m.tags?.includes(tag))
   }
 }
 
 // Singleton registry instance
-let registry: BuiltInMemberRegistry | null = null
+let registry: BuiltInAgentRegistry | null = null
 
 /**
  * Get the built-in agent registry (singleton)
  */
-export function getBuiltInRegistry(): BuiltInMemberRegistry {
+export function getBuiltInRegistry(): BuiltInAgentRegistry {
   if (!registry) {
-    registry = new BuiltInMemberRegistry()
-    registerAllBuiltInMembers(registry)
+    registry = new BuiltInAgentRegistry()
+    registerAllBuiltInAgents(registry)
   }
   return registry
 }
@@ -115,7 +115,7 @@ export function getBuiltInRegistry(): BuiltInMemberRegistry {
  * - RAG: Tight Cloudflare Vectorize and Workers AI embedding integration
  * - HITL: Requires Durable Objects runtime coordination for workflow suspension
  */
-function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
+function registerAllBuiltInAgents(registry: BuiltInAgentRegistry): void {
   // Import and register each built-in agent
   // This happens lazily, so only loaded when first accessed
 
@@ -201,3 +201,6 @@ function registerAllBuiltInMembers(registry: BuiltInMemberRegistry): void {
     }
   )
 }
+
+// Backward compatibility alias
+export const BuiltInMemberRegistry = BuiltInAgentRegistry

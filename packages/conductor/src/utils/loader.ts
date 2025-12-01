@@ -16,11 +16,11 @@ import { ThinkAgent } from '../agents/think-agent.js'
 import { DataAgent } from '../agents/data-agent.js'
 import { APIAgent } from '../agents/api-agent.js'
 import { EmailAgent } from '../agents/email/email-agent.js'
-import { SmsMember } from '../agents/sms/sms-agent.js'
+import { SmsAgent } from '../agents/sms/sms-agent.js'
 import { FormAgent } from '../agents/form/form-agent.js'
-import { HtmlMember } from '../agents/html/html-agent.js'
-import { PdfMember } from '../agents/pdf/pdf-agent.js'
-import { QueueMember } from '../agents/queue/queue-agent.js'
+import { HtmlAgent } from '../agents/html/html-agent.js'
+import { PdfAgent } from '../agents/pdf/pdf-agent.js'
+import { QueueAgent } from '../agents/queue/queue-agent.js'
 import { createLogger } from '../observability/index.js'
 import type { ConductorEnv } from '../types/env.js'
 
@@ -31,7 +31,7 @@ export interface LoaderConfig {
    * Base directory where agents are located
    * @default './agents'
    */
-  membersDir?: string
+  agentsDir?: string
 
   /**
    * Base directory where ensembles are located
@@ -50,32 +50,32 @@ export interface LoaderConfig {
   ctx: ExecutionContext
 }
 
-export interface LoadedMember {
+export interface LoadedAgent {
   config: AgentConfig
   instance: BaseAgent
 }
 
 /**
- * MemberLoader handles dynamic loading of user-created agents
+ * AgentLoader handles dynamic loading of user-created agents
  *
  * Note: In Cloudflare Workers, we can't use Node.js fs module.
- * Members must be bundled at build time using wrangler's module imports.
+ * Agents must be bundled at build time using wrangler's module imports.
  *
  * For now, users will need to manually import and register their agents.
  * Future: We can build a CLI tool that generates the registration code.
  */
 export class AgentLoader {
   private config: LoaderConfig
-  private loadedMembers: Map<string, LoadedMember>
+  private loadedAgents: Map<string, LoadedAgent>
 
   constructor(config: LoaderConfig) {
     this.config = {
-      membersDir: config.membersDir || './agents',
+      agentsDir: config.agentsDir || './agents',
       ensemblesDir: config.ensemblesDir || './ensembles',
       env: config.env,
       ctx: config.ctx,
     }
-    this.loadedMembers = new Map()
+    this.loadedAgents = new Map()
   }
 
   /**
@@ -90,7 +90,7 @@ export class AgentLoader {
    * ```typescript
    * import { agents as discoveredAgents } from 'virtual:conductor-agents';
    *
-   * const loader = new MemberLoader({ env, ctx });
+   * const loader = new AgentLoader({ env, ctx });
    * await loader.autoDiscover(discoveredAgents);
    * ```
    */
@@ -129,8 +129,8 @@ export class AgentLoader {
       }
     }
 
-    logger.info(`Auto-discovery complete: ${this.loadedMembers.size} agents loaded`, {
-      agentCount: this.loadedMembers.size,
+    logger.info(`Auto-discovery complete: ${this.loadedAgents.size} agents loaded`, {
+      agentCount: this.loadedAgents.size,
     })
   }
 
@@ -153,10 +153,10 @@ export class AgentLoader {
     const config = typeof agentConfig === 'string' ? Parser.parseAgent(agentConfig) : agentConfig
 
     // Create agent instance based on type
-    const instance = this.createMemberInstance(config, implementation)
+    const instance = this.createAgentInstance(config, implementation)
 
     // Store in registry
-    this.loadedMembers.set(config.name, {
+    this.loadedAgents.set(config.name, {
       config,
       instance,
     })
@@ -165,7 +165,7 @@ export class AgentLoader {
   }
 
   /**
-   * Load a agent from Edgit by version reference
+   * Load an agent from Edgit by version reference
    *
    * This enables loading versioned agent configs at runtime for A/B testing,
    * environment-specific configs, and config-only deployments.
@@ -173,44 +173,44 @@ export class AgentLoader {
    * @example
    * ```typescript
    * // Load specific version
-   * await loader.loadMemberFromEdgit('analyze-company@v1.0.0');
+   * await loader.loadAgentFromEdgit('analyze-company@v1.0.0');
    *
    * // Load production deployment
-   * await loader.loadMemberFromEdgit('analyze-company@production');
+   * await loader.loadAgentFromEdgit('analyze-company@production');
    * ```
    */
-  async loadMemberFromEdgit(memberRef: string): Promise<BaseAgent> {
-    const { name, version } = Parser.parseAgentReference(memberRef)
+  async loadAgentFromEdgit(agentRef: string): Promise<BaseAgent> {
+    const { name, version } = Parser.parseAgentReference(agentRef)
 
     if (!version) {
-      throw new Error(`Agent reference must include version: ${memberRef}`)
+      throw new Error(`Agent reference must include version: ${agentRef}`)
     }
 
     // Check if already loaded
     const versionedKey = `${name}@${version}`
-    if (this.loadedMembers.has(versionedKey)) {
-      return this.loadedMembers.get(versionedKey)!.instance
+    if (this.loadedAgents.has(versionedKey)) {
+      return this.loadedAgents.get(versionedKey)!.instance
     }
 
     // TODO: Load from Edgit when available
     // Expected implementation:
-    // import { loadMemberConfig } from '../sdk/edgit.js';
-    // const config = await loadMemberConfig(memberRef, this.config.env);
-    // const instance = this.createMemberInstance(config);
-    // this.loadedMembers.set(versionedKey, { config, instance });
+    // import { loadAgentConfig } from '../sdk/edgit.js';
+    // const config = await loadAgentConfig(agentRef, this.config.env);
+    // const instance = this.createAgentInstance(config);
+    // this.loadedAgents.set(versionedKey, { config, instance });
     // return instance;
 
     throw new Error(
-      `Cannot load versioned agent from Edgit: ${memberRef}. ` +
+      `Cannot load versioned agent from Edgit: ${agentRef}. ` +
         `Edgit integration not yet available. ` +
         `Use loader.registerAgent() for now.`
     )
   }
 
   /**
-   * Create a agent instance based on type
+   * Create an agent instance based on type
    */
-  private createMemberInstance(
+  private createAgentInstance(
     config: AgentConfig,
     implementation?: FunctionImplementation
   ): BaseAgent {
@@ -240,19 +240,19 @@ export class AgentLoader {
         return new EmailAgent(config)
 
       case 'sms':
-        return new SmsMember(config)
+        return new SmsAgent(config)
 
       case 'form':
         return new FormAgent(config)
 
       case 'html':
-        return new HtmlMember(config)
+        return new HtmlAgent(config)
 
       case 'pdf':
-        return new PdfMember(config)
+        return new PdfAgent(config)
 
       case 'queue':
-        return new QueueMember(config)
+        return new QueueAgent(config)
 
       default:
         throw new Error(
@@ -268,42 +268,42 @@ export class AgentLoader {
    * Get a loaded agent by name
    */
   getAgent(name: string): BaseAgent | undefined {
-    return this.loadedMembers.get(name)?.instance
+    return this.loadedAgents.get(name)?.instance
   }
 
   /**
    * Get agent config by name
    */
   getAgentConfig(name: string): AgentConfig | undefined {
-    return this.loadedMembers.get(name)?.config
+    return this.loadedAgents.get(name)?.config
   }
 
   /**
    * Get all loaded agents
    */
-  getAllMembers(): BaseAgent[] {
-    return Array.from(this.loadedMembers.values()).map((m) => m.instance)
+  getAllAgents(): BaseAgent[] {
+    return Array.from(this.loadedAgents.values()).map((a) => a.instance)
   }
 
   /**
    * Get all agent names
    */
-  getMemberNames(): string[] {
-    return Array.from(this.loadedMembers.keys())
+  getAgentNames(): string[] {
+    return Array.from(this.loadedAgents.keys())
   }
 
   /**
-   * Check if a agent is loaded
+   * Check if an agent is loaded
    */
-  hasMember(name: string): boolean {
-    return this.loadedMembers.has(name)
+  hasAgent(name: string): boolean {
+    return this.loadedAgents.has(name)
   }
 
   /**
    * Clear all loaded agents
    */
   clear(): void {
-    this.loadedMembers.clear()
+    this.loadedAgents.clear()
   }
 }
 
@@ -314,5 +314,6 @@ export function createLoader(config: LoaderConfig): AgentLoader {
   return new AgentLoader(config)
 }
 
-// Backward compatibility alias
+// Backward compatibility aliases
 export const MemberLoader = AgentLoader
+export type LoadedMember = LoadedAgent

@@ -8845,7 +8845,7 @@ import { Command as Command2 } from "commander";
 import chalk2 from "chalk";
 
 // src/agents/built-in/registry.ts
-var BuiltInMemberRegistry = class {
+var BuiltInAgentRegistry = class {
   constructor() {
     this.agents = /* @__PURE__ */ new Map();
   }
@@ -8912,12 +8912,12 @@ var BuiltInMemberRegistry = class {
 var registry = null;
 function getBuiltInRegistry() {
   if (!registry) {
-    registry = new BuiltInMemberRegistry();
-    registerAllBuiltInMembers(registry);
+    registry = new BuiltInAgentRegistry();
+    registerAllBuiltInAgents(registry);
   }
   return registry;
 }
-function registerAllBuiltInMembers(registry2) {
+function registerAllBuiltInAgents(registry2) {
   registry2.register(
     {
       name: "rag",
@@ -13524,6 +13524,7 @@ var StringResolver = class {
    * Traverse context using dot-separated path with optional operators and filter chain
    * Supports (in order of precedence):
    * - input.enabled ? "yes" : "no" (ternary conditional)
+   * - input.path == '/docs' ? "landing" : "other" (ternary with equality comparison)
    * - input.name ?? "default" (nullish coalescing - null/undefined only)
    * - input.name || "default" (falsy coalescing - catches "", 0, false too)
    * - input.text | split(' ') | length (filters)
@@ -13532,8 +13533,8 @@ var StringResolver = class {
   traversePath(path9, context) {
     const ternaryMatch = path9.match(/^(.+?)\s*\?(?!\.)\s*(.+?)\s*:\s*(.+)$/);
     if (ternaryMatch) {
-      const [, conditionPath, trueExpr, falseExpr] = ternaryMatch;
-      const condition = this.resolvePathWithFilters(conditionPath.trim(), context);
+      const [, conditionExpr, trueExpr, falseExpr] = ternaryMatch;
+      const condition = this.evaluateCondition(conditionExpr.trim(), context);
       const selectedExpr = condition ? trueExpr.trim() : falseExpr.trim();
       return this.resolveLiteralOrPath(selectedExpr, context);
     }
@@ -13547,7 +13548,7 @@ var StringResolver = class {
       }
       return void 0;
     }
-    if (/\|\|/.test(path9)) {
+    if (/\|\|/.test(path9) && !this.hasComparisonOperator(path9)) {
       const alternatives = path9.split("||").map((alt) => alt.trim());
       for (const alt of alternatives) {
         const value = this.resolveLiteralOrPath(alt, context);
@@ -13558,7 +13559,90 @@ var StringResolver = class {
       const lastAlt = alternatives[alternatives.length - 1];
       return this.resolveLiteralOrPath(lastAlt, context);
     }
+    if (this.hasComparisonOperator(path9)) {
+      return this.evaluateCondition(path9, context);
+    }
     return this.resolvePathWithFilters(path9, context);
+  }
+  /**
+   * Check if an expression contains comparison operators
+   * Used to detect expressions like "input.path == '/docs'" that should be evaluated as conditions
+   */
+  hasComparisonOperator(expr) {
+    return /\s*(===|!==|==|!=|>=|<=|>|<|&&)\s*/.test(expr) || // Also check for string method calls that return boolean
+    /\.includes\(/.test(expr) || /\.startsWith\(/.test(expr) || /\.endsWith\(/.test(expr);
+  }
+  /**
+   * Evaluate a condition expression which may include comparison operators
+   * Supports: ==, !=, ===, !==, >, <, >=, <=, &&, ||
+   * Also supports string method calls like includes()
+   */
+  evaluateCondition(expr, context) {
+    if (expr.includes("&&")) {
+      const parts = expr.split("&&").map((p) => p.trim());
+      return parts.every((part) => this.evaluateCondition(part, context));
+    }
+    if (/\s*\|\|\s*/.test(expr) && !expr.includes("?")) {
+      const parts = expr.split(/\s*\|\|\s*/).map((p) => p.trim());
+      return parts.some((part) => this.evaluateCondition(part, context));
+    }
+    const includesMatch = expr.match(/^(.+?)\.includes\(\s*(['"])(.+?)\2\s*\)$/);
+    if (includesMatch) {
+      const [, pathExpr, , searchStr] = includesMatch;
+      const value2 = this.resolvePathWithFilters(pathExpr.trim(), context);
+      if (typeof value2 === "string") {
+        return value2.includes(searchStr);
+      }
+      return false;
+    }
+    const startsWithMatch = expr.match(/^(.+?)\.startsWith\(\s*(['"])(.+?)\2\s*\)$/);
+    if (startsWithMatch) {
+      const [, pathExpr, , prefix] = startsWithMatch;
+      const value2 = this.resolvePathWithFilters(pathExpr.trim(), context);
+      if (typeof value2 === "string") {
+        return value2.startsWith(prefix);
+      }
+      return false;
+    }
+    const endsWithMatch = expr.match(/^(.+?)\.endsWith\(\s*(['"])(.+?)\2\s*\)$/);
+    if (endsWithMatch) {
+      const [, pathExpr, , suffix] = endsWithMatch;
+      const value2 = this.resolvePathWithFilters(pathExpr.trim(), context);
+      if (typeof value2 === "string") {
+        return value2.endsWith(suffix);
+      }
+      return false;
+    }
+    const strictEqMatch = expr.match(/^(.+?)\s*(===|!==)\s*(.+)$/);
+    if (strictEqMatch) {
+      const [, leftExpr, op, rightExpr] = strictEqMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === "===" ? leftValue === rightValue : leftValue !== rightValue;
+    }
+    const eqMatch = expr.match(/^(.+?)\s*(==|!=)\s*(.+)$/);
+    if (eqMatch) {
+      const [, leftExpr, op, rightExpr] = eqMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === "==" ? leftValue == rightValue : leftValue != rightValue;
+    }
+    const compEqMatch = expr.match(/^(.+?)\s*(>=|<=)\s*(.+)$/);
+    if (compEqMatch) {
+      const [, leftExpr, op, rightExpr] = compEqMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === ">=" ? leftValue >= rightValue : leftValue <= rightValue;
+    }
+    const compMatch = expr.match(/^(.+?)\s*([><])\s*(.+)$/);
+    if (compMatch) {
+      const [, leftExpr, op, rightExpr] = compMatch;
+      const leftValue = this.resolveLiteralOrPath(leftExpr.trim(), context);
+      const rightValue = this.resolveLiteralOrPath(rightExpr.trim(), context);
+      return op === ">" ? leftValue > rightValue : leftValue < rightValue;
+    }
+    const value = this.resolvePathWithFilters(expr, context);
+    return Boolean(value);
   }
   /**
    * Resolve a value that could be a literal or a path expression
@@ -13575,7 +13659,7 @@ var StringResolver = class {
     if (expr === "true") return true;
     if (expr === "false") return false;
     if (expr === "null") return null;
-    return this.resolvePathWithFilters(expr, context);
+    return this.traversePath(expr, context);
   }
   /**
    * Resolve a path that may include filter chains
@@ -13915,6 +13999,8 @@ var logger3 = createLogger({ serviceName: "parser" });
 var AgentFlowStepSchema = external_exports.object({
   agent: external_exports.string().min(1, "Agent name is required"),
   id: external_exports.string().optional(),
+  name: external_exports.string().optional(),
+  // Alias for id - used for output references like ${name.output}
   input: external_exports.record(external_exports.unknown()).optional(),
   state: external_exports.object({
     use: external_exports.array(external_exports.string()).optional(),
@@ -15109,6 +15195,34 @@ var DEFAULT_CONFIG = {
   }
 };
 
+// src/config/discovery.ts
+var DiscoveryTypeConfigSchema = external_exports.object({
+  enabled: external_exports.boolean().optional().describe("Whether this discovery type is enabled"),
+  directory: external_exports.string().min(1).describe("Directory to scan for files"),
+  patterns: external_exports.array(external_exports.string()).min(1).describe("Glob patterns to match files"),
+  configFile: external_exports.string().optional().describe("Config filename to look for"),
+  excludeDirs: external_exports.array(external_exports.string()).optional().describe("Directories to exclude"),
+  includeExamples: external_exports.boolean().optional().describe("Include example files")
+});
+var AgentDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  handlerExtensions: external_exports.array(external_exports.string()).optional().describe("Handler file extensions")
+});
+var EnsembleDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  supportTypeScript: external_exports.boolean().optional().describe("Support TypeScript ensembles")
+});
+var DocsDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  excludeReadme: external_exports.boolean().optional().describe("Exclude README files")
+});
+var ScriptsDiscoveryConfigSchema = DiscoveryTypeConfigSchema.extend({
+  entryPoint: external_exports.string().optional().describe("Entry point file pattern")
+});
+var DiscoveryConfigSchema = external_exports.object({
+  agents: AgentDiscoveryConfigSchema.optional(),
+  ensembles: EnsembleDiscoveryConfigSchema.optional(),
+  docs: DocsDiscoveryConfigSchema.optional(),
+  scripts: ScriptsDiscoveryConfigSchema.optional()
+});
+
 // src/config/loader.ts
 import * as fs3 from "fs/promises";
 import * as path3 from "path";
@@ -15413,7 +15527,8 @@ var ConductorConfigSchema = external_exports.object({
   observability: ObservabilityConfigSchema.optional(),
   execution: ExecutionConfigSchema.optional(),
   storage: StorageConfigSchema.optional(),
-  api: ApiConfigSchema.optional()
+  api: ApiConfigSchema.optional(),
+  discovery: DiscoveryConfigSchema.optional()
 });
 
 // src/cli/commands/docs.ts
@@ -22615,7 +22730,7 @@ function createSmsProvider(config) {
 }
 
 // src/agents/sms/sms-agent.ts
-var SmsMember = class extends BaseAgent {
+var SmsAgent = class extends BaseAgent {
   constructor(config) {
     super(config);
     const smsConfig = config.config;
@@ -22735,6 +22850,7 @@ var SmsMember = class extends BaseAgent {
     return new Promise((resolve5) => setTimeout(resolve5, ms));
   }
 };
+var SmsMember = SmsAgent;
 
 // src/agents/form/form-agent.ts
 init_base_agent();
@@ -23868,7 +23984,7 @@ function mergeCookieOptions(options, defaults) {
 }
 
 // src/agents/html/html-agent.ts
-var HtmlMember = class extends BaseAgent {
+var HtmlAgent = class extends BaseAgent {
   constructor(config) {
     super(config);
     const rawConfig = config.config || {};
@@ -24145,6 +24261,7 @@ var HtmlMember = class extends BaseAgent {
     return html.replace(/<!--[\s\S]*?-->/g, "").replace(/>\s+</g, "><").trim();
   }
 };
+var HtmlMember = HtmlAgent;
 
 // src/agents/pdf/pdf-agent.ts
 init_base_agent();
@@ -24388,7 +24505,7 @@ function validateStorageConfig(config) {
 }
 
 // src/agents/pdf/pdf-agent.ts
-var PdfMember = class extends BaseAgent {
+var PdfAgent = class extends BaseAgent {
   constructor(config) {
     super(config);
     this.pdfConfig = config.config || {};
@@ -24455,14 +24572,14 @@ var PdfMember = class extends BaseAgent {
           }
         }
       };
-      const htmlMember = new HtmlMember(htmlMemberConfig);
+      const htmlAgent = new HtmlAgent(htmlMemberConfig);
       const htmlContext = {
         input: { data: htmlSource.data || {} },
         env: context.env,
         ctx: context.ctx,
         previousOutputs: context.previousOutputs
       };
-      const htmlResponse = await htmlMember.execute(htmlContext);
+      const htmlResponse = await htmlAgent.execute(htmlContext);
       if (!htmlResponse.success) {
         throw new Error(`HTML rendering failed: ${htmlResponse.error}`);
       }
@@ -24528,6 +24645,7 @@ var PdfMember = class extends BaseAgent {
     return rendered;
   }
 };
+var PdfMember = PdfAgent;
 
 // src/runtime/executor.ts
 init_result();
@@ -26561,6 +26679,35 @@ function extractEnsembleMetadata(name, config, source) {
     stepCount: Array.isArray(config.flow) ? config.flow.length : 0
   };
 }
+function createDocsRegistry(docs) {
+  return {
+    list() {
+      const result = [];
+      for (const [slug, page] of docs) {
+        result.push({
+          slug,
+          title: page.title,
+          content: page.content,
+          order: page.order
+        });
+      }
+      return result.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    },
+    get(slug) {
+      const page = docs.get(slug);
+      if (!page) return void 0;
+      return {
+        slug,
+        title: page.title,
+        content: page.content,
+        order: page.order
+      };
+    },
+    has(slug) {
+      return docs.has(slug);
+    }
+  };
+}
 
 // src/runtime/output-resolver.ts
 function resolveOutput(output, context) {
@@ -27975,6 +28122,7 @@ var Executor = class {
     this.auth = config.auth;
     this.defaultTimeout = config.defaultTimeout ?? DEFAULT_AGENT_TIMEOUT_MS;
     this.logger = config.logger || createLogger({ serviceName: "executor" }, this.env.ANALYTICS);
+    this.discoveryData = config.discovery;
   }
   /**
    * Register an agent for use in ensembles
@@ -28128,9 +28276,10 @@ var Executor = class {
       queries: flowContext.componentRegistry.queries,
       scripts: flowContext.componentRegistry.scripts,
       templates: flowContext.componentRegistry.templates,
-      // Discovery registries for agents and ensembles
+      // Discovery registries for agents, ensembles, and docs
       agentRegistry: flowContext.agentRegistry,
       ensembleRegistry: flowContext.ensembleRegistry,
+      docsRegistry: flowContext.docsRegistry,
       // Agent-specific config from ensemble definition
       config: agentConfig,
       // Memory manager for conversation history and persistent storage
@@ -28351,7 +28500,7 @@ var Executor = class {
         cached: response.cached
       });
     }
-    const contextKey = step.id || step.agent;
+    const contextKey = step.id || step.name || step.agent;
     executionContext[contextKey] = {
       output: response.data,
       success: true
@@ -28784,7 +28933,10 @@ Script loader not initialized. For Cloudflare Workers:
     };
     const componentRegistry = createComponentRegistry(this.env);
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
-    const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(
+      this.discoveryData?.ensembles || /* @__PURE__ */ new Map()
+    );
+    const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || /* @__PURE__ */ new Map());
     const flowContext = {
       ensemble,
       executionContext,
@@ -28799,6 +28951,7 @@ Script loader not initialized. For Cloudflare Workers:
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
       ensembleRegistry: ensembleDiscoveryRegistry,
+      docsRegistry: docsDiscoveryRegistry,
       memoryManager
     };
     const result = await this.executeFlow(flowContext, 0);
@@ -28942,7 +29095,10 @@ Script loader not initialized. For Cloudflare Workers:
     );
     const componentRegistry = createComponentRegistry(this.env);
     const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
-    const ensembleDiscoveryRegistry = createEnsembleRegistry(/* @__PURE__ */ new Map());
+    const ensembleDiscoveryRegistry = createEnsembleRegistry(
+      this.discoveryData?.ensembles || /* @__PURE__ */ new Map()
+    );
+    const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || /* @__PURE__ */ new Map());
     const originalInput = executionContext.input ?? {};
     const memoryManager = this.createMemoryManager(ensemble, {
       ...originalInput,
@@ -28962,6 +29118,7 @@ Script loader not initialized. For Cloudflare Workers:
       componentRegistry,
       agentRegistry: agentDiscoveryRegistry,
       ensembleRegistry: ensembleDiscoveryRegistry,
+      docsRegistry: docsDiscoveryRegistry,
       memoryManager
     };
     const resumeFromStep = suspendedState.resumeFromStep;

@@ -28,6 +28,7 @@ export { ensembleFromConfig, Ensemble, isEnsemble };
 export declare const AgentFlowStepSchema: z.ZodObject<{
     agent: z.ZodString;
     id: z.ZodOptional<z.ZodString>;
+    name: z.ZodOptional<z.ZodString>;
     input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
     state: z.ZodOptional<z.ZodObject<{
         use: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
@@ -147,6 +148,7 @@ export declare const AgentFlowStepSchema: z.ZodObject<{
         bypass?: boolean | undefined;
     } | undefined;
     when?: unknown;
+    name?: string | undefined;
     timeout?: number | undefined;
     retry?: {
         attempts?: number | undefined;
@@ -187,6 +189,7 @@ export declare const AgentFlowStepSchema: z.ZodObject<{
         bypass?: boolean | undefined;
     } | undefined;
     when?: unknown;
+    name?: string | undefined;
     timeout?: number | undefined;
     retry?: {
         attempts?: number | undefined;
@@ -350,6 +353,7 @@ export declare const MapReduceFlowStepSchema: z.ZodObject<{
 export interface AgentFlowStep {
     agent: string;
     id?: string;
+    name?: string;
     input?: Record<string, unknown>;
     state?: {
         use?: string[];
@@ -1605,6 +1609,7 @@ export declare const EnsembleSchema: z.ZodObject<{
         trackInState?: boolean | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
     } | undefined;
+    agents?: Record<string, unknown>[] | undefined;
     logging?: {
         level?: "debug" | "info" | "warn" | "error" | undefined;
         steps?: Record<string, Record<string, unknown>> | undefined;
@@ -1783,7 +1788,6 @@ export declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     })[] | undefined;
-    agents?: Record<string, unknown>[] | undefined;
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
     memory?: {
@@ -1829,6 +1833,7 @@ export declare const EnsembleSchema: z.ZodObject<{
         trackInState?: boolean | undefined;
         aggregation?: "minimum" | "weighted_average" | "geometric_mean" | undefined;
     } | undefined;
+    agents?: Record<string, unknown>[] | undefined;
     logging?: {
         level?: "debug" | "info" | "warn" | "error" | undefined;
         steps?: Record<string, Record<string, unknown>> | undefined;
@@ -2007,7 +2012,6 @@ export declare const EnsembleSchema: z.ZodObject<{
         from?: string | undefined;
         subject?: string | undefined;
     })[] | undefined;
-    agents?: Record<string, unknown>[] | undefined;
     flow?: FlowStepType[] | undefined;
     inputs?: Record<string, unknown> | undefined;
     memory?: {

@@ -103,6 +103,28 @@ export declare class DocsDirectoryLoader {
      * Register a Handlebars partial
      */
     registerPartial(name: string, template: string): void;
+    /**
+     * Get registry data for discovery
+     *
+     * Returns a Map suitable for passing to the Executor's discovery data.
+     * This enables agents to discover available documentation pages.
+     *
+     * @example
+     * ```typescript
+     * const executor = new Executor({
+     *   env,
+     *   ctx,
+     *   discovery: {
+     *     docs: docsLoader.getRegistryData(),
+     *   }
+     * });
+     * ```
+     */
+    getRegistryData(): Map<string, {
+        content: string;
+        title: string;
+        slug: string;
+    }>;
 }
 /**
  * Get or create the global docs loader

@@ -22,5 +22,5 @@ export { ConfigRegistry } from './configs.js';
 export { QueryRegistry } from './queries.js';
 export { ScriptRegistry } from './scripts.js';
 export { TemplateRegistry } from './templates.js';
-// Discovery registries for agents and ensembles
-export { createAgentRegistry, createEnsembleRegistry } from './discovery.js';
+// Discovery registries for agents, ensembles, and docs
+export { createAgentRegistry, createEnsembleRegistry, createDocsRegistry } from './discovery.js';

@@ -73,7 +73,7 @@ function normalizePathConfigs(trigger, defaultPath) {
  * HTTP Trigger Handler
  */
 async function handleHTTPTrigger(context) {
-    const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context;
+    const { app, ensemble, trigger: rawTrigger, agents, env, ctx, discovery } = context;
     // Cast to typed trigger config
     const trigger = rawTrigger;
     // Normalize to array of path configurations
@@ -129,7 +129,7 @@ async function handleHTTPTrigger(context) {
         try {
             const input = await extractInput(c);
             const auth = c.get('auth');
-            const executor = new Executor({ env, ctx, auth });
+            const executor = new Executor({ env, ctx, auth, discovery });
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }
@@ -185,7 +185,7 @@ async function handleHTTPTrigger(context) {
  * - POST /mcp/tools/:toolName - Invoke a specific tool
  */
 async function handleMCPTrigger(context) {
-    const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context;
+    const { app, ensemble, trigger: rawTrigger, agents, env, ctx, discovery } = context;
     // Cast to typed trigger config
     const trigger = rawTrigger;
     // MCP tool name defaults to ensemble name (kebab-case recommended)
@@ -236,7 +236,7 @@ async function handleMCPTrigger(context) {
             const body = await c.req.json().catch(() => ({}));
             const input = body.arguments || body.input || body;
             const auth = c.get('auth');
-            const executor = new Executor({ env, ctx, auth });
+            const executor = new Executor({ env, ctx, auth, discovery });
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }
@@ -346,7 +346,7 @@ function buildInputSchema(ensemble) {
  * Simpler than HTTP - just POST endpoints
  */
 async function handleWebhookTrigger(context) {
-    const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context;
+    const { app, ensemble, trigger: rawTrigger, agents, env, ctx, discovery } = context;
     // Cast to typed trigger config
     const trigger = rawTrigger;
     const path = trigger.path || `/${ensemble.name}`;
@@ -373,7 +373,7 @@ async function handleWebhookTrigger(context) {
         try {
             const input = await c.req.json().catch(() => ({}));
             const auth = c.get('auth');
-            const executor = new Executor({ env, ctx, auth });
+            const executor = new Executor({ env, ctx, auth, discovery });
             for (const agent of agents) {
                 executor.registerAgent(agent);
             }
@@ -460,9 +460,13 @@ async function extractInput(c) {
         origin: c.req.header('origin'),
     };
     // Return structured input with backwards compatibility
-    // Body fields are spread at root for backwards compatibility
+    // Body and query fields are spread at root for backwards compatibility
+    // Query params are spread first, then body, so body values take precedence on collision
     return {
-        // Backwards compatible: spread body at root
+        // Backwards compatible: spread query params at root (for GET requests)
+        ...query,
+        // Backwards compatible: spread body at root (for POST/PUT/PATCH)
+        // Body takes precedence over query params if same key exists
         ...body,
         // Structured access to request parts
         body,

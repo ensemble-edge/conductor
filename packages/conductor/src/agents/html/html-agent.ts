@@ -12,9 +12,9 @@
 import { BaseAgent, type AgentExecutionContext } from '../base-agent.js'
 import type { AgentConfig } from '../../runtime/parser.js'
 import type {
-  HtmlMemberConfig,
-  HtmlMemberInput,
-  HtmlMemberOutput,
+  HtmlAgentConfig,
+  HtmlAgentInput,
+  HtmlAgentOutput,
   Cookie,
   TemplateContext,
 } from './types/index.js'
@@ -30,8 +30,8 @@ import {
   mergeCookieOptions,
 } from './utils/cookies.js'
 
-export class HtmlMember extends BaseAgent {
-  private htmlConfig: HtmlMemberConfig
+export class HtmlAgent extends BaseAgent {
+  private htmlConfig: HtmlAgentConfig
 
   constructor(config: AgentConfig) {
     super(config)
@@ -59,7 +59,7 @@ export class HtmlMember extends BaseAgent {
    * Converts to:
    *   template: { inline: "<html>...", engine: "liquid" }
    */
-  private normalizeConfig(rawConfig: Record<string, unknown>): HtmlMemberConfig {
+  private normalizeConfig(rawConfig: Record<string, unknown>): HtmlAgentConfig {
     const { template, templateEngine, ...rest } = rawConfig
 
     // If template is already a TemplateSource object, use it as-is
@@ -79,7 +79,7 @@ export class HtmlMember extends BaseAgent {
         return {
           ...rest,
           template: templateObj,
-        } as HtmlMemberConfig
+        } as HtmlAgentConfig
       }
     }
 
@@ -89,13 +89,13 @@ export class HtmlMember extends BaseAgent {
         ...rest,
         template: {
           inline: template,
-          engine: templateEngine as HtmlMemberConfig['template']['engine'],
+          engine: templateEngine as HtmlAgentConfig['template']['engine'],
         },
-      } as HtmlMemberConfig
+      } as HtmlAgentConfig
     }
 
     // Fallback: return as-is and let validation catch issues
-    return rawConfig as unknown as HtmlMemberConfig
+    return rawConfig as unknown as HtmlAgentConfig
   }
 
   /**
@@ -110,9 +110,9 @@ export class HtmlMember extends BaseAgent {
   /**
    * Execute HTML rendering
    */
-  protected async run(context: AgentExecutionContext): Promise<HtmlMemberOutput> {
+  protected async run(context: AgentExecutionContext): Promise<HtmlAgentOutput> {
     const startTime = Date.now()
-    const input = context.input as HtmlMemberInput
+    const input = context.input as HtmlAgentInput
 
     // Load template
     const templateSource = input.template
@@ -404,3 +404,9 @@ export class HtmlMember extends BaseAgent {
     )
   }
 }
+
+// Backward compatibility aliases
+export const HtmlMember = HtmlAgent
+export type HtmlMemberConfig = HtmlAgentConfig
+export type HtmlMemberInput = HtmlAgentInput
+export type HtmlMemberOutput = HtmlAgentOutput

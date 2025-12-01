@@ -14,6 +14,7 @@
 export interface AgentFlowStep {
     agent: string;
     id?: string;
+    name?: string;
     input?: Record<string, unknown>;
     state?: {
         use?: string[];

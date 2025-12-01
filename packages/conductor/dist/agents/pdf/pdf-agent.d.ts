@@ -11,8 +11,8 @@
  */
 import { BaseAgent, type AgentExecutionContext } from '../base-agent.js';
 import type { AgentConfig } from '../../runtime/parser.js';
-import type { PdfMemberOutput } from './types/index.js';
-export declare class PdfMember extends BaseAgent {
+import type { PdfAgentConfig, PdfAgentInput, PdfAgentOutput } from './types/index.js';
+export declare class PdfAgent extends BaseAgent {
     private pdfConfig;
     private templateEngine;
     constructor(config: AgentConfig);
@@ -23,10 +23,14 @@ export declare class PdfMember extends BaseAgent {
     /**
      * Execute PDF generation
      */
-    protected run(context: AgentExecutionContext): Promise<PdfMemberOutput>;
+    protected run(context: AgentExecutionContext): Promise<PdfAgentOutput>;
     /**
      * Render header/footer templates with template engine
      */
     private renderHeaderFooter;
 }
+export declare const PdfMember: typeof PdfAgent;
+export type PdfMemberConfig = PdfAgentConfig;
+export type PdfMemberInput = PdfAgentInput;
+export type PdfMemberOutput = PdfAgentOutput;
 //# sourceMappingURL=pdf-agent.d.ts.map

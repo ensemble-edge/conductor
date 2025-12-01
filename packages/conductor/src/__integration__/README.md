@@ -10,9 +10,8 @@ These integration tests verify the complete Conductor experience:
 3. **Initialize** - Run `conductor init`
 4. **Test** - Verify the template's own tests pass
 5. **Build** - Verify the project builds
-6. **Pages** - Test page rendering
-7. **Agents** - Test custom agents
-8. **Ensembles** - Test workflow orchestration
+6. **Agents** - Test custom agents
+7. **Ensembles** - Test workflow orchestration
 
 ## Running Tests
 
@@ -25,9 +24,8 @@ pnpm test:integration
 ```bash
 pnpm test:integration:phase1  # Installation
 pnpm test:integration:phase2  # Template tests
-pnpm test:integration:phase3  # Custom pages (create & test via HTTP)
-pnpm test:integration:phase4  # Custom agents (create & test via API)
-pnpm test:integration:phase5  # Custom ensembles (create & test orchestration)
+pnpm test:integration:phase3  # Custom agents (create & test via API)
+pnpm test:integration:phase4  # Custom ensembles (create & test orchestration)
 ```
 
 ### Watch Mode (for development)
@@ -90,9 +88,8 @@ src/__integration__/
 ├── suites/
 │   ├── 01-installation.test.ts   # Installation & init
 │   ├── 02-template-tests.test.ts # Template's own tests
-│   ├── 03-custom-pages.test.ts   # Create & test custom pages
-│   ├── 04-custom-agents.test.ts  # Create & test custom agents
-│   └── 05-custom-ensembles.test.ts # Create & test custom ensembles
+│   ├── 03-custom-agents.test.ts  # Create & test custom agents
+│   └── 04-custom-ensembles.test.ts # Create & test custom ensembles
 └── README.md (this file)
 ```
 
@@ -214,16 +211,7 @@ All phases are now implemented:
 - ExecutionContext mock correctness
 - Test coverage of key features
 
-### Phase 3: Custom Pages (7 tests)
-- Create custom page files (text, JSON, dynamic)
-- Verify pages created in pages/ directory
-- Test static text page via HTTP
-- Test JSON API page via HTTP
-- Test dynamic page with TypeScript handler
-- Test query parameter handling
-- Verify content-type headers
-
-### Phase 4: Custom Agents (12 tests)
+### Phase 3: Custom Agents (12 tests)
 - Create 3 custom agents (text-processor, calculator, data-validator)
 - Verify agent files in agents/ directory
 - Test text-processor: uppercase, lowercase, reverse
@@ -231,7 +219,7 @@ All phases are now implemented:
 - Test data-validator: valid and invalid data
 - Test email, age, username validation rules
 
-### Phase 5: Custom Ensembles (6 tests)
+### Phase 4: Custom Ensembles (6 tests)
 - Create custom agents for ensemble testing
 - Create 3 custom ensembles (text-pipeline, text-analysis, math-pipeline)
 - Test sequential workflow (text-pipeline: uppercase → reverse)
@@ -247,9 +235,8 @@ Coming soon - requires Cloudflare credentials configuration
 Typical run times (with cached build):
 - Phase 1 (Installation): ~5min
 - Phase 2 (Template Tests): ~2min
-- Phase 3 (Pages): ~3min
-- Phase 4 (Agents): ~3min
-- Phase 5 (Ensembles): ~3min
-- **Total: ~16min**
+- Phase 3 (Agents): ~3min
+- Phase 4 (Ensembles): ~3min
+- **Total: ~13min**
 
-First run (no cache): ~17min
+First run (no cache): ~14min

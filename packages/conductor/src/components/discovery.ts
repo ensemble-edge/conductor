@@ -135,6 +135,57 @@ export interface EnsembleRegistry {
 }
 
 /**
+ * Metadata about a documentation page
+ */
+export interface DocsPageMetadata {
+  /** Page slug (URL-friendly identifier) */
+  slug: string
+  /** Page title */
+  title: string
+  /** Markdown content */
+  content: string
+  /** Page order in navigation */
+  order?: number
+}
+
+/**
+ * Read-only registry for discovering documentation pages
+ *
+ * @example
+ * ```typescript
+ * export default async function(ctx: AgentExecutionContext) {
+ *   const pages = ctx.docsRegistry?.list() || []
+ *
+ *   // Find a specific page
+ *   const gettingStarted = ctx.docsRegistry?.get('getting-started')
+ *
+ *   // Check if page exists
+ *   if (ctx.docsRegistry?.has('advanced')) {
+ *     // ...
+ *   }
+ *
+ *   return { pageCount: pages.length }
+ * }
+ * ```
+ */
+export interface DocsRegistry {
+  /**
+   * List all documentation pages with their metadata
+   */
+  list(): DocsPageMetadata[]
+
+  /**
+   * Get a specific page by slug
+   */
+  get(slug: string): DocsPageMetadata | undefined
+
+  /**
+   * Check if a page exists
+   */
+  has(slug: string): boolean
+}
+
+/**
  * Create an AgentRegistry from a Map of BaseAgent instances
  */
 export function createAgentRegistry(agents: Map<string, BaseAgent>): AgentRegistry {
@@ -259,5 +310,45 @@ function extractEnsembleMetadata(
     source,
     agentNames,
     stepCount: Array.isArray(config.flow) ? config.flow.length : 0,
+  }
+}
+
+/**
+ * Create a DocsRegistry from a Map of docs pages
+ *
+ * @param docs - Map from DocsDirectoryLoader.getRegistryData()
+ */
+export function createDocsRegistry(
+  docs: Map<string, { content: string; title: string; slug: string; order?: number }>
+): DocsRegistry {
+  return {
+    list(): DocsPageMetadata[] {
+      const result: DocsPageMetadata[] = []
+      for (const [slug, page] of docs) {
+        result.push({
+          slug,
+          title: page.title,
+          content: page.content,
+          order: page.order,
+        })
+      }
+      // Sort by order if available
+      return result.sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    },
+
+    get(slug: string): DocsPageMetadata | undefined {
+      const page = docs.get(slug)
+      if (!page) return undefined
+      return {
+        slug,
+        title: page.title,
+        content: page.content,
+        order: page.order,
+      }
+    },
+
+    has(slug: string): boolean {
+      return docs.has(slug)
+    },
   }
 }

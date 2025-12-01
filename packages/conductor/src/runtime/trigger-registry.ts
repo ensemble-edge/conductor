@@ -12,6 +12,7 @@ import type { EnsembleConfig } from './parser.js'
 import type { BaseAgent } from '../agents/base-agent.js'
 import { createLogger } from '../observability/index.js'
 import type { ConductorEnv } from '../types/env.js'
+import type { DiscoveryData } from './executor.js'
 
 const logger = createLogger({ serviceName: 'trigger-registry' })
 
@@ -27,6 +28,11 @@ export interface TriggerHandlerContext {
   agents: BaseAgent[]
   env: ConductorEnv
   ctx: ExecutionContext
+  /**
+   * Discovery data for agents, ensembles, and docs
+   * Passed to Executor to enable ctx.agentRegistry and ctx.ensembleRegistry
+   */
+  discovery?: DiscoveryData
 }
 
 /**
@@ -164,6 +170,13 @@ export class TriggerRegistry {
   /**
    * Register all triggers for an ensemble
    * Called during auto-discovery initialization
+   *
+   * @param app - Hono app instance
+   * @param ensemble - Ensemble configuration
+   * @param agents - Array of agent instances
+   * @param env - Cloudflare environment
+   * @param ctx - Execution context
+   * @param discovery - Optional discovery data for agents/ensembles/docs
    */
   async registerEnsembleTriggers(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -171,7 +184,8 @@ export class TriggerRegistry {
     ensemble: EnsembleConfig,
     agents: BaseAgent[],
     env: ConductorEnv,
-    ctx: ExecutionContext
+    ctx: ExecutionContext,
+    discovery?: DiscoveryData
   ): Promise<void> {
     if (!ensemble.trigger || ensemble.trigger.length === 0) {
       return // No triggers to register
@@ -196,6 +210,7 @@ export class TriggerRegistry {
           agents,
           env,
           ctx,
+          discovery,
         })
 
         logger.info(
