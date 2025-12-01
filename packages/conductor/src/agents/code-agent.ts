@@ -98,13 +98,14 @@ export class CodeAgent extends BaseAgent {
       let result: unknown
       if (this.compiledFunction.length >= 2) {
         // Legacy two-parameter style: handler(input, context)
-        result = await (this.compiledFunction as (input: unknown, ctx: AgentExecutionContext) => Promise<unknown>)(
-          context.input,
-          context
-        )
+        result = await (
+          this.compiledFunction as (input: unknown, ctx: AgentExecutionContext) => Promise<unknown>
+        )(context.input, context)
       } else {
         // Modern single-parameter style: handler(context)
-        result = await (this.compiledFunction as (ctx: AgentExecutionContext) => Promise<unknown>)(context)
+        result = await (this.compiledFunction as (ctx: AgentExecutionContext) => Promise<unknown>)(
+          context
+        )
       }
 
       return result

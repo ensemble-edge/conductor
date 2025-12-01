@@ -14,11 +14,7 @@ import { createLogger } from '../observability/index.js'
 import { cors } from 'hono/cors'
 import { getHttpMiddlewareRegistry } from './http-middleware-registry.js'
 import { createTriggerAuthMiddleware, type TriggerAuthConfig } from '../auth/trigger-auth.js'
-import type {
-  HTTPTriggerConfig,
-  WebhookTriggerConfig,
-  MCPTriggerConfig,
-} from './parser.js'
+import type { HTTPTriggerConfig, WebhookTriggerConfig, MCPTriggerConfig } from './parser.js'
 import { buildHttpResponse, type OutputFormat } from './output-resolver.js'
 
 const logger = createLogger({ serviceName: 'built-in-triggers' })

@@ -79,9 +79,7 @@ prompt: Agent 3`,
       await loader.autoDiscover(discoveredAgents)
 
       expect(loader.getAgentNames()).toHaveLength(3)
-      expect(loader.getAgentNames()).toEqual(
-        expect.arrayContaining(['agent1', 'agent2', 'agent3'])
-      )
+      expect(loader.getAgentNames()).toEqual(expect.arrayContaining(['agent1', 'agent2', 'agent3']))
     })
 
     it('should continue on error for individual agents', async () => {
