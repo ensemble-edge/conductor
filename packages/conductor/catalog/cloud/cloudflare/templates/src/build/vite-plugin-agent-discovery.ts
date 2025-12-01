@@ -29,6 +29,8 @@ import {
   patternsToGlob,
   excludeDirsToIgnore,
   DEFAULT_AGENT_DISCOVERY,
+  detectCollisions,
+  logCollisionWarnings,
 } from './config-loader.js';
 import type { AgentDiscoveryConfig } from '@ensemble-edge/conductor';
 
@@ -196,6 +198,15 @@ export const agentsMap = new Map();
   });
 
   console.log(`[conductor:agent-discovery] Found ${agentFiles.length} agent files in ${agentsDir}/`);
+
+  // Detect and warn about name collisions at build time
+  // For agents, the name is derived from the directory structure
+  const collisions = detectCollisions(agentFiles, (file) => {
+    const agentDir = path.dirname(file);
+    // Agent name is the directory name, or filename if at root
+    return agentDir === '.' ? path.basename(file, path.extname(file)) : agentDir;
+  });
+  logCollisionWarnings('agent-discovery', collisions, 'agents', agentsDir);
 
   const imports: string[] = [];
   const agentEntries: string[] = [];

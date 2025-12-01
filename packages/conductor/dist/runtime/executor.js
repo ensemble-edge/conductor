@@ -726,6 +726,9 @@ export class Executor {
             const name = agentDef.name;
             const operation = agentDef.operation;
             const config = agentDef.config;
+            const schema = agentDef.schema;
+            const description = agentDef.description;
+            const prompt = agentDef.prompt;
             if (!name || !operation) {
                 this.logger.warn('Skipping inline agent without name or operation', { agentDef });
                 continue;
@@ -736,11 +739,18 @@ export class Executor {
                 continue;
             }
             // Build AgentConfig from the inline definition
+            // Include schema for output mapping and prompt for think agents
             const agentConfig = {
                 name,
                 operation: operation,
                 config: config || {},
+                ...(schema && { schema }),
+                ...(description && { description }),
             };
+            // For think agents, if prompt is defined at agent level, add to config
+            if (operation === Operation.think && prompt && !config?.systemPrompt) {
+                agentConfig.config = { ...agentConfig.config, systemPrompt: prompt };
+            }
             // Handle code/function operations
             if (operation === Operation.code || operation === 'function') {
                 const scriptRef = config?.script;

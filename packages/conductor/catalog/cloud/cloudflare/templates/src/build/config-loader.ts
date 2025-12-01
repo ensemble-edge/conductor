@@ -132,6 +132,78 @@ export function excludeDirsToIgnore(excludeDirs: string[]): string[] {
   return excludeDirs.map((dir) => `${dir}/**`);
 }
 
+/**
+ * Collision detection result
+ */
+export interface CollisionInfo {
+  name: string;
+  files: string[];
+}
+
+/**
+ * Detect name collisions between files
+ *
+ * This is a generic utility that can be used by any discovery plugin to detect
+ * when multiple files would resolve to the same name (e.g., ai-pipeline.yaml
+ * and ai-pipeline.ts both resolve to "ai-pipeline").
+ *
+ * @param files - Array of file paths
+ * @param extractName - Function to extract the name from a file path
+ * @returns Array of collisions (names with multiple files)
+ */
+export function detectCollisions(
+  files: string[],
+  extractName: (file: string) => string
+): CollisionInfo[] {
+  const nameToFiles = new Map<string, string[]>();
+
+  for (const file of files) {
+    const name = extractName(file);
+    const existing = nameToFiles.get(name) || [];
+    existing.push(file);
+    nameToFiles.set(name, existing);
+  }
+
+  // Return only names with multiple files
+  const collisions: CollisionInfo[] = [];
+  for (const [name, fileList] of nameToFiles) {
+    if (fileList.length > 1) {
+      collisions.push({ name, files: fileList });
+    }
+  }
+
+  return collisions;
+}
+
+/**
+ * Log collision warnings in a standardized format
+ *
+ * @param pluginName - Name of the discovery plugin (e.g., "ensemble-discovery")
+ * @param collisions - Array of detected collisions
+ * @param resourceType - Type of resource being discovered (e.g., "ensembles", "agents")
+ * @param directory - Directory being scanned
+ */
+export function logCollisionWarnings(
+  pluginName: string,
+  collisions: CollisionInfo[],
+  resourceType: string,
+  directory: string
+): void {
+  if (collisions.length === 0) return;
+
+  console.warn(`\n⚠️  [conductor:${pluginName}] NAME COLLISIONS DETECTED:`);
+  for (const collision of collisions) {
+    console.warn(`   "${collision.name}" is defined by multiple files:`);
+    for (const file of collision.files) {
+      console.warn(`      - ${directory}/${file}`);
+    }
+    console.warn(
+      `   → The last loaded ${resourceType.slice(0, -1)} will take precedence. ` +
+        `Consider renaming to avoid confusion.\n`
+    );
+  }
+}
+
 // Re-export defaults for convenience
 export {
   DEFAULT_AGENT_DISCOVERY,

@@ -25400,7 +25400,7 @@ class HtmlAgent extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache2;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-D9rKffMB.js");
+        const { MemoryCache } = await import("./cache-Cw4jf-1z.js");
         cache2 = new MemoryCache({
           defaultTTL: 3600
         });
@@ -25486,7 +25486,7 @@ class HtmlAgent extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache2;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-D9rKffMB.js");
+          const { MemoryCache } = await import("./cache-Cw4jf-1z.js");
           cache2 = new MemoryCache({
             defaultTTL: 3600
           });
@@ -26080,7 +26080,7 @@ function registerAllBuiltInAgents(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-BzdIOnn7.js");
+      const { RAGMember } = await import("./index-N-XssnVg.js");
       return new RAGMember(config, env);
     }
   );
@@ -26116,7 +26116,7 @@ function registerAllBuiltInAgents(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-PLEcoRUJ.js");
+      const { HITLMember } = await import("./index-DwqOrQRX.js");
       return new HITLMember(config, env);
     }
   );
@@ -30155,6 +30155,9 @@ class Executor {
       const name = agentDef.name;
       const operation = agentDef.operation;
       const config = agentDef.config;
+      const schema2 = agentDef.schema;
+      const description = agentDef.description;
+      const prompt2 = agentDef.prompt;
       if (!name || !operation) {
         this.logger.warn("Skipping inline agent without name or operation", { agentDef });
         continue;
@@ -30166,8 +30169,13 @@ class Executor {
       const agentConfig = {
         name,
         operation,
-        config: config || {}
+        config: config || {},
+        ...schema2 && { schema: schema2 },
+        ...description && { description }
       };
+      if (operation === Operation.think && prompt2 && !config?.systemPrompt) {
+        agentConfig.config = { ...agentConfig.config, systemPrompt: prompt2 };
+      }
       if (operation === Operation.code || operation === "function") {
         const scriptRef = config?.script;
         const inlineCode = config?.code || config?.function;
@@ -31473,9 +31481,15 @@ class EnsembleLoader {
   async autoDiscover(discoveredEnsembles) {
     for (const ensembleDef of discoveredEnsembles) {
       try {
-        if (ensembleDef.instance && isEnsemble(ensembleDef.instance)) {
-          this.registerEnsembleInstance(ensembleDef.instance);
-          logger$5.debug(`Auto-discovered TypeScript ensemble: ${ensembleDef.name}`);
+        if (ensembleDef.instance) {
+          if (isEnsemble(ensembleDef.instance)) {
+            this.registerEnsembleInstance(ensembleDef.instance);
+            logger$5.debug(`Auto-discovered TypeScript ensemble: ${ensembleDef.name}`);
+          } else {
+            logger$5.warn(
+              `TypeScript ensemble "${ensembleDef.name}" does not export a valid Ensemble. Expected: export default createEnsemble({...})`
+            );
+          }
         } else if (ensembleDef.config) {
           const config = Parser$1.parseEnsemble(ensembleDef.config);
           this.registerEnsemble(config);
@@ -35518,7 +35532,9 @@ function step(name, options = {}) {
     onTimeout,
     cache: cache2,
     scoring,
-    state
+    state,
+    schema: schema2,
+    prompt: prompt2
   } = options;
   const agentStep2 = {
     agent: name
@@ -35534,10 +35550,13 @@ function step(name, options = {}) {
   if (cache2 !== void 0) agentStep2.cache = cache2;
   if (scoring !== void 0) agentStep2.scoring = scoring;
   if (state !== void 0) agentStep2.state = state;
-  if (operation !== void 0 || script !== void 0 || config !== void 0) {
-    agentStep2.operation = operation;
-    agentStep2.script = script;
-    agentStep2.config = config;
+  if (operation !== void 0 || script !== void 0 || config !== void 0 || schema2 !== void 0 || prompt2 !== void 0) {
+    const extendedStep = agentStep2;
+    if (operation !== void 0) extendedStep.operation = operation;
+    if (script !== void 0) extendedStep.script = script;
+    if (config !== void 0) extendedStep.config = config;
+    if (schema2 !== void 0) extendedStep.schema = schema2;
+    if (prompt2 !== void 0) extendedStep.prompt = prompt2;
   }
   return agentStep2;
 }
@@ -36573,4 +36592,4 @@ export {
   ModelId as y,
   AgentName as z
 };
-//# sourceMappingURL=worker-entry-Cm02WTIq.js.map
+//# sourceMappingURL=worker-entry-DUnNf0ml.js.map

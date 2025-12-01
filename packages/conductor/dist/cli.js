@@ -28738,6 +28738,9 @@ var Executor = class {
       const name = agentDef.name;
       const operation = agentDef.operation;
       const config = agentDef.config;
+      const schema = agentDef.schema;
+      const description = agentDef.description;
+      const prompt = agentDef.prompt;
       if (!name || !operation) {
         this.logger.warn("Skipping inline agent without name or operation", { agentDef });
         continue;
@@ -28749,8 +28752,13 @@ var Executor = class {
       const agentConfig = {
         name,
         operation,
-        config: config || {}
+        config: config || {},
+        ...schema && { schema },
+        ...description && { description }
       };
+      if (operation === "think" /* think */ && prompt && !config?.systemPrompt) {
+        agentConfig.config = { ...agentConfig.config, systemPrompt: prompt };
+      }
       if (operation === "code" /* code */ || operation === "function") {
         const scriptRef = config?.script;
         const inlineCode = config?.code || config?.function;

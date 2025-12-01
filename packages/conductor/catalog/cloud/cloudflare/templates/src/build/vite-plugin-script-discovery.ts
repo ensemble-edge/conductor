@@ -31,7 +31,12 @@ import type { Plugin } from 'vite';
 import { globSync } from 'glob';
 import path from 'path';
 import fs from 'fs';
-import { getScriptsDiscoveryConfig, DEFAULT_SCRIPTS_DISCOVERY } from './config-loader.js';
+import {
+  getScriptsDiscoveryConfig,
+  DEFAULT_SCRIPTS_DISCOVERY,
+  detectCollisions,
+  logCollisionWarnings,
+} from './config-loader.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-scripts';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;
@@ -205,6 +210,13 @@ export const scriptsMap = new Map();
   }
 
   console.log(`[conductor:script-discovery] Found ${scriptFiles.length} script files in ${scriptsDir}/`);
+
+  // Detect and warn about name collisions at build time
+  // For scripts, the name is the file path without extension
+  const collisions = detectCollisions(scriptFiles, (file) =>
+    file.replace(new RegExp(`${fileExtension}$`), '')
+  );
+  logCollisionWarnings('script-discovery', collisions, 'scripts', scriptsDir);
 
   const imports: string[] = [];
   const scriptEntries: string[] = [];

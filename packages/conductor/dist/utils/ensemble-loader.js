@@ -55,10 +55,16 @@ export class EnsembleLoader {
     async autoDiscover(discoveredEnsembles) {
         for (const ensembleDef of discoveredEnsembles) {
             try {
-                if (ensembleDef.instance && isEnsemble(ensembleDef.instance)) {
-                    // TypeScript ensemble - register directly
-                    this.registerEnsembleInstance(ensembleDef.instance);
-                    logger.debug(`Auto-discovered TypeScript ensemble: ${ensembleDef.name}`);
+                if (ensembleDef.instance) {
+                    // TypeScript ensemble - validate and register
+                    if (isEnsemble(ensembleDef.instance)) {
+                        this.registerEnsembleInstance(ensembleDef.instance);
+                        logger.debug(`Auto-discovered TypeScript ensemble: ${ensembleDef.name}`);
+                    }
+                    else {
+                        logger.warn(`TypeScript ensemble "${ensembleDef.name}" does not export a valid Ensemble. ` +
+                            `Expected: export default createEnsemble({...})`);
+                    }
                 }
                 else if (ensembleDef.config) {
                     // YAML ensemble - parse and register
