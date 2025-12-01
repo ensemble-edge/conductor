@@ -147,7 +147,7 @@ async function registerErrorPages(
       try {
         const auth = getAuthFromContext(c as ErrorHandlerContext)
         const executor = new Executor({ env, ctx, auth })
-        const agents = memberLoader!.getAllMembers()
+        const agents = memberLoader!.getAllAgents()
         for (const agent of agents) {
           executor.registerAgent(agent)
         }
@@ -204,7 +204,7 @@ async function registerErrorPages(
       try {
         const auth = getAuthFromContext(c as ErrorHandlerContext)
         const executor = new Executor({ env, ctx, auth })
-        const agents = memberLoader!.getAllMembers()
+        const agents = memberLoader!.getAllAgents()
         for (const agent of agents) {
           executor.registerAgent(agent)
         }
@@ -268,7 +268,7 @@ async function initializeLoaders(
 
     // Initialize AgentLoader
     memberLoader = new AgentLoader({
-      membersDir: './agents',
+      agentsDir: './agents',
       ensemblesDir: './ensembles',
       env,
       ctx,
@@ -278,7 +278,7 @@ async function initializeLoaders(
     if (config.autoDiscover !== false && config.agents && config.agents.length > 0) {
       logger.info(`[Auto-Discovery] Discovering ${config.agents.length} agents...`)
       await memberLoader.autoDiscover(config.agents)
-      logger.info(`[Auto-Discovery] Agents loaded: ${memberLoader.getMemberNames().join(', ')}`)
+      logger.info(`[Auto-Discovery] Agents loaded: ${memberLoader.getAgentNames().join(', ')}`)
     }
 
     // Initialize EnsembleLoader with agent loader reference for inline agents
@@ -362,10 +362,25 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
         if (ensembleLoader && memberLoader) {
           const triggerRegistry = getTriggerRegistry()
           const ensembles = ensembleLoader.getAllEnsembles()
-          const agents = memberLoader.getAllMembers()
+          const agents = memberLoader.getAllAgents()
+
+          // Build discovery data from loaders to pass to trigger handlers
+          // This enables agents (like docs) to access ensemble/agent/docs registries
+          const docsLoader = getDocsLoader()
+          const discoveryData = {
+            ensembles: ensembleLoader.getRegistryData(),
+            docs: docsLoader.isInitialized() ? docsLoader.getRegistryData() : new Map(),
+          }
 
           for (const ensemble of ensembles) {
-            await triggerRegistry.registerEnsembleTriggers(app, ensemble, agents, env, ctx)
+            await triggerRegistry.registerEnsembleTriggers(
+              app,
+              ensemble,
+              agents,
+              env,
+              ctx,
+              discoveryData
+            )
           }
 
           logger.info(`[Auto-Discovery] Registered triggers for ${ensembles.length} ensembles`)
@@ -418,7 +433,7 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
 
           // Register agents from memberLoader
           if (memberLoader) {
-            for (const agent of memberLoader.getAllMembers()) {
+            for (const agent of memberLoader.getAllAgents()) {
               executor.registerAgent(agent)
             }
           }

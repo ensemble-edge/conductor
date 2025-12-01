@@ -62,7 +62,7 @@ my-conductor-project/
    ```
    Starts local development server at `http://localhost:8787`
 
-   **Note:** Always use `pnpm run dev` instead of `wrangler dev` directly. The `pnpm run dev` command includes automatic page detection that watches the `pages/` directory and triggers rebuilds when you add new pages. This is necessary due to a Wrangler limitation where `watch_dirs` doesn't detect new files being added.
+   **Note:** Always use `pnpm run dev` instead of `wrangler dev` directly for the best development experience with hot reload support.
 
 5. **Test the hello-world ensemble:**
    ```bash

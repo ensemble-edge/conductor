@@ -13,7 +13,7 @@ import { loadTemplate, normalizeTemplateSource } from './utils/template-loader.j
 import { createTemplateEngine, SimpleTemplateEngine } from '../../utils/templates/index.js';
 import { createComponentLoader } from '../../runtime/component-loader.js';
 import { createSetCookieHeader, createDeleteCookie, parseSignedCookies, isValidCookieName, mergeCookieOptions, } from './utils/cookies.js';
-export class HtmlMember extends BaseAgent {
+export class HtmlAgent extends BaseAgent {
     constructor(config) {
         super(config);
         // Extract nested config (config.config contains the agent-specific settings)
@@ -326,3 +326,5 @@ export class HtmlMember extends BaseAgent {
             .trim());
     }
 }
+// Backward compatibility aliases
+export const HtmlMember = HtmlAgent;

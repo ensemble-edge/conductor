@@ -4,37 +4,105 @@
  * Scans docs/ directory for .md files and automatically generates
  * imports and registration code via virtual module.
  *
- * Makes docs/ work as a first-class component directory like prompts/
+ * Supports centralized configuration via conductor.config.json:
+ * ```json
+ * {
+ *   "discovery": {
+ *     "docs": {
+ *       "enabled": true,
+ *       "directory": "docs",
+ *       "patterns": ["**\/*.md"],
+ *       "excludeReadme": true
+ *     }
+ *   }
+ * }
+ * ```
  */
 
 import { Plugin } from 'vite'
 import fg from 'fast-glob'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
+import { getDocsDiscoveryConfig, DEFAULT_DOCS_DISCOVERY } from './config-loader.js'
 
 const { globSync } = fg
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-docs'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
 
+/**
+ * Docs discovery plugin options
+ *
+ * Options can be provided directly OR loaded from conductor.config.json.
+ * Direct options take precedence over config file settings.
+ */
 export interface DocsDiscoveryOptions {
-	/** Directory to scan for docs (default: 'docs') */
+	/**
+	 * Directory to scan for docs
+	 * @default 'docs' (or from conductor.config.json)
+	 */
 	docsDir?: string
-	/** File extension to match (default: '.md') */
+
+	/**
+	 * File extension to match
+	 * @default '.md' (or from conductor.config.json)
+	 */
 	fileExtension?: string
+
+	/**
+	 * Exclude README files
+	 * @default true (or from conductor.config.json)
+	 */
+	excludeReadme?: boolean
+
+	/**
+	 * Load configuration from conductor.config.json
+	 * When true, options from config file are used as defaults
+	 * @default true
+	 */
+	useConfigFile?: boolean
 }
 
 export function docsDiscoveryPlugin(options: DocsDiscoveryOptions = {}): Plugin {
-	const docsDir = options.docsDir || 'docs'
-	const fileExtension = options.fileExtension || '.md'
+	const useConfigFile = options.useConfigFile !== false
 
 	let root: string
+	let resolvedConfig: {
+		docsDir: string
+		fileExtension: string
+		excludeReadme: boolean
+	}
 
 	return {
 		name: 'conductor:docs-discovery',
 
 		configResolved(config) {
 			root = config.root
+
+			// Load config from file or use defaults
+			const configFromFile = useConfigFile ? getDocsDiscoveryConfig(root) : DEFAULT_DOCS_DISCOVERY
+
+			// Merge with explicit options (explicit options take precedence)
+			const docsDir = options.docsDir || configFromFile.directory
+
+			// Get file extension from patterns
+			let fileExtension: string
+			if (options.fileExtension) {
+				fileExtension = options.fileExtension
+			} else {
+				// Extract extension from first pattern like "**/*.md"
+				const firstPattern = configFromFile.patterns[0]
+				const match = firstPattern.match(/\*\.(\w+)$/)
+				fileExtension = match ? `.${match[1]}` : '.md'
+			}
+
+			const excludeReadme = options.excludeReadme ?? configFromFile.excludeReadme ?? true
+
+			resolvedConfig = {
+				docsDir,
+				fileExtension,
+				excludeReadme,
+			}
 		},
 
 		resolveId(id) {
@@ -45,14 +113,19 @@ export function docsDiscoveryPlugin(options: DocsDiscoveryOptions = {}): Plugin 
 
 		load(id) {
 			if (id === RESOLVED_VIRTUAL_MODULE_ID) {
-				const code = generateDocsModule(root, docsDir, fileExtension)
+				const code = generateDocsModule(
+					root,
+					resolvedConfig.docsDir,
+					resolvedConfig.fileExtension,
+					resolvedConfig.excludeReadme
+				)
 				return code
 			}
 		},
 
 		handleHotUpdate({ file, server }) {
 			// Watch for changes in docs directory
-			const docsDirPath = path.resolve(root, docsDir)
+			const docsDirPath = path.resolve(root, resolvedConfig.docsDir)
 
 			if (file.startsWith(docsDirPath)) {
 				// Invalidate virtual module on any change in docs/
@@ -74,7 +147,12 @@ export function docsDiscoveryPlugin(options: DocsDiscoveryOptions = {}): Plugin 
 /**
  * Generate the virtual module code with docs imports and docsMap
  */
-function generateDocsModule(root: string, docsDir: string, fileExtension: string): string {
+function generateDocsModule(
+	root: string,
+	docsDir: string,
+	fileExtension: string,
+	excludeReadme: boolean
+): string {
 	const docsDirPath = path.resolve(root, docsDir)
 
 	// Check if docs directory exists
@@ -92,8 +170,10 @@ export const docs = [];
 		absolute: false,
 	})
 
-	// Filter out README.md (it's meta-documentation)
-	const filteredFiles = docFiles.filter((file) => !file.toLowerCase().includes('readme'))
+	// Filter out README.md if configured
+	const filteredFiles = excludeReadme
+		? docFiles.filter((file) => !file.toLowerCase().includes('readme'))
+		: docFiles
 
 	if (filteredFiles.length === 0) {
 		// No docs found - return empty module
@@ -103,6 +183,8 @@ export const docsMap = new Map();
 export const docs = [];
 `
 	}
+
+	console.log(`[conductor:docs-discovery] Found ${filteredFiles.length} doc files in ${docsDir}/`)
 
 	// Generate imports and map entries
 	const imports: string[] = []

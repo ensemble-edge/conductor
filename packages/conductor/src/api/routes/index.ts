@@ -1,11 +1,15 @@
 /**
  * API Routes - Exports
+ *
+ * Note: docs routes have been removed from the core package.
+ * Documentation is now provided by the standalone docs agent/ensemble:
+ * - ensembles/system/docs/serve.yaml
+ * - agents/system/docs/docs.ts
  */
 
 export { default as execute } from './execute.js'
 export { default as agents } from './agents.js'
 export { default as ensembles } from './ensembles.js'
-export { default as docs } from './docs.js'
 export { default as health } from './health.js'
 export { default as stream } from './stream.js'
 export { default as async } from './async.js'

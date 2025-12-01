@@ -118,3 +118,39 @@ function extractEnsembleMetadata(name, config, source) {
         stepCount: Array.isArray(config.flow) ? config.flow.length : 0,
     };
 }
+/**
+ * Create a DocsRegistry from a Map of docs pages
+ *
+ * @param docs - Map from DocsDirectoryLoader.getRegistryData()
+ */
+export function createDocsRegistry(docs) {
+    return {
+        list() {
+            const result = [];
+            for (const [slug, page] of docs) {
+                result.push({
+                    slug,
+                    title: page.title,
+                    content: page.content,
+                    order: page.order,
+                });
+            }
+            // Sort by order if available
+            return result.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        },
+        get(slug) {
+            const page = docs.get(slug);
+            if (!page)
+                return undefined;
+            return {
+                slug,
+                title: page.title,
+                content: page.content,
+                order: page.order,
+            };
+        },
+        has(slug) {
+            return docs.has(slug);
+        },
+    };
+}

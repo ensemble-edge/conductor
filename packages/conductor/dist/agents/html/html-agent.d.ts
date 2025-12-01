@@ -10,8 +10,8 @@
  */
 import { BaseAgent, type AgentExecutionContext } from '../base-agent.js';
 import type { AgentConfig } from '../../runtime/parser.js';
-import type { HtmlMemberOutput } from './types/index.js';
-export declare class HtmlMember extends BaseAgent {
+import type { HtmlAgentConfig, HtmlAgentInput, HtmlAgentOutput } from './types/index.js';
+export declare class HtmlAgent extends BaseAgent {
     private htmlConfig;
     constructor(config: AgentConfig);
     /**
@@ -34,7 +34,7 @@ export declare class HtmlMember extends BaseAgent {
     /**
      * Execute HTML rendering
      */
-    protected run(context: AgentExecutionContext): Promise<HtmlMemberOutput>;
+    protected run(context: AgentExecutionContext): Promise<HtmlAgentOutput>;
     /**
      * Load layout content from ComponentLoader or registered partial
      */
@@ -53,4 +53,8 @@ export declare class HtmlMember extends BaseAgent {
      */
     private minifyHtml;
 }
+export declare const HtmlMember: typeof HtmlAgent;
+export type HtmlMemberConfig = HtmlAgentConfig;
+export type HtmlMemberInput = HtmlAgentInput;
+export type HtmlMemberOutput = HtmlAgentOutput;
 //# sourceMappingURL=html-agent.d.ts.map

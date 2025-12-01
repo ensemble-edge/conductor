@@ -8,7 +8,7 @@
  * - Exponential backoff
  */
 import { BaseAgent } from '../base-agent.js';
-export class QueueMember extends BaseAgent {
+export class QueueAgent extends BaseAgent {
     constructor(config) {
         super(config);
         // Extract nested config (config.config contains the agent-specific settings)
@@ -264,3 +264,5 @@ export class QueueMember extends BaseAgent {
         return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 }
+// Backward compatibility aliases
+export const QueueMember = QueueAgent;

@@ -45,8 +45,22 @@ export interface InterpolationResolver {
  * - ${input.name || "default"} → returns input.name if truthy, else "default"
  * - Catches "", 0, false, null, undefined (unlike ?? which only catches null/undefined)
  *
- * Supports ternary conditionals:
+ * Supports ternary conditionals with comparison operators:
  * - ${input.enabled ? "yes" : "no"} → returns "yes" if truthy, "no" otherwise
+ * - ${input.path == '/docs' ? "landing" : "other"} → equality comparison in condition
+ * - ${input.count > 10 ? "many" : "few"} → numeric comparison in condition
+ * - ${input.name != null && input.age >= 18 ? "valid" : "invalid"} → logical AND with comparisons
+ *
+ * Supports comparison operators in ternary conditions:
+ * - == and != (loose equality)
+ * - === and !== (strict equality)
+ * - >, <, >=, <= (numeric comparison)
+ * - && and || (logical AND/OR)
+ *
+ * Supports string method calls in conditions:
+ * - ${input.path.includes('/api/') ? "api" : "other"} → string includes check
+ * - ${input.url.startsWith('https') ? "secure" : "insecure"} → string prefix check
+ * - ${input.file.endsWith('.json') ? "json" : "other"} → string suffix check
  *
  * Supports boolean negation (!):
  * - ${!input.disabled} → returns true if input.disabled is falsy
@@ -71,12 +85,24 @@ export declare class StringResolver implements InterpolationResolver {
      * Traverse context using dot-separated path with optional operators and filter chain
      * Supports (in order of precedence):
      * - input.enabled ? "yes" : "no" (ternary conditional)
+     * - input.path == '/docs' ? "landing" : "other" (ternary with equality comparison)
      * - input.name ?? "default" (nullish coalescing - null/undefined only)
      * - input.name || "default" (falsy coalescing - catches "", 0, false too)
      * - input.text | split(' ') | length (filters)
      * Note: We check for single pipe (filter) vs double pipe (|| logical OR)
      */
     private traversePath;
+    /**
+     * Check if an expression contains comparison operators
+     * Used to detect expressions like "input.path == '/docs'" that should be evaluated as conditions
+     */
+    private hasComparisonOperator;
+    /**
+     * Evaluate a condition expression which may include comparison operators
+     * Supports: ==, !=, ===, !==, >, <, >=, <=, &&, ||
+     * Also supports string method calls like includes()
+     */
+    private evaluateCondition;
     /**
      * Resolve a value that could be a literal or a path expression
      */

@@ -1,43 +1,19 @@
 /**
  * OpenAPI Route
  *
- * Serves the OpenAPI specification in JSON and YAML formats.
+ * DEPRECATED: This file is now minimal.
+ * All documentation routes (/docs, /openapi.json, /openapi.yaml) are now
+ * provided by the standalone docs agent and docs-serve ensemble.
+ *
+ * This file is kept for backwards compatibility but registers no routes.
+ * Projects should use the docs-serve ensemble from ensembles/system/docs/serve.yaml
  */
 
 import { Hono } from 'hono'
-import type { ConductorContext } from '../types.js'
-import { openAPISpec } from './spec.js'
-import { stringify as yamlStringify } from 'yaml'
 
 const openapi = new Hono<{ Bindings: Env }>()
 
-/**
- * GET /openapi.json - Get OpenAPI spec as JSON
- */
-openapi.get('/openapi.json', (c: ConductorContext) => {
-  return c.json(openAPISpec)
-})
-
-/**
- * GET /openapi.yaml - Get OpenAPI spec as YAML
- */
-openapi.get('/openapi.yaml', (c: ConductorContext) => {
-  const yaml = yamlStringify(openAPISpec)
-  return c.text(yaml, 200, {
-    'Content-Type': 'application/x-yaml',
-  })
-})
-
-/**
- * GET /docs - Redirect to API documentation
- */
-openapi.get('/docs', (c: ConductorContext) => {
-  // In production, this would redirect to Swagger UI or similar
-  return c.json({
-    message: 'API documentation',
-    openapi: '/openapi.json',
-    yaml: '/openapi.yaml',
-  })
-})
+// No routes registered - docs are now handled by the docs-serve ensemble
+// See: ensembles/system/docs/serve.yaml and agents/system/docs/docs.ts
 
 export default openapi

@@ -10,7 +10,7 @@ import { createTemplateEngine, } from '../../utils/templates/index.js';
 /**
  * SMS Agent
  */
-export class SmsMember extends BaseAgent {
+export class SmsAgent extends BaseAgent {
     constructor(config) {
         super(config);
         // Parse SMS config
@@ -148,6 +148,8 @@ export class SmsMember extends BaseAgent {
 /**
  * Create SMS agent instance
  */
-export function createSmsMember(config) {
-    return new SmsMember(config);
+export function createSmsAgent(config) {
+    return new SmsAgent(config);
 }
+// Backward compatibility aliases
+export const SmsMember = SmsAgent;

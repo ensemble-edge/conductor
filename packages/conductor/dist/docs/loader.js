@@ -280,6 +280,34 @@ export class DocsDirectoryLoader {
     registerPartial(name, template) {
         this.manager.registerPartial(name, template);
     }
+    /**
+     * Get registry data for discovery
+     *
+     * Returns a Map suitable for passing to the Executor's discovery data.
+     * This enables agents to discover available documentation pages.
+     *
+     * @example
+     * ```typescript
+     * const executor = new Executor({
+     *   env,
+     *   ctx,
+     *   discovery: {
+     *     docs: docsLoader.getRegistryData(),
+     *   }
+     * });
+     * ```
+     */
+    getRegistryData() {
+        const result = new Map();
+        for (const [slug, page] of this.pages) {
+            result.set(slug, {
+                content: page.content,
+                title: page.title,
+                slug: page.slug,
+            });
+        }
+        return result;
+    }
 }
 /**
  * Global docs loader instance

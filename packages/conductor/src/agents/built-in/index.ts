@@ -12,10 +12,17 @@
  */
 
 // Export registry
-export { BuiltInMemberRegistry, getBuiltInRegistry } from './registry.js'
+export { BuiltInAgentRegistry, BuiltInMemberRegistry, getBuiltInRegistry } from './registry.js'
 
 // Export types
-export type { BuiltInMemberMetadata, BuiltInMemberFactory, BuiltInMemberEntry } from './types.js'
+export type {
+  BuiltInAgentMetadata,
+  BuiltInAgentFactory,
+  BuiltInAgentEntry,
+  BuiltInMemberMetadata,
+  BuiltInMemberFactory,
+  BuiltInMemberEntry,
+} from './types.js'
 
 // Export built-in agents (only those requiring deep framework integration)
 export { RAGMember } from './rag/index.js'

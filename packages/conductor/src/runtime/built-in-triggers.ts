@@ -99,7 +99,7 @@ function normalizePathConfigs(trigger: HTTPTriggerConfig, defaultPath: string): 
  * HTTP Trigger Handler
  */
 async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> {
-  const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context
+  const { app, ensemble, trigger: rawTrigger, agents, env, ctx, discovery } = context
   // Cast to typed trigger config
   const trigger = rawTrigger as HTTPTriggerConfig
 
@@ -172,7 +172,7 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
     try {
       const input = await extractInput(c)
       const auth = c.get('auth')
-      const executor = new Executor({ env, ctx, auth })
+      const executor = new Executor({ env, ctx, auth, discovery })
 
       for (const agent of agents) {
         executor.registerAgent(agent)
@@ -236,7 +236,7 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
  * - POST /mcp/tools/:toolName - Invoke a specific tool
  */
 async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
-  const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context
+  const { app, ensemble, trigger: rawTrigger, agents, env, ctx, discovery } = context
   // Cast to typed trigger config
   const trigger = rawTrigger as MCPTriggerConfig
 
@@ -300,7 +300,7 @@ async function handleMCPTrigger(context: TriggerHandlerContext): Promise<void> {
       const input = body.arguments || body.input || body
 
       const auth = c.get('auth')
-      const executor = new Executor({ env, ctx, auth })
+      const executor = new Executor({ env, ctx, auth, discovery })
 
       for (const agent of agents) {
         executor.registerAgent(agent)
@@ -434,7 +434,7 @@ function buildInputSchema(ensemble: any): any {
  * Simpler than HTTP - just POST endpoints
  */
 async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<void> {
-  const { app, ensemble, trigger: rawTrigger, agents, env, ctx } = context
+  const { app, ensemble, trigger: rawTrigger, agents, env, ctx, discovery } = context
   // Cast to typed trigger config
   const trigger = rawTrigger as WebhookTriggerConfig
 
@@ -467,7 +467,7 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
     try {
       const input = await c.req.json().catch(() => ({}))
       const auth = c.get('auth')
-      const executor = new Executor({ env, ctx, auth })
+      const executor = new Executor({ env, ctx, auth, discovery })
 
       for (const agent of agents) {
         executor.registerAgent(agent)
@@ -566,9 +566,13 @@ async function extractInput(c: any): Promise<any> {
   }
 
   // Return structured input with backwards compatibility
-  // Body fields are spread at root for backwards compatibility
+  // Body and query fields are spread at root for backwards compatibility
+  // Query params are spread first, then body, so body values take precedence on collision
   return {
-    // Backwards compatible: spread body at root
+    // Backwards compatible: spread query params at root (for GET requests)
+    ...query,
+    // Backwards compatible: spread body at root (for POST/PUT/PATCH)
+    // Body takes precedence over query params if same key exists
     ...body,
 
     // Structured access to request parts

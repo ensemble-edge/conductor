@@ -1,22 +1,56 @@
+/**
+ * Vite Plugin: Agent Discovery
+ *
+ * Discovers agents from the agents/ directory and generates a virtual module
+ * with all agent configurations and handlers.
+ *
+ * Supports centralized configuration via conductor.config.json:
+ * ```json
+ * {
+ *   "discovery": {
+ *     "agents": {
+ *       "enabled": true,
+ *       "directory": "agents",
+ *       "patterns": ["**\/*.yaml", "**\/*.yml"],
+ *       "excludeDirs": ["generate-docs"]
+ *     }
+ *   }
+ * }
+ * ```
+ */
+
 import type { Plugin } from 'vite';
 import { globSync } from 'glob';
 import path from 'path';
 import fs from 'fs';
 import * as YAML from 'yaml';
+import {
+  getAgentDiscoveryConfig,
+  patternsToGlob,
+  excludeDirsToIgnore,
+  DEFAULT_AGENT_DISCOVERY,
+} from './config-loader.js';
+import type { AgentDiscoveryConfig } from '../../../../../src/config/discovery.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-agents';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;
 
+/**
+ * Agent discovery plugin options
+ *
+ * Options can be provided directly OR loaded from conductor.config.json.
+ * Direct options take precedence over config file settings.
+ */
 export interface AgentDiscoveryOptions {
   /**
    * Directory to search for agent files (YAML and TypeScript)
-   * @default 'agents'
+   * @default 'agents' (or from conductor.config.json)
    */
   agentsDir?: string;
 
   /**
    * File extensions for agent config files
-   * @default ['.yaml', '.yml']
+   * @default ['.yaml', '.yml'] (or from conductor.config.json)
    */
   fileExtensions?: string[];
 
@@ -29,36 +63,74 @@ export interface AgentDiscoveryOptions {
 
   /**
    * Directories to exclude from discovery
-   * @default ['generate-docs']
+   * @default ['generate-docs'] (or from conductor.config.json)
    */
   excludeDirs?: string[];
 
   /**
    * Include agents in examples/ subdirectories
    * Set to false to exclude example agents from discovery
-   * @default true
+   * @default true (or from conductor.config.json)
    */
   includeExamples?: boolean;
+
+  /**
+   * Load configuration from conductor.config.json
+   * When true, options from config file are used as defaults
+   * @default true
+   */
+  useConfigFile?: boolean;
 }
 
 export function agentDiscoveryPlugin(options: AgentDiscoveryOptions = {}): Plugin {
-  const agentsDir = options.agentsDir || 'agents';
-  // Support both old single extension and new multiple extensions
-  const fileExtensions = options.fileExtensions ||
-    (options.fileExtension ? [options.fileExtension] : ['.yaml', '.yml']);
-
-  // Build exclude list - always exclude generate-docs, optionally exclude examples
-  const baseExcludes = ['generate-docs'];
-  const includeExamples = options.includeExamples !== false; // default true
-  const excludeDirs = options.excludeDirs || (includeExamples ? baseExcludes : [...baseExcludes, 'examples']);
+  const useConfigFile = options.useConfigFile !== false;
 
   let root: string;
+  let resolvedConfig: {
+    agentsDir: string;
+    fileExtensions: string[];
+    excludeDirs: string[];
+  };
 
   return {
     name: 'conductor:agent-discovery',
 
     configResolved(config) {
       root = config.root;
+
+      // Load config from file or use defaults
+      const configFromFile = useConfigFile
+        ? getAgentDiscoveryConfig(root)
+        : DEFAULT_AGENT_DISCOVERY;
+
+      // Merge with explicit options (explicit options take precedence)
+      const agentsDir = options.agentsDir || configFromFile.directory;
+
+      // Handle file extensions
+      let fileExtensions: string[];
+      if (options.fileExtensions) {
+        fileExtensions = options.fileExtensions;
+      } else if (options.fileExtension) {
+        // Deprecated single extension
+        fileExtensions = [options.fileExtension];
+      } else {
+        // Convert patterns like ["**/*.yaml", "**/*.yml"] to extensions [".yaml", ".yml"]
+        fileExtensions = configFromFile.patterns.map((p) => {
+          const match = p.match(/\*\.(\w+)$/);
+          return match ? `.${match[1]}` : '.yaml';
+        });
+      }
+
+      // Build exclude list
+      const baseExcludes = options.excludeDirs || configFromFile.excludeDirs || ['generate-docs'];
+      const includeExamples = options.includeExamples ?? configFromFile.includeExamples ?? true;
+      const excludeDirs = includeExamples ? baseExcludes : [...baseExcludes, 'examples'];
+
+      resolvedConfig = {
+        agentsDir,
+        fileExtensions,
+        excludeDirs,
+      };
     },
 
     resolveId(id) {
@@ -69,15 +141,21 @@ export function agentDiscoveryPlugin(options: AgentDiscoveryOptions = {}): Plugi
 
     load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
-        const code = generateAgentsModule(root, agentsDir, fileExtensions, excludeDirs);
+        const code = generateAgentsModule(
+          root,
+          resolvedConfig.agentsDir,
+          resolvedConfig.fileExtensions,
+          resolvedConfig.excludeDirs
+        );
         return code;
       }
     },
 
     // Hot reload support for development
     handleHotUpdate({ file, server }) {
-      const matchesExtension = fileExtensions.some(ext => file.endsWith(ext)) || file.endsWith('.ts');
-      if (file.includes(agentsDir) && matchesExtension) {
+      const matchesExtension =
+        resolvedConfig.fileExtensions.some((ext) => file.endsWith(ext)) || file.endsWith('.ts');
+      if (file.includes(resolvedConfig.agentsDir) && matchesExtension) {
         const module = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
         if (module) {
           server.moduleGraph.invalidateModule(module);
@@ -106,9 +184,10 @@ export const agentsMap = new Map();
   }
 
   // Build glob pattern for all extensions
-  const extPattern = fileExtensions.length === 1
-    ? `**/*${fileExtensions[0]}`
-    : `**/*{${fileExtensions.join(',')}}`;
+  const extPattern =
+    fileExtensions.length === 1
+      ? `**/*${fileExtensions[0]}`
+      : `**/*{${fileExtensions.join(',')}}`;
 
   // Find all agent config files
   const agentFiles = globSync(extPattern, {

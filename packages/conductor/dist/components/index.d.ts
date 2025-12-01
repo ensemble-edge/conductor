@@ -25,6 +25,6 @@ export { ScriptRegistry } from './scripts.js';
 export type { ScriptMetadata, LoadedScript } from './scripts.js';
 export { TemplateRegistry } from './templates.js';
 export type { Template } from './templates.js';
-export { createAgentRegistry, createEnsembleRegistry } from './discovery.js';
-export type { AgentRegistry, EnsembleRegistry, AgentMetadata, EnsembleMetadata, } from './discovery.js';
+export { createAgentRegistry, createEnsembleRegistry, createDocsRegistry } from './discovery.js';
+export type { AgentRegistry, EnsembleRegistry, DocsRegistry, AgentMetadata, EnsembleMetadata, DocsPageMetadata, } from './discovery.js';
 //# sourceMappingURL=index.d.ts.map

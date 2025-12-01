@@ -15,7 +15,7 @@ import type { ConfigRegistry } from '../components/configs.js';
 import type { QueryRegistry } from '../components/queries.js';
 import type { ScriptRegistry } from '../components/scripts.js';
 import type { TemplateRegistry } from '../components/templates.js';
-import type { AgentRegistry, EnsembleRegistry } from '../components/discovery.js';
+import type { AgentRegistry, EnsembleRegistry, DocsRegistry } from '../components/discovery.js';
 import type { SafeFetchOptions } from '../utils/safe-fetch.js';
 import type { ExecutionId, RequestId } from '../types/branded.js';
 import type { MemoryManager } from '../runtime/memory/memory-manager.js';
@@ -337,6 +337,29 @@ export interface AgentExecutionContext {
      * ```
      */
     ensembleRegistry?: EnsembleRegistry;
+    /**
+     * Docs registry for discovering documentation pages
+     * Useful for rendering markdown pages in documentation agents
+     *
+     * @example
+     * ```typescript
+     * export default async function(ctx: AgentExecutionContext) {
+     *   const { docsRegistry, input } = ctx
+     *
+     *   // List all available docs pages
+     *   const pages = docsRegistry?.list() || []
+     *
+     *   // Get a specific page by slug
+     *   const page = docsRegistry?.get(input.slug)
+     *   if (!page) {
+     *     return { error: 'not_found', message: `Page not found: ${input.slug}` }
+     *   }
+     *
+     *   return { page }
+     * }
+     * ```
+     */
+    docsRegistry?: DocsRegistry;
     /**
      * Memory manager for persistent conversation and context
      *

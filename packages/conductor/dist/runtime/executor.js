@@ -32,7 +32,7 @@ import { ScoringExecutor, EnsembleScorer, } from './scoring/index.js';
 import { createLogger, createObservabilityManager, generateExecutionId, } from '../observability/index.js';
 import { NotificationManager } from './notifications/index.js';
 import { hasGlobalScriptLoader, getGlobalScriptLoader, parseScriptURI, isScriptReference, } from '../utils/script-loader.js';
-import { createComponentRegistry, createAgentRegistry, createEnsembleRegistry, } from '../components/index.js';
+import { createComponentRegistry, createAgentRegistry, createEnsembleRegistry, createDocsRegistry, } from '../components/index.js';
 import { resolveOutput } from './output-resolver.js';
 import { MemoryManager } from './memory/memory-manager.js';
 /** Default timeout for agent execution (30 seconds) */
@@ -74,6 +74,7 @@ export class Executor {
         this.auth = config.auth;
         this.defaultTimeout = config.defaultTimeout ?? DEFAULT_AGENT_TIMEOUT_MS;
         this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS);
+        this.discoveryData = config.discovery;
     }
     /**
      * Register an agent for use in ensembles
@@ -226,9 +227,10 @@ export class Executor {
             queries: flowContext.componentRegistry.queries,
             scripts: flowContext.componentRegistry.scripts,
             templates: flowContext.componentRegistry.templates,
-            // Discovery registries for agents and ensembles
+            // Discovery registries for agents, ensembles, and docs
             agentRegistry: flowContext.agentRegistry,
             ensembleRegistry: flowContext.ensembleRegistry,
+            docsRegistry: flowContext.docsRegistry,
             // Agent-specific config from ensemble definition
             config: agentConfig,
             // Memory manager for conversation history and persistent storage
@@ -462,7 +464,8 @@ export class Executor {
             });
         }
         // 12. Store agent output in context for future interpolations
-        const contextKey = step.id || step.agent;
+        // Priority: id > name > agent (name is an alias for id, more natural for YAML authors)
+        const contextKey = step.id || step.name || step.agent;
         executionContext[contextKey] = {
             output: response.data,
             success: true,
@@ -935,9 +938,14 @@ export class Executor {
         // Create component registry for this execution
         const componentRegistry = createComponentRegistry(this.env);
         // Create discovery registries for agents and ensembles
+        // Agent registry uses the executor's internal agent map (registered via registerAgent)
         const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
-        // Create an empty ensemble registry (ensembles loaded via EnsembleLoader at API level)
-        const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map());
+        // Ensemble registry uses discovery data passed from API layer (via EnsembleLoader.getRegistryData())
+        // This enables agents to discover all loaded ensembles for documentation, OpenAPI generation, etc.
+        const ensembleDiscoveryRegistry = createEnsembleRegistry(this.discoveryData?.ensembles || new Map());
+        // Docs registry uses discovery data passed from API layer (via DocsDirectoryLoader.getRegistryData())
+        // This enables agents to discover documentation pages for rendering
+        const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || new Map());
         // Create flow execution context with observability
         const flowContext = {
             ensemble,
@@ -953,6 +961,7 @@ export class Executor {
             componentRegistry,
             agentRegistry: agentDiscoveryRegistry,
             ensembleRegistry: ensembleDiscoveryRegistry,
+            docsRegistry: docsDiscoveryRegistry,
             memoryManager,
         };
         // Execute flow from the beginning
@@ -1096,9 +1105,10 @@ export class Executor {
         }, this.env.ANALYTICS);
         // Create component registry for resumed execution
         const componentRegistry = createComponentRegistry(this.env);
-        // Create discovery registries for agents and ensembles
+        // Create discovery registries for agents, ensembles, and docs
         const agentDiscoveryRegistry = createAgentRegistry(this.agentRegistry);
-        const ensembleDiscoveryRegistry = createEnsembleRegistry(new Map());
+        const ensembleDiscoveryRegistry = createEnsembleRegistry(this.discoveryData?.ensembles || new Map());
+        const docsDiscoveryRegistry = createDocsRegistry(this.discoveryData?.docs || new Map());
         // Re-create memory manager for resumed execution
         // Use original input from suspended state plus any resumeInput
         const originalInput = executionContext.input ?? {};
@@ -1121,6 +1131,7 @@ export class Executor {
             componentRegistry,
             agentRegistry: agentDiscoveryRegistry,
             ensembleRegistry: ensembleDiscoveryRegistry,
+            docsRegistry: docsDiscoveryRegistry,
             memoryManager,
         };
         // Resume from the specified step

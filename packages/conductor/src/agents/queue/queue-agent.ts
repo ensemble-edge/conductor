@@ -12,8 +12,8 @@ import { BaseAgent, type AgentExecutionContext } from '../base-agent.js'
 import type { AgentConfig } from '../../runtime/parser.js'
 import type {
   QueueAgentConfig,
-  QueueMemberInput,
-  QueueMemberOutput,
+  QueueAgentInput,
+  QueueAgentOutput,
   QueueMessage,
   QueueMode,
   ConsumerResult,
@@ -21,7 +21,7 @@ import type {
   ReceivedQueueMessage,
 } from './types/index.js'
 
-export class QueueMember extends BaseAgent {
+export class QueueAgent extends BaseAgent {
   private queueConfig: QueueAgentConfig
 
   constructor(config: AgentConfig) {
@@ -60,8 +60,8 @@ export class QueueMember extends BaseAgent {
   /**
    * Execute queue operation
    */
-  protected async run(context: AgentExecutionContext): Promise<QueueMemberOutput> {
-    const input = context.input as QueueMemberInput
+  protected async run(context: AgentExecutionContext): Promise<QueueAgentOutput> {
+    const input = context.input as QueueAgentInput
     const mode = input.mode || this.queueConfig.mode || 'send'
 
     switch (mode) {
@@ -83,9 +83,9 @@ export class QueueMember extends BaseAgent {
    * Send single message
    */
   private async sendMessage(
-    input: QueueMemberInput,
+    input: QueueAgentInput,
     context: AgentExecutionContext
-  ): Promise<QueueMemberOutput> {
+  ): Promise<QueueAgentOutput> {
     if (!input.message) {
       throw new Error('Send mode requires message in input')
     }
@@ -119,9 +119,9 @@ export class QueueMember extends BaseAgent {
    * Send batch of messages
    */
   private async sendBatch(
-    input: QueueMemberInput,
+    input: QueueAgentInput,
     context: AgentExecutionContext
-  ): Promise<QueueMemberOutput> {
+  ): Promise<QueueAgentOutput> {
     const messages = input.messages || input.batchOptions?.messages
 
     if (!messages || messages.length === 0) {
@@ -172,9 +172,9 @@ export class QueueMember extends BaseAgent {
    * Consume messages (called by Cloudflare Queue consumer)
    */
   private async consumeMessages(
-    input: QueueMemberInput,
+    input: QueueAgentInput,
     context: AgentExecutionContext
-  ): Promise<QueueMemberOutput> {
+  ): Promise<QueueAgentOutput> {
     // This would be called by the queue consumer handler
     // For testing purposes, we simulate message consumption
 
@@ -341,3 +341,8 @@ export class QueueMember extends BaseAgent {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 }
+
+// Backward compatibility aliases
+export const QueueMember = QueueAgent
+export type QueueMemberInput = QueueAgentInput
+export type QueueMemberOutput = QueueAgentOutput

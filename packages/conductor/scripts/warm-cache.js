@@ -32,9 +32,8 @@ if (!baseUrl) {
 console.log('🔥 Conductor Cache Warming');
 console.log(`📍 Base URL: ${baseUrl}\n`);
 
-// Find all member YAML files (pages, ensembles, etc.)
+// Find all ensemble YAML files
 const patterns = [
-	join(__dirname, '../catalog/cloud/cloudflare/templates/pages/**/*.yaml'),
 	join(__dirname, '../catalog/cloud/cloudflare/templates/ensembles/**/*.yaml')
 ];
 

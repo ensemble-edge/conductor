@@ -26,7 +26,7 @@ import {
 /**
  * SMS Agent configuration
  */
-export interface SmsMemberConfig {
+export interface SmsAgentConfig {
   /** Provider configuration */
   provider: SmsProviderConfig
   /** Rate limiting (SMS per second) */
@@ -38,7 +38,7 @@ export interface SmsMemberConfig {
 /**
  * SMS Agent
  */
-export class SmsMember extends BaseAgent {
+export class SmsAgent extends BaseAgent {
   private provider: SmsProvider
   private templateEngine: BaseTemplateEngine
   private rateLimit: number
@@ -47,7 +47,7 @@ export class SmsMember extends BaseAgent {
     super(config)
 
     // Parse SMS config
-    const smsConfig = config.config as SmsMemberConfig
+    const smsConfig = config.config as SmsAgentConfig
     if (!smsConfig?.provider) {
       throw new Error('SMS agent requires provider configuration')
     }
@@ -210,6 +210,10 @@ export class SmsMember extends BaseAgent {
 /**
  * Create SMS agent instance
  */
-export function createSmsMember(config: any): SmsMember {
-  return new SmsMember(config)
+export function createSmsAgent(config: any): SmsAgent {
+  return new SmsAgent(config)
 }
+
+// Backward compatibility aliases
+export const SmsMember = SmsAgent
+export type SmsMemberConfig = SmsAgentConfig

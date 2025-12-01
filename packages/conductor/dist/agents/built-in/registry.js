@@ -10,7 +10,7 @@
  * - Metadata (description, schemas, examples)
  */
 import { Operation } from '../../types/constants.js';
-export class BuiltInMemberRegistry {
+export class BuiltInAgentRegistry {
     constructor() {
         this.agents = new Map();
     }
@@ -80,8 +80,8 @@ let registry = null;
  */
 export function getBuiltInRegistry() {
     if (!registry) {
-        registry = new BuiltInMemberRegistry();
-        registerAllBuiltInMembers(registry);
+        registry = new BuiltInAgentRegistry();
+        registerAllBuiltInAgents(registry);
     }
     return registry;
 }
@@ -96,7 +96,7 @@ export function getBuiltInRegistry() {
  * - RAG: Tight Cloudflare Vectorize and Workers AI embedding integration
  * - HITL: Requires Durable Objects runtime coordination for workflow suspension
  */
-function registerAllBuiltInMembers(registry) {
+function registerAllBuiltInAgents(registry) {
     // Import and register each built-in agent
     // This happens lazily, so only loaded when first accessed
     // RAG agent
@@ -174,3 +174,5 @@ function registerAllBuiltInMembers(registry) {
         return new HITLMember(config, env);
     });
 }
+// Backward compatibility alias
+export const BuiltInMemberRegistry = BuiltInAgentRegistry;

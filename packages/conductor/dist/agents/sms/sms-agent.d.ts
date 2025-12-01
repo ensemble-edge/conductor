@@ -10,7 +10,7 @@ import { type TemplateEngine } from '../../utils/templates/index.js';
 /**
  * SMS Agent configuration
  */
-export interface SmsMemberConfig {
+export interface SmsAgentConfig {
     /** Provider configuration */
     provider: SmsProviderConfig;
     /** Rate limiting (SMS per second) */
@@ -21,7 +21,7 @@ export interface SmsMemberConfig {
 /**
  * SMS Agent
  */
-export declare class SmsMember extends BaseAgent {
+export declare class SmsAgent extends BaseAgent {
     private provider;
     private templateEngine;
     private rateLimit;
@@ -54,5 +54,7 @@ export declare class SmsMember extends BaseAgent {
 /**
  * Create SMS agent instance
  */
-export declare function createSmsMember(config: any): SmsMember;
+export declare function createSmsAgent(config: any): SmsAgent;
+export declare const SmsMember: typeof SmsAgent;
+export type SmsMemberConfig = SmsAgentConfig;
 //# sourceMappingURL=sms-agent.d.ts.map

@@ -51,7 +51,9 @@ describe('HTTP Trigger Input Extraction', () => {
         'origin': mockReq.headers?.['origin'],
       }
 
+      // Query params spread first, then body (body takes precedence on collision)
       return {
+        ...query,
         ...body,
         body,
         params,
@@ -100,6 +102,41 @@ describe('HTTP Trigger Input Extraction', () => {
       expect(input.query).toEqual({ page: '1', limit: '10', search: 'test' })
       expect(input.query.page).toBe('1')
       expect(input.query.limit).toBe('10')
+    })
+
+    it('should include query params at root level for backwards compatibility', () => {
+      // GET /hello?name=Developer should allow ${input.name} access
+      const input = simulateExtractInput({
+        method: 'GET',
+        query: { name: 'Developer', page: '1' },
+        path: '/hello',
+      })
+
+      // Query params accessible at root level (like body fields)
+      expect(input.name).toBe('Developer')
+      expect(input.page).toBe('1')
+      // Also still accessible via query object
+      expect(input.query.name).toBe('Developer')
+    })
+
+    it('should let body values take precedence over query params on collision', () => {
+      // POST /api?name=QueryName with body { name: "BodyName" }
+      // body should win
+      const input = simulateExtractInput({
+        method: 'POST',
+        contentType: 'application/json',
+        body: { name: 'BodyName' },
+        query: { name: 'QueryName', extra: 'fromQuery' },
+        path: '/api',
+      })
+
+      // Body takes precedence
+      expect(input.name).toBe('BodyName')
+      // Query-only params still accessible at root
+      expect(input.extra).toBe('fromQuery')
+      // Both still accessible via namespaced access
+      expect(input.body.name).toBe('BodyName')
+      expect(input.query.name).toBe('QueryName')
     })
 
     it('should include URL path parameters', () => {

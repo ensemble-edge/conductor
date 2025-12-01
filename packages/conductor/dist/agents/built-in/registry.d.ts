@@ -11,14 +11,14 @@
  */
 import type { BaseAgent } from '../base-agent.js';
 import type { AgentConfig } from '../../runtime/parser.js';
-import type { BuiltInMemberMetadata, BuiltInMemberFactory } from './types.js';
+import type { BuiltInAgentMetadata, BuiltInAgentFactory } from './types.js';
 import type { ConductorEnv } from '../../types/env.js';
-export declare class BuiltInMemberRegistry {
+export declare class BuiltInAgentRegistry {
     private agents;
     /**
      * Register a built-in agent
      */
-    register(metadata: BuiltInMemberMetadata, factory: BuiltInMemberFactory): void;
+    register(metadata: BuiltInAgentMetadata, factory: BuiltInAgentFactory): void;
     /**
      * Check if a agent is built-in
      */
@@ -30,11 +30,11 @@ export declare class BuiltInMemberRegistry {
     /**
      * Get metadata for a built-in agent
      */
-    getMetadata(name: string): BuiltInMemberMetadata | undefined;
+    getMetadata(name: string): BuiltInAgentMetadata | undefined;
     /**
      * List all built-in agents
      */
-    list(): BuiltInMemberMetadata[];
+    list(): BuiltInAgentMetadata[];
     /**
      * Get available agent names
      */
@@ -42,14 +42,15 @@ export declare class BuiltInMemberRegistry {
     /**
      * Get agents by type
      */
-    listByType(type: string): BuiltInMemberMetadata[];
+    listByType(type: string): BuiltInAgentMetadata[];
     /**
      * Get agents by tag
      */
-    listByTag(tag: string): BuiltInMemberMetadata[];
+    listByTag(tag: string): BuiltInAgentMetadata[];
 }
 /**
  * Get the built-in agent registry (singleton)
  */
-export declare function getBuiltInRegistry(): BuiltInMemberRegistry;
+export declare function getBuiltInRegistry(): BuiltInAgentRegistry;
+export declare const BuiltInMemberRegistry: typeof BuiltInAgentRegistry;
 //# sourceMappingURL=registry.d.ts.map

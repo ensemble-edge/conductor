@@ -10,7 +10,7 @@ import type { ConductorEnv } from '../../types/env.js';
 /**
  * Metadata for a built-in agent
  */
-export interface BuiltInMemberMetadata {
+export interface BuiltInAgentMetadata {
     name: string;
     version: string;
     description: string;
@@ -32,13 +32,16 @@ export interface BuiltInMemberMetadata {
  * Factory function to create a built-in agent instance
  * Can be async to support dynamic imports for lazy loading
  */
-export type BuiltInMemberFactory = (config: AgentConfig, env: ConductorEnv) => BaseAgent | Promise<BaseAgent>;
+export type BuiltInAgentFactory = (config: AgentConfig, env: ConductorEnv) => BaseAgent | Promise<BaseAgent>;
 /**
  * Built-in agent registration entry
  */
-export interface BuiltInMemberEntry {
-    metadata: BuiltInMemberMetadata;
-    factory: BuiltInMemberFactory;
+export interface BuiltInAgentEntry {
+    metadata: BuiltInAgentMetadata;
+    factory: BuiltInAgentFactory;
     loaded: boolean;
 }
+export type BuiltInMemberMetadata = BuiltInAgentMetadata;
+export type BuiltInMemberFactory = BuiltInAgentFactory;
+export type BuiltInMemberEntry = BuiltInAgentEntry;
 //# sourceMappingURL=types.d.ts.map

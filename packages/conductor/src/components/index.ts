@@ -35,11 +35,13 @@ export type { ScriptMetadata, LoadedScript } from './scripts.js'
 export { TemplateRegistry } from './templates.js'
 export type { Template } from './templates.js'
 
-// Discovery registries for agents and ensembles
-export { createAgentRegistry, createEnsembleRegistry } from './discovery.js'
+// Discovery registries for agents, ensembles, and docs
+export { createAgentRegistry, createEnsembleRegistry, createDocsRegistry } from './discovery.js'
 export type {
   AgentRegistry,
   EnsembleRegistry,
+  DocsRegistry,
   AgentMetadata,
   EnsembleMetadata,
+  DocsPageMetadata,
 } from './discovery.js'

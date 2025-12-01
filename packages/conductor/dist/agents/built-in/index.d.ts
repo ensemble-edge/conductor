@@ -10,8 +10,8 @@
  * - RAG: Tight Cloudflare Vectorize and Workers AI embedding integration
  * - HITL: Requires Durable Objects runtime coordination for workflow suspension
  */
-export { BuiltInMemberRegistry, getBuiltInRegistry } from './registry.js';
-export type { BuiltInMemberMetadata, BuiltInMemberFactory, BuiltInMemberEntry } from './types.js';
+export { BuiltInAgentRegistry, BuiltInMemberRegistry, getBuiltInRegistry } from './registry.js';
+export type { BuiltInAgentMetadata, BuiltInAgentFactory, BuiltInAgentEntry, BuiltInMemberMetadata, BuiltInMemberFactory, BuiltInMemberEntry, } from './types.js';
 export { RAGMember } from './rag/index.js';
 export { HITLMember } from './hitl/index.js';
 export type * from './rag/index.js';

@@ -37,20 +37,10 @@ flow:
     input:
       # Determine action from path
       # input.path, input.params, input.query come from HTTP trigger
-      action: ${{
-        input.path == '/docs' ? 'render-landing' :
-        input.path == '/docs/agents' ? 'render-agents' :
-        input.path == '/docs/ensembles' ? 'render-ensembles' :
-        input.path == '/docs/api' ? 'render-api' :
-        input.path == '/docs/openapi.json' ? 'generate-openapi' :
-        input.path == '/docs/openapi.yaml' ? 'generate-openapi' :
-        input.params.name && input.path.includes('/agents/') ? 'render-agent-detail' :
-        input.params.name && input.path.includes('/ensembles/') ? 'render-ensemble-detail' :
-        'render-page'
-      }}
-      slug: ${{ input.params.slug }}
-      name: ${{ input.params.name }}
-      format: ${{ input.path.endsWith('.yaml') ? 'yaml' : 'json' }}
+      action: "${input.path == '/docs' ? 'render-landing' : input.path == '/docs/agents' ? 'render-agents' : input.path == '/docs/ensembles' ? 'render-ensembles' : input.path == '/docs/api' ? 'render-api' : input.path == '/docs/openapi.json' ? 'generate-openapi' : input.path == '/docs/openapi.yaml' ? 'generate-openapi' : input.params.name && input.path.includes('/agents/') ? 'render-agent-detail' : input.params.name && input.path.includes('/ensembles/') ? 'render-ensemble-detail' : 'render-page'}"
+      slug: "${input.params.slug}"
+      name: "${input.params.name}"
+      format: "${input.path.endsWith('.yaml') ? 'yaml' : 'json'}"
     config:
       title: API Documentation
       basePath: /docs
@@ -66,39 +56,39 @@ flow:
 
 output:
   # HTML responses
-  - when: ${{ flow.render.output.contentType == 'text/html' }}
+  - when: "${render.output.contentType == 'text/html'}"
     status: 200
     headers:
       Content-Type: text/html
       Cache-Control: public, max-age=300
-    rawBody: ${{ flow.render.output.html }}
+    rawBody: "${render.output.html}"
 
   # JSON responses (OpenAPI)
-  - when: ${{ flow.render.output.specJson }}
+  - when: "${render.output.specJson}"
     status: 200
     headers:
       Content-Type: application/json
-    body: ${{ flow.render.output.spec }}
+    body: "${render.output.spec}"
 
   # YAML responses (OpenAPI)
-  - when: ${{ flow.render.output.specYaml }}
+  - when: "${render.output.specYaml}"
     status: 200
     headers:
       Content-Type: text/yaml
-    rawBody: ${{ flow.render.output.specYaml }}
+    rawBody: "${render.output.specYaml}"
 
   # Not found
-  - when: ${{ flow.render.output.error == 'not_found' }}
+  - when: "${render.output.error == 'not_found'}"
     status: 404
     body:
       success: false
       error: not_found
-      message: ${{ flow.render.output.errorMessage }}
+      message: "${render.output.errorMessage}"
 
   # Error fallback
-  - when: ${{ !flow.render.output.success }}
+  - when: "${!render.output.success}"
     status: 500
     body:
       success: false
-      error: ${{ flow.render.output.error }}
-      message: ${{ flow.render.output.errorMessage }}
+      error: "${render.output.error}"
+      message: "${render.output.errorMessage}"

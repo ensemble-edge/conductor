@@ -1,21 +1,51 @@
+/**
+ * Vite Plugin: Ensemble Discovery
+ *
+ * Discovers ensembles from the ensembles/ directory and generates a virtual module
+ * with all ensemble configurations.
+ *
+ * Supports centralized configuration via conductor.config.json:
+ * ```json
+ * {
+ *   "discovery": {
+ *     "ensembles": {
+ *       "enabled": true,
+ *       "directory": "ensembles",
+ *       "patterns": ["**\/*.yaml", "**\/*.yml", "**\/*.ts"]
+ *     }
+ *   }
+ * }
+ * ```
+ */
+
 import type { Plugin } from 'vite';
 import { globSync } from 'glob';
 import path from 'path';
 import fs from 'fs';
+import {
+  getEnsembleDiscoveryConfig,
+  DEFAULT_ENSEMBLE_DISCOVERY,
+} from './config-loader.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:conductor-ensembles';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID;
 
+/**
+ * Ensemble discovery plugin options
+ *
+ * Options can be provided directly OR loaded from conductor.config.json.
+ * Direct options take precedence over config file settings.
+ */
 export interface EnsembleDiscoveryOptions {
   /**
    * Directory to search for ensemble files (YAML and TypeScript)
-   * @default 'ensembles'
+   * @default 'ensembles' (or from conductor.config.json)
    */
   ensemblesDir?: string;
 
   /**
    * File extensions for ensemble config files
-   * @default ['.yaml', '.yml', '.ts']
+   * @default ['.yaml', '.yml', '.ts'] (or from conductor.config.json)
    */
   fileExtensions?: string[];
 
@@ -25,21 +55,57 @@ export interface EnsembleDiscoveryOptions {
    * @default '.yaml'
    */
   fileExtension?: string;
+
+  /**
+   * Load configuration from conductor.config.json
+   * When true, options from config file are used as defaults
+   * @default true
+   */
+  useConfigFile?: boolean;
 }
 
 export function ensembleDiscoveryPlugin(options: EnsembleDiscoveryOptions = {}): Plugin {
-  const ensemblesDir = options.ensemblesDir || 'ensembles';
-  // Support both old single extension and new multiple extensions
-  const fileExtensions = options.fileExtensions ||
-    (options.fileExtension ? [options.fileExtension] : ['.yaml', '.yml', '.ts']);
+  const useConfigFile = options.useConfigFile !== false;
 
   let root: string;
+  let resolvedConfig: {
+    ensemblesDir: string;
+    fileExtensions: string[];
+  };
 
   return {
     name: 'conductor:ensemble-discovery',
 
     configResolved(config) {
       root = config.root;
+
+      // Load config from file or use defaults
+      const configFromFile = useConfigFile
+        ? getEnsembleDiscoveryConfig(root)
+        : DEFAULT_ENSEMBLE_DISCOVERY;
+
+      // Merge with explicit options (explicit options take precedence)
+      const ensemblesDir = options.ensemblesDir || configFromFile.directory;
+
+      // Handle file extensions
+      let fileExtensions: string[];
+      if (options.fileExtensions) {
+        fileExtensions = options.fileExtensions;
+      } else if (options.fileExtension) {
+        // Deprecated single extension
+        fileExtensions = [options.fileExtension];
+      } else {
+        // Convert patterns like ["**/*.yaml", "**/*.yml", "**/*.ts"] to extensions
+        fileExtensions = configFromFile.patterns.map((p) => {
+          const match = p.match(/\*\.(\w+)$/);
+          return match ? `.${match[1]}` : '.yaml';
+        });
+      }
+
+      resolvedConfig = {
+        ensemblesDir,
+        fileExtensions,
+      };
     },
 
     resolveId(id) {
@@ -50,15 +116,19 @@ export function ensembleDiscoveryPlugin(options: EnsembleDiscoveryOptions = {}):
 
     load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
-        const code = generateEnsemblesModule(root, ensemblesDir, fileExtensions);
+        const code = generateEnsemblesModule(
+          root,
+          resolvedConfig.ensemblesDir,
+          resolvedConfig.fileExtensions
+        );
         return code;
       }
     },
 
     // Hot reload support for development
     handleHotUpdate({ file, server }) {
-      const matchesExtension = fileExtensions.some(ext => file.endsWith(ext));
-      if (file.includes(ensemblesDir) && matchesExtension) {
+      const matchesExtension = resolvedConfig.fileExtensions.some((ext) => file.endsWith(ext));
+      if (file.includes(resolvedConfig.ensemblesDir) && matchesExtension) {
         const module = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
         if (module) {
           server.moduleGraph.invalidateModule(module);
@@ -102,9 +172,10 @@ export const tsEnsembleImports = {};
   }
 
   // Build glob pattern for all extensions
-  const extPattern = fileExtensions.length === 1
-    ? `**/*${fileExtensions[0]}`
-    : `**/*{${fileExtensions.join(',')}}`;
+  const extPattern =
+    fileExtensions.length === 1
+      ? `**/*${fileExtensions[0]}`
+      : `**/*{${fileExtensions.join(',')}}`;
 
   // Find all ensemble files
   const ensembleFiles = globSync(extPattern, {
@@ -113,12 +184,12 @@ export const tsEnsembleImports = {};
   });
 
   // Separate YAML and TypeScript files
-  const yamlFiles = ensembleFiles.filter(f => !isTypeScriptFile(f));
-  const tsFiles = ensembleFiles.filter(f => isTypeScriptFile(f));
+  const yamlFiles = ensembleFiles.filter((f) => !isTypeScriptFile(f));
+  const tsFiles = ensembleFiles.filter((f) => isTypeScriptFile(f));
 
   console.log(
     `[conductor:ensemble-discovery] Found ${ensembleFiles.length} ensemble files ` +
-    `(${yamlFiles.length} YAML, ${tsFiles.length} TypeScript) in ${ensemblesDir}/`
+      `(${yamlFiles.length} YAML, ${tsFiles.length} TypeScript) in ${ensemblesDir}/`
   );
 
   const ensembleEntries: string[] = [];

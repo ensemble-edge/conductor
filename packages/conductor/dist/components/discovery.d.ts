@@ -125,6 +125,53 @@ export interface EnsembleRegistry {
     has(name: string): boolean;
 }
 /**
+ * Metadata about a documentation page
+ */
+export interface DocsPageMetadata {
+    /** Page slug (URL-friendly identifier) */
+    slug: string;
+    /** Page title */
+    title: string;
+    /** Markdown content */
+    content: string;
+    /** Page order in navigation */
+    order?: number;
+}
+/**
+ * Read-only registry for discovering documentation pages
+ *
+ * @example
+ * ```typescript
+ * export default async function(ctx: AgentExecutionContext) {
+ *   const pages = ctx.docsRegistry?.list() || []
+ *
+ *   // Find a specific page
+ *   const gettingStarted = ctx.docsRegistry?.get('getting-started')
+ *
+ *   // Check if page exists
+ *   if (ctx.docsRegistry?.has('advanced')) {
+ *     // ...
+ *   }
+ *
+ *   return { pageCount: pages.length }
+ * }
+ * ```
+ */
+export interface DocsRegistry {
+    /**
+     * List all documentation pages with their metadata
+     */
+    list(): DocsPageMetadata[];
+    /**
+     * Get a specific page by slug
+     */
+    get(slug: string): DocsPageMetadata | undefined;
+    /**
+     * Check if a page exists
+     */
+    has(slug: string): boolean;
+}
+/**
  * Create an AgentRegistry from a Map of BaseAgent instances
  */
 export declare function createAgentRegistry(agents: Map<string, BaseAgent>): AgentRegistry;
@@ -135,4 +182,15 @@ export declare function createEnsembleRegistry(ensembles: Map<string, {
     config: EnsembleConfig;
     source: 'yaml' | 'typescript';
 }>): EnsembleRegistry;
+/**
+ * Create a DocsRegistry from a Map of docs pages
+ *
+ * @param docs - Map from DocsDirectoryLoader.getRegistryData()
+ */
+export declare function createDocsRegistry(docs: Map<string, {
+    content: string;
+    title: string;
+    slug: string;
+    order?: number;
+}>): DocsRegistry;
 //# sourceMappingURL=discovery.d.ts.map

@@ -16,6 +16,7 @@
  * ```
  */
 import { z } from 'zod';
+import { DiscoveryConfigSchema } from './discovery.js';
 // ============================================================================
 // Authentication Schemas
 // ============================================================================
@@ -345,6 +346,7 @@ export const ConductorConfigSchema = z.object({
     execution: ExecutionConfigSchema.optional(),
     storage: StorageConfigSchema.optional(),
     api: ApiConfigSchema.optional(),
+    discovery: DiscoveryConfigSchema.optional(),
 });
 /**
  * Validate a ConductorConfig object

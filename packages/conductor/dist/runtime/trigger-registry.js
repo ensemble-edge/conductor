@@ -80,10 +80,17 @@ export class TriggerRegistry {
     /**
      * Register all triggers for an ensemble
      * Called during auto-discovery initialization
+     *
+     * @param app - Hono app instance
+     * @param ensemble - Ensemble configuration
+     * @param agents - Array of agent instances
+     * @param env - Cloudflare environment
+     * @param ctx - Execution context
+     * @param discovery - Optional discovery data for agents/ensembles/docs
      */
     async registerEnsembleTriggers(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    app, ensemble, agents, env, ctx) {
+    app, ensemble, agents, env, ctx, discovery) {
         if (!ensemble.trigger || ensemble.trigger.length === 0) {
             return; // No triggers to register
         }
@@ -104,6 +111,7 @@ export class TriggerRegistry {
                     agents,
                     env,
                     ctx,
+                    discovery,
                 });
                 logger.info(`[TriggerRegistry] Registered ${trigger.type} trigger for ensemble: ${ensemble.name}`);
             }

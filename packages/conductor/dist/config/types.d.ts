@@ -3,6 +3,7 @@
  *
  * Type-safe configuration for Conductor projects.
  */
+import type { DiscoveryConfig } from './discovery.js';
 /**
  * Main configuration interface
  */
@@ -27,6 +28,8 @@ export interface ConductorConfig {
     storage?: StorageConfig;
     /** API configuration (Execute API controls) */
     api?: ApiConfig;
+    /** Discovery configuration for auto-discovery of agents, ensembles, docs, scripts */
+    discovery?: DiscoveryConfig;
 }
 /**
  * API configuration

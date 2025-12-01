@@ -5,6 +5,7 @@
  * Includes Zod schemas for runtime validation.
  */
 export { DEFAULT_CONFIG } from './types.js';
+export { DEFAULT_DISCOVERY_CONFIG, DEFAULT_AGENT_DISCOVERY, DEFAULT_ENSEMBLE_DISCOVERY, DEFAULT_DOCS_DISCOVERY, DEFAULT_SCRIPTS_DISCOVERY, mergeDiscoveryConfig, getDiscoveryTypeConfig, buildGlobPattern, buildExcludePatterns, validateDiscoveryConfig, DiscoveryConfigSchema, AgentDiscoveryConfigSchema, EnsembleDiscoveryConfigSchema, DocsDiscoveryConfigSchema, ScriptsDiscoveryConfigSchema, } from './discovery.js';
 export { loadConfig, loadConfigSync, getConfigValue } from './loader.js';
 // Workers-compatible config loading
 export { createConfig } from './loader-workers.js';

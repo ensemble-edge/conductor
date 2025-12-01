@@ -39,6 +39,8 @@ export interface LoadedEnsemble {
     instance: Ensemble;
     /** Source type */
     source: 'yaml' | 'typescript';
+    /** Whether this ensemble is from the catalog (vs user-defined) */
+    isFromCatalog?: boolean;
 }
 /**
  * EnsembleLoader handles dynamic loading of user-created ensembles
@@ -90,7 +92,7 @@ export declare class EnsembleLoader {
      * loader.registerEnsemble(blogWorkflowConfig);
      * ```
      */
-    registerEnsemble(ensembleConfig: EnsembleConfig | string): Ensemble;
+    registerEnsemble(ensembleConfig: EnsembleConfig | string, isFromCatalog?: boolean): Ensemble;
     /**
      * Register a TypeScript Ensemble instance directly
      *
@@ -111,7 +113,7 @@ export declare class EnsembleLoader {
      * loader.registerEnsembleInstance(myPipeline);
      * ```
      */
-    registerEnsembleInstance(ensemble: Ensemble): Ensemble;
+    registerEnsembleInstance(ensemble: Ensemble, isFromCatalog?: boolean): Ensemble;
     /**
      * Get an ensemble config by name
      * @deprecated Use getEnsembleInstance() to get the Ensemble instance directly
@@ -144,6 +146,14 @@ export declare class EnsembleLoader {
      * Get all loaded ensemble data
      */
     getAllLoadedEnsembles(): LoadedEnsemble[];
+    /**
+     * Get ensemble data in registry format for createEnsembleRegistry()
+     * Returns a Map suitable for passing to the Executor's discovery data
+     */
+    getRegistryData(): Map<string, {
+        config: EnsembleConfig;
+        source: 'yaml' | 'typescript';
+    }>;
     /**
      * Get all ensemble names
      */

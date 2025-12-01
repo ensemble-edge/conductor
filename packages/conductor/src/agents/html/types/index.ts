@@ -79,7 +79,7 @@ export interface HtmlRenderOptions {
 /**
  * HTML agent configuration
  */
-export interface HtmlMemberConfig {
+export interface HtmlAgentConfig {
   /** Template source */
   template: TemplateSource
   /** Rendering options */
@@ -93,7 +93,7 @@ export interface HtmlMemberConfig {
 /**
  * HTML agent input
  */
-export interface HtmlMemberInput {
+export interface HtmlAgentInput {
   /** Template data (variables to interpolate) */
   data?: Record<string, unknown>
   /** Request cookies (for reading) */
@@ -113,7 +113,7 @@ export interface HtmlMemberInput {
 /**
  * HTML agent output
  */
-export interface HtmlMemberOutput {
+export interface HtmlAgentOutput {
   /** Rendered HTML */
   html: string
   /** Cookies to set (Set-Cookie headers) */
@@ -186,7 +186,7 @@ export interface HtmlValidationResult {
 /**
  * Email-specific HTML configuration
  */
-export interface EmailHtmlConfig extends HtmlMemberConfig {
+export interface EmailHtmlConfig extends HtmlAgentConfig {
   /** Use MJML for email templates */
   mjml?: boolean
   /** Inline all CSS (required for email) */
@@ -201,3 +201,8 @@ export interface EmailHtmlConfig extends HtmlMemberConfig {
     fromName?: string
   }
 }
+
+// Backward compatibility aliases
+export type HtmlMemberConfig = HtmlAgentConfig
+export type HtmlMemberInput = HtmlAgentInput
+export type HtmlMemberOutput = HtmlAgentOutput
