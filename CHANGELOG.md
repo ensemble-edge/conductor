@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 0.4.10
+
+### Patch Changes
+
+- 0388b41: Remove dead DocsRouteConfig code and orphaned docs.yaml template
+
 ## 0.4.9
 
 ### Patch Changes
