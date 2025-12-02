@@ -86,7 +86,7 @@
 		"jose": "^6.1.2",
 		"liquidjs": "^10.10.0",
 		"yaml": "^2.4.0",
-		"zod": "^3.22.4"
+		"zod": "^4.1.13"
 	},
 	"optionalDependencies": {
 		"archiver": "^7.0.1",
