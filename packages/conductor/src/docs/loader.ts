@@ -3,20 +3,16 @@
  *
  * Loads and manages the docs/ first-class component directory.
  * Handles:
- * - Loading docs/docs.yaml or docs/docs.ts definition
  * - Loading markdown pages from docs/*.md
  * - Parsing frontmatter metadata
  * - Building navigation from file structure
+ *
+ * Note: Docs configuration is passed via the docs-serve ensemble's flow config,
+ * not via a separate docs.yaml file.
  */
 
 import { DocsManager } from './docs-manager.js'
-import type {
-  DocsDefinition,
-  DocsPage,
-  DocsFrontmatter,
-  DocsNavItem,
-  DocsRouteConfig,
-} from './types.js'
+import type { DocsDefinition, DocsPage, DocsFrontmatter, DocsNavItem } from './types.js'
 import {
   DEFAULT_DOCS_DEFINITION,
   mergeDocsDefinition,
@@ -31,7 +27,6 @@ const logger = createLogger({ serviceName: 'docs-loader' })
  * Docs directory loader
  *
  * Manages the docs/ first-class component directory:
- * - Loads definition from docs/docs.yaml
  * - Loads markdown pages
  * - Builds navigation
  * - Renders pages with Handlebars
@@ -53,7 +48,7 @@ export class DocsDirectoryLoader {
   /**
    * Initialize with docs definition and markdown pages
    *
-   * @param definition - Docs definition from docs/docs.yaml or docs/docs.ts
+   * @param definition - Docs definition (passed from ensemble flow config)
    * @param markdownFiles - Map of file paths to markdown content
    */
   async init(
@@ -62,7 +57,7 @@ export class DocsDirectoryLoader {
   ): Promise<void> {
     // Merge with defaults
     this.definition = mergeDocsDefinition(definition)
-    this.basePath = this.definition.route?.path || '/docs'
+    // Note: basePath is always /docs - routing is handled by the docs-serve ensemble's trigger
 
     // Load markdown pages
     for (const [filePath, content] of markdownFiles) {
@@ -194,14 +189,9 @@ export class DocsDirectoryLoader {
   }
 
   /**
-   * Get route configuration
-   */
-  getRouteConfig(): DocsRouteConfig {
-    return this.definition.route || DEFAULT_DOCS_DEFINITION.route!
-  }
-
-  /**
-   * Get base path for docs (e.g., '/docs', '/help', '/reference')
+   * Get base path for docs
+   * Note: Always returns '/docs' - custom paths should be configured
+   * via the docs-serve ensemble's trigger configuration.
    */
   getBasePath(): string {
     return this.basePath
