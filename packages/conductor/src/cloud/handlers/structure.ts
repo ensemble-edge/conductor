@@ -23,10 +23,7 @@ import type { EnsembleConfig } from '../../runtime/parser.js'
  * Returns the project shape including agents, ensembles, and edgit-managed components.
  * This is used by Ensemble Cloud to understand what's deployed.
  */
-export async function handleStructure(
-  _request: Request,
-  env: CloudEnv
-): Promise<Response> {
+export async function handleStructure(_request: Request, env: CloudEnv): Promise<Response> {
   // Get project info from env or defaults
   const projectName = env.CONDUCTOR_PROJECT_NAME || 'conductor-project'
   const projectVersion = env.CONDUCTOR_PROJECT_VERSION || '1.0.0'

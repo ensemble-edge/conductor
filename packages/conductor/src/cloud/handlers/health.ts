@@ -11,10 +11,7 @@ import type { CloudEnv, CloudHealthResponse } from '../types.js'
 /**
  * Handle health check request
  */
-export async function handleHealth(
-  _request: Request,
-  env: CloudEnv
-): Promise<Response> {
+export async function handleHealth(_request: Request, env: CloudEnv): Promise<Response> {
   const response: CloudHealthResponse = {
     status: 'ok',
     timestamp: new Date().toISOString(),

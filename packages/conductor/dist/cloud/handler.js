@@ -110,8 +110,11 @@ export async function handleCloudRequest(request, env, _ctx) {
 }
 /**
  * Check if a request is for the cloud endpoint
+ *
+ * Matches exactly /cloud or /cloud/* but not paths like /cloudflare
  */
 export function isCloudRequest(request) {
     const url = new URL(request.url);
-    return url.pathname.startsWith('/cloud');
+    const path = url.pathname;
+    return path === '/cloud' || path.startsWith('/cloud/');
 }

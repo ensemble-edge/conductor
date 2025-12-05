@@ -19,6 +19,8 @@ import type { CloudEnv } from './types.js';
 export declare function handleCloudRequest(request: Request, env: CloudEnv, _ctx: ExecutionContext): Promise<Response>;
 /**
  * Check if a request is for the cloud endpoint
+ *
+ * Matches exactly /cloud or /cloud/* but not paths like /cloudflare
  */
 export declare function isCloudRequest(request: Request): boolean;
 //# sourceMappingURL=handler.d.ts.map

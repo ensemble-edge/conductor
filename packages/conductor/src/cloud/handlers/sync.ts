@@ -22,22 +22,16 @@ import type { CloudEnv, CloudSyncResponse } from '../types.js'
  * - Reload configuration
  * - Notify connected clients
  */
-export async function handleSync(
-  request: Request,
-  _env: CloudEnv
-): Promise<Response> {
+export async function handleSync(request: Request, _env: CloudEnv): Promise<Response> {
   // Only allow POST
   if (request.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      {
-        status: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Allow': 'POST',
-        },
-      }
-    )
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        Allow: 'POST',
+      },
+    })
   }
 
   // TODO: Implement actual sync logic
@@ -50,7 +44,7 @@ export async function handleSync(
   // Parse optional sync parameters from body
   let syncType = 'full'
   try {
-    const body = await request.json() as { type?: string }
+    const body = (await request.json()) as { type?: string }
     syncType = body.type || 'full'
   } catch {
     // Empty body is fine, default to full sync

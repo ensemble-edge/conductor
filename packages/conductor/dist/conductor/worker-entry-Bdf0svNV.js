@@ -25419,7 +25419,7 @@ class HtmlAgent extends BaseAgent {
     if (context.env.COMPONENTS && engine instanceof SimpleTemplateEngine) {
       let cache2;
       if (context.env.CACHE) {
-        const { MemoryCache } = await import("./cache-D3GUiJAm.js");
+        const { MemoryCache } = await import("./cache-CBxgKTqZ.js");
         cache2 = new MemoryCache({
           defaultTTL: 3600
         });
@@ -25505,7 +25505,7 @@ class HtmlAgent extends BaseAgent {
       if (context.env.COMPONENTS) {
         let cache2;
         if (context.env.CACHE) {
-          const { MemoryCache } = await import("./cache-D3GUiJAm.js");
+          const { MemoryCache } = await import("./cache-CBxgKTqZ.js");
           cache2 = new MemoryCache({
             defaultTTL: 3600
           });
@@ -26099,7 +26099,7 @@ function registerAllBuiltInAgents(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/rag"
     },
     async (config, env) => {
-      const { RAGMember } = await import("./index-CNcuuXzp.js");
+      const { RAGMember } = await import("./index-WpQ6-l6H.js");
       return new RAGMember(config, env);
     }
   );
@@ -26135,7 +26135,7 @@ function registerAllBuiltInAgents(registry2) {
       documentation: "https://docs.conductor.dev/built-in-agents/hitl"
     },
     async (config, env) => {
-      const { HITLMember } = await import("./index-Chd9LuBc.js");
+      const { HITLMember } = await import("./index-Bv2YPKcD.js");
       return new HITLMember(config, env);
     }
   );
@@ -41240,16 +41240,13 @@ async function handleLogs(request, _env) {
 }
 async function handleSync(request, _env) {
   if (request.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      {
-        status: 405,
-        headers: {
-          "Content-Type": "application/json",
-          "Allow": "POST"
-        }
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: {
+        "Content-Type": "application/json",
+        Allow: "POST"
       }
-    );
+    });
   }
   let syncType = "full";
   try {
@@ -41336,7 +41333,8 @@ async function handleCloudRequest(request, env, _ctx) {
 }
 function isCloudRequest(request) {
   const url = new URL(request.url);
-  return url.pathname.startsWith("/cloud");
+  const path = url.pathname;
+  return path === "/cloud" || path.startsWith("/cloud/");
 }
 function createConductorHandler(config) {
   return {
@@ -41540,4 +41538,4 @@ export {
   ModelId as y,
   AgentName as z
 };
-//# sourceMappingURL=worker-entry-BJ5HyflW.js.map
+//# sourceMappingURL=worker-entry-Bdf0svNV.js.map

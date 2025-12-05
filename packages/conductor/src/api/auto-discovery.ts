@@ -354,7 +354,11 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
 
   // Return a Worker export with auto-discovery initialization
   return {
-    async fetch(request: Request, env: ConductorEnv & CloudEnv, ctx: ExecutionContext): Promise<Response> {
+    async fetch(
+      request: Request,
+      env: ConductorEnv & CloudEnv,
+      ctx: ExecutionContext
+    ): Promise<Response> {
       // Handle /cloud/* requests separately (bypasses Hono app)
       // Cloud endpoint has its own authentication using ENSEMBLE_CLOUD_KEY
       if (isCloudRequest(request)) {
