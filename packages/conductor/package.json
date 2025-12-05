@@ -38,12 +38,8 @@
 			"require": "./dist/api/index.js"
 		}
 	},
-	"bin": {
-		"conductor": "./bin/conductor.js"
-	},
 	"files": [
 		"dist",
-		"bin",
 		"catalog",
 		"README.md",
 		"LICENSE"

@@ -38,10 +38,14 @@ ls -la  # Should be empty
 
 ## 🧪 Phase 1: Installation (Target: 60 seconds)
 
-### 1.1 Initialize Project
+### 1.1 Install Ensemble CLI and Initialize Project
 
 ```bash
-npx @ensemble-edge/conductor@latest init . --force
+# Install the unified CLI globally (if not already installed)
+npm install -g @ensemble-edge/ensemble
+
+# Initialize project with non-interactive mode
+ensemble conductor init . --force --yes
 ```
 
 **Check for issues**:
