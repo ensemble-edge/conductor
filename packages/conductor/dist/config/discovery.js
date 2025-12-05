@@ -147,7 +147,9 @@ export function mergeDiscoveryConfig(userConfig) {
         ensembles: userConfig.ensembles
             ? { ...DEFAULT_ENSEMBLE_DISCOVERY, ...userConfig.ensembles }
             : DEFAULT_ENSEMBLE_DISCOVERY,
-        docs: userConfig.docs ? { ...DEFAULT_DOCS_DISCOVERY, ...userConfig.docs } : DEFAULT_DOCS_DISCOVERY,
+        docs: userConfig.docs
+            ? { ...DEFAULT_DOCS_DISCOVERY, ...userConfig.docs }
+            : DEFAULT_DOCS_DISCOVERY,
         scripts: userConfig.scripts
             ? { ...DEFAULT_SCRIPTS_DISCOVERY, ...userConfig.scripts }
             : DEFAULT_SCRIPTS_DISCOVERY,

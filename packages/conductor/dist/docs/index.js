@@ -2,10 +2,11 @@
  * Docs Module
  *
  * First-class docs/ component directory with:
- * - Route configuration (like agents)
  * - Markdown documentation with Handlebars rendering
  * - Auto-generated navigation from file structure
  * - Reserved routes for agents, ensembles, API reference
+ *
+ * Docs are served via the docs-serve ensemble, not a separate config file.
  */
 // Core docs manager (Handlebars rendering)
 export { DocsManager, getGlobalDocsManager } from './docs-manager.js';

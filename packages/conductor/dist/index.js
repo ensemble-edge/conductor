@@ -72,6 +72,10 @@ export { ref, inputRef, stateRef, envRef, stepRef, contextRef, outputRef, comput
 export { suspend, checkpoint, sleep, sleepSeconds, sleepMinutes, sleepUntil, schedule, approval, waitForWebhook, waitForInput, isSuspendStep, isSleepStep, isScheduleStep, isApprovalStep, isAsyncStep, } from './primitives/async.js';
 // Type Guards from primitives
 export { isParallelStep, isAgentStep, isBranchStep, isForeachStep, isTryStep, isSwitchStep, isWhileStep, isMapReduceStep, isFlowControlStep, isControlFlowStep, } from './primitives/types.js';
+// ============================================================================
+// Ensemble Cloud - /cloud/* endpoint for Ensemble Cloud integration
+// ============================================================================
+export { handleCloudRequest, isCloudRequest } from './cloud/index.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *

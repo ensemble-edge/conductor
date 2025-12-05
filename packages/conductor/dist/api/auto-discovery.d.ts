@@ -10,6 +10,7 @@ import type { ConductorEnv } from '../types/env.js';
 import { type APIConfig } from './app.js';
 import { AgentLoader } from '../utils/loader.js';
 import { EnsembleLoader } from '../utils/ensemble-loader.js';
+import { type CloudEnv } from '../cloud/index.js';
 export interface AutoDiscoveryAPIConfig extends APIConfig {
     /**
      * Enable auto-discovery of agents and ensembles
@@ -85,7 +86,7 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
  * ```
  */
 export declare function createAutoDiscoveryAPI(config?: AutoDiscoveryAPIConfig): {
-    fetch(request: Request, env: ConductorEnv, ctx: ExecutionContext): Promise<Response>;
+    fetch(request: Request, env: ConductorEnv & CloudEnv, ctx: ExecutionContext): Promise<Response>;
     scheduled(event: ScheduledEvent, env: ConductorEnv, ctx: ExecutionContext): Promise<void>;
 };
 /**

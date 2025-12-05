@@ -376,7 +376,9 @@ function serializeToCsv(value) {
     }
     // Array of arrays
     if (Array.isArray(first)) {
-        return value.map((row) => row.map((cell) => escapeCsvField(String(cell))).join(',')).join('\n');
+        return value
+            .map((row) => row.map((cell) => escapeCsvField(String(cell))).join(','))
+            .join('\n');
     }
     // Array of primitives - one per line
     return value.map((v) => escapeCsvField(String(v))).join('\n');

@@ -15,6 +15,7 @@ import { getTriggerRegistry } from '../runtime/trigger-registry.js';
 import { registerBuiltInTriggers } from '../runtime/built-in-triggers.js';
 import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js';
 import { getDocsLoader } from '../docs/index.js';
+import { handleCloudRequest, isCloudRequest } from '../cloud/index.js';
 const logger = createLogger({ serviceName: 'auto-discovery-api' });
 /**
  * Type guard to check if output has html property
@@ -236,6 +237,11 @@ export function createAutoDiscoveryAPI(config = {}) {
     // Return a Worker export with auto-discovery initialization
     return {
         async fetch(request, env, ctx) {
+            // Handle /cloud/* requests separately (bypasses Hono app)
+            // Cloud endpoint has its own authentication using ENSEMBLE_CLOUD_KEY
+            if (isCloudRequest(request)) {
+                return handleCloudRequest(request, env, ctx);
+            }
             // Lazy initialization on first request
             if (!initialized) {
                 await initializeLoaders(env, ctx, config);
