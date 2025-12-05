@@ -1,5 +1,14 @@
 # @ensemble-edge/conductor
 
+## 0.4.12
+
+### Patch Changes
+
+- 01b5ec1: Remove deprecated CLI bin entry - CLI now available through unified ensemble CLI
+  - Remove `bin` entry from package.json (conductor CLI is deprecated)
+  - Update documentation to use `ensemble conductor` commands
+  - CLI functionality moved to @ensemble-edge/ensemble package
+
 ## 0.4.11
 
 ### Patch Changes
