@@ -1,13 +1,15 @@
 # @ensemble-edge/conductor
 
-> Edge-native orchestration for AI agents. Built on Cloudflare Workers.
+> Edge-native AI orchestration — built exclusively for Cloudflare Workers, not ported from Lambda.
 
 [![npm version](https://img.shields.io/npm/v/@ensemble-edge/conductor.svg)](https://www.npmjs.com/package/@ensemble-edge/conductor)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Overview
 
-**Conductor** is an orchestration runtime that executes YAML-defined workflows at the edge using Cloudflare Workers. Think of it as the runtime engine for your AI workflows - agents are musicians, ensembles are sheet music, and Conductor performs the symphony.
+**Conductor** is an orchestration runtime that executes YAML-defined workflows at the edge using Cloudflare Workers. Purpose-built for V8 isolates—zero cold starts, 300+ global locations, native access to Workers AI, KV, D1, R2, Durable Objects, and Vectorize.
+
+Think of it as the runtime engine for your AI workflows—agents are musicians, ensembles are sheet music, and Conductor performs the symphony.
 
 ### Key Features
 
@@ -35,11 +37,8 @@
 ### Quick Start
 
 ```bash
-# Install the unified CLI
-npm install -g @ensemble-edge/ensemble
-
-# Create a new project with templates
-ensemble conductor init my-project
+# Create a new project (no installation needed)
+npx @ensemble-edge/ensemble conductor init my-project
 cd my-project
 
 # Install and build
@@ -52,9 +51,9 @@ npx wrangler dev --local-protocol http
 
 > **Note**: Dev container users should add `--ip 0.0.0.0` flag: `npx wrangler dev --local-protocol http --ip 0.0.0.0`
 
-> **Tip**: For CI/automated environments, use `--yes` to skip all interactive prompts:
+> **Tip**: For CI/CD pipelines, use the `-y` flag to skip all interactive prompts:
 > ```bash
-> ensemble conductor init my-project --yes
+> npx @ensemble-edge/conductor init my-project -y
 > ```
 
 The init command creates:
@@ -162,7 +161,7 @@ my-project/
    - **Example**: Mix versions - use v0.1.0 of prompt (ancient but perfect) with v3.0.0 of agent (latest)
 
 5. **Multiple projects share Conductor**:
-   - Install once: `npm install -g @ensemble-edge/conductor`
+   - Use `npx @ensemble-edge/conductor` (no installation needed)
    - Use in many projects: `my-app-1/`, `my-app-2/`, `my-app-3/`
    - Each project has its own agents, ensembles, prompts, queries
 

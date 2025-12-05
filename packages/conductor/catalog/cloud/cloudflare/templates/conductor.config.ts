@@ -147,6 +147,18 @@ const config: ConductorConfig = {
 	},
 
 	/**
+	 * Discovery configuration
+	 *
+	 * Controls automatic discovery of agents, ensembles, and scripts.
+	 */
+	discovery: {
+		// Enable script discovery from scripts/ directory
+		scripts: {
+			enabled: true
+		}
+	},
+
+	/**
 	 * API execution controls
 	 *
 	 * Controls which agents and ensembles can be executed via the Execute API

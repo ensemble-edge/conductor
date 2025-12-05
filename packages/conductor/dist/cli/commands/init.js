@@ -1,11 +1,83 @@
 /**
  * Init Command - Initialize a new Conductor project
+ *
+ * Follows industry conventions:
+ * - --yes/-y: Use defaults, no prompts (like npm init -y)
+ * - --skip-install: Skip dependency installation
+ * - Default behavior: Interactive prompts + auto-install
  */
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
+// ─────────────────────────────────────────────────────────────────────────────
+// Package Manager Detection
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Detect package manager from lockfiles in target directory or parent
+ */
+async function detectPackageManager(targetDir) {
+    const lockfiles = [
+        ['pnpm-lock.yaml', 'pnpm'],
+        ['yarn.lock', 'yarn'],
+        ['bun.lockb', 'bun'],
+        ['package-lock.json', 'npm'],
+    ];
+    // Check target directory
+    for (const [file, pm] of lockfiles) {
+        try {
+            await fs.access(path.join(targetDir, file));
+            return pm;
+        }
+        catch {
+            // Not found, continue
+        }
+    }
+    // Check parent directory (for monorepo scenarios)
+    const parentDir = path.dirname(targetDir);
+    if (parentDir !== targetDir) {
+        for (const [file, pm] of lockfiles) {
+            try {
+                await fs.access(path.join(parentDir, file));
+                return pm;
+            }
+            catch {
+                // Not found, continue
+            }
+        }
+    }
+    // Default to npm
+    return 'npm';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Install Dependencies
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Run package manager install
+ */
+async function runInstall(pm, targetDir) {
+    return new Promise((resolve) => {
+        const installCmd = pm === 'yarn' ? 'install' : 'install';
+        console.log(chalk.dim(`  Running ${pm} ${installCmd}...`));
+        console.log('');
+        const child = spawn(pm, [installCmd], {
+            cwd: targetDir,
+            stdio: 'inherit',
+            shell: true,
+        });
+        child.on('close', (code) => {
+            resolve(code === 0);
+        });
+        child.on('error', () => {
+            resolve(false);
+        });
+    });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Init Command
+// ─────────────────────────────────────────────────────────────────────────────
 export function createInitCommand() {
     const init = new Command('init');
     init
@@ -14,8 +86,12 @@ export function createInitCommand() {
         .option('--template <name>', 'Template to use (cloudflare)', 'cloudflare')
         .option('--force', 'Overwrite existing files')
         .option('--no-examples', 'Skip example files (only include minimal starter files)')
+        .option('-y, --yes', 'Use defaults, skip prompts (still installs dependencies)')
+        .option('--skip-install', 'Skip dependency installation')
+        .option('--package-manager <pm>', 'Package manager to use (npm, pnpm, yarn, bun)')
         .action(async (directory, options) => {
         try {
+            const isNonInteractive = options.yes || !process.stdout.isTTY;
             console.log('');
             console.log(chalk.bold('🎯 Initializing Conductor project...'));
             console.log('');
@@ -46,7 +122,7 @@ export function createInitCommand() {
                     }
                 }
             }
-            catch (error) {
+            catch {
                 // Directory doesn't exist, create it
                 await fs.mkdir(targetDir, { recursive: true });
             }
@@ -79,10 +155,6 @@ export function createInitCommand() {
                 process.exit(1);
             }
             // Determine template path
-            // The catalog directory is at the package root
-            // When installed: node_modules/@ensemble-edge/conductor/catalog
-            // When in development: conductor/catalog
-            // Find package root by looking for package.json
             let packageRoot = process.cwd();
             let currentDir = fileURLToPath(import.meta.url);
             // Walk up the directory tree to find package.json
@@ -126,23 +198,63 @@ export function createInitCommand() {
             const conductorVersion = pkg.version;
             // Copy template files
             await copyDirectory(templatePath, targetDir, options.force || false, options.examples !== false, conductorVersion);
-            console.log(chalk.green('✓ Project initialized successfully'));
+            console.log(chalk.green('✓ Project files created'));
+            console.log('');
+            // ─────────────────────────────────────────────────────────────────────
+            // Install Dependencies (unless --skip-install)
+            // ─────────────────────────────────────────────────────────────────────
+            if (!options.skipInstall) {
+                // Determine package manager
+                let pm;
+                if (options.packageManager) {
+                    pm = options.packageManager;
+                }
+                else {
+                    pm = await detectPackageManager(targetDir);
+                }
+                console.log(chalk.bold('📦 Installing dependencies...'));
+                console.log('');
+                console.log(chalk.dim(`  Package manager: ${pm}`));
+                const installSuccess = await runInstall(pm, targetDir);
+                if (installSuccess) {
+                    console.log('');
+                    console.log(chalk.green('✓ Dependencies installed'));
+                }
+                else {
+                    console.log('');
+                    console.log(chalk.yellow('⚠ Install failed - run manually:'));
+                    console.log(chalk.dim(`  cd ${directory !== '.' ? directory : targetDir}`));
+                    console.log(chalk.dim(`  ${pm} install`));
+                }
+                console.log('');
+            }
+            else {
+                console.log(chalk.dim('⊘ Skipping install (--skip-install)'));
+                console.log('');
+            }
+            // ─────────────────────────────────────────────────────────────────────
+            // Success Summary
+            // ─────────────────────────────────────────────────────────────────────
+            console.log(chalk.green.bold('✓ Conductor project initialized!'));
             console.log('');
             // Show next steps
             console.log(chalk.bold('Next steps:'));
             console.log('');
+            let stepNum = 1;
             if (directory !== '.') {
-                console.log(chalk.dim(`  1. cd ${directory}`));
+                console.log(chalk.dim(`  ${stepNum}. cd ${directory}`));
+                stepNum++;
             }
-            console.log(chalk.dim(`  ${directory !== '.' ? '2' : '1'}. npm install`));
-            console.log(chalk.dim(`  ${directory !== '.' ? '3' : '2'}. Review the generated files:`));
-            console.log(chalk.dim('     - ensembles/    : Your workflows'));
-            console.log(chalk.dim('     - agents/      : AI agents, functions, and agents'));
-            console.log(chalk.dim('     - prompts/      : Prompt templates'));
-            console.log(chalk.dim('     - configs/      : Configuration files'));
-            console.log(chalk.dim(`  ${directory !== '.' ? '4' : '3'}. npx wrangler dev  : Start local development`));
+            if (options.skipInstall) {
+                const pm = options.packageManager || 'npm';
+                console.log(chalk.dim(`  ${stepNum}. ${pm} install`));
+                stepNum++;
+            }
+            console.log(chalk.dim(`  ${stepNum}. npx wrangler dev --local-protocol http`));
             console.log('');
-            console.log(chalk.dim('Documentation: https://docs.ensemble-edge.com/conductor'));
+            console.log(chalk.dim('Then visit: http://localhost:8787/'));
+            console.log('');
+            console.log(chalk.dim('Documentation: https://docs.ensemble.ai/conductor'));
             console.log('');
         }
         catch (error) {
@@ -159,6 +271,9 @@ export function createInitCommand() {
     });
     return init;
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// Copy Directory Helper
+// ─────────────────────────────────────────────────────────────────────────────
 /**
  * Recursively copy a directory
  */
