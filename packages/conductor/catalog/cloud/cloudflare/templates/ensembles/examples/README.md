@@ -88,16 +88,19 @@ Examples demonstrating custom trigger types from plugins.
 
 ## 🚀 Using These Examples
 
-### Option 1: Install with `conductor init`
+### Option 1: Install with `ensemble conductor init`
 
-When you run `conductor init`, examples are automatically included unless you use `--no-examples`:
+When you run `ensemble conductor init`, examples are automatically included unless you use `--no-examples`:
 
 ```bash
 # With examples (default)
-npx conductor init my-project
+ensemble conductor init my-project
 
 # Without examples
-npx conductor init my-project --no-examples
+ensemble conductor init my-project --no-examples
+
+# For CI/automated environments
+ensemble conductor init my-project --yes
 ```
 
 ### Option 2: Copy Individual Examples

@@ -347,16 +347,16 @@ project/
 
 ## CLI Quick Reference
 
-conductor init [name]             # Create project
-conductor dev                     # Local dev server
-conductor deploy                  # Deploy to CF Workers
-conductor test                    # Run tests
-conductor validate [path]         # Validate YAML/TS
-conductor validate --fix          # Auto-fix issues
-conductor build                   # Run build triggers
-conductor run <command>           # Run CLI triggers
-conductor ensemble:run NAME INPUT
-conductor agent:run NAME INPUT
+```bash
+ensemble conductor init [name]    # Create project (use --yes for CI)
+ensemble conductor validate       # Validate YAML/TS
+
+# Project commands (pnpm/npm)
+pnpm run dev                      # Local dev server
+pnpm run build                    # Build project
+pnpm test                         # Run tests
+npx wrangler deploy               # Deploy to CF Workers
+```
 
 ## Common Mistakes
 

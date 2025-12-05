@@ -34,11 +34,9 @@
 
 ### Quick Start
 
-**Option 1: Via Ensemble CLI (Recommended)**
-
 ```bash
 # Install the unified CLI
-pnpm add -g @ensemble-edge/ensemble
+npm install -g @ensemble-edge/ensemble
 
 # Create a new project with templates
 ensemble conductor init my-project
@@ -49,25 +47,15 @@ pnpm install
 pnpm run build
 
 # Start development server
-ensemble wrangler dev --local-protocol http
-```
-
-**Option 2: Direct (Alternative)**
-
-```bash
-# Create a new project with templates
-npx @ensemble-edge/conductor@latest init my-project
-cd my-project
-
-# Install and build
-npm install
-npm run build
-
-# Start development server
 npx wrangler dev --local-protocol http
 ```
 
-> **Note**: Dev container users should add `--ip 0.0.0.0` flag: `wrangler dev --local-protocol http --ip 0.0.0.0`
+> **Note**: Dev container users should add `--ip 0.0.0.0` flag: `npx wrangler dev --local-protocol http --ip 0.0.0.0`
+
+> **Tip**: For CI/automated environments, use `--yes` to skip all interactive prompts:
+> ```bash
+> ensemble conductor init my-project --yes
+> ```
 
 The init command creates:
 - ✅ Complete project structure
@@ -190,10 +178,10 @@ npm install @ensemble-edge/conductor
 mkdir -p agents ensembles
 
 # 3. Add your first agent
-conductor add agent greet --operation code
+ensemble conductor add agent greet --operation code
 
 # 4. Create an ensemble
-# Create ensembles/hello-world.yaml manually or use conductor add ensemble
+# Create ensembles/hello-world.yaml manually or use ensemble conductor add ensemble
 
 # 5. Update your worker
 ```
@@ -697,19 +685,26 @@ Conductor automatically validates inputs/outputs against your schema at runtime.
 
 ## CLI Commands
 
-### `conductor init <name>`
+All CLI commands are available through the unified Ensemble CLI:
+
+### `ensemble conductor init <name>`
 
 Create a new Conductor project
 
 ```bash
-npx @ensemble-edge/conductor@latest init my-project
+ensemble conductor init my-project
 cd my-project
-npm install
-npm run build
+pnpm install
+pnpm run build
 npx wrangler dev --local-protocol http
 ```
 
 > **Note**: Dev container users should add `--ip 0.0.0.0` flag
+
+> **Tip**: For CI/automated environments, use `--yes` to skip all interactive prompts:
+> ```bash
+> ensemble conductor init my-project --yes
+> ```
 
 Creates a complete project with:
 - 10 example pages (static, dynamic, forms)
@@ -717,17 +712,17 @@ Creates a complete project with:
 - Example agents with implementations
 - Test suite with passing examples
 
-### `conductor add agent <name>`
+### `ensemble conductor add agent <name>`
 
 Scaffold a new agent (works in any project with Conductor installed)
 
 ```bash
-conductor add agent analyze-company --operation think
-conductor add agent fetch-data --operation http
-conductor add agent calculate --operation code
+ensemble conductor add agent analyze-company --operation think
+ensemble conductor add agent fetch-data --operation http
+ensemble conductor add agent calculate --operation code
 
 # Create think agent with Edgit-ready prompt
-conductor add agent analyze-company --operation think --with-prompt
+ensemble conductor add agent analyze-company --operation think --with-prompt
 ```
 
 **Options:**
@@ -740,12 +735,12 @@ Creates:
 - `agents/<name>/index.ts` - Implementation template
 - `agents/<name>/prompt.md` - Prompt template (with --with-prompt)
 
-### `conductor validate`
+### `ensemble conductor validate`
 
 Validate YAML syntax and agent references
 
 ```bash
-conductor validate
+ensemble conductor validate
 ```
 
 Checks:
@@ -754,14 +749,14 @@ Checks:
 - ✅ Ensemble agent references exist
 - ✅ Schema compliance
 
-### `conductor upgrade`
+### `ensemble conductor upgrade`
 
 Upgrade Conductor and run migrations
 
 ```bash
-conductor upgrade
+ensemble conductor upgrade
 # or skip confirmation
-conductor upgrade --yes
+ensemble conductor upgrade --yes
 ```
 
 What it does:
@@ -1871,7 +1866,7 @@ During development, keep prompts with agents or in shared prompts directory.
 
 ```bash
 # 1. Create agent with prompt file
-conductor add agent analyze-company --operation think --with-prompt
+ensemble conductor add agent analyze-company --operation think --with-prompt
 
 # 2. Develop and test locally
 # Edit agents/user/analyze-company/prompt.md
@@ -2016,7 +2011,7 @@ edgit deploy set company-analysis-prompt v1.0.0 --to production
 
 ```bash
 # 1. Create agent locally
-conductor add agent analyze-company --operation think --with-prompt
+ensemble conductor add agent analyze-company --operation think --with-prompt
 
 # 2. Develop and test with local files
 # Edit agents/user/analyze-company/agent.yaml
@@ -2053,9 +2048,9 @@ edgit deploy promote company-analysis-prompt --from staging --to production
 Build multiple projects on Conductor:
 
 ```bash
-conductor init owner-oiq
-conductor init owner-internal
-conductor init customer-portal
+ensemble conductor init owner-oiq
+ensemble conductor init owner-internal
+ensemble conductor init customer-portal
 ```
 
 Each project is independent with its own agents and ensembles. Conductor is just the engine.
