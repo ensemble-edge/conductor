@@ -34,6 +34,26 @@
 
 ### Quick Start
 
+**Option 1: Via Ensemble CLI (Recommended)**
+
+```bash
+# Install the unified CLI
+pnpm add -g @ensemble-edge/ensemble
+
+# Create a new project with templates
+ensemble conductor init my-project
+cd my-project
+
+# Install and build
+pnpm install
+pnpm run build
+
+# Start development server
+ensemble wrangler dev --local-protocol http
+```
+
+**Option 2: Direct (Alternative)**
+
 ```bash
 # Create a new project with templates
 npx @ensemble-edge/conductor@latest init my-project
@@ -47,7 +67,7 @@ npm run build
 npx wrangler dev --local-protocol http
 ```
 
-> **Note**: Dev container users should add `--ip 0.0.0.0` flag: `npx wrangler dev --local-protocol http --ip 0.0.0.0`
+> **Note**: Dev container users should add `--ip 0.0.0.0` flag: `wrangler dev --local-protocol http --ip 0.0.0.0`
 
 The init command creates:
 - ✅ Complete project structure
