@@ -1,5 +1,17 @@
 # @ensemble-edge/conductor
 
+## 0.4.13
+
+### Patch Changes
+
+- 2690785: CLI and documentation improvements:
+  - Add -y/--yes flag to init command for non-interactive CI/CD usage
+  - Auto-detect package manager (npm, pnpm, yarn, bun) from lockfiles
+  - Auto-install dependencies after project initialization
+  - Add --skip-install flag to skip automatic installation
+  - Update README with Cloudflare-native positioning
+  - Standardize CLI patterns to use npx @ensemble-edge/ensemble
+
 ## 0.4.12
 
 ### Patch Changes
