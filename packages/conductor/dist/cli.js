@@ -29981,7 +29981,7 @@ function createLocalContext2() {
 }
 
 // src/cli/index.ts
-var version = "0.4.9";
+var version = "0.4.10";
 var program = new Command15();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

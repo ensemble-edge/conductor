@@ -47,7 +47,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(404)
-      const body = await response.json() as { error: string }
+      const body = (await response.json()) as { error: string }
       expect(body.error).toBe('Cloud endpoint not enabled')
     })
 
@@ -58,7 +58,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(401)
-      const body = await response.json() as { error: string }
+      const body = (await response.json()) as { error: string }
       expect(body.error).toBe('Missing authorization')
     })
 
@@ -71,7 +71,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(401)
-      const body = await response.json() as { error: string }
+      const body = (await response.json()) as { error: string }
       expect(body.error).toBe('Missing authorization')
     })
 
@@ -84,7 +84,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(403)
-      const body = await response.json() as { error: string }
+      const body = (await response.json()) as { error: string }
       expect(body.error).toBe('Invalid cloud key')
     })
 
@@ -109,7 +109,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(200)
-      const body = await response.json() as { status: string }
+      const body = (await response.json()) as { status: string }
       expect(body.status).toBe('ok')
     })
 
@@ -118,7 +118,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(200)
-      const body = await response.json() as { status: string; timestamp: string }
+      const body = (await response.json()) as { status: string; timestamp: string }
       expect(body.status).toBe('ok')
       expect(body.timestamp).toBeDefined()
     })
@@ -128,7 +128,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(200)
-      const body = await response.json() as { project: { name: string }; agents: unknown[] }
+      const body = (await response.json()) as { project: { name: string }; agents: unknown[] }
       expect(body.project).toBeDefined()
       expect(body.agents).toBeDefined()
     })
@@ -138,7 +138,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(200)
-      const body = await response.json() as { items: unknown[]; total: number }
+      const body = (await response.json()) as { items: unknown[]; total: number }
       expect(body.items).toBeDefined()
       expect(body.total).toBeDefined()
     })
@@ -148,7 +148,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(200)
-      const body = await response.json() as { entries: unknown[] }
+      const body = (await response.json()) as { entries: unknown[] }
       expect(body.entries).toBeDefined()
     })
 
@@ -160,7 +160,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(200)
-      const body = await response.json() as { status: string; message: string }
+      const body = (await response.json()) as { status: string; message: string }
       expect(body.status).toBe('ok')
       expect(body.message).toContain('Sync triggered')
     })
@@ -180,7 +180,7 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(404)
-      const body = await response.json() as { error: string }
+      const body = (await response.json()) as { error: string }
       expect(body.error).toBe('Not found')
     })
   })

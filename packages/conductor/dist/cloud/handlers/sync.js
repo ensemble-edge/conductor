@@ -26,7 +26,7 @@ export async function handleSync(request, _env) {
             status: 405,
             headers: {
                 'Content-Type': 'application/json',
-                'Allow': 'POST',
+                Allow: 'POST',
             },
         });
     }
@@ -39,7 +39,7 @@ export async function handleSync(request, _env) {
     // Parse optional sync parameters from body
     let syncType = 'full';
     try {
-        const body = await request.json();
+        const body = (await request.json());
         syncType = body.type || 'full';
     }
     catch {

@@ -18,10 +18,7 @@ import type { CloudEnv, CloudLogsResponse, CloudLogEntry } from '../types.js'
  * - level: filter by log level (debug, info, warn, error)
  * - limit: number of entries (default: 100, max: 500)
  */
-export async function handleLogs(
-  request: Request,
-  _env: CloudEnv
-): Promise<Response> {
+export async function handleLogs(request: Request, _env: CloudEnv): Promise<Response> {
   const url = new URL(request.url)
 
   const executionId = url.searchParams.get('execution') || undefined

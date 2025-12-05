@@ -24,10 +24,7 @@ import type {
  * - status: filter by status (success, error, running)
  * - since: ISO timestamp to filter from
  */
-export async function handleExecutions(
-  request: Request,
-  _env: CloudEnv
-): Promise<Response> {
+export async function handleExecutions(request: Request, _env: CloudEnv): Promise<Response> {
   const url = new URL(request.url)
 
   // Parse query parameters
