@@ -13884,7 +13884,15 @@ var EnsembleOutputSchema = external_exports.union([
 function isConditionalOutput(output) {
   return Array.isArray(output);
 }
-var OUTPUT_BLOCK_KEYS = /* @__PURE__ */ new Set(["when", "status", "headers", "body", "rawBody", "redirect", "format"]);
+var OUTPUT_BLOCK_KEYS = /* @__PURE__ */ new Set([
+  "when",
+  "status",
+  "headers",
+  "body",
+  "rawBody",
+  "redirect",
+  "format"
+]);
 function isOutputBlockLike(obj) {
   const keys = Object.keys(obj);
   if (keys.length === 0) return false;
@@ -18656,12 +18664,11 @@ var CodeAgent = class _CodeAgent extends BaseAgent {
       }
       let result;
       if (this.compiledFunction.length >= 2) {
+        result = await this.compiledFunction(context.input, context);
+      } else {
         result = await this.compiledFunction(
-          context.input,
           context
         );
-      } else {
-        result = await this.compiledFunction(context);
       }
       return result;
     } catch (error) {
@@ -29974,7 +29981,7 @@ function createLocalContext2() {
 }
 
 // src/cli/index.ts
-var version = "0.4.7";
+var version = "0.4.9";
 var program = new Command15();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",

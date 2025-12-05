@@ -57,6 +57,8 @@ export type { InstructionConfig, InstructionSource, InstructionContext, } from '
 export type { MemoryConfig as PrimitiveMemoryConfig, AgentMemoryConfig, MemoryProviderType, MemoryScope, MemoryEntry, VectorMemoryEntry, KVMemoryConfig, R2MemoryConfig, D1MemoryConfig, VectorizeMemoryConfig, DurableObjectMemoryConfig, CustomMemoryConfig, MemoryImplementation, } from './primitives/memory.js';
 export type { ReferenceSource, ReferenceOptions } from './primitives/reference.js';
 export type { SuspensionReason, SuspensionState, SleepConfig, ScheduleConfig as AsyncScheduleConfig, ApprovalConfig, WebhookWaitConfig, SuspendStepConfig, SleepStepConfig, ScheduleStepConfig, ApprovalStepConfig, } from './primitives/async.js';
+export { handleCloudRequest, isCloudRequest } from './cloud/index.js';
+export type { CloudEnv, CloudHealthResponse, CloudStructureResponse, CloudAgentInfo, CloudEnsembleInfo, CloudComponentInfo, CloudEdgitStatus, CloudExecutionsQuery, CloudExecutionsResponse, CloudExecution, CloudLogsResponse, CloudLogEntry, CloudSyncResponse, CloudErrorResponse, } from './cloud/index.js';
 /**
  * Create a Cloudflare Worker handler with Conductor
  *

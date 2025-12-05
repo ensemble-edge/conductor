@@ -2,42 +2,27 @@
  * Docs Definition Types
  *
  * Type definitions for the docs/ first-class component directory.
- * Docs definitions use route config (like agents) for consistency.
+ * Docs configuration is passed via the docs-serve ensemble's flow config.
  *
- * @example YAML format (docs/docs.yaml):
+ * @example In docs-serve ensemble (ensembles/system/docs/serve.yaml):
  * ```yaml
- * name: docs
- * description: API Documentation for MyApp
+ * name: docs-serve
+ * trigger:
+ *   - type: http
+ *     path: /docs
+ *     public: true
  *
- * route:
- *   path: /docs           # Change to /help, /reference, etc.
- *   methods: [GET]
- *   auth:
- *     requirement: public
- *   priority: 50
- *
- * title: My API Documentation
- * ui: scalar
- * theme:
- *   primaryColor: '#3B82F6'
- *   darkMode: true
+ * flow:
+ *   - name: render
+ *     agent: docs
+ *     config:
+ *       title: API Documentation
+ *       ui: stoplight
+ *       theme:
+ *         primaryColor: '#3B82F6'
  * ```
  */
 import type { DocsConfig } from '../config/types.js';
-import type { RouteAuthConfig } from '../routing/config.js';
-/**
- * Route configuration for docs (same pattern as agents)
- */
-export interface DocsRouteConfig {
-    /** Route path (default: /docs) */
-    path?: string;
-    /** HTTP methods (default: [GET]) */
-    methods?: string[];
-    /** Auth configuration */
-    auth?: Partial<RouteAuthConfig>;
-    /** Priority (default: 50) */
-    priority?: number;
-}
 /**
  * Navigation group for organizing docs into sections
  */
@@ -165,21 +150,16 @@ export interface DocsNavItem {
     children?: DocsNavItem[];
 }
 /**
- * Docs definition - configuration for the docs/ directory
+ * Docs definition - configuration for the docs system
  *
- * This is the root configuration file (docs/docs.yaml or docs/docs.ts)
- * that controls how the docs system works.
+ * Configuration is passed via the docs-serve ensemble's flow config,
+ * not via a separate docs.yaml file.
  */
 export interface DocsDefinition extends DocsConfig {
     /** Definition name (default: 'docs') */
     name?: string;
     /** Description of the documentation */
     description?: string;
-    /**
-     * Route configuration (same pattern as agents)
-     * Allows customizing path, auth, priority
-     */
-    route?: DocsRouteConfig;
     /**
      * Navigation configuration
      */
@@ -198,9 +178,8 @@ export declare function isReservedRoute(slug: string): slug is ReservedRoute;
 /**
  * Default docs definition values
  *
- * SECURE BY DEFAULT: Auth requirement defaults to 'required'.
- * When users run `conductor init`, the generated docs.yaml will have
- * explicit `auth.requirement: public` for their convenience.
+ * These defaults are used when no configuration is passed via
+ * the docs-serve ensemble's flow config.
  */
 export declare const DEFAULT_DOCS_DEFINITION: DocsDefinition;
 /**

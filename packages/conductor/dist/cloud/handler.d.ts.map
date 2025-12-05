@@ -1,0 +1,1 @@
+{"version":3,"file":"handler.d.ts","sourceRoot":"","sources":["../../src/cloud/handler.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;GAWG;AAEH,OAAO,KAAK,EAAE,QAAQ,EAAsB,MAAM,YAAY,CAAA;AA8C9D;;;;GAIG;AACH,wBAAsB,kBAAkB,CACtC,OAAO,EAAE,OAAO,EAChB,GAAG,EAAE,QAAQ,EACb,IAAI,EAAE,gBAAgB,GACrB,OAAO,CAAC,QAAQ,CAAC,CAiEnB;AAED;;GAEG;AACH,wBAAgB,cAAc,CAAC,OAAO,EAAE,OAAO,GAAG,OAAO,CAGxD"}

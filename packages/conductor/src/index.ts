@@ -421,6 +421,29 @@ export type {
   ApprovalStepConfig,
 } from './primitives/async.js'
 
+// ============================================================================
+// Ensemble Cloud - /cloud/* endpoint for Ensemble Cloud integration
+// ============================================================================
+
+export { handleCloudRequest, isCloudRequest } from './cloud/index.js'
+
+export type {
+  CloudEnv,
+  CloudHealthResponse,
+  CloudStructureResponse,
+  CloudAgentInfo,
+  CloudEnsembleInfo,
+  CloudComponentInfo,
+  CloudEdgitStatus,
+  CloudExecutionsQuery,
+  CloudExecutionsResponse,
+  CloudExecution,
+  CloudLogsResponse,
+  CloudLogEntry,
+  CloudSyncResponse,
+  CloudErrorResponse,
+} from './cloud/index.js'
+
 /**
  * Create a Cloudflare Worker handler with Conductor
  *
