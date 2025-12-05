@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 0.4.11
+
+### Patch Changes
+
+- 9c39328: Documentation updates for unified Ensemble CLI installation approach
+
 ## 0.4.10
 
 ### Patch Changes
