@@ -1,5 +1,33 @@
 # @ensemble-edge/conductor
 
+## 0.4.11
+
+### Patch Changes
+
+- d8c23a2: Add Cloud module for managed platform integration
+
+  **Cloud Module (`/cloud` endpoint):**
+  - New `/cloud` route handler for Ensemble Cloud platform connectivity
+  - Health endpoint for worker status monitoring
+  - Structure endpoint exposing project agents/ensembles/triggers
+  - Executions endpoint for remote execution history access
+  - Logs endpoint for centralized log streaming
+  - Sync endpoint for configuration synchronization
+
+  **Cloud CLI Handlers:**
+  - `ensemble cloud init` - Initialize Cloud connection with API key setup
+  - `ensemble cloud status` - Display current Cloud sync status
+  - `ensemble cloud rotate` - Rotate Cloud API keys
+  - `ensemble cloud disable` - Disable Cloud integration
+
+  **Auto-Discovery Enhancements:**
+  - Improved project detection for Conductor projects
+  - Better wrangler.toml parsing for Cloud initialization
+
+  This patch implements the foundation for the Ensemble Cloud managed platform,
+  enabling workers to communicate with the central dashboard for monitoring,
+  execution history, and configuration management.
+
 ## 0.4.10
 
 ### Patch Changes
