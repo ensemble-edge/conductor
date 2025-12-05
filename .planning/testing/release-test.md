@@ -36,6 +36,26 @@ ls -la  # Should be empty
 
 ---
 
+## 🔧 CLI Architecture Notes
+
+**Unified CLI**: All Conductor commands go through the `ensemble` CLI:
+- `ensemble conductor init` - Initialize projects (templates bundled in CLI)
+- `ensemble conductor dev` - Passthrough to `wrangler dev`
+- `ensemble conductor deploy` - Passthrough to `wrangler deploy`
+- `ensemble conductor validate` - Validate YAML/TS configurations
+
+**Non-Interactive Mode**: Use `--yes` (or `-y`) to skip all prompts:
+- Skips Cloudflare authentication check (`--skip-auth`)
+- Skips AI provider setup (`--skip-secrets`)
+- Essential for CI/CD and automated testing
+
+**Templates**: Project templates are now **bundled** with the `@ensemble-edge/ensemble` package (not fetched from `@ensemble-edge/conductor`). This means:
+- Faster initialization (no npm pack required)
+- Works offline after CLI is installed
+- Template version tied to CLI version
+
+---
+
 ## 🧪 Phase 1: Installation (Target: 60 seconds)
 
 ### 1.1 Install Ensemble CLI and Initialize Project
@@ -43,6 +63,9 @@ ls -la  # Should be empty
 ```bash
 # Install the unified CLI globally (if not already installed)
 npm install -g @ensemble-edge/ensemble
+
+# Verify CLI is installed
+ensemble --version
 
 # Initialize project with non-interactive mode
 ensemble conductor init . --force --yes
@@ -1450,7 +1473,17 @@ Create report at `.planning/CONDUCTOR-vX.X.X-RELEASE-REPORT.md`:
 | Body parsing fails | 400 Bad Request | Ensure Content-Type: application/json header |
 | Legacy routes work | `/callbacks/approve/:token` returns 200 | These should be 404 (removed in v0.4.6) |
 
+### CLI Issues (Unified ensemble CLI)
+
+| Issue | Symptom | Fix |
+|-------|---------|-----|
+| `ensemble` not found | Command not found | `npm install -g @ensemble-edge/ensemble` |
+| Templates missing | "Conductor templates are missing..." | Reinstall CLI: `npm install -g @ensemble-edge/ensemble@latest` |
+| Init hangs | Prompts waiting for input | Use `--yes` flag for non-interactive mode |
+| Wrangler not found | "wrangler: command not found" | Install wrangler: `npm install -g wrangler` |
+| Old CLI patterns | Using `npx @ensemble-edge/conductor` | Use `ensemble conductor` instead (unified CLI) |
+
 ---
 
-**Last Updated**: 2025-12-01
-**Version**: 2.5 - Added Phase 10: AI / Workers AI Testing (optional) with ai-greeting example, API token setup, and wrangler whoami for account ID
+**Last Updated**: 2025-12-05
+**Version**: 2.6 - Updated for unified CLI (`ensemble conductor` commands), bundled templates, and `--yes` non-interactive mode
