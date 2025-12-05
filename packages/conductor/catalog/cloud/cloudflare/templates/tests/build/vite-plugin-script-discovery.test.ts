@@ -64,7 +64,8 @@ describe('scriptDiscoveryPlugin', () => {
       `export default function hello() { return 'hello' }`
     )
 
-    const plugin = scriptDiscoveryPlugin()
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
@@ -86,7 +87,8 @@ describe('scriptDiscoveryPlugin', () => {
       `export default function csv() { return 'csv' }`
     )
 
-    const plugin = scriptDiscoveryPlugin()
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
@@ -107,7 +109,8 @@ describe('scriptDiscoveryPlugin', () => {
       )
     }
 
-    const plugin = scriptDiscoveryPlugin()
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
@@ -135,7 +138,8 @@ describe('scriptDiscoveryPlugin', () => {
       `import hello from './hello'; describe('hello', () => {})`
     )
 
-    const plugin = scriptDiscoveryPlugin()
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
@@ -159,7 +163,8 @@ describe('scriptDiscoveryPlugin', () => {
       `import hello from '../hello'; test('hello', () => {})`
     )
 
-    const plugin = scriptDiscoveryPlugin()
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
@@ -177,7 +182,8 @@ describe('scriptDiscoveryPlugin', () => {
       `export default function hello() { return 'hello' }`
     )
 
-    const plugin = scriptDiscoveryPlugin({ fileExtension: '.js' })
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ fileExtension: '.js', useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
@@ -195,7 +201,8 @@ describe('scriptDiscoveryPlugin', () => {
       `export default function format() { return 'format' }`
     )
 
-    const plugin = scriptDiscoveryPlugin()
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 
@@ -219,7 +226,8 @@ describe('scriptDiscoveryPlugin', () => {
       `export default function csv() { return 'csv' }`
     )
 
-    const plugin = scriptDiscoveryPlugin()
+    // useConfigFile: false to skip config lookup in unit tests
+    const plugin = scriptDiscoveryPlugin({ useConfigFile: false })
     const config = { root: tempDir }
     callHook(plugin.configResolved as any, config)
 

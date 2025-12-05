@@ -8652,156 +8652,226 @@ import chalk from "chalk";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { spawn } from "child_process";
+async function detectPackageManager(targetDir) {
+  const lockfiles = [
+    ["pnpm-lock.yaml", "pnpm"],
+    ["yarn.lock", "yarn"],
+    ["bun.lockb", "bun"],
+    ["package-lock.json", "npm"]
+  ];
+  for (const [file, pm] of lockfiles) {
+    try {
+      await fs.access(path.join(targetDir, file));
+      return pm;
+    } catch {
+    }
+  }
+  const parentDir = path.dirname(targetDir);
+  if (parentDir !== targetDir) {
+    for (const [file, pm] of lockfiles) {
+      try {
+        await fs.access(path.join(parentDir, file));
+        return pm;
+      } catch {
+      }
+    }
+  }
+  return "npm";
+}
+async function runInstall(pm, targetDir) {
+  return new Promise((resolve5) => {
+    const installCmd = pm === "yarn" ? "install" : "install";
+    console.log(chalk.dim(`  Running ${pm} ${installCmd}...`));
+    console.log("");
+    const child = spawn(pm, [installCmd], {
+      cwd: targetDir,
+      stdio: "inherit",
+      shell: true
+    });
+    child.on("close", (code) => {
+      resolve5(code === 0);
+    });
+    child.on("error", () => {
+      resolve5(false);
+    });
+  });
+}
 function createInitCommand() {
   const init = new Command("init");
   init.description(
     'Initialize a new Conductor project (use "." for current dir or "my-project" for new)'
-  ).argument("[directory]", "Project directory (default: current directory)", ".").option("--template <name>", "Template to use (cloudflare)", "cloudflare").option("--force", "Overwrite existing files").option("--no-examples", "Skip example files (only include minimal starter files)").action(
-    async (directory, options) => {
+  ).argument("[directory]", "Project directory (default: current directory)", ".").option("--template <name>", "Template to use (cloudflare)", "cloudflare").option("--force", "Overwrite existing files").option("--no-examples", "Skip example files (only include minimal starter files)").option("-y, --yes", "Use defaults, skip prompts (still installs dependencies)").option("--skip-install", "Skip dependency installation").option("--package-manager <pm>", "Package manager to use (npm, pnpm, yarn, bun)").action(async (directory, options) => {
+    try {
+      const isNonInteractive = options.yes || !process.stdout.isTTY;
+      console.log("");
+      console.log(chalk.bold("\u{1F3AF} Initializing Conductor project..."));
+      console.log("");
+      const targetDir = path.resolve(process.cwd(), directory);
+      let directoryExists = false;
+      let isConductorProject = false;
+      let hasFiles = false;
       try {
-        console.log("");
-        console.log(chalk.bold("\u{1F3AF} Initializing Conductor project..."));
-        console.log("");
-        const targetDir = path.resolve(process.cwd(), directory);
-        let directoryExists = false;
-        let isConductorProject = false;
-        let hasFiles = false;
-        try {
-          const files = await fs.readdir(targetDir);
-          directoryExists = true;
-          hasFiles = files.length > 0;
-          const conductorMarkers = [
-            "conductor.config.ts",
-            "conductor.config.js",
-            "ensembles",
-            "agents"
-          ];
-          for (const marker of conductorMarkers) {
-            try {
-              await fs.access(path.join(targetDir, marker));
-              isConductorProject = true;
-              break;
-            } catch {
-            }
-          }
-        } catch (error) {
-          await fs.mkdir(targetDir, { recursive: true });
-        }
-        if (isConductorProject && !options.force) {
-          console.error(chalk.yellow("\u26A0 Detected existing Conductor project"));
-          console.error("");
-          console.error(chalk.dim("This directory appears to already have Conductor files."));
-          console.error(chalk.dim("Initializing will overwrite:"));
-          console.error(chalk.dim("  - conductor.config.ts"));
-          console.error(chalk.dim("  - ensembles/"));
-          console.error(chalk.dim("  - agents/"));
-          console.error(chalk.dim("  - prompts/"));
-          console.error(chalk.dim("  - configs/"));
-          console.error(chalk.dim("  - tests/"));
-          console.error("");
-          console.error(chalk.dim("Use --force to overwrite existing Conductor files"));
-          console.error("");
-          process.exit(1);
-        }
-        if (hasFiles && !isConductorProject && !options.force) {
-          console.error(chalk.yellow("\u26A0 Directory is not empty"));
-          console.error("");
-          console.error(
-            chalk.dim("This directory contains files but is not a Conductor project.")
-          );
-          console.error(
-            chalk.dim("Initializing will add Conductor structure alongside existing files.")
-          );
-          console.error("");
-          console.error(chalk.dim("Use --force to proceed"));
-          console.error("");
-          process.exit(1);
-        }
-        let packageRoot = process.cwd();
-        let currentDir = fileURLToPath(import.meta.url);
-        while (currentDir !== path.dirname(currentDir)) {
-          currentDir = path.dirname(currentDir);
+        const files = await fs.readdir(targetDir);
+        directoryExists = true;
+        hasFiles = files.length > 0;
+        const conductorMarkers = [
+          "conductor.config.ts",
+          "conductor.config.js",
+          "ensembles",
+          "agents"
+        ];
+        for (const marker of conductorMarkers) {
           try {
-            const pkgPath2 = path.join(currentDir, "package.json");
-            await fs.access(pkgPath2);
-            const pkgContent2 = await fs.readFile(pkgPath2, "utf-8");
-            const pkg2 = JSON.parse(pkgContent2);
-            if (pkg2.name === "@ensemble-edge/conductor") {
-              packageRoot = currentDir;
-              break;
-            }
+            await fs.access(path.join(targetDir, marker));
+            isConductorProject = true;
+            break;
           } catch {
           }
         }
-        const templatePath = path.join(
-          packageRoot,
-          "catalog",
-          "cloud",
-          options.template,
-          "templates"
-        );
-        try {
-          await fs.access(templatePath);
-        } catch {
-          console.error(chalk.red(`Error: Template '${options.template}' not found`));
-          console.error("");
-          console.error(chalk.dim(`Searched at: ${templatePath}`));
-          console.error(chalk.dim("Available templates:"));
-          console.error(chalk.dim("  - cloudflare (default)"));
-          console.error("");
-          process.exit(1);
-        }
-        console.log(chalk.cyan(`Template: ${options.template}`));
-        console.log(chalk.cyan(`Target: ${targetDir}`));
-        console.log(
-          chalk.cyan(`Examples: ${options.examples !== false ? "included" : "excluded"}`)
-        );
-        console.log("");
-        const pkgPath = path.join(packageRoot, "package.json");
-        const pkgContent = await fs.readFile(pkgPath, "utf-8");
-        const pkg = JSON.parse(pkgContent);
-        const conductorVersion = pkg.version;
-        await copyDirectory(
-          templatePath,
-          targetDir,
-          options.force || false,
-          options.examples !== false,
-          conductorVersion
-        );
-        console.log(chalk.green("\u2713 Project initialized successfully"));
-        console.log("");
-        console.log(chalk.bold("Next steps:"));
-        console.log("");
-        if (directory !== ".") {
-          console.log(chalk.dim(`  1. cd ${directory}`));
-        }
-        console.log(chalk.dim(`  ${directory !== "." ? "2" : "1"}. npm install`));
-        console.log(chalk.dim(`  ${directory !== "." ? "3" : "2"}. Review the generated files:`));
-        console.log(chalk.dim("     - ensembles/    : Your workflows"));
-        console.log(chalk.dim("     - agents/      : AI agents, functions, and agents"));
-        console.log(chalk.dim("     - prompts/      : Prompt templates"));
-        console.log(chalk.dim("     - configs/      : Configuration files"));
-        console.log(
-          chalk.dim(
-            `  ${directory !== "." ? "4" : "3"}. npx wrangler dev  : Start local development`
-          )
-        );
-        console.log("");
-        console.log(chalk.dim("Documentation: https://docs.ensemble-edge.com/conductor"));
-        console.log("");
-      } catch (error) {
+      } catch {
+        await fs.mkdir(targetDir, { recursive: true });
+      }
+      if (isConductorProject && !options.force) {
+        console.error(chalk.yellow("\u26A0 Detected existing Conductor project"));
         console.error("");
-        console.error(chalk.red("\u2717 Failed to initialize project"));
+        console.error(chalk.dim("This directory appears to already have Conductor files."));
+        console.error(chalk.dim("Initializing will overwrite:"));
+        console.error(chalk.dim("  - conductor.config.ts"));
+        console.error(chalk.dim("  - ensembles/"));
+        console.error(chalk.dim("  - agents/"));
+        console.error(chalk.dim("  - prompts/"));
+        console.error(chalk.dim("  - configs/"));
+        console.error(chalk.dim("  - tests/"));
         console.error("");
-        console.error(chalk.dim(error.message));
-        if (error.stack) {
-          console.error(chalk.dim(error.stack));
-        }
+        console.error(chalk.dim("Use --force to overwrite existing Conductor files"));
         console.error("");
         process.exit(1);
       }
+      if (hasFiles && !isConductorProject && !options.force) {
+        console.error(chalk.yellow("\u26A0 Directory is not empty"));
+        console.error("");
+        console.error(
+          chalk.dim("This directory contains files but is not a Conductor project.")
+        );
+        console.error(
+          chalk.dim("Initializing will add Conductor structure alongside existing files.")
+        );
+        console.error("");
+        console.error(chalk.dim("Use --force to proceed"));
+        console.error("");
+        process.exit(1);
+      }
+      let packageRoot = process.cwd();
+      let currentDir = fileURLToPath(import.meta.url);
+      while (currentDir !== path.dirname(currentDir)) {
+        currentDir = path.dirname(currentDir);
+        try {
+          const pkgPath2 = path.join(currentDir, "package.json");
+          await fs.access(pkgPath2);
+          const pkgContent2 = await fs.readFile(pkgPath2, "utf-8");
+          const pkg2 = JSON.parse(pkgContent2);
+          if (pkg2.name === "@ensemble-edge/conductor") {
+            packageRoot = currentDir;
+            break;
+          }
+        } catch {
+        }
+      }
+      const templatePath = path.join(
+        packageRoot,
+        "catalog",
+        "cloud",
+        options.template,
+        "templates"
+      );
+      try {
+        await fs.access(templatePath);
+      } catch {
+        console.error(chalk.red(`Error: Template '${options.template}' not found`));
+        console.error("");
+        console.error(chalk.dim(`Searched at: ${templatePath}`));
+        console.error(chalk.dim("Available templates:"));
+        console.error(chalk.dim("  - cloudflare (default)"));
+        console.error("");
+        process.exit(1);
+      }
+      console.log(chalk.cyan(`Template: ${options.template}`));
+      console.log(chalk.cyan(`Target: ${targetDir}`));
+      console.log(
+        chalk.cyan(`Examples: ${options.examples !== false ? "included" : "excluded"}`)
+      );
+      console.log("");
+      const pkgPath = path.join(packageRoot, "package.json");
+      const pkgContent = await fs.readFile(pkgPath, "utf-8");
+      const pkg = JSON.parse(pkgContent);
+      const conductorVersion = pkg.version;
+      await copyDirectory(
+        templatePath,
+        targetDir,
+        options.force || false,
+        options.examples !== false,
+        conductorVersion
+      );
+      console.log(chalk.green("\u2713 Project files created"));
+      console.log("");
+      if (!options.skipInstall) {
+        let pm;
+        if (options.packageManager) {
+          pm = options.packageManager;
+        } else {
+          pm = await detectPackageManager(targetDir);
+        }
+        console.log(chalk.bold("\u{1F4E6} Installing dependencies..."));
+        console.log("");
+        console.log(chalk.dim(`  Package manager: ${pm}`));
+        const installSuccess = await runInstall(pm, targetDir);
+        if (installSuccess) {
+          console.log("");
+          console.log(chalk.green("\u2713 Dependencies installed"));
+        } else {
+          console.log("");
+          console.log(chalk.yellow("\u26A0 Install failed - run manually:"));
+          console.log(chalk.dim(`  cd ${directory !== "." ? directory : targetDir}`));
+          console.log(chalk.dim(`  ${pm} install`));
+        }
+        console.log("");
+      } else {
+        console.log(chalk.dim("\u2298 Skipping install (--skip-install)"));
+        console.log("");
+      }
+      console.log(chalk.green.bold("\u2713 Conductor project initialized!"));
+      console.log("");
+      console.log(chalk.bold("Next steps:"));
+      console.log("");
+      let stepNum = 1;
+      if (directory !== ".") {
+        console.log(chalk.dim(`  ${stepNum}. cd ${directory}`));
+        stepNum++;
+      }
+      if (options.skipInstall) {
+        const pm = options.packageManager || "npm";
+        console.log(chalk.dim(`  ${stepNum}. ${pm} install`));
+        stepNum++;
+      }
+      console.log(chalk.dim(`  ${stepNum}. npx wrangler dev --local-protocol http`));
+      console.log("");
+      console.log(chalk.dim("Then visit: http://localhost:8787/"));
+      console.log("");
+      console.log(chalk.dim("Documentation: https://docs.ensemble.ai/conductor"));
+      console.log("");
+    } catch (error) {
+      console.error("");
+      console.error(chalk.red("\u2717 Failed to initialize project"));
+      console.error("");
+      console.error(chalk.dim(error.message));
+      if (error.stack) {
+        console.error(chalk.dim(error.stack));
+      }
+      console.error("");
+      process.exit(1);
     }
-  );
+  });
   return init;
 }
 async function copyDirectory(src, dest, force, includeExamples = true, conductorVersion) {
@@ -15642,7 +15712,7 @@ async function shouldUseAI(projectPath, cliOption) {
 // src/cli/commands/test.ts
 import { Command as Command5 } from "commander";
 import chalk5 from "chalk";
-import { spawn } from "child_process";
+import { spawn as spawn2 } from "child_process";
 function createTestCommand() {
   const test = new Command5("test").description("Run tests for your Conductor project").argument("[path]", "Test file or directory to run").option("--watch", "Run tests in watch mode").option("--coverage", "Generate coverage report").option("--ui", "Open Vitest UI").option("--reporter <type>", "Test reporter: default, verbose, dot, json").action(
     async (testPath, options) => {
@@ -15676,7 +15746,7 @@ function createTestCommand() {
         console.log(chalk5.bold("\u{1F9EA} Running Tests..."));
         console.log(chalk5.dim(`Command: npx ${args.join(" ")}`));
         console.log("");
-        const vitestProcess = spawn("npx", args, {
+        const vitestProcess = spawn2("npx", args, {
           stdio: "inherit",
           shell: true,
           cwd: projectPath
@@ -29981,7 +30051,7 @@ function createLocalContext2() {
 }
 
 // src/cli/index.ts
-var version = "0.4.10";
+var version = "0.4.12";
 var program = new Command15();
 program.name("conductor").description("Conductor - Agentic workflow orchestration for Cloudflare Workers").version(version).addHelpText(
   "before",
