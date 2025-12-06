@@ -1,5 +1,39 @@
 # @ensemble-edge/conductor
 
+## 0.4.15
+
+### Patch Changes
+
+- 4ac9faf: ### Pulse - Anonymous Usage Metrics
+  - New pulse module with fire-and-forget telemetry on Worker cold start
+  - ProjectId generated at `conductor init`, stored in conductor.config.ts
+  - Auto-generates ephemeral projectId for upgraded projects at runtime
+  - `conductor validate` checks for missing projectId
+  - Opt-out via DO_NOT_TRACK=1, CONDUCTOR_PULSE=false, or config.cloud.pulse=false
+
+  ### Startup Trigger
+  - New `startup` trigger type for Worker cold start initialization
+  - Runs once per Worker instance before handling requests
+  - Ideal for cache warming, config loading, health checks
+
+  ### Location & Edge Context
+  - New `location` context with country, region, city, timezone detection
+  - New `edge` context with Cloudflare colo, datacenter info
+  - Jurisdiction detection (GDPR, CCPA, etc.) for compliance
+  - Language/locale detection from Accept-Language header
+
+  ### Cookies Operation
+  - New `cookies` operation for reading/writing HTTP cookies
+  - Consent-aware: respects jurisdiction requirements (GDPR, CCPA)
+  - Supports secure, httpOnly, sameSite, partitioned attributes
+  - Built-in consent categories (necessary, functional, analytics, marketing)
+
+  ### Analytics Engine Telemetry
+  - New `telemetry` operation for Cloudflare Analytics Engine
+  - Track custom events with up to 20 numeric metrics (doubles)
+  - Support for 20 string dimensions (blobs) per event
+  - Fire-and-forget: non-blocking, uses ctx.waitUntil()
+
 ## 0.4.14
 
 ### Patch Changes
