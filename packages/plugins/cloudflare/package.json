@@ -45,7 +45,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.4.15"
+    "@ensemble-edge/conductor": "^0.4.16"
   },
   "devDependencies": {
     "@ensemble-edge/conductor": "workspace:*",
