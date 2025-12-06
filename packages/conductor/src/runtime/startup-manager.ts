@@ -9,6 +9,8 @@
  * - Non-blocking via waitUntil() - doesn't delay request handling
  * - Errors are logged but don't crash the Worker
  * - Ideal for cache warming, health checks, initialization tasks
+ *
+ * Also handles Pulse (anonymous usage metrics) on cold start.
  */
 
 import { createLogger } from '../observability/index.js'
@@ -16,6 +18,8 @@ import { Executor } from './executor.js'
 import type { EnsembleConfig, StartupTriggerConfig } from './parser.js'
 import type { ConductorEnv } from '../types/env.js'
 import type { BaseAgent } from '../agents/base-agent.js'
+import type { ConductorConfig } from '../config/types.js'
+import { initPulse, type ProjectStats, type PulseResult } from '../pulse/index.js'
 
 const logger = createLogger({ serviceName: 'startup-manager' })
 
@@ -34,6 +38,16 @@ export interface StartupResult {
   duration: number
   /** Error message if execution failed */
   error?: string
+}
+
+/**
+ * Result of running all startup tasks (triggers + pulse)
+ */
+export interface StartupSummary {
+  /** Results from startup-triggered ensembles */
+  triggers: StartupResult[]
+  /** Result from Pulse signal */
+  pulse: PulseResult
 }
 
 /**
@@ -90,9 +104,140 @@ export async function runStartupTriggers(
     // Execute each startup ensemble
     for (const ensemble of startupEnsembles) {
       const startTime = Date.now()
-      const trigger = ensemble.trigger?.find(
-        (t): t is StartupTriggerConfig => t.type === 'startup'
+      const trigger = ensemble.trigger?.find((t): t is StartupTriggerConfig => t.type === 'startup')
+
+      try {
+        const executor = new Executor({ env, ctx })
+
+        // Register all agents with executor
+        for (const agent of agents) {
+          executor.registerAgent(agent)
+        }
+
+        // Execute ensemble with trigger input/metadata
+        await executor.executeEnsemble(ensemble, {
+          ...(trigger?.input || {}),
+          _metadata: {
+            ...trigger?.metadata,
+            trigger: 'startup',
+            coldStart: true,
+            timestamp: new Date().toISOString(),
+          },
+        })
+
+        const duration = Date.now() - startTime
+        logger.info(`[Startup] OK ${ensemble.name} (${duration}ms)`)
+
+        results.push({
+          ensemble: ensemble.name,
+          success: true,
+          duration,
+        })
+      } catch (error) {
+        const duration = Date.now() - startTime
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error(`[Startup] FAIL ${ensemble.name}: ${message}`)
+
+        results.push({
+          ensemble: ensemble.name,
+          success: false,
+          duration,
+          error: message,
+        })
+        // Continue with other startup ensembles - don't fail the whole Worker
+      }
+    }
+
+    const succeeded = results.filter((r) => r.success).length
+    const failed = results.filter((r) => !r.success).length
+
+    if (results.length > 0) {
+      logger.info(`[Startup] Complete: ${succeeded} succeeded, ${failed} failed`)
+    }
+  } catch (error) {
+    logger.error(
+      `[Startup] Failed to run startup triggers: ${error instanceof Error ? error.message : error}`
+    )
+  }
+
+  return results
+}
+
+/**
+ * Run all startup tasks including Pulse and user-defined triggers.
+ *
+ * This is the main entry point for cold start initialization:
+ * 1. Sends Pulse signal (anonymous usage metrics)
+ * 2. Executes user-defined startup-triggered ensembles
+ *
+ * @param config - Conductor configuration (for Pulse settings)
+ * @param ensembles - All loaded ensembles (filtered for startup triggers)
+ * @param agents - All loaded agents (for executor registration)
+ * @param stats - Project statistics (agent/ensemble/component counts)
+ * @param env - Cloudflare Worker environment
+ * @param ctx - Cloudflare execution context
+ * @returns Summary of all startup tasks
+ */
+export async function runStartup(
+  config: ConductorConfig,
+  ensembles: EnsembleConfig[],
+  agents: BaseAgent[],
+  stats: ProjectStats,
+  env: ConductorEnv,
+  ctx: ExecutionContext
+): Promise<StartupSummary> {
+  // Only run once per cold start
+  if (hasRun) {
+    return {
+      triggers: [],
+      pulse: { sent: false, acknowledged: false },
+    }
+  }
+  hasRun = true
+
+  // Run Pulse and triggers in parallel
+  const [pulseResult, triggerResults] = await Promise.all([
+    // Pulse - anonymous usage metrics (fire-and-forget via waitUntil)
+    initPulse(config, env, stats, ctx),
+    // User-defined startup triggers
+    executeStartupTriggers(ensembles, agents, env, ctx),
+  ])
+
+  return {
+    triggers: triggerResults,
+    pulse: pulseResult,
+  }
+}
+
+/**
+ * Execute startup-triggered ensembles (internal helper)
+ */
+async function executeStartupTriggers(
+  ensembles: EnsembleConfig[],
+  agents: BaseAgent[],
+  env: ConductorEnv,
+  ctx: ExecutionContext
+): Promise<StartupResult[]> {
+  const results: StartupResult[] = []
+
+  try {
+    // Filter to ensembles with enabled startup triggers
+    const startupEnsembles = ensembles.filter((ensemble) =>
+      ensemble.trigger?.some(
+        (t): t is StartupTriggerConfig => t.type === 'startup' && t.enabled !== false
       )
+    )
+
+    if (startupEnsembles.length === 0) {
+      return []
+    }
+
+    logger.info(`[Startup] Running ${startupEnsembles.length} startup trigger(s)...`)
+
+    // Execute each startup ensemble
+    for (const ensemble of startupEnsembles) {
+      const startTime = Date.now()
+      const trigger = ensemble.trigger?.find((t): t is StartupTriggerConfig => t.type === 'startup')
 
       try {
         const executor = new Executor({ env, ctx })

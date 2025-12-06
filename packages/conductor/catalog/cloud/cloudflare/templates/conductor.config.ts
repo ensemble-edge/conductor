@@ -14,6 +14,23 @@ const config: ConductorConfig = {
 	version: '1.0.0',
 
 	/**
+	 * Ensemble Cloud configuration
+	 *
+	 * Settings for connecting to Ensemble Cloud and anonymous usage metrics (Pulse).
+	 * The projectId is auto-generated at `conductor init`.
+	 */
+	cloud: {
+		// Auto-generated project identifier - don't change unless you want
+		// to appear as a new project in analytics
+		projectId: '__PROJECT_ID__',
+
+		// Anonymous usage metrics - helps improve Conductor
+		// Disable with: pulse: false, or env DO_NOT_TRACK=1
+		// See: https://docs.ensemble.ai/pulse
+		pulse: true,
+	},
+
+	/**
 	 * Routing and authentication configuration
 	 */
 	routing: {

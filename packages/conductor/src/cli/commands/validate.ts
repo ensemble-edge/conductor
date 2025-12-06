@@ -1021,6 +1021,68 @@ function getFileFormat(filePath: string): 'yaml' | 'typescript' {
   return ext === '.ts' || ext === '.tsx' ? 'typescript' : 'yaml'
 }
 
+/**
+ * Validate conductor.config.ts for required fields (e.g., cloud.projectId)
+ */
+async function validateConductorConfig(options: ValidateOptions): Promise<ValidationResult | null> {
+  const configPaths = ['conductor.config.ts', 'conductor.config.js']
+  let configPath: string | null = null
+
+  for (const p of configPaths) {
+    const fullPath = path.resolve(process.cwd(), p)
+    try {
+      await fs.access(fullPath)
+      configPath = fullPath
+      break
+    } catch {
+      // Not found, continue
+    }
+  }
+
+  if (!configPath) {
+    // No config file found - might be running from wrong directory
+    return null
+  }
+
+  const errors: ValidationError[] = []
+
+  try {
+    const content = await fs.readFile(configPath, 'utf-8')
+
+    // Check for projectId - simple text check first
+    const hasProjectId = content.includes('projectId:') || content.includes('projectId =')
+
+    // Check if projectId is the placeholder value
+    const hasPlaceholder = content.includes('__PROJECT_ID__')
+
+    if (!hasProjectId || hasPlaceholder) {
+      errors.push({
+        file: configPath,
+        message: 'Missing cloud.projectId in conductor.config.ts',
+        severity: 'error',
+        fixable: false,
+        suggestion: hasPlaceholder
+          ? 'Run "conductor init" to generate a projectId, or replace __PROJECT_ID__ with a UUID'
+          : 'Add cloud.projectId to your config:\n\ncloud: {\n  projectId: "your-uuid-here",\n  pulse: true,\n}',
+      })
+    }
+  } catch (error) {
+    errors.push({
+      file: configPath,
+      message: `Cannot read config file: ${(error as Error).message}`,
+      severity: 'error',
+      fixable: false,
+    })
+  }
+
+  return {
+    file: configPath,
+    valid: errors.filter((e) => e.severity === 'error').length === 0,
+    errors,
+    fixed: false,
+  }
+}
+
 export function createValidateCommand(): Command {
   const validate = new Command('validate')
 
@@ -1032,9 +1094,18 @@ export function createValidateCommand(): Command {
     .option('--format <format>', 'Output format: text or json', 'text')
     .option('--ensembles-dir <dir>', 'Ensembles directory', 'ensembles')
     .option('--agents-dir <dir>', 'Agents directory', 'agents')
-    .action(async (paths: string[], options: ValidateOptions) => {
+    .option('--skip-config', 'Skip conductor.config.ts validation')
+    .action(async (paths: string[], options: ValidateOptions & { skipConfig?: boolean }) => {
       try {
         const results: ValidationResult[] = []
+
+        // Validate conductor.config.ts first (unless skipped)
+        if (!options.skipConfig) {
+          const configResult = await validateConductorConfig(options)
+          if (configResult) {
+            results.push(configResult)
+          }
+        }
 
         // Determine files to validate
         let filesToValidate: { path: string; type: 'ensemble' | 'agent' }[] = []
