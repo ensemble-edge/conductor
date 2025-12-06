@@ -42,6 +42,7 @@ export enum Operation {
   pdf = 'pdf',
   queue = 'queue',
   autorag = 'autorag',
+  cookies = 'cookies',
 }
 
 /**
@@ -62,6 +63,7 @@ export type OperationType =
   | 'pdf'
   | 'queue'
   | 'autorag'
+  | 'cookies'
 
 /**
  * Type guard to check if a value is a valid Operation
@@ -96,6 +98,7 @@ export const getOperationDisplayName = (operation: Operation): string => {
     [Operation.pdf]: 'PDF Agent',
     [Operation.queue]: 'Queue Agent',
     [Operation.autorag]: 'AutoRAG Agent',
+    [Operation.cookies]: 'Cookies Agent',
   }
   return names[operation]
 }
@@ -119,6 +122,7 @@ export const getOperationDescription = (operation: Operation): string => {
     [Operation.pdf]: 'PDF document generation and processing',
     [Operation.queue]: 'Message queue processing and batch operations',
     [Operation.autorag]: 'Automatic retrieval-augmented generation with Cloudflare AutoRAG',
+    [Operation.cookies]: 'HTTP cookie management with consent awareness',
   }
   return descriptions[operation]
 }

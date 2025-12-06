@@ -20,6 +20,36 @@ import { buildHttpResponse, type OutputFormat } from './output-resolver.js'
 const logger = createLogger({ serviceName: 'built-in-triggers' })
 
 /**
+ * Parse cookies from Cookie header string
+ */
+function parseCookieHeader(cookieHeader: string | null | undefined): Record<string, string> {
+  const cookies: Record<string, string> = {}
+
+  if (!cookieHeader) {
+    return cookies
+  }
+
+  const pairs = cookieHeader.split(';')
+
+  for (const pair of pairs) {
+    const [name, ...valueParts] = pair.split('=')
+    const trimmedName = name?.trim()
+    const value = valueParts.join('=').trim()
+
+    if (trimmedName && value) {
+      try {
+        cookies[trimmedName] = decodeURIComponent(value)
+      } catch {
+        // If decoding fails, use raw value
+        cookies[trimmedName] = value
+      }
+    }
+  }
+
+  return cookies
+}
+
+/**
  * Rate limiter for HTTP-based triggers
  */
 class RateLimiter {
@@ -189,7 +219,8 @@ async function handleHTTPTrigger(context: TriggerHandlerContext): Promise<void> 
         )
       }
 
-      return renderResponse(c, result.value, trigger)
+      // Pass input._setCookies to renderResponse for Set-Cookie headers
+      return renderResponse(c, result.value, trigger, input._setCookies)
     } catch (error) {
       logger.error(
         `[HTTP] Execution failed: ${ensemble.name}`,
@@ -461,7 +492,17 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
   // Handler
   const handler = async (c: any) => {
     try {
-      const input = await c.req.json().catch(() => ({}))
+      const body = await c.req.json().catch(() => ({}))
+
+      // Parse cookies and add webhook-specific metadata
+      const cookies = parseCookieHeader(c.req.header('cookie'))
+      const input = {
+        ...body,
+        cookies,
+        _triggerType: 'webhook',
+        _setCookies: [] as string[],
+      }
+
       const auth = c.get('auth')
       const executor = new Executor({ env, ctx, auth, discovery })
 
@@ -481,6 +522,13 @@ async function handleWebhookTrigger(context: TriggerHandlerContext): Promise<voi
           },
           500
         )
+      }
+
+      // Apply Set-Cookie headers if any were set
+      if (input._setCookies && input._setCookies.length > 0) {
+        for (const cookie of input._setCookies) {
+          c.header('Set-Cookie', cookie, { append: true })
+        }
       }
 
       return c.json(result.value.output)
@@ -548,6 +596,9 @@ async function extractInput(c: any): Promise<any> {
   const params = c.req.param() || {}
   const query = c.req.query() || {}
 
+  // Parse cookies from Cookie header
+  const cookies = parseCookieHeader(c.req.header('cookie'))
+
   // Extract commonly used headers
   const headers: Record<string, string | undefined> = {
     'content-type': c.req.header('content-type'),
@@ -575,12 +626,19 @@ async function extractInput(c: any): Promise<any> {
     body,
     params,
     query,
+    cookies,
     method,
     path,
     headers,
 
     // Convenience: also expose raw request info
     url: c.req.url,
+
+    // Internal: trigger type for cookies operation
+    _triggerType: 'http',
+
+    // Internal: array to collect Set-Cookie headers from cookies operation
+    _setCookies: [] as string[],
   }
 }
 
@@ -612,7 +670,8 @@ interface ExecutionOutputWithResponse {
 function renderResponse(
   c: Context,
   executionOutput: ExecutionOutputWithResponse,
-  trigger: HTTPTriggerConfig
+  trigger: HTTPTriggerConfig,
+  setCookies?: string[]
 ): Response {
   const accept = c.req.header('accept') || ''
   const output = executionOutput.output
@@ -620,6 +679,13 @@ function renderResponse(
 
   // Apply HTTP cache headers from trigger config
   applyHttpCacheHeaders(c, trigger)
+
+  // Apply Set-Cookie headers from cookies operation
+  if (setCookies && setCookies.length > 0) {
+    for (const cookie of setCookies) {
+      c.header('Set-Cookie', cookie, { append: true })
+    }
+  }
 
   // Handle redirect from output block
   if (responseMeta?.redirect) {
