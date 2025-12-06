@@ -804,6 +804,7 @@ export const AgentSchema = z.object({
     Operation.pdf,
     Operation.queue,
     Operation.autorag,
+    Operation.cookies,
   ]),
   description: z.string().optional(),
   config: z.record(z.unknown()).optional(),
