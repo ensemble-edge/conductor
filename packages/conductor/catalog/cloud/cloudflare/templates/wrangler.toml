@@ -125,8 +125,13 @@ fallthrough = true
 # ==================== Workers AI (for Think Agents) ====================
 # Required for AI-powered agents using operation: think
 # The suggest-pages and ai-greeting examples require this binding
-[ai]
-binding = "AI"
+#
+# Uncomment to enable Workers AI (requires Cloudflare login):
+# [ai]
+# binding = "AI"
+#
+# Or run: ensemble configure → AI Provider → Workers AI
+# This will uncomment the binding automatically.
 
 # 📋 Workers AI Setup (for local development):
 # 1. Create an API token with Workers AI permissions:
