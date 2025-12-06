@@ -199,12 +199,13 @@ async function executeEnsemble(
       )
     }
 
-    // Create executor with auth context
+    // Create executor with auth context and request (for location/edge context)
     const auth = c.get('auth')
     const executor = new Executor({
       env: c.env,
       ctx: c.executionCtx,
       auth,
+      request: c.req.raw,
     })
 
     // Register all agents from memberLoader
