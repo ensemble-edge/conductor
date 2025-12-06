@@ -1,5 +1,14 @@
 # @ensemble-edge/conductor
 
+## 0.4.16
+
+### Patch Changes
+
+- 93c0f2c: Display project ID in Pulse notice during `conductor init`
+
+  When initializing a new project, the generated project ID (UUID) is now shown
+  in the Pulse notice so users can see their identifier without opening the config file.
+
 ## 0.4.15
 
 ### Patch Changes
