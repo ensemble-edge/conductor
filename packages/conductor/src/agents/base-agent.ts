@@ -22,6 +22,8 @@ import type { SafeFetchOptions } from '../utils/safe-fetch.js'
 import { safeFetch } from '../utils/safe-fetch.js'
 import type { ExecutionId, RequestId } from '../types/branded.js'
 import type { MemoryManager } from '../runtime/memory/memory-manager.js'
+import type { LocationContext } from '../context/location.js'
+import type { EdgeContext } from '../context/edge.js'
 
 /**
  * Execution context passed to agents
@@ -421,6 +423,71 @@ export interface AgentExecutionContext {
    * ```
    */
   memory?: MemoryManager
+
+  /**
+   * Geographic location and jurisdiction context
+   *
+   * Provides location data from Cloudflare's edge network including:
+   * - Geographic: country, city, region, coordinates, timezone
+   * - Jurisdiction: GDPR, CCPA, LGPD detection with consent helpers
+   * - Language: inferred language with preferredLanguage() helper
+   * - Time: timezone helpers, formatTime(), now()
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { location } = context
+   *
+   *   // Check consent requirements
+   *   if (location?.requiresConsent('analytics') && !input.consents?.analytics) {
+   *     return { requiresConsent: true, purposes: ['analytics'] }
+   *   }
+   *
+   *   // Get preferred language
+   *   const lang = location?.preferredLanguage(['en', 'de', 'fr', 'es']) ?? 'en'
+   *
+   *   // Format time in user's timezone
+   *   const localTime = location?.formatTime() ?? new Date().toISOString()
+   *
+   *   return {
+   *     greeting: translate('hello', lang),
+   *     country: location?.country,
+   *     city: location?.city,
+   *   }
+   * }
+   * ```
+   */
+  location?: LocationContext
+
+  /**
+   * Edge network and infrastructure context
+   *
+   * Provides information about how the request arrived:
+   * - Datacenter: colo code and name (e.g., "DFW", "Dallas")
+   * - Network: ASN and organization (e.g., "Google Cloud", "Comcast")
+   * - Protocol: HTTP version, TLS version, cipher
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { edge, logger } = context
+   *
+   *   // Detect cloud provider traffic (potential bots)
+   *   if (edge?.isFromCloudProvider()) {
+   *     logger?.warn('Request from cloud provider', {
+   *       provider: edge.getCloudProvider(),
+   *       asn: edge.asn,
+   *     })
+   *   }
+   *
+   *   // Log serving datacenter
+   *   logger?.debug(`Served from ${edge?.coloName}`)
+   *
+   *   return { servedFrom: edge?.colo }
+   * }
+   * ```
+   */
+  edge?: EdgeContext
 
   /**
    * SSRF-protected fetch function for making HTTP requests

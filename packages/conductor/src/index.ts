@@ -55,6 +55,31 @@ export { FunctionAgent } from './agents/function-agent.js'
 export { ThinkAgent } from './agents/think-agent.js'
 export { DataAgent } from './agents/data-agent.js'
 export { APIAgent } from './agents/api-agent.js'
+
+// Context Types - Location & Edge context from Cloudflare's edge
+export {
+  // Location Context
+  createLocationContext,
+  createDefaultLocationContext,
+  type LocationContext,
+  type Jurisdiction,
+  type ConsentPurpose,
+  type ConsentModel,
+  // Edge Context
+  createEdgeContext,
+  createDefaultEdgeContext,
+  type EdgeContext,
+  // Jurisdiction & Consent Helpers
+  detectJurisdictions,
+  requiresConsent,
+  isIn,
+  // Region Groups
+  REGION_GROUPS,
+  EU_COUNTRIES,
+  EEA_COUNTRIES,
+  GDPR_COUNTRIES,
+} from './context/index.js'
+
 // Utilities
 export { MemberLoader, createLoader } from './utils/loader.js'
 export { EnsembleLoader, createEnsembleLoader } from './utils/ensemble-loader.js'

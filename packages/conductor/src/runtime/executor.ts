@@ -90,6 +90,12 @@ import {
 import { resolveOutput, type EnsembleOutput, type OutputFormat } from './output-resolver.js'
 import { MemoryManager } from './memory/memory-manager.js'
 import type { MemoryConfig } from './memory/types.js'
+import {
+  createLocationContext,
+  createEdgeContext,
+  type LocationContext,
+  type EdgeContext,
+} from '../context/index.js'
 
 import type { AuthContext } from '../auth/types.js'
 
@@ -168,6 +174,8 @@ export interface ExecutorConfig {
   defaultTimeout?: number
   /** Discovery data for agents and ensembles - enables ctx.agentRegistry and ctx.ensembleRegistry */
   discovery?: DiscoveryData
+  /** Original request for extracting headers (Accept-Language) and CF properties */
+  request?: Request
 }
 
 /**
@@ -336,6 +344,9 @@ export class Executor {
   private auth?: AuthContext
   private defaultTimeout: number
   private discoveryData?: DiscoveryData
+  private request?: Request
+  private locationContext?: LocationContext
+  private edgeContext?: EdgeContext
 
   constructor(config: ExecutorConfig) {
     this.env = config.env
@@ -347,6 +358,15 @@ export class Executor {
     this.defaultTimeout = config.defaultTimeout ?? DEFAULT_AGENT_TIMEOUT_MS
     this.logger = config.logger || createLogger({ serviceName: 'executor' }, this.env.ANALYTICS)
     this.discoveryData = config.discovery
+    this.request = config.request
+
+    // Build location and edge context from request.cf if available
+    if (config.request) {
+      const cf = (config.request as any).cf
+      const acceptLanguage = config.request.headers.get('Accept-Language')
+      this.locationContext = createLocationContext(cf, acceptLanguage)
+      this.edgeContext = createEdgeContext(cf)
+    }
   }
 
   /**
@@ -559,6 +579,9 @@ export class Executor {
       config: agentConfig,
       // Memory manager for conversation history and persistent storage
       memory: flowContext.memoryManager ?? undefined,
+      // Location and edge context from Cloudflare's request.cf
+      location: this.locationContext,
+      edge: this.edgeContext,
     }
   }
 
