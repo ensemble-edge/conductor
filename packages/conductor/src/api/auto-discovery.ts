@@ -20,6 +20,7 @@ import { createLogger } from '../observability/index.js'
 import { getTriggerRegistry } from '../runtime/trigger-registry.js'
 import { registerBuiltInTriggers } from '../runtime/built-in-triggers.js'
 import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js'
+import { runStartupTriggers } from '../runtime/startup-manager.js'
 import { getDocsLoader } from '../docs/index.js'
 import { handleCloudRequest, isCloudRequest, type CloudEnv } from '../cloud/index.js'
 
@@ -398,6 +399,10 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
 
           // Register error pages if configured
           await registerErrorPages(app, config, env, ctx)
+
+          // Run startup triggers (non-blocking via waitUntil)
+          // These execute once per cold start, before the first request is processed
+          ctx.waitUntil(runStartupTriggers(ensembles, agents, env, ctx))
         }
       }
 
@@ -418,13 +423,17 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
       // Handle scheduled events
       logger.info('Scheduled event triggered', { cron: event.cron })
 
-      if (!ensembleLoader) {
-        logger.error('EnsembleLoader not initialized')
+      if (!ensembleLoader || !memberLoader) {
+        logger.error('Loaders not initialized')
         return
       }
 
-      // Find ensembles with matching cron schedules
+      // Run startup triggers (cron events also cold start the Worker)
       const allEnsembles = ensembleLoader.getAllEnsembles()
+      const allAgents = memberLoader.getAllAgents()
+      ctx.waitUntil(runStartupTriggers(allEnsembles, allAgents, env, ctx))
+
+      // Find ensembles with matching cron schedules
       const matchingEnsembles = allEnsembles.filter((ensemble) => {
         const cronTriggers = ensemble.trigger?.filter((t) => t.type === 'cron')
         return cronTriggers?.some((t) => 'cron' in t && t.cron === event.cron)
@@ -442,11 +451,9 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
             ctx,
           })
 
-          // Register agents from memberLoader
-          if (memberLoader) {
-            for (const agent of memberLoader.getAllAgents()) {
-              executor.registerAgent(agent)
-            }
+          // Register agents with executor
+          for (const agent of allAgents) {
+            executor.registerAgent(agent)
           }
 
           const cronTrigger = ensemble.trigger?.find(

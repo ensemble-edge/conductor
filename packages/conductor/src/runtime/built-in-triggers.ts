@@ -778,5 +778,27 @@ export function registerBuiltInTriggers(): void {
     tags: ['mcp', 'ai', 'tools'],
   })
 
-  logger.info('[Built-in Triggers] Registered HTTP, Webhook, and MCP triggers')
+  // Startup Trigger (handled by startup-manager, not route-based)
+  // Registered here for schema validation and registry documentation
+  registry.register(
+    async (_context) => {
+      // Startup triggers don't register routes - they're handled by startup-manager.ts
+      // This handler exists only for schema validation and registry completeness
+    },
+    {
+      type: 'startup',
+      name: 'Startup Trigger',
+      description: 'Execute ensemble on Worker cold start (before HTTP routes are registered)',
+      schema: z.object({
+        type: z.literal('startup'),
+        enabled: z.boolean().optional(),
+        input: z.record(z.unknown()).optional(),
+        metadata: z.record(z.unknown()).optional(),
+      }),
+      requiresAuth: false, // Internal trigger, no external access
+      tags: ['lifecycle', 'initialization', 'cold-start'],
+    }
+  )
+
+  logger.info('[Built-in Triggers] Registered HTTP, Webhook, MCP, and Startup triggers')
 }

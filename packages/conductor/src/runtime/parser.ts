@@ -535,16 +535,29 @@ export const EnsembleSchema = z.object({
             .optional(),
           enabled: z.boolean().optional(),
         }),
+        // Startup trigger - run on Worker cold start (before HTTP routes are registered)
+        z.object({
+          type: z.literal('startup'),
+          enabled: z.boolean().optional(), // Default: true
+          input: z.record(z.unknown()).optional(), // Static input for startup execution
+          metadata: z.record(z.unknown()).optional(), // Additional metadata (e.g., priority)
+        }),
       ])
     )
     .optional()
     .refine(
       (trigger) => {
         // Validate that all trigger entries have either auth or public: true
-        // (except queue, cron, build, cli which are internally triggered)
+        // (except queue, cron, build, cli, startup which are internally triggered)
         if (!trigger) return true
         return trigger.every((t) => {
-          if (t.type === 'queue' || t.type === 'cron' || t.type === 'build' || t.type === 'cli')
+          if (
+            t.type === 'queue' ||
+            t.type === 'cron' ||
+            t.type === 'build' ||
+            t.type === 'cli' ||
+            t.type === 'startup'
+          )
             return true
           return t.auth || t.public === true
         })
@@ -839,6 +852,7 @@ export type QueueTriggerConfig = Extract<TriggerConfig, { type: 'queue' }>
 export type CronTriggerConfig = Extract<TriggerConfig, { type: 'cron' }>
 export type BuildTriggerConfig = Extract<TriggerConfig, { type: 'build' }>
 export type CLITriggerConfig = Extract<TriggerConfig, { type: 'cli' }>
+export type StartupTriggerConfig = Extract<TriggerConfig, { type: 'startup' }>
 
 export class Parser {
   private static interpolator = getInterpolator()
