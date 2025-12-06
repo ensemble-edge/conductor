@@ -41,6 +41,7 @@ import { FormAgent } from '../agents/form/form-agent.js'
 import { HtmlMember } from '../agents/html/html-agent.js'
 import { PdfMember } from '../agents/pdf/pdf-agent.js'
 import { CookiesAgent } from '../agents/cookies/cookies-agent.js'
+import { TelemetryAgent } from '../agents/telemetry/telemetry-agent.js'
 import { getBuiltInRegistry } from '../agents/built-in/registry.js'
 import { Result, type AsyncResult } from '../types/result.js'
 import {
@@ -484,6 +485,9 @@ export class Executor {
 
       case Operation.cookies:
         return Result.ok(new CookiesAgent(config))
+
+      case Operation.telemetry:
+        return Result.ok(new TelemetryAgent(config))
 
       case Operation.code:
         // Try to create CodeAgent (supports both inline and script:// URIs)
