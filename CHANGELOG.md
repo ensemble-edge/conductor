@@ -1,5 +1,17 @@
 # @ensemble-edge/conductor
 
+## 0.4.15
+
+### Patch Changes
+
+- 8485635: Add Conductor Pulse - anonymous usage metrics
+  - New pulse module with fire-and-forget telemetry on Worker cold start
+  - ProjectId generated at `conductor init`, stored in conductor.config.ts
+  - Auto-generates ephemeral projectId for upgraded projects at runtime
+  - `conductor validate` checks for missing projectId
+  - Pulse notice shown during project initialization
+  - Opt-out via DO_NOT_TRACK=1, CONDUCTOR_PULSE=false, or config.cloud.pulse=false
+
 ## 0.4.14
 
 ### Patch Changes
