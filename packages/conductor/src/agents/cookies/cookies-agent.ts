@@ -20,11 +20,7 @@ import type {
   CookieDeleteOutput,
   SameSite,
 } from './types/index.js'
-import {
-  parseCookies,
-  serializeCookie,
-  createDeleteCookie,
-} from '../html/utils/cookies.js'
+import { parseCookies, serializeCookie, createDeleteCookie } from '../html/utils/cookies.js'
 import type { CookieOptions } from '../html/types/index.js'
 import { createLogger } from '../../observability/index.js'
 
@@ -56,7 +52,9 @@ export class CookiesAgent extends BaseAgent {
 
     const validActions = ['get', 'set', 'delete', 'getAll']
     if (!validActions.includes(action)) {
-      throw new Error(`Invalid cookies action: ${action}. Must be one of: ${validActions.join(', ')}`)
+      throw new Error(
+        `Invalid cookies action: ${action}. Must be one of: ${validActions.join(', ')}`
+      )
     }
 
     // Validate name is provided for actions that need it
@@ -173,9 +171,8 @@ export class CookiesAgent extends BaseAgent {
     }
 
     if (config.expires !== undefined) {
-      options.expires = typeof config.expires === 'string'
-        ? new Date(config.expires)
-        : new Date(config.expires)
+      options.expires =
+        typeof config.expires === 'string' ? new Date(config.expires) : new Date(config.expires)
     }
 
     if (config.domain) {

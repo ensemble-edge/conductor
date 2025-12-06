@@ -125,9 +125,7 @@ export function createTelemetryEmitter(
 
     const doubles: number[] = options.metrics ? Object.values(options.metrics) : []
 
-    const indexes: string[] = options.index
-      ? [options.index]
-      : [baseContext.projectId ?? 'default']
+    const indexes: string[] = options.index ? [options.index] : [baseContext.projectId ?? 'default']
 
     emit({ blobs, doubles, indexes })
   }
