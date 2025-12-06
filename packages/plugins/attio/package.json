@@ -43,7 +43,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.4.14"
+    "@ensemble-edge/conductor": "^0.4.15"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251121.0",
