@@ -8751,9 +8751,7 @@ function createInitCommand() {
       if (hasFiles && !isConductorProject && !options.force) {
         console.error(chalk.yellow("\u26A0 Directory is not empty"));
         console.error("");
-        console.error(
-          chalk.dim("This directory contains files but is not a Conductor project.")
-        );
+        console.error(chalk.dim("This directory contains files but is not a Conductor project."));
         console.error(
           chalk.dim("Initializing will add Conductor structure alongside existing files.")
         );
@@ -8798,9 +8796,7 @@ function createInitCommand() {
       }
       console.log(chalk.cyan(`Template: ${options.template}`));
       console.log(chalk.cyan(`Target: ${targetDir}`));
-      console.log(
-        chalk.cyan(`Examples: ${options.examples !== false ? "included" : "excluded"}`)
-      );
+      console.log(chalk.cyan(`Examples: ${options.examples !== false ? "included" : "excluded"}`));
       console.log("");
       const pkgPath = path.join(packageRoot, "package.json");
       const pkgContent = await fs.readFile(pkgPath, "utf-8");
