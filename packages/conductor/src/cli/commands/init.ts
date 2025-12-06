@@ -13,6 +13,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { spawn } from 'child_process'
+import { randomUUID } from 'crypto'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -245,13 +246,17 @@ export function createInitCommand(): Command {
         const pkg = JSON.parse(pkgContent)
         const conductorVersion = pkg.version
 
+        // Generate project ID for Pulse
+        const projectId = randomUUID()
+
         // Copy template files
         await copyDirectory(
           templatePath,
           targetDir,
           options.force || false,
           options.examples !== false,
-          conductorVersion
+          conductorVersion,
+          projectId
         )
 
         console.log(chalk.green('✓ Project files created'))
@@ -322,6 +327,29 @@ export function createInitCommand(): Command {
         console.log('')
         console.log(chalk.dim('Documentation: https://docs.ensemble.ai/conductor'))
         console.log('')
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Pulse Notice
+        // ─────────────────────────────────────────────────────────────────────
+
+        console.log(chalk.dim('─'.repeat(60)))
+        console.log('')
+        console.log(chalk.cyan('📡 Pulse - Anonymous Usage Metrics'))
+        console.log('')
+        console.log(chalk.dim('This project is configured to send anonymous usage metrics'))
+        console.log(chalk.dim('to help improve Conductor. We collect:'))
+        console.log(chalk.dim('  • Project ID (random UUID, not identifiable)'))
+        console.log(chalk.dim('  • Conductor version and component counts'))
+        console.log(chalk.dim('  • Country code (from Cloudflare, not your IP)'))
+        console.log('')
+        console.log(chalk.dim('NO personal data, code, or secrets are ever collected.'))
+        console.log('')
+        console.log(chalk.dim('To opt out, set in conductor.config.ts:'))
+        console.log(chalk.dim('  cloud: { pulse: false }'))
+        console.log('')
+        console.log(chalk.dim('Or set environment variable: DO_NOT_TRACK=1'))
+        console.log(chalk.dim('Learn more: https://docs.ensemble.ai/pulse'))
+        console.log('')
       } catch (error) {
         console.error('')
         console.error(chalk.red('✗ Failed to initialize project'))
@@ -343,14 +371,15 @@ export function createInitCommand(): Command {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Recursively copy a directory
+ * Recursively copy a directory with template substitutions
  */
 async function copyDirectory(
   src: string,
   dest: string,
   force: boolean,
   includeExamples: boolean = true,
-  conductorVersion?: string
+  conductorVersion?: string,
+  projectId?: string
 ): Promise<void> {
   await fs.mkdir(dest, { recursive: true })
 
@@ -367,7 +396,7 @@ async function copyDirectory(
     }
 
     if (entry.isDirectory()) {
-      await copyDirectory(srcPath, destPath, force, includeExamples, conductorVersion)
+      await copyDirectory(srcPath, destPath, force, includeExamples, conductorVersion, projectId)
     } else {
       // Check if file exists
       if (!force) {
@@ -380,14 +409,25 @@ async function copyDirectory(
         }
       }
 
-      // Process template files that need version substitution
-      if (conductorVersion && entry.name === 'package.json') {
+      // Process template files that need substitution
+      const needsSubstitution =
+        entry.name === 'package.json' || entry.name === 'conductor.config.ts'
+
+      if (needsSubstitution) {
         let content = await fs.readFile(srcPath, 'utf-8')
-        content = content.replace(/__CONDUCTOR_VERSION__/g, conductorVersion)
+
+        // Substitute version in package.json
+        if (conductorVersion) {
+          content = content.replace(/__CONDUCTOR_VERSION__/g, conductorVersion)
+        }
+
+        // Substitute projectId in conductor.config.ts
+        if (projectId) {
+          content = content.replace(/__PROJECT_ID__/g, projectId)
+        }
+
         await fs.writeFile(destPath, content, 'utf-8')
-        console.log(
-          chalk.dim(`  ✓ Created ${path.relative(dest, destPath)} (version: ${conductorVersion})`)
-        )
+        console.log(chalk.dim(`  ✓ Created ${path.relative(dest, destPath)}`))
       } else {
         await fs.copyFile(srcPath, destPath)
         console.log(chalk.dim(`  ✓ Created ${path.relative(dest, destPath)}`))

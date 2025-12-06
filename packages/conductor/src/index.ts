@@ -110,7 +110,7 @@ export type {
 } from './routing/config.js'
 
 // Config Module (full config type for conductor.config.ts)
-export type { ConductorConfig as FullConductorConfig } from './config/types.js'
+export type { ConductorConfig as FullConductorConfig, CloudConfig } from './config/types.js'
 
 // Discovery Configuration (for build-time Vite plugins)
 export type {
@@ -151,10 +151,15 @@ export type { CLICommandMetadata, CLIExecutionResult, CLIOption } from './runtim
 
 export {
   runStartupTriggers,
+  runStartup,
   resetStartupState,
   hasStartupRun,
 } from './runtime/startup-manager.js'
-export type { StartupResult } from './runtime/startup-manager.js'
+export type { StartupResult, StartupSummary } from './runtime/startup-manager.js'
+
+// Pulse - Anonymous usage metrics
+export { isPulseEnabled, sendPulse, initPulse, generateProjectId } from './pulse/index.js'
+export type { PulsePayload, PulseResult, ProjectStats } from './pulse/index.js'
 
 export type {
   StateConfig,

@@ -16,6 +16,14 @@ export interface ConductorConfig {
   /** Project version */
   version?: string
 
+  /**
+   * Ensemble Cloud configuration
+   *
+   * Settings for connecting to Ensemble Cloud platform and Pulse analytics.
+   * The projectId is auto-generated at `conductor init`.
+   */
+  cloud?: CloudConfig
+
   /** Security configuration */
   security?: SecurityConfigOptions
 
@@ -542,6 +550,73 @@ export interface StorageConfig {
 
   /** KV namespace binding name */
   kvBinding?: string
+}
+
+/**
+ * Ensemble Cloud configuration
+ *
+ * Settings for connecting this Conductor project to Ensemble Cloud
+ * and for anonymous usage metrics (Pulse).
+ *
+ * @example
+ * ```typescript
+ * cloud: {
+ *   // Auto-generated at `conductor init` - don't change unless you want
+ *   // to appear as a new project in analytics
+ *   projectId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+ *
+ *   // Your deployed Worker URL (for Cloud integration)
+ *   workerUrl: 'https://my-project.workers.dev',
+ *
+ *   // Anonymous usage metrics - helps improve Conductor
+ *   // Disable with: pulse: false, or env DO_NOT_TRACK=1
+ *   pulse: true,
+ * }
+ * ```
+ */
+export interface CloudConfig {
+  /**
+   * Project ID (UUID)
+   *
+   * Auto-generated at `conductor init`. Used for anonymous Pulse metrics
+   * and Cloud platform identification.
+   *
+   * Changing this makes your project appear as a new project in analytics.
+   * If deleted, it will be regenerated on next `conductor init`.
+   */
+  projectId?: string
+
+  /**
+   * Deployed Worker URL
+   *
+   * The production URL where this Conductor project is deployed.
+   * Used by Ensemble Cloud to communicate with your Worker.
+   *
+   * @example 'https://my-project.workers.dev'
+   * @example 'https://api.mycompany.com'
+   */
+  workerUrl?: string
+
+  /**
+   * Pulse - Anonymous usage metrics
+   *
+   * When enabled, sends anonymous usage data to help improve Conductor:
+   * - Project ID (random UUID, not identifiable)
+   * - Event type (e.g., server.start)
+   * - Conductor version
+   * - Agent/ensemble/component counts
+   * - Country code (from Cloudflare, not your IP)
+   *
+   * NO personal data, project names, code, or API keys are ever collected.
+   *
+   * Disable by setting to false, or via environment:
+   * - DO_NOT_TRACK=1 (industry standard)
+   * - CONDUCTOR_PULSE=false
+   *
+   * @default true
+   * @see https://docs.ensemble.ai/pulse
+   */
+  pulse?: boolean
 }
 
 /**
