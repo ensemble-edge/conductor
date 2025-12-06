@@ -1,5 +1,18 @@
 # @ensemble-edge/conductor
 
+## 0.4.14
+
+### Patch Changes
+
+- 887b792: ### Bug Fixes
+  - **Template: Zero-config local development** - The default `wrangler.toml` template now has the `[ai]` binding commented out, allowing fresh installs to run `pnpm run dev` immediately without requiring Cloudflare login or API token setup. This removes friction from the getting-started experience.
+
+  ### How to Enable Workers AI
+
+  Users who need Workers AI can enable it by:
+  - Uncommenting the `[ai]` section in `wrangler.toml`
+  - Or running `ensemble configure` → AI Provider → Workers AI
+
 ## 0.4.13
 
 ### Patch Changes
