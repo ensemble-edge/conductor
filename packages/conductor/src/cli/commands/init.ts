@@ -336,6 +336,8 @@ export function createInitCommand(): Command {
         console.log('')
         console.log(chalk.cyan('📡 Pulse - Anonymous Usage Metrics'))
         console.log('')
+        console.log(chalk.dim(`Your project ID: ${chalk.white(projectId)}`))
+        console.log('')
         console.log(chalk.dim('This project is configured to send anonymous usage metrics'))
         console.log(chalk.dim('to help improve Conductor. We collect:'))
         console.log(chalk.dim('  • Project ID (random UUID, not identifiable)'))
