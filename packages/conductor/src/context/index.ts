@@ -29,7 +29,12 @@ export { createEdgeContext, createDefaultEdgeContext, type EdgeContext } from '.
 // ─────────────────────────────────────────────────────────────
 // Location Data (for direct access if needed)
 // ─────────────────────────────────────────────────────────────
-export { COUNTRY_NAMES, CONTINENT_NAMES, getCountryName, getContinentName } from './location-data.js'
+export {
+  COUNTRY_NAMES,
+  CONTINENT_NAMES,
+  getCountryName,
+  getContinentName,
+} from './location-data.js'
 
 // ─────────────────────────────────────────────────────────────
 // Jurisdiction Detection

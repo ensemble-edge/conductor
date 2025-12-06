@@ -5,11 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-  runStartupTriggers,
-  resetStartupState,
-  hasStartupRun,
-} from '../startup-manager.js'
+import { runStartupTriggers, resetStartupState, hasStartupRun } from '../startup-manager.js'
 import type { EnsembleConfig } from '../parser.js'
 import type { BaseAgent } from '../../agents/base-agent.js'
 
@@ -161,18 +157,21 @@ describe('Startup Manager', () => {
     it('should continue executing after a failure', async () => {
       // Re-mock Executor to fail for specific ensemble
       const { Executor } = await import('../executor.js')
-      vi.mocked(Executor).mockImplementation(() => ({
-        registerAgent: vi.fn(),
-        executeEnsemble: vi.fn().mockImplementation((ensemble) => {
-          if (ensemble.name === 'failing-startup') {
-            return Promise.reject(new Error('Simulated failure'))
-          }
-          return Promise.resolve({
-            success: true,
-            value: { output: { ok: true } },
-          })
-        }),
-      }) as any)
+      vi.mocked(Executor).mockImplementation(
+        () =>
+          ({
+            registerAgent: vi.fn(),
+            executeEnsemble: vi.fn().mockImplementation((ensemble) => {
+              if (ensemble.name === 'failing-startup') {
+                return Promise.reject(new Error('Simulated failure'))
+              }
+              return Promise.resolve({
+                success: true,
+                value: { output: { ok: true } },
+              })
+            }),
+          }) as any
+      )
 
       resetStartupState()
 
