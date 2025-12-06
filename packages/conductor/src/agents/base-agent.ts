@@ -24,6 +24,7 @@ import type { ExecutionId, RequestId } from '../types/branded.js'
 import type { MemoryManager } from '../runtime/memory/memory-manager.js'
 import type { LocationContext } from '../context/location.js'
 import type { EdgeContext } from '../context/edge.js'
+import type { TelemetryEmitter } from '../analytics/types.js'
 
 /**
  * Execution context passed to agents
@@ -488,6 +489,40 @@ export interface AgentExecutionContext {
    * ```
    */
   edge?: EdgeContext
+
+  /**
+   * Telemetry emitter for custom analytics events
+   *
+   * Writes to Cloudflare Analytics Engine for aggregated metrics,
+   * billing dashboards, and trend analysis.
+   *
+   * **Note**: This is for business metrics (counts, rates, costs),
+   * not debugging traces. Use `logger` for debugging.
+   *
+   * @example
+   * ```typescript
+   * export default async function(context: AgentExecutionContext) {
+   *   const { telemetry, input } = context
+   *
+   *   // Emit a custom business event
+   *   telemetry?.emitCustom('order_processed', {
+   *     dimensions: { category: input.category, region: input.region },
+   *     metrics: { amount: input.amount, itemCount: input.items.length },
+   *     index: input.customerId,
+   *   })
+   *
+   *   // Raw event (for advanced use cases)
+   *   telemetry?.emit({
+   *     blobs: ['document-extraction', 'pdf', 'success'],
+   *     doubles: [confidence, processingTimeMs],
+   *     indexes: [projectId],
+   *   })
+   *
+   *   return { processed: true }
+   * }
+   * ```
+   */
+  telemetry?: TelemetryEmitter
 
   /**
    * SSRF-protected fetch function for making HTTP requests

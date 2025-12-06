@@ -43,6 +43,7 @@ export enum Operation {
   queue = 'queue',
   autorag = 'autorag',
   cookies = 'cookies',
+  telemetry = 'telemetry',
 }
 
 /**
@@ -64,6 +65,7 @@ export type OperationType =
   | 'queue'
   | 'autorag'
   | 'cookies'
+  | 'telemetry'
 
 /**
  * Type guard to check if a value is a valid Operation
@@ -99,6 +101,7 @@ export const getOperationDisplayName = (operation: Operation): string => {
     [Operation.queue]: 'Queue Agent',
     [Operation.autorag]: 'AutoRAG Agent',
     [Operation.cookies]: 'Cookies Agent',
+    [Operation.telemetry]: 'Telemetry Agent',
   }
   return names[operation]
 }
@@ -123,6 +126,7 @@ export const getOperationDescription = (operation: Operation): string => {
     [Operation.queue]: 'Message queue processing and batch operations',
     [Operation.autorag]: 'Automatic retrieval-augmented generation with Cloudflare AutoRAG',
     [Operation.cookies]: 'HTTP cookie management with consent awareness',
+    [Operation.telemetry]: 'Emit custom analytics events to Cloudflare Analytics Engine',
   }
   return descriptions[operation]
 }
