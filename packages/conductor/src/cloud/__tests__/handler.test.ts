@@ -53,7 +53,8 @@ describe('handleCloudRequest', () => {
 
     it('should return 401 when Authorization header is missing', async () => {
       const env: CloudEnv = { AI: {}, ENSEMBLE_CLOUD_KEY: 'eck_live_secret123' } as CloudEnv
-      const request = createRequest('/cloud/health')
+      // Use /cloud/structure which requires authentication (not health which is public)
+      const request = createRequest('/cloud/structure')
 
       const response = await handleCloudRequest(request, env, mockCtx)
 
@@ -64,7 +65,7 @@ describe('handleCloudRequest', () => {
 
     it('should return 401 when Authorization header is not Bearer', async () => {
       const env: CloudEnv = { AI: {}, ENSEMBLE_CLOUD_KEY: 'eck_live_secret123' } as CloudEnv
-      const request = createRequest('/cloud/health', {
+      const request = createRequest('/cloud/structure', {
         headers: { Authorization: 'Basic dXNlcjpwYXNz' },
       })
 
@@ -77,7 +78,7 @@ describe('handleCloudRequest', () => {
 
     it('should return 403 when cloud key is invalid', async () => {
       const env: CloudEnv = { AI: {}, ENSEMBLE_CLOUD_KEY: 'eck_live_secret123' } as CloudEnv
-      const request = createRequest('/cloud/health', {
+      const request = createRequest('/cloud/structure', {
         headers: { Authorization: 'Bearer wrong_key' },
       })
 
@@ -97,6 +98,50 @@ describe('handleCloudRequest', () => {
       const response = await handleCloudRequest(request, env, mockCtx)
 
       expect(response.status).toBe(200)
+    })
+  })
+
+  describe('public health endpoint', () => {
+    it('should allow unauthenticated GET to /cloud/health when cloud is enabled', async () => {
+      const env: CloudEnv = { AI: {}, ENSEMBLE_CLOUD_KEY: 'eck_live_secret123' } as CloudEnv
+      const request = createRequest('/cloud/health')
+
+      const response = await handleCloudRequest(request, env, mockCtx)
+
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as { status: string }
+      expect(body.status).toBe('ok')
+    })
+
+    it('should allow unauthenticated GET to /cloud when cloud is enabled', async () => {
+      const env: CloudEnv = { AI: {}, ENSEMBLE_CLOUD_KEY: 'eck_live_secret123' } as CloudEnv
+      const request = createRequest('/cloud')
+
+      const response = await handleCloudRequest(request, env, mockCtx)
+
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as { status: string }
+      expect(body.status).toBe('ok')
+    })
+
+    it('should return 404 for public health when cloud is not enabled', async () => {
+      const env: CloudEnv = { AI: {} } as CloudEnv
+      const request = createRequest('/cloud/health')
+
+      const response = await handleCloudRequest(request, env, mockCtx)
+
+      expect(response.status).toBe(404)
+      const body = (await response.json()) as { error: string }
+      expect(body.error).toBe('Cloud endpoint not enabled')
+    })
+
+    it('should still require auth for POST to /cloud/health', async () => {
+      const env: CloudEnv = { AI: {}, ENSEMBLE_CLOUD_KEY: 'eck_live_secret123' } as CloudEnv
+      const request = createRequest('/cloud/health', { method: 'POST' })
+
+      const response = await handleCloudRequest(request, env, mockCtx)
+
+      expect(response.status).toBe(401)
     })
   })
 
