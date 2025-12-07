@@ -1,5 +1,15 @@
 # @ensemble-edge/conductor
 
+## 0.4.17
+
+### Patch Changes
+
+- d3ae550: Add `conductor info` command for comprehensive project status display
+  - Shows project info, component counts, triggers, security settings
+  - Displays Cloudflare service bindings and deployment health
+  - Supports `--json` and `--compact` output formats for CI/scripting
+  - Serves as authoritative data source for ensemble CLI status display
+
 ## 0.4.16
 
 ### Patch Changes
