@@ -14,9 +14,9 @@ agents:
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Analytics Dashboard</title>
 
-            <!-- Global CSS from R2 -->
-            <link href="/assets/styles/reset.css" rel="stylesheet">
-            <link href="/assets/styles/utilities.css" rel="stylesheet">
+            <!-- Global CSS -->
+            <link href="/assets/public/styles/reset.css" rel="stylesheet">
+            <link href="/assets/public/styles/utilities.css" rel="stylesheet">
 
             <!-- Dashboard-specific CSS (inline for atomic versioning) -->
             <style>
