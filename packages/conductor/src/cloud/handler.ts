@@ -62,7 +62,9 @@ function authenticate(request: Request, env: CloudEnv): Response | null {
  *
  * Routes /cloud/* requests to appropriate handlers after authentication.
  *
- * Note: /cloud/health is publicly accessible for CLI status checks by default.
+ * Note: /cloud/health is publicly accessible for CLI status checks by default,
+ * but ONLY when cloud is enabled (ENSEMBLE_CLOUD_KEY is set). This allows the
+ * CLI to check if a deployed worker is healthy without requiring the cloud key.
  * When security.stealthMode is enabled in conductor.config.ts, /cloud/health
  * is hidden (returns 404) to prevent endpoint enumeration.
  */
@@ -77,6 +79,14 @@ export async function handleCloudRequest(
 
   // Check if stealth mode is enabled
   const stealthMode = env.CONDUCTOR_STEALTH_MODE === 'true'
+
+  // Check if cloud is enabled at all
+  const cloudEnabled = !!env.ENSEMBLE_CLOUD_KEY
+
+  // If cloud is not enabled, return 404 for ALL cloud endpoints
+  if (!cloudEnabled) {
+    return jsonError('Cloud endpoint not enabled', 404)
+  }
 
   // Allow unauthenticated GET to /health for CLI status checks
   // UNLESS stealth mode is enabled, which hides the health endpoint
