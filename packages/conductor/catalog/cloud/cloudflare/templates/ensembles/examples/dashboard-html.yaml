@@ -1,5 +1,5 @@
-name: dashboard
-description: Render an analytics dashboard with metrics
+name: dashboard-html
+description: Simple HTML dashboard renderer (no trigger, just renders HTML template)
 
 agents:
   - name: render-dashboard
