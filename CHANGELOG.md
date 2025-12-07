@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 0.4.20
+
+### Patch Changes
+
+- 6bba8c6: Fix example ensemble name collisions in templates (hello-world-advanced, dashboard-html)
+
 ## 0.4.19
 
 ### Patch Changes
