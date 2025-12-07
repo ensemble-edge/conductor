@@ -1,5 +1,11 @@
 # @ensemble-edge/conductor
 
+## 0.4.19
+
+### Patch Changes
+
+- ece6b37: Fix wrangler.toml template to include required `binding = "ASSETS"` for static assets configuration
+
 ## 0.4.18
 
 ### Patch Changes
