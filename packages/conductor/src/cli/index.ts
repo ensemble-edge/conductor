@@ -21,6 +21,7 @@ import { createImportCommand } from './commands/import.js'
 import { handleKeysCommand } from './commands/keys.js'
 import { createBuildCommand } from './commands/build.js'
 import { createRunCommand } from './commands/run.js'
+import { createInfoCommand } from './commands/info.js'
 
 // Version is injected at build time by esbuild
 declare const __CONDUCTOR_VERSION__: string
@@ -71,6 +72,7 @@ program.addCommand(createImportCommand())
 // Build & Run commands
 program.addCommand(createBuildCommand())
 program.addCommand(createRunCommand())
+program.addCommand(createInfoCommand())
 
 // API Key management command
 const keysCommand = new Command('keys')
