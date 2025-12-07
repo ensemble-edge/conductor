@@ -61,21 +61,39 @@ function authenticate(request: Request, env: CloudEnv): Response | null {
  * Handle cloud request
  *
  * Routes /cloud/* requests to appropriate handlers after authentication.
+ *
+ * Note: /cloud/health is publicly accessible for CLI status checks by default.
+ * When security.stealthMode is enabled in conductor.config.ts, /cloud/health
+ * is hidden (returns 404) to prevent endpoint enumeration.
  */
 export async function handleCloudRequest(
   request: Request,
   env: CloudEnv,
   _ctx: ExecutionContext
 ): Promise<Response> {
-  // Authenticate
-  const authError = authenticate(request, env)
-  if (authError) {
-    return authError
-  }
-
   // Route to handler based on path
   const url = new URL(request.url)
   const cloudPath = url.pathname.replace(/^\/cloud/, '') || '/'
+
+  // Check if stealth mode is enabled
+  const stealthMode = env.CONDUCTOR_STEALTH_MODE === 'true'
+
+  // Allow unauthenticated GET to /health for CLI status checks
+  // UNLESS stealth mode is enabled, which hides the health endpoint
+  const isHealthCheck = (cloudPath === '/' || cloudPath === '/health') && request.method === 'GET'
+  const allowPublicHealth = isHealthCheck && !stealthMode
+
+  if (!allowPublicHealth) {
+    // Authenticate all other requests (or health when stealth mode is on)
+    const authError = authenticate(request, env)
+    if (authError) {
+      // In stealth mode, return generic 404 instead of auth errors
+      if (stealthMode) {
+        return jsonError('Not found', 404)
+      }
+      return authError
+    }
+  }
 
   // CORS headers for cloud requests
   const corsHeaders = {

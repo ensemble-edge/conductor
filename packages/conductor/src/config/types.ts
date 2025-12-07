@@ -121,6 +121,57 @@ export interface SecurityConfigOptions {
    * @example ['production', 'prod', 'live', 'main']
    */
   productionEnvironments?: string[]
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Stealth Mode Settings
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Stealth mode - hide API structure from unauthenticated users
+   *
+   * When enabled:
+   * - Auth failures return generic 404 (not 401/403)
+   * - /cloud/health endpoint is hidden (returns 404)
+   * - Timing attacks are mitigated with response delays
+   *
+   * Use this for maximum security when you don't want to reveal
+   * which endpoints exist on your API.
+   *
+   * @default false
+   */
+  stealthMode?: boolean
+
+  /**
+   * Minimum response time (ms) for stealth 404 responses
+   * Helps prevent timing attacks that could reveal protected endpoints.
+   *
+   * Only applies when stealthMode is enabled.
+   *
+   * Note: Uses scheduler.wait() which requires:
+   * - Cloudflare Workers: Paid plan (Workers Unbound or Workers Paid)
+   * - On free tiers, delay is gracefully skipped (no error, no timing protection)
+   *
+   * Set to 0 to disable timing protection entirely.
+   *
+   * @default 50
+   */
+  stealthDelayMs?: number
+
+  /**
+   * Add X-Powered-By: Ensemble-Edge Conductor header to responses
+   * Useful for debugging and identification.
+   *
+   * @default true
+   */
+  conductorHeader?: boolean
+
+  /**
+   * Include debug headers in responses
+   * (X-Conductor-Duration, X-Conductor-Cache, etc.)
+   *
+   * @default true in development/preview, false in production
+   */
+  debugHeaders?: boolean
 }
 
 /**

@@ -25,6 +25,11 @@ export interface CloudEnv extends ConductorEnv {
   CONDUCTOR_PROJECT_NAME?: string
   /** Project version for structure endpoint */
   CONDUCTOR_PROJECT_VERSION?: string
+  /**
+   * Stealth mode - when 'true', /cloud/health requires authentication
+   * Set from security.stealthMode in conductor.config.ts
+   */
+  CONDUCTOR_STEALTH_MODE?: string
 }
 
 /**
