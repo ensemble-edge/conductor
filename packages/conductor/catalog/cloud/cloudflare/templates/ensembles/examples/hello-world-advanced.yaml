@@ -1,6 +1,7 @@
-name: hello-world
+name: hello-world-advanced
 description: |
-  Basic ensemble example demonstrating Conductor's capabilities:
+  Advanced hello-world example with error handling:
+  (See ensembles/hello-world.yaml for the basic version)
   - Uses shared prompts (prompts/hello.md)
   - Uses shared configs (configs/hello-settings.yaml)
   - Shows how agents can reference versioned components
