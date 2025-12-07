@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs
-# dist/  # Keep dist/ committed for easier inspection in git
+dist/
 /build/
 # Note: /build/ only ignores root build/, not catalog/**/src/build/ (template files)
 *.tsbuildinfo

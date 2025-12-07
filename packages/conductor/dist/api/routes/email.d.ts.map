@@ -1,1 +1,0 @@
-{"version":3,"file":"email.d.ts","sourceRoot":"","sources":["../../../src/api/routes/email.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAEH,OAAO,EAAE,IAAI,EAAE,MAAM,MAAM,CAAA;AAK3B,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,oBAAoB,CAAA;AAEtD,QAAA,MAAM,GAAG;cAAwB,YAAY;yCAAK,CAAA;AAsrBlD,eAAe,GAAG,CAAA"}
