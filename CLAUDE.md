@@ -46,7 +46,21 @@ pnpm run format
 - **NEVER skip this step** - always format before creating changeset
 - Prevents workflow failures and saves debugging time
 
-### Step 1: Sync with Remote (CRITICAL - DO THIS AFTER FORMATTING!)
+### Step 0b: Run Tests (CRITICAL - DO THIS BEFORE PUSHING!)
+```bash
+cd /workspace/ensemble/conductor
+pnpm test
+```
+
+**Why**:
+- CI/CD will fail if tests don't pass
+- Catches bugs locally BEFORE pushing to remote
+- Saves time by avoiding failed GitHub Actions runs
+- **NEVER skip this step** - always run tests before creating changeset
+
+**If tests fail**: Fix the failing tests before proceeding. Do NOT push code with failing tests.
+
+### Step 1: Sync with Remote (CRITICAL - DO THIS AFTER TESTS PASS!)
 ```bash
 cd /workspace/ensemble/conductor
 git pull origin master
@@ -202,6 +216,7 @@ Do you still want patch, or should I use minor?
 ✅ **Automatic cleanup** - Changesets deleted on merge
 
 ## Never Do These:
+- ❌ **DO NOT push without running tests first** - always `pnpm test` before push
 - ❌ **DO NOT manually edit package.json or CHANGELOG.md**
 - ❌ **DO NOT manually create or delete tags**
 - ❌ **DO NOT merge Version Packages PR if tests are failing**
