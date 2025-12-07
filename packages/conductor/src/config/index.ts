@@ -13,6 +13,9 @@ export type {
   ExecutionConfig,
   StorageConfig,
   SecurityConfigOptions,
+  PublicAssetsConfig,
+  ProtectedAssetsConfig,
+  ApiConfig,
 } from './types.js'
 
 export { DEFAULT_CONFIG } from './types.js'
@@ -75,12 +78,15 @@ export {
   ObservabilityConfigSchema,
   ExecutionConfigSchema,
   StorageConfigSchema,
+  ApiConfigSchema,
+  PublicAssetsConfigSchema,
   // Sub-schemas
   AuthConfigSchema,
   AuthRuleSchema,
   LoggingConfigSchema,
   MetricsConfigSchema,
   OpenTelemetryConfigSchema,
+  ExternalAssetMappingSchema,
   // Validation helpers
   validateConfig,
   validateConfigOrThrow,
@@ -88,5 +94,6 @@ export {
   formatValidationErrors,
   // Inferred types
   type ValidatedConductorConfig,
+  type ValidatedPublicAssetsConfig,
   type ValidationResult,
 } from './schemas.js'

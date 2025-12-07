@@ -23,6 +23,8 @@ import { registerBuiltInMiddleware } from '../runtime/built-in-middleware.js'
 import { runStartupTriggers } from '../runtime/startup-manager.js'
 import { getDocsLoader } from '../docs/index.js'
 import { handleCloudRequest, isCloudRequest, type CloudEnv } from '../cloud/index.js'
+import { registerAssetRoutes } from '../assets/index.js'
+import type { PublicAssetsConfig, ProtectedAssetsConfig } from '../config/types.js'
 
 const logger = createLogger({ serviceName: 'auto-discovery-api' })
 
@@ -90,6 +92,39 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
   errorPages?: {
     [statusCode: number]: string
   }
+
+  /**
+   * Static assets configuration
+   *
+   * Settings for public static assets served via Cloudflare Workers Static Assets.
+   * Assets in `assets/public/` are served at `/assets/public/*` without auth.
+   *
+   * @example
+   * ```typescript
+   * assets: {
+   *   cacheControl: 'public, max-age=86400',
+   *   rootFiles: {
+   *     '/favicon.ico': '/assets/public/favicon.ico',
+   *   },
+   * }
+   * ```
+   */
+  assets?: PublicAssetsConfig
+
+  /**
+   * Protected assets configuration
+   *
+   * Settings for auth-protected static assets at `/assets/protected/*`.
+   * Requires auth.apiKeys or auth.requireAuth to be configured.
+   *
+   * @example
+   * ```typescript
+   * protectedAssets: {
+   *   cacheControl: 'private, max-age=3600',
+   * }
+   * ```
+   */
+  protectedAssets?: ProtectedAssetsConfig
 }
 
 // Global loaders (initialized once per Worker instance)
@@ -352,6 +387,18 @@ async function initializeLoaders(
  */
 export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
   const app: ConductorApp = createConductorAPI(config)
+
+  // Register asset routes (convenience redirects and protected asset auth)
+  // This must be done before ensemble triggers to ensure proper route priority
+  registerAssetRoutes(app, {
+    assets: config.assets,
+    protectedAssets: config.protectedAssets,
+    auth: {
+      apiKeys: config.auth?.apiKeys,
+      allowAnonymous: config.auth?.allowAnonymous,
+    },
+    stealthMode: config.response?.stealthMode,
+  })
 
   // Return a Worker export with auto-discovery initialization
   return {

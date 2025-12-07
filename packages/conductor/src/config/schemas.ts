@@ -359,6 +359,48 @@ export const ApiExecutionConfigSchema = z.object({
  */
 export const ApiConfigSchema = z.object({
   execution: ApiExecutionConfigSchema.optional(),
+  protectedAssets: z
+    .object({
+      cacheControl: z.string().optional().describe('Cache-Control header for protected assets'),
+      external: z
+        .union([
+          z.string().url('Must be a valid URL'),
+          z.object({
+            url: z.string().url('Must be a valid URL'),
+            mode: z.enum(['redirect', 'proxy']).optional(),
+          }),
+        ])
+        .optional()
+        .describe('External URL mapping for protected assets'),
+    })
+    .optional(),
+})
+
+// ============================================================================
+// Assets Schema
+// ============================================================================
+
+/**
+ * External asset mapping schema (shared between public and protected)
+ */
+export const ExternalAssetMappingSchema = z.union([
+  z.string().url('Must be a valid URL'),
+  z.object({
+    url: z.string().url('Must be a valid URL'),
+    mode: z.enum(['redirect', 'proxy']).optional(),
+  }),
+])
+
+/**
+ * Public assets configuration schema
+ */
+export const PublicAssetsConfigSchema = z.object({
+  cacheControl: z.string().optional().describe('Cache-Control header for public assets'),
+  external: ExternalAssetMappingSchema.optional().describe('External URL mapping for large assets'),
+  rootFiles: z
+    .record(z.string())
+    .optional()
+    .describe('Root file mappings (e.g., /favicon.ico → /assets/public/favicon.ico)'),
 })
 
 // ============================================================================
@@ -394,6 +436,7 @@ export const ConductorConfigSchema = z.object({
   storage: StorageConfigSchema.optional(),
   api: ApiConfigSchema.optional(),
   discovery: DiscoveryConfigSchema.optional(),
+  assets: PublicAssetsConfigSchema.optional(),
 })
 
 // ============================================================================
@@ -414,6 +457,7 @@ export type ValidatedExecutionConfig = z.infer<typeof ExecutionConfigSchema>
 export type ValidatedStorageConfig = z.infer<typeof StorageConfigSchema>
 export type ValidatedApiConfig = z.infer<typeof ApiConfigSchema>
 export type ValidatedApiExecutionConfig = z.infer<typeof ApiExecutionConfigSchema>
+export type ValidatedPublicAssetsConfig = z.infer<typeof PublicAssetsConfigSchema>
 
 // ============================================================================
 // Validation Helpers

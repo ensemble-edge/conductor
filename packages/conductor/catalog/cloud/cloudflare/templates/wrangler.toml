@@ -3,6 +3,14 @@ main = "dist/index.mjs"
 compatibility_date = "2025-10-29"
 compatibility_flags = ["nodejs_compat"]
 
+# ==================== Static Assets ====================
+# Serves files from ./assets at /assets/* URLs
+# Public assets: /assets/public/* (no auth, edge-cached)
+# Protected assets: /assets/protected/* (requires API auth)
+[assets]
+directory = "./assets"
+run_worker_first = true  # Required: lets Conductor intercept protected assets
+
 # Build configuration for Vite
 [build]
 command = "pnpm run build"
@@ -49,12 +57,13 @@ fallthrough = true
 # ==================== Cloudflare Bindings ====================
 # Comment out bindings you don't need. All are optional except for Durable Objects above.
 
-# R2 for static assets (images, fonts, global CSS)
-# Uncomment when you set up an R2 bucket:
+# R2 for large/external assets (videos, user uploads, large files)
+# For small static assets (<25MB), use the [assets] directory above instead.
+# Uncomment only when you need R2 for assets exceeding worker size limits:
 # [[r2_buckets]]
-# binding = "ASSETS"
-# bucket_name = "conductor-assets"
-# preview_bucket_name = "conductor-assets-preview"
+# binding = "R2_STORAGE"
+# bucket_name = "conductor-storage"
+# preview_bucket_name = "conductor-storage-preview"
 
 # KV for caching and fast lookups
 # Uncomment when you create KV namespaces:

@@ -1,0 +1,2 @@
+# Place auth-protected files here (reports, documents, etc.)
+# Files will be served at /assets/protected/* and require API auth

@@ -50,6 +50,15 @@ export interface ConductorConfig {
 
   /** Discovery configuration for auto-discovery of agents, ensembles, docs, scripts */
   discovery?: DiscoveryConfig
+
+  /**
+   * Static assets configuration
+   *
+   * Settings for public static assets served via Cloudflare Workers Static Assets.
+   * Assets in `assets/public/` are served at `/assets/public/*` without auth.
+   * For protected assets, configure `api.protectedAssets`.
+   */
+  assets?: PublicAssetsConfig
 }
 
 /**
@@ -58,6 +67,85 @@ export interface ConductorConfig {
 export interface ApiConfig {
   /** Execute API controls */
   execution?: ApiExecutionConfig
+
+  /**
+   * Protected assets settings
+   *
+   * Settings for auth-protected static assets at /assets/protected/*
+   * Requires api.auth (via routing.auth) to be configured for access.
+   */
+  protectedAssets?: ProtectedAssetsConfig
+}
+
+/**
+ * Public assets configuration
+ *
+ * Settings for public static assets served at /assets/public/*
+ * These assets are served without authentication and edge-cached.
+ */
+export interface PublicAssetsConfig {
+  /**
+   * Cache-Control header for public assets
+   * @default 'public, max-age=31536000, immutable'
+   */
+  cacheControl?: string
+
+  /**
+   * External URL mapping for public assets
+   *
+   * Redirect or proxy requests for specific asset paths to external storage.
+   * Use this for large files that exceed worker size limits (~25MB).
+   *
+   * @example 'https://cdn.example.com/public'
+   * @example { url: 'https://my-bucket.r2.cloudflarestorage.com/assets', mode: 'redirect' }
+   */
+  external?:
+    | string
+    | {
+        url: string
+        mode?: 'redirect' | 'proxy'
+      }
+
+  /**
+   * Root file mappings
+   *
+   * Map root-level paths to asset locations for convenience routes.
+   * Default: { '/favicon.ico': '/assets/public/favicon.ico' }
+   *
+   * @example { '/favicon.ico': '/assets/public/favicon.ico', '/logo.png': '/assets/public/images/logo.png' }
+   */
+  rootFiles?: Record<string, string>
+}
+
+/**
+ * Protected assets configuration
+ *
+ * Settings for auth-protected static assets served at /assets/protected/*
+ * These assets require API authentication (configured via routing.auth).
+ */
+export interface ProtectedAssetsConfig {
+  /**
+   * Cache-Control header for protected assets
+   * @default 'private, max-age=3600'
+   */
+  cacheControl?: string
+
+  /**
+   * External URL to redirect/proxy protected assets
+   *
+   * Use this for large files stored in R2, S3, or other external storage.
+   * When mode is 'redirect' (default), returns 302 redirect to external URL.
+   * When mode is 'proxy', proxies the request (auth still applies).
+   *
+   * @example 'https://my-bucket.r2.cloudflarestorage.com/protected'
+   * @example { url: 'https://cdn.example.com/protected', mode: 'proxy' }
+   */
+  external?:
+    | string
+    | {
+        url: string
+        mode?: 'redirect' | 'proxy'
+      }
 }
 
 /**
