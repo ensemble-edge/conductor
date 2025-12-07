@@ -9,7 +9,8 @@ compatibility_flags = ["nodejs_compat"]
 # Protected assets: /assets/protected/* (requires API auth)
 [assets]
 directory = "./assets"
-run_worker_first = true  # Required: lets Conductor intercept protected assets
+binding = "ASSETS"        # Required: allows Worker to fetch assets programmatically
+run_worker_first = true   # Required: lets Conductor intercept protected assets
 
 # Build configuration for Vite
 [build]
