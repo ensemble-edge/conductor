@@ -1,5 +1,17 @@
 # @ensemble-edge/conductor
 
+## 0.4.18
+
+### Patch Changes
+
+- fc8b45b: Add Wrangler-based static assets system with public/protected directory structure
+  - Add `assets/public/` for edge-cached public assets (CSS, images, favicon)
+  - Add `assets/protected/` for auth-gated assets (requires API auth)
+  - Add `PublicAssetsConfig` and `ProtectedAssetsConfig` types
+  - Add convenience route for `/favicon.ico` redirecting to `/assets/public/favicon.ico`
+  - Update wrangler.toml template with `[assets]` configuration and `run_worker_first = true`
+  - Update example templates (dashboard, login-page) with correct CSS paths
+
 ## 0.4.17
 
 ### Patch Changes
