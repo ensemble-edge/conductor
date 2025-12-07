@@ -1,1 +1,0 @@
-{"version":3,"file":"mcp.d.ts","sourceRoot":"","sources":["../../../src/api/routes/mcp.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAEH,OAAO,EAAE,IAAI,EAAE,MAAM,MAAM,CAAA;AAC3B,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,aAAa,CAAA;AACnD,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,oBAAoB,CAAA;AAOtD,QAAA,MAAM,GAAG;cAAwB,YAAY;eAAa,gBAAgB,CAAC,KAAK,CAAC;yCAAK,CAAA;AA4ZtF,eAAe,GAAG,CAAA"}

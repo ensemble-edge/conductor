@@ -1,1 +1,0 @@
-{"version":3,"file":"security-config.d.ts","sourceRoot":"","sources":["../../../src/api/middleware/security-config.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,MAAM,CAAA;AAC7C,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,0BAA0B,CAAA;AAG9D;;;;;;;;;;;;;;;;;;;GAmBG;AACH,wBAAgB,cAAc,CAAC,MAAM,GAAE,OAAO,CAAC,cAAc,CAAM,GAAG,iBAAiB,CAOtF"}
