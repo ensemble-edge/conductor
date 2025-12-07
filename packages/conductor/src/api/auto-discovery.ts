@@ -363,7 +363,14 @@ export function createAutoDiscoveryAPI(config: AutoDiscoveryAPIConfig = {}) {
       // Handle /cloud/* requests separately (bypasses Hono app)
       // Cloud endpoint has its own authentication using ENSEMBLE_CLOUD_KEY
       if (isCloudRequest(request)) {
-        return handleCloudRequest(request, env, ctx)
+        // Inject stealthMode from config into env for cloud handler
+        const cloudEnv = {
+          ...env,
+          CONDUCTOR_STEALTH_MODE: config.response?.stealthMode
+            ? 'true'
+            : env.CONDUCTOR_STEALTH_MODE,
+        }
+        return handleCloudRequest(request, cloudEnv, ctx)
       }
 
       // Lazy initialization on first request
