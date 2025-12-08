@@ -2,11 +2,11 @@
  * Static Assets Module
  *
  * Provides route handlers for static asset serving:
- * - Protected assets (/assets/protected/*) - requires API auth
- * - Convenience routes (/favicon.ico) - redirects to public assets
+ * - Protected assets - requires API auth (when run_worker_first = true)
+ * - Custom redirects - for special routing needs
  *
- * Public assets (/assets/public/*) are served directly by Wrangler's
- * static assets feature and don't need route handlers.
+ * Public assets in `assets/public/` are served directly by Wrangler at
+ * root URLs (e.g., /favicon.ico, /styles/*) without Worker involvement.
  *
  * @see https://developers.cloudflare.com/workers/static-assets/
  */

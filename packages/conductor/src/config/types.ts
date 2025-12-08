@@ -55,7 +55,7 @@ export interface ConductorConfig {
    * Static assets configuration
    *
    * Settings for public static assets served via Cloudflare Workers Static Assets.
-   * Assets in `assets/public/` are served at `/assets/public/*` without auth.
+   * Assets in `assets/public/` are served at root URLs (e.g., `/favicon.ico`, `/styles/*`).
    * For protected assets, configure `api.protectedAssets`.
    */
   assets?: PublicAssetsConfig
@@ -71,7 +71,7 @@ export interface ApiConfig {
   /**
    * Protected assets settings
    *
-   * Settings for auth-protected static assets at /assets/protected/*
+   * Settings for auth-protected static assets.
    * Requires api.auth (via routing.auth) to be configured for access.
    */
   protectedAssets?: ProtectedAssetsConfig
@@ -80,7 +80,7 @@ export interface ApiConfig {
 /**
  * Public assets configuration
  *
- * Settings for public static assets served at /assets/public/*
+ * Settings for public static assets served at root URLs (e.g., /favicon.ico).
  * These assets are served without authentication and edge-cached.
  */
 export interface PublicAssetsConfig {
@@ -109,10 +109,11 @@ export interface PublicAssetsConfig {
   /**
    * Root file mappings
    *
-   * Map root-level paths to asset locations for convenience routes.
-   * Default: { '/favicon.ico': '/assets/public/favicon.ico' }
+   * Map root-level paths to other locations for convenience routes.
+   * With `directory = "./assets/public"` in wrangler.toml, most root files
+   * are served automatically. Use this for custom redirects only.
    *
-   * @example { '/favicon.ico': '/assets/public/favicon.ico', '/logo.png': '/assets/public/images/logo.png' }
+   * @example { '/old-favicon.ico': '/favicon.ico' }
    */
   rootFiles?: Record<string, string>
 }
@@ -120,7 +121,7 @@ export interface PublicAssetsConfig {
 /**
  * Protected assets configuration
  *
- * Settings for auth-protected static assets served at /assets/protected/*
+ * Settings for auth-protected static assets.
  * These assets require API authentication (configured via routing.auth).
  */
 export interface ProtectedAssetsConfig {

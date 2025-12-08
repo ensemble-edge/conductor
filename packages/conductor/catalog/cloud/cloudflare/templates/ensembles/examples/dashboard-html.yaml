@@ -15,8 +15,8 @@ agents:
             <title>Analytics Dashboard</title>
 
             <!-- Global CSS -->
-            <link href="/assets/public/styles/reset.css" rel="stylesheet">
-            <link href="/assets/public/styles/utilities.css" rel="stylesheet">
+            <link href="/styles/reset.css" rel="stylesheet">
+            <link href="/styles/utilities.css" rel="stylesheet">
 
             <!-- Dashboard-specific CSS (inline for atomic versioning) -->
             <style>

@@ -4,13 +4,12 @@ compatibility_date = "2025-10-29"
 compatibility_flags = ["nodejs_compat"]
 
 # ==================== Static Assets ====================
-# Serves files from ./assets at /assets/* URLs
-# Public assets: /assets/public/* (no auth, edge-cached)
-# Protected assets: /assets/protected/* (requires API auth)
+# Public assets in ./assets/public/ are served at root URLs (e.g., /favicon.ico, /styles/reset.css)
+# Protected assets in ./assets/protected/ are NOT served by Wrangler (handled by Worker with auth)
 [assets]
-directory = "./assets"
-binding = "ASSETS"        # Required: allows Worker to fetch assets programmatically
-run_worker_first = true   # Required: lets Conductor intercept protected assets
+directory = "./assets/public"
+binding = "ASSETS"        # Optional: allows Worker to fetch assets programmatically
+# run_worker_first = false (default) - Wrangler serves public assets directly for best performance
 
 # Build configuration for Vite
 [build]

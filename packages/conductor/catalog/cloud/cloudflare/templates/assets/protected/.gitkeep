@@ -1,2 +1,3 @@
 # Place auth-protected files here (reports, documents, etc.)
-# Files will be served at /assets/protected/* and require API auth
+# These files require Worker handling with run_worker_first = true
+# See assets/README.md for protected assets configuration

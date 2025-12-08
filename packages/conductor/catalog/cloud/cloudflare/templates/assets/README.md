@@ -6,15 +6,15 @@ This directory contains **static assets** served via Cloudflare's [Workers Stati
 
 ```
 assets/
-├── public/                 # /assets/public/* (no auth, edge-cached)
-│   ├── favicon.ico         # Site favicon
-│   ├── images/             # Public images
-│   │   └── logo.svg
-│   └── styles/             # Global CSS
-│       ├── reset.css       # CSS reset
-│       └── utilities.css   # Utility classes
-└── protected/              # /assets/protected/* (requires API auth)
-    └── reports/            # Auth-protected files
+├── public/                 # Served at root URLs (/, /favicon.ico, /styles/*)
+│   ├── favicon.ico         # Served at /favicon.ico
+│   ├── images/             # Served at /images/*
+│   │   └── logo.svg        # Served at /images/logo.svg
+│   └── styles/             # Served at /styles/*
+│       ├── reset.css       # Served at /styles/reset.css
+│       └── utilities.css   # Served at /styles/utilities.css
+└── protected/              # For auth-protected files (see Protected Assets below)
+    └── reports/
         └── annual-report.pdf
 ```
 
@@ -22,13 +22,17 @@ assets/
 
 ## URL Mapping
 
+With `directory = "./assets/public"` in wrangler.toml, files are served at **root URLs**:
+
 | File Path | URL | Auth Required |
 |-----------|-----|---------------|
-| `assets/public/favicon.ico` | `/assets/public/favicon.ico` | No |
-| `assets/public/styles/reset.css` | `/assets/public/styles/reset.css` | No |
-| `assets/protected/reports/report.pdf` | `/assets/protected/reports/report.pdf` | Yes (API auth) |
+| `assets/public/favicon.ico` | `/favicon.ico` | No |
+| `assets/public/styles/reset.css` | `/styles/reset.css` | No |
+| `assets/public/images/logo.svg` | `/images/logo.svg` | No |
 
-## Public Assets (`/assets/public/`)
+> **How it works**: Wrangler's `directory` setting acts as a document root. Files inside `./assets/public/` are served without the `assets/public` prefix in the URL.
+
+## Public Assets
 
 Public assets are served directly from Cloudflare's edge with aggressive caching:
 
@@ -36,54 +40,54 @@ Public assets are served directly from Cloudflare's edge with aggressive caching
 - **Edge-cached** with `Cache-Control: public, max-age=31536000, immutable`
 - **Automatic compression** (gzip, brotli)
 - **ETags** for cache validation
+- **Served before Worker runs** (fastest possible response)
 
 ### Usage in Templates
 
 ```html
-<link rel="stylesheet" href="/assets/public/styles/reset.css">
-<link rel="icon" href="/assets/public/favicon.ico">
-<img src="/assets/public/images/logo.svg" alt="Logo">
+<link rel="stylesheet" href="/styles/reset.css">
+<link rel="icon" href="/favicon.ico">
+<img src="/images/logo.svg" alt="Logo">
 ```
 
-## Protected Assets (`/assets/protected/`)
+## Protected Assets
 
-Protected assets require authentication using your configured API auth settings:
+Protected assets require authentication. Since Wrangler serves the `assets/public/` directory directly, protected files should be stored elsewhere and served via the Worker.
 
-- **Requires `api.auth`** to be configured in `conductor.config.ts`
-- **Uses the same auth** as your API endpoints (bearer, API key, etc.)
-- **Private caching** with `Cache-Control: private, max-age=3600`
+### Option 1: Use `assets/protected/` with Worker handling
 
-### Configuration
+Store protected files in `assets/protected/` and use `run_worker_first = true` to intercept requests:
 
-Protected assets use the auth settings from your conductor config:
+```toml
+# wrangler.toml
+[assets]
+directory = "./assets/public"
+binding = "ASSETS"
+run_worker_first = true  # Worker handles auth first
+```
+
+The Worker's notFound handler will try `env.ASSETS.fetch()` as a fallback, allowing you to serve protected content after auth.
+
+### Option 2: Store in R2 or external storage
+
+For large protected files, use R2 or external storage:
 
 ```typescript
 // conductor.config.ts
 export default {
   api: {
-    auth: {
-      type: 'bearer',
-      // Protected assets will require this same auth
+    protectedAssets: {
+      cacheControl: 'private, no-store',
     }
   }
 } satisfies ConductorConfig;
 ```
 
-### Usage
-
 ```bash
-# Requires Authorization header
+# Access protected files (requires auth)
 curl -H "Authorization: Bearer <token>" \
-  https://your-worker.dev/assets/protected/reports/annual-report.pdf
+  https://your-worker.dev/api/protected/reports/annual-report.pdf
 ```
-
-## Convenience Routes
-
-Root-level files are redirected to their `/assets/public/` location:
-
-- `/favicon.ico` → `/assets/public/favicon.ico`
-
-> **Note**: `/robots.txt` is handled by the `robots` ensemble (see `ensembles/system/robots.yaml`), not a static file.
 
 ## Size Limits
 
@@ -96,7 +100,7 @@ Wrangler static assets are bundled with your worker (~25MB total limit). For lar
 export default {
   assets: {
     external: {
-      '/assets/public/videos': 'https://my-bucket.r2.cloudflarestorage.com/videos'
+      '/videos': 'https://my-bucket.r2.cloudflarestorage.com/videos'
     }
   }
 } satisfies ConductorConfig;
@@ -104,37 +108,12 @@ export default {
 
 ## Common Use Cases
 
-### Static robots.txt
-
-While the `robots` ensemble provides dynamic control, you can also use a static file:
-
-```
-assets/
-└── public/
-    └── robots.txt    # Served at /assets/public/robots.txt
-```
-
-```txt
-# assets/public/robots.txt
-User-agent: *
-Disallow: /api/
-Disallow: /admin/
-Allow: /
-
-Sitemap: https://example.com/sitemap.xml
-```
-
-Then configure a redirect in `conductor.config.ts`:
-```typescript
-// Or use ensembles/system/robots.yaml for dynamic control
-```
-
 ### Web Manifest (PWA)
 
 ```
 assets/
 └── public/
-    └── manifest.json
+    └── manifest.json    # Served at /manifest.json
 ```
 
 ```json
@@ -143,11 +122,9 @@ assets/
   "short_name": "App",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
   "icons": [
-    { "src": "/assets/public/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/assets/public/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
 ```
@@ -157,14 +134,13 @@ assets/
 ```
 assets/
 └── public/
-    └── openapi.yaml   # Served at /assets/public/openapi.yaml
+    └── openapi.yaml    # Served at /openapi.yaml
 ```
 
-Reference from your API docs:
 ```html
 <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
 <script>
-  SwaggerUIBundle({ url: "/assets/public/openapi.yaml", dom_id: '#swagger' });
+  SwaggerUIBundle({ url: "/openapi.yaml", dom_id: '#swagger' });
 </script>
 ```
 
@@ -174,15 +150,14 @@ Reference from your API docs:
 assets/
 └── public/
     └── fonts/
-        ├── inter-var.woff2
+        ├── inter-var.woff2    # Served at /fonts/inter-var.woff2
         └── mono.woff2
 ```
 
 ```css
-/* In your CSS */
 @font-face {
   font-family: 'Inter';
-  src: url('/assets/public/fonts/inter-var.woff2') format('woff2');
+  src: url('/fonts/inter-var.woff2') format('woff2');
   font-display: swap;
 }
 ```
@@ -193,9 +168,9 @@ assets/
 assets/
 └── public/
     └── .well-known/
-        ├── security.txt      # Security contact info
-        ├── ai-plugin.json    # ChatGPT plugin manifest
-        └── apple-app-site-association  # iOS deep links
+        ├── security.txt      # Served at /.well-known/security.txt
+        ├── ai-plugin.json    # Served at /.well-known/ai-plugin.json
+        └── apple-app-site-association
 ```
 
 ## Best Practices
@@ -203,11 +178,11 @@ assets/
 1. **Optimize assets**: Compress images, minify CSS
 2. **Use web formats**: WebP, AVIF for images; WOFF2 for fonts
 3. **Keep public small**: Only put truly public files in `public/`
-4. **Protect sensitive files**: Use `protected/` for auth-required content
+4. **Use external storage**: For files >5MB, use R2 or CDN
 
 ## Configuration
 
-See `conductor.config.ts` for cache control and external mapping options:
+See `conductor.config.ts` for cache control options:
 
 ```typescript
 export default {
@@ -215,7 +190,6 @@ export default {
     cacheControl: 'public, max-age=86400',  // Override default (1 year)
   },
   api: {
-    auth: { type: 'bearer' },
     protectedAssets: {
       cacheControl: 'private, no-store',    // Override default (1 hour)
     }

@@ -97,15 +97,12 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
    * Static assets configuration
    *
    * Settings for public static assets served via Cloudflare Workers Static Assets.
-   * Assets in `assets/public/` are served at `/assets/public/*` without auth.
+   * Assets in `assets/public/` are served at root URLs (e.g., `/favicon.ico`, `/styles/*`).
    *
    * @example
    * ```typescript
    * assets: {
    *   cacheControl: 'public, max-age=86400',
-   *   rootFiles: {
-   *     '/favicon.ico': '/assets/public/favicon.ico',
-   *   },
    * }
    * ```
    */
@@ -114,7 +111,7 @@ export interface AutoDiscoveryAPIConfig extends APIConfig {
   /**
    * Protected assets configuration
    *
-   * Settings for auth-protected static assets at `/assets/protected/*`.
+   * Settings for auth-protected static assets.
    * Requires auth.apiKeys or auth.requireAuth to be configured.
    *
    * @example
