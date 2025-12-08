@@ -397,10 +397,7 @@ export const ExternalAssetMappingSchema = z.union([
 export const PublicAssetsConfigSchema = z.object({
   cacheControl: z.string().optional().describe('Cache-Control header for public assets'),
   external: ExternalAssetMappingSchema.optional().describe('External URL mapping for large assets'),
-  rootFiles: z
-    .record(z.string())
-    .optional()
-    .describe('Root file mappings (e.g., /favicon.ico → /assets/public/favicon.ico)'),
+  rootFiles: z.record(z.string()).optional().describe('Root file mappings for custom redirects'),
 })
 
 // ============================================================================

@@ -2,8 +2,11 @@
  * Asset Route Handlers
  *
  * Registers routes for:
- * - Protected assets (/assets/protected/*) - applies API auth, then falls through to Wrangler
- * - Convenience routes (/favicon.ico) - redirects to public asset location
+ * - Protected assets - applies API auth, then serves via ASSETS binding
+ * - Custom redirects - optional convenience routes for special cases
+ *
+ * Public assets in `assets/public/` are served by Wrangler at root URLs
+ * (e.g., /favicon.ico, /styles/*) without needing these handlers.
  */
 
 import type { Hono, MiddlewareHandler, Context, Next } from 'hono'
@@ -23,9 +26,14 @@ const DEFAULT_PROTECTED_CACHE_CONTROL = 'private, max-age=3600'
 
 /**
  * Default root file mappings
+ *
+ * Note: With directory = "./assets/public" in wrangler.toml, files like
+ * favicon.ico are served directly at /favicon.ico by Wrangler.
+ * No redirects needed for public assets.
  */
 const DEFAULT_ROOT_FILES: Record<string, string> = {
-  '/favicon.ico': '/assets/public/favicon.ico',
+  // Empty by default - Wrangler serves public assets directly
+  // Add custom mappings here if needed (e.g., '/robots.txt': '/custom/robots.txt')
 }
 
 /**
@@ -73,7 +81,7 @@ export function registerAssetRoutes(
 ): void {
   const rootFiles = config.assets?.rootFiles ?? DEFAULT_ROOT_FILES
 
-  // Register convenience redirect routes (e.g., /favicon.ico -> /assets/public/favicon.ico)
+  // Register custom redirect routes (e.g., /old-path -> /new-path)
   for (const [sourcePath, targetPath] of Object.entries(rootFiles)) {
     logger.debug(`[Assets] Registering redirect: ${sourcePath} -> ${targetPath}`)
 
@@ -88,7 +96,7 @@ export function registerAssetRoutes(
   )
 
   // Register protected assets route with auth middleware
-  // This intercepts /assets/protected/* requests, checks auth, then falls through to Wrangler
+  // This intercepts protected asset requests, checks auth, then serves via ASSETS binding
   if (config.auth?.apiKeys?.length || !config.auth?.allowAnonymous) {
     const authMiddleware = createAuthMiddleware({
       apiKeys: config.auth?.apiKeys || [],

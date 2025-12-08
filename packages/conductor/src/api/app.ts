@@ -307,13 +307,13 @@ export function createConductorAPI(config: APIConfig = {}): ConductorApp {
   })
 
   // 404 handler - uses same format as stealth 404 for consistency
-  // Exception: /assets/* paths fall through to Wrangler static assets
+  // Note: With run_worker_first = false (default), Wrangler serves static assets
+  // before the Worker runs, so this handler only sees truly non-existent routes.
+  // For protected assets (run_worker_first = true), use the ASSETS binding fallback.
   app.notFound(async (c) => {
-    const path = c.req.path
-
-    // Let Wrangler serve static assets from /assets/*
-    // With run_worker_first = true, we need to explicitly fetch from ASSETS binding
-    if (path.startsWith('/assets/') && c.env.ASSETS) {
+    // If ASSETS binding exists, try to serve the asset
+    // This is useful when run_worker_first = true for protected assets
+    if (c.env.ASSETS) {
       try {
         const assetResponse = await c.env.ASSETS.fetch(c.req.raw)
         if (assetResponse.status !== 404) {

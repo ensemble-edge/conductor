@@ -14,7 +14,7 @@ agents:
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Login - {{appName}}</title>
 
-            <link href="/assets/public/styles/reset.css" rel="stylesheet">
+            <link href="/styles/reset.css" rel="stylesheet">
 
             <style>
               body {
