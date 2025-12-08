@@ -1,5 +1,13 @@
 # @ensemble-edge/conductor
 
+## 0.4.22
+
+### Patch Changes
+
+- 0d5b580: - **Dev-friendly log format**: Logs now display in readable `[conductor:inf]` format during local development instead of JSON. Production deployments continue using structured JSON for Workers Logs indexing.
+  - Fix non-runtime triggers (build, cli, cron) causing "No handler found" warnings at startup
+  - Fix asset routing for favicon.ico and other static assets in 404 handler
+
 ## 0.4.21
 
 ### Patch Changes
