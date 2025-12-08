@@ -1,0 +1,30 @@
+name: create-account
+operation: code
+handler: ./index.ts
+description: |
+  Create a new user account during registration.
+
+  This example demonstrates:
+  - Input validation
+  - Password hashing (placeholder - use proper crypto in production!)
+  - Generating user IDs and verification tokens
+  - Mock account creation
+
+  IMPORTANT: Replace the mock implementation with real database operations
+  and use proper password hashing (bcrypt, argon2, or PBKDF2).
+
+schema:
+  input:
+    username: string
+    email: string
+    password: string
+    firstName: string
+    lastName: string
+    dateOfBirth: string
+    country: string
+  output:
+    created: boolean
+    userId: string
+    verificationToken: string
+    message: string
+    error: string?

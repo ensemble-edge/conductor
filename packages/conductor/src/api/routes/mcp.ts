@@ -211,10 +211,10 @@ function buildInputSchema(ensemble: EnsembleConfig): MCPTool['inputSchema'] {
   const properties: Record<string, unknown> = {}
   const required: string[] = []
 
-  // Check if ensemble has inputs schema defined
-  if (ensemble.inputs && typeof ensemble.inputs === 'object') {
+  // Check if ensemble has input schema defined
+  if (ensemble.input && typeof ensemble.input === 'object') {
     // Handle Zod-like schema or plain object schema
-    for (const [key, value] of Object.entries(ensemble.inputs)) {
+    for (const [key, value] of Object.entries(ensemble.input)) {
       if (typeof value === 'object' && value !== null) {
         const fieldDef = value as Record<string, unknown>
 

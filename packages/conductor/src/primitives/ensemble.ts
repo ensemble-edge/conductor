@@ -254,8 +254,8 @@ export interface EnsembleOptions {
   /** Notification configurations (outbound events) */
   notifications?: NotificationConfig[]
 
-  /** Input schema definition */
-  inputs?: Record<string, unknown>
+  /** Input schema definition (field defaults with type/default syntax) */
+  input?: Record<string, unknown>
 
   /** Output mapping */
   output?: Record<string, unknown>
@@ -354,7 +354,7 @@ export class Ensemble {
   public readonly notifications?: NotificationConfig[]
 
   /** Input schema */
-  public readonly inputs?: Record<string, unknown>
+  public readonly input?: Record<string, unknown>
 
   /** Output mapping */
   public readonly output?: Record<string, unknown>
@@ -377,7 +377,7 @@ export class Ensemble {
     this.scoring = options.scoring
     this.trigger = options.trigger
     this.notifications = options.notifications
-    this.inputs = options.inputs
+    this.input = options.input
     this.output = options.output
     this.apiExecutable = options.apiExecutable
 
@@ -437,7 +437,7 @@ export class Ensemble {
       notifications: this.notifications,
       agents: this.agents as unknown as Record<string, unknown>[] | undefined,
       flow: this.staticSteps,
-      inputs: this.inputs,
+      input: this.input,
       output: this.output,
     }
   }
@@ -455,7 +455,7 @@ export interface EnsembleConfig {
   notifications?: NotificationConfig[]
   agents?: Record<string, unknown>[]
   flow?: FlowStepType[]
-  inputs?: Record<string, unknown>
+  input?: Record<string, unknown>
   output?: Record<string, unknown>
 }
 
@@ -550,7 +550,7 @@ export function ensembleFromConfig(config: EnsembleConfig): Ensemble {
     scoring: config.scoring,
     trigger: config.trigger,
     notifications: config.notifications,
-    inputs: config.inputs,
+    input: config.input,
     output: config.output,
   })
 }

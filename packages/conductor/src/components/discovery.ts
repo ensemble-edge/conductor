@@ -305,7 +305,7 @@ function extractEnsembleMetadata(
     name,
     description: config.description,
     triggers,
-    inputSchema: config.inputs,
+    inputSchema: config.input,
     outputSchema: config.output,
     source,
     agentNames,

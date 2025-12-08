@@ -206,7 +206,8 @@ export class EmailAgent extends BaseAgent {
 
     // Render template if provided
     if (input.template) {
-      const data = input.data || {}
+      // Support both { data: { ... } } and flat input patterns
+      const data = input.data ? input.data : this.extractTemplateData(input)
       // Use template loader to load and render template (handles KV, files, inline, and component references)
       html = await this.templateLoader.render(input.template, data, context.env)
 
@@ -265,6 +266,41 @@ export class EmailAgent extends BaseAgent {
    */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  /**
+   * Extract template data from flat input, filtering out EmailMemberInput-specific fields
+   *
+   * When input is passed as { name: "...", activationUrl: "..." } instead of { data: { name: "..." } },
+   * this method extracts only the template data fields by filtering out known EmailMemberInput properties.
+   */
+  private extractTemplateData(input: EmailMemberInput): Record<string, unknown> {
+    const reservedKeys: Set<keyof EmailMemberInput> = new Set([
+      'to',
+      'cc',
+      'bcc',
+      'from',
+      'replyTo',
+      'subject',
+      'html',
+      'text',
+      'attachments',
+      'headers',
+      'tags',
+      'metadata',
+      'template',
+      'data',
+    ])
+
+    const templateData: Record<string, unknown> = {}
+
+    for (const [key, value] of Object.entries(input)) {
+      if (!reservedKeys.has(key as keyof EmailMemberInput)) {
+        templateData[key] = value
+      }
+    }
+
+    return templateData
   }
 }
 

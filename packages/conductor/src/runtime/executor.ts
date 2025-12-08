@@ -822,10 +822,14 @@ export class Executor {
     }
 
     // 4. Find agent config from ensemble definition (if any)
+    // Resolve expressions in the agent config using the execution context
     const agentDef = ensemble.agents?.find(
       (a) => (a as Record<string, unknown>).name === step.agent
     ) as Record<string, unknown> | undefined
-    const agentConfig = (agentDef?.config as Record<string, any>) || undefined
+    const rawAgentConfig = (agentDef?.config as Record<string, any>) || undefined
+    const agentConfig = rawAgentConfig
+      ? (Parser.resolveInterpolation(rawAgentConfig, executionContext) as Record<string, any>)
+      : undefined
 
     // 5. Build agent execution context using helper
     const agentContext = this.buildAgentContext(
@@ -1335,6 +1339,69 @@ export class Executor {
   }
 
   /**
+   * Apply default values from ensemble input schema to the provided input
+   *
+   * The ensemble.input schema can define defaults in two formats:
+   * 1. Simple value: `fieldName: "default value"`
+   * 2. Object with type/default: `fieldName: { type: string, default: "value" }`
+   *
+   * This method merges defaults with the provided input, where input values
+   * take precedence over defaults. Only undefined/missing values get defaults.
+   *
+   * @param ensemble - The ensemble configuration with optional input schema
+   * @param input - The input provided by the trigger (query params, body, etc.)
+   * @returns Input with defaults applied
+   * @private
+   */
+  private applyInputDefaults(
+    ensemble: EnsembleConfig,
+    input: Record<string, any>
+  ): Record<string, any> {
+    // No input schema defined - return input as-is
+    if (!ensemble.input || typeof ensemble.input !== 'object') {
+      this.logger.debug(`[applyInputDefaults] No input schema, returning input as-is`)
+      return input
+    }
+
+    const defaults: Record<string, any> = {}
+
+    // Extract defaults from ensemble.input schema
+    for (const [key, value] of Object.entries(ensemble.input)) {
+      if (value === null || value === undefined) {
+        // Explicit null/undefined means no default
+        continue
+      }
+
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Object format: { type: string, default: value, required?: boolean }
+        const fieldDef = value as Record<string, unknown>
+        if ('default' in fieldDef && fieldDef.default !== undefined) {
+          defaults[key] = fieldDef.default
+        }
+      } else {
+        // Simple format: direct value is the default
+        defaults[key] = value
+      }
+    }
+
+    // Merge defaults with input (input values take precedence)
+    // Only apply default if input value is undefined or not present
+    const result: Record<string, any> = { ...defaults }
+
+    for (const [key, value] of Object.entries(input)) {
+      // Input value takes precedence, even if null
+      // (null is a valid explicit value, undefined means "use default")
+      if (value !== undefined) {
+        result[key] = value
+      }
+    }
+
+    this.logger.debug(`[applyInputDefaults] defaults extracted: ${JSON.stringify(defaults)}`)
+    this.logger.debug(`[applyInputDefaults] final result: ${JSON.stringify(result)}`)
+    return result
+  }
+
+  /**
    * Resolve a script:// URI to a handler function from bundled scripts
    * @private
    */
@@ -1507,13 +1574,18 @@ export class Executor {
       }
     }
 
+    // Apply input defaults from ensemble.input schema
+    // This merges default values with the provided input, where input values take precedence.
+    // Supports both simple defaults (fieldName: "value") and typed definitions (fieldName: { type: string, default: "value" })
+    const inputWithDefaults = this.applyInputDefaults(ensemble, input)
+
     // Context for resolving interpolations
     // Both 'input' and 'trigger' reference the same data for backwards compatibility
     // - 'input' is the original key (for agent step inputs)
     // - 'trigger' is an alias for HTTP request context (method, path, query, headers, body)
     const executionContext: ExecutionContextMap = {
-      input,
-      trigger: input, // Alias for semantic clarity in YAML templates
+      input: inputWithDefaults,
+      trigger: inputWithDefaults, // Alias for semantic clarity in YAML templates
       state: stateManager ? stateManager.getState() : {},
       scoring: scoringState || {},
     }

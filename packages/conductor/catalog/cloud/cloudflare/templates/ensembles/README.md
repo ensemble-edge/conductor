@@ -182,6 +182,48 @@ cp -r catalog/cloud/cloudflare/templates/ensembles/static/ \
 
 3. **Customize as needed** - Edit the YAML files to match your branding
 
+## Referencing Agent Outputs
+
+When using agents in ensembles, reference their outputs using the `${agent-name.output.field}` syntax:
+
+```yaml
+# Ensemble definition
+flow:
+  - agent: my-agent
+    input:
+      data: ${input.someValue}
+
+# Reference agent output with .output. prefix
+output:
+  result: ${my-agent.output.result}        # Correct
+  message: ${my-agent.output.message}      # Correct
+
+# WRONG - missing .output. prefix
+output:
+  result: ${my-agent.result}               # Wrong - will be empty!
+```
+
+### Common Pitfall
+
+The most common mistake is forgetting the `.output.` part:
+
+| Syntax | Result |
+|--------|--------|
+| `${my-agent.output.data}` | Returns the agent's `data` output |
+| `${my-agent.data}` | Returns empty/undefined |
+
+### Available Context Variables
+
+In ensemble YAML, you can reference:
+
+- `${input.field}` - Input passed to the ensemble
+- `${input.params.field}` - URL path parameters (for HTTP triggers)
+- `${input.query.field}` - URL query parameters
+- `${input.body.field}` - Request body fields
+- `${agent-name.output.field}` - Output from a previous agent
+
+---
+
 ## Examples
 
 See the [examples/](examples/) directory for advanced examples including:

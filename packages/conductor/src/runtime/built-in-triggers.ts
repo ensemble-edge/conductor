@@ -437,9 +437,9 @@ function buildInputSchema(ensemble: any): any {
     }
   }
 
-  // If ensemble has inputs (alternative format)
-  if (ensemble.inputs) {
-    for (const [key, value] of Object.entries(ensemble.inputs)) {
+  // If ensemble has input schema defined
+  if (ensemble.input) {
+    for (const [key, value] of Object.entries(ensemble.input)) {
       if (typeof value === 'object' && value !== null) {
         const inputDef = value as InputDefinition
         schema.properties[key] = {

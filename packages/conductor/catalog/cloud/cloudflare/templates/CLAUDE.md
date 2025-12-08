@@ -318,12 +318,17 @@ trigger:
 ### Variable Access
 ```yaml
 ${input.field}                    # Ensemble/agent input
-${agent-name.output}              # Agent output
+${agent-name.output}              # Full agent output object
+${agent-name.output.field}        # Specific field from agent output
 ${agent-name.output.nested.field} # Nested access
 ${state.field}                    # State variable
 ${env.VARIABLE}                   # Environment variable
 ${trigger.options.format}         # CLI trigger options
 ```
+
+> ⚠️ **COMMON PITFALL**: Always use `.output.` to access agent results:
+> - ✅ `${my-agent.output.result}` — Correct
+> - ❌ `${my-agent.result}` — Wrong! Returns empty/undefined
 
 ### Execution Status
 ```yaml
