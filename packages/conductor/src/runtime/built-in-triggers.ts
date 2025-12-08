@@ -866,5 +866,88 @@ export function registerBuiltInTriggers(): void {
     }
   )
 
-  logger.info('[Built-in Triggers] Registered HTTP, Webhook, MCP, and Startup triggers')
+  // ============================================================
+  // Non-Runtime Triggers
+  // These are handled outside the Worker runtime and don't register routes.
+  // They're registered here for schema validation and registry completeness.
+  // ============================================================
+
+  // Build Trigger - runs during Vite build via Conductor plugin
+  registry.register(
+    async () => {
+      // No-op: Build triggers are handled by the Vite plugin during build
+    },
+    {
+      type: 'build',
+      name: 'Build Trigger',
+      description: 'Execute ensemble during Vite build (via Conductor plugin)',
+      schema: z.object({
+        type: z.literal('build'),
+        enabled: z.boolean().optional(),
+        output: z.string().optional(),
+        input: z.record(z.unknown()).optional(),
+        metadata: z.record(z.unknown()).optional(),
+      }),
+      requiresAuth: false,
+      tags: ['build', 'vite', 'deploy'],
+      runtime: false, // Handled by Vite plugin, not at Worker runtime
+    }
+  )
+
+  // CLI Trigger - runs via `ensemble conductor run` command
+  registry.register(
+    async () => {
+      // No-op: CLI triggers are handled by the `ensemble conductor run` command
+    },
+    {
+      type: 'cli',
+      name: 'CLI Trigger',
+      description: 'Execute ensemble from command line via `ensemble conductor run`',
+      schema: z.object({
+        type: z.literal('cli'),
+        command: z.string().min(1),
+        description: z.string().optional(),
+        options: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              type: z.enum(['string', 'number', 'boolean']).optional(),
+              default: z.union([z.string(), z.number(), z.boolean()]).optional(),
+              description: z.string().optional(),
+              required: z.boolean().optional(),
+            })
+          )
+          .optional(),
+        enabled: z.boolean().optional(),
+      }),
+      requiresAuth: false,
+      tags: ['cli', 'command-line', 'local'],
+      runtime: false, // Handled by CLI command, not at Worker runtime
+    }
+  )
+
+  // Cron Trigger - runs via Cloudflare scheduled() handler
+  registry.register(
+    async () => {
+      // No-op: Cron triggers are handled by the scheduled() export and wrangler.toml
+    },
+    {
+      type: 'cron',
+      name: 'Cron Trigger',
+      description: 'Execute ensemble on schedule (configured in wrangler.toml)',
+      schema: z.object({
+        type: z.literal('cron'),
+        cron: z.string().min(1),
+        timezone: z.string().optional(),
+        enabled: z.boolean().optional(),
+        input: z.record(z.unknown()).optional(),
+        metadata: z.record(z.unknown()).optional(),
+      }),
+      requiresAuth: false,
+      tags: ['cron', 'scheduled', 'background'],
+      runtime: false, // Handled by Cloudflare scheduled() handler, not route registration
+    }
+  )
+
+  logger.info('[Built-in Triggers] Registered HTTP, Webhook, MCP, Startup, Build, CLI, and Cron triggers')
 }

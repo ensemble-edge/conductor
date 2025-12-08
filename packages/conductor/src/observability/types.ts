@@ -63,6 +63,11 @@ export interface LogEntry {
 }
 
 /**
+ * Log output format
+ */
+export type LogOutputFormat = 'json' | 'pretty'
+
+/**
  * Logger configuration
  */
 export interface LoggerConfig {
@@ -101,6 +106,14 @@ export interface LoggerConfig {
    * Base context to include in all logs
    */
   baseContext?: LogContext
+
+  /**
+   * Output format for logs
+   * - 'json': Structured JSON (good for production, machine-parseable)
+   * - 'pretty': Dev-friendly format like [conductor:info] Message
+   * @default 'pretty' in development, 'json' in production
+   */
+  outputFormat?: LogOutputFormat
 }
 
 /**

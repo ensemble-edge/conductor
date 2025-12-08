@@ -233,6 +233,21 @@ async function registerErrorPages(
   if (config.errorPages[404]) {
     // Note: Hono's notFound loses generic typing, so we cast to our known type
     app.notFound(async (c) => {
+      // First, try to serve static assets from /assets/*
+      // With run_worker_first = true, we need to explicitly fetch from ASSETS binding
+      const path = c.req.path
+      if (path.startsWith('/assets/') && env.ASSETS) {
+        try {
+          const assetResponse = await env.ASSETS.fetch(c.req.raw)
+          if (assetResponse.status !== 404) {
+            return assetResponse
+          }
+          // Asset not found, continue to 404 page
+        } catch {
+          // ASSETS.fetch failed, continue to 404 page
+        }
+      }
+
       const ensemble = ensembleLoader!.getEnsemble(config.errorPages![404])
       if (!ensemble) {
         return c.text('404 Not Found', 404)
