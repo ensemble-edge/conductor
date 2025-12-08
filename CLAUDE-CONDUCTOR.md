@@ -194,8 +194,13 @@ trigger:
 
 ### Variable Access
 ${input.field}                    # Ensemble/agent input
-${agent-name.output}              # Agent output
+${agent-name.output}              # Full agent output object
+${agent-name.output.field}        # Specific field from agent output
 ${agent-name.output.nested.field} # Nested access
+
+⚠️ COMMON PITFALL: Always use .output. to access agent results:
+  ✅ ${my-agent.output.result}    # Correct
+  ❌ ${my-agent.result}           # Wrong - returns empty/undefined!
 ${state.field}                    # State variable
 ${env.VARIABLE}                   # Environment variable
 ${component.name@v1.0.0}          # Component reference

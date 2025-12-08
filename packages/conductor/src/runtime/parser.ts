@@ -631,7 +631,7 @@ export const EnsembleSchema = z.object({
     .optional(),
   agents: z.array(z.record(z.unknown())).optional(), // Inline agent definitions (legacy/optional)
   flow: z.array(z.lazy(() => FlowStepSchema)).optional(),
-  inputs: z.record(z.unknown()).optional(), // Input schema definition
+  input: z.record(z.unknown()).optional(), // Input schema definition (field defaults with type/default syntax)
   output: EnsembleOutputSchema.optional(), // Conditional outputs with status, headers, redirect, rawBody
   /** Memory configuration for persistent conversation and context */
   memory: z

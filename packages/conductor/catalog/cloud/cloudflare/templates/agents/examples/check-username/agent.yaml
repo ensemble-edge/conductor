@@ -1,0 +1,21 @@
+name: check-username
+operation: code
+handler: ./index.ts
+description: |
+  Check if a username is available for registration.
+
+  This example demonstrates:
+  - Input validation and normalization
+  - Pattern matching for reserved usernames
+  - Generating alternative suggestions
+
+  Replace the mock implementation with your database lookup.
+  See inline comments for D1, KV, and external API examples.
+
+schema:
+  input:
+    username: string
+  output:
+    available: boolean
+    message: string
+    suggestions: string[]?

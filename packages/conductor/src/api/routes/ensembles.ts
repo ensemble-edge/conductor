@@ -212,9 +212,9 @@ ensembles.get('/:name', async (c: ConductorContext) => {
       version: '1.0.0', // Version not stored in config schema
       source: loaded.source,
       triggers,
-      input: config.inputs
+      input: config.input
         ? {
-            schema: config.inputs,
+            schema: config.input,
           }
         : undefined,
       output: config.output

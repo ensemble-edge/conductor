@@ -166,12 +166,19 @@ export class HtmlAgent extends BaseAgent {
       engine.setComponentLoader(componentLoader)
     }
 
+    // Determine template data:
+    // 1. If input.data is explicitly provided, use it
+    // 2. Otherwise, use the entire input object as template data (flat input pattern)
+    // This allows both { data: { title: "..." } } and { title: "..." } input formats
+    const templateData = input.data
+      ? { ...input.data, cookies: readCookies }
+      : {
+          ...this.extractTemplateData(input),
+          cookies: readCookies,
+        }
+
     const templateContext: TemplateContext = {
-      data: {
-        ...input.data,
-        // Add cookies to template data
-        cookies: readCookies,
-      },
+      data: templateData,
       helpers: this.getDefaultHelpers(),
       partials: {},
     }
@@ -289,6 +296,50 @@ export class HtmlAgent extends BaseAgent {
     // If not a URI, it might be a registered partial name
     // For now, return null and let the caller handle
     return null
+  }
+
+  /**
+   * Extract template data from flat input, filtering out HtmlAgentInput-specific fields
+   *
+   * When input is passed as { title: "...", link: "..." } instead of { data: { title: "...", link: "..." } },
+   * this method extracts only the template data fields by filtering out known HtmlAgentInput properties.
+   *
+   * This enables a more ergonomic YAML flow definition:
+   *   flow:
+   *     - agent: html-agent
+   *       input:
+   *         title: ${input.title}    # Direct template data
+   *         link: ${input.link}
+   *
+   * Instead of requiring:
+   *   flow:
+   *     - agent: html-agent
+   *       input:
+   *         data:
+   *           title: ${input.title}  # Nested under 'data'
+   *           link: ${input.link}
+   */
+  private extractTemplateData(input: HtmlAgentInput): Record<string, unknown> {
+    // Known HtmlAgentInput properties that should NOT be passed to the template
+    const reservedKeys: Set<keyof HtmlAgentInput> = new Set([
+      'data',
+      'cookies',
+      'setCookies',
+      'deleteCookies',
+      'template',
+      'layout',
+      'renderOptions',
+    ])
+
+    const templateData: Record<string, unknown> = {}
+
+    for (const [key, value] of Object.entries(input)) {
+      if (!reservedKeys.has(key as keyof HtmlAgentInput)) {
+        templateData[key] = value
+      }
+    }
+
+    return templateData
   }
 
   /**

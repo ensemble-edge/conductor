@@ -129,10 +129,12 @@ export class FormAgent extends BaseAgent {
     const fields = this.getFieldsForStep(currentStep)
 
     // Render form HTML
+    // Support both { data: { ... } } and flat input patterns
+    const formData = input.data ? input.data : this.extractFormData(input)
     const html = await renderForm({
       config: this.formConfig,
       fields,
-      data: input.data || {},
+      data: formData,
       csrfToken,
       currentStep: currentStep?.id,
       stepInfo: currentStep || undefined,
@@ -154,7 +156,8 @@ export class FormAgent extends BaseAgent {
     input: FormMemberInput,
     context: AgentExecutionContext
   ): Promise<FormMemberOutput> {
-    const data = input.data || {}
+    // Support both { data: { ... } } and flat input patterns
+    const data = input.data ? input.data : this.extractFormData(input)
     const errors: ValidationError[] = []
 
     // Check honeypot if configured
@@ -263,6 +266,31 @@ export class FormAgent extends BaseAgent {
       return step.fields
     }
     return this.formConfig.fields || []
+  }
+
+  /**
+   * Extract form data from flat input, filtering out FormMemberInput-specific fields
+   *
+   * When input is passed as { fieldName: "...", anotherField: "..." } instead of { data: { fieldName: "..." } },
+   * this method extracts only the form data fields by filtering out known FormMemberInput properties.
+   */
+  private extractFormData(input: FormMemberInput): Record<string, unknown> {
+    const reservedKeys: Set<keyof FormMemberInput> = new Set([
+      'data',
+      'currentStep',
+      'request',
+      'mode',
+    ])
+
+    const formData: Record<string, unknown> = {}
+
+    for (const [key, value] of Object.entries(input)) {
+      if (!reservedKeys.has(key as keyof FormMemberInput)) {
+        formData[key] = value
+      }
+    }
+
+    return formData
   }
 
   /**
