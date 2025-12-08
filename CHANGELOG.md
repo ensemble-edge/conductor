@@ -1,5 +1,16 @@
 # @ensemble-edge/conductor
 
+## 0.5.0
+
+### Minor Changes
+
+- 3b31f59: Add transform, convert, and chart operations
+
+  New operations:
+  - **transform**: Declarative data transformation with value/merge/input modes, pick/omit/rename fields, defaults, and CSV/XLSX parsing
+  - **convert**: Document format conversion (HTML↔Markdown, DOCX extraction)
+  - **chart**: Data visualization with pure SVG rendering (bar, line, area, pie, donut, scatter, sparkline), themes, annotations, and multiple output formats (SVG, QuickChart URL, Vega-Lite, HTML)
+
 ## 0.4.23
 
 ### Patch Changes
