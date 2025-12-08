@@ -156,15 +156,12 @@ flow:
 
   # Return new key
   - name: respond
-    operation: transform-data
+    operation: transform
     config:
-      input: ${state.create-key}
-      transform: |
-        {
-          "key": $.key,
-          "keyId": $.keyId,
-          "message": "API key created successfully"
-        }
+      input: ${create-key.output}
+      pick: [key, keyId]
+      defaults:
+        message: "API key created successfully"
 ```
 
 ## Environment Variables

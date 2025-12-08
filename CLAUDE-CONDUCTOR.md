@@ -75,7 +75,7 @@ Built-in capabilities ship as catalog templates (real agents/ensembles):
 - catalog/ensembles/system/docs/ → ensembles/system/docs/
 No magic. Framework must support all use cases.
 
-## Operations (14 types)
+## Operations (16 types)
 
 | Operation | Purpose | Config Keys |
 |-----------|---------|-------------|
@@ -89,10 +89,12 @@ No magic. Framework must support all use cases.
 | sms | Send SMS | to, from, body |
 | html | Render HTML | template, data |
 | pdf | Generate PDF | html, filename, format |
-| page | Full-stack page | component, props |
 | form | Generate forms | fields, csrf |
 | queue | Queue messages | action: send|consume, queue, body |
 | docs | API docs | OpenAPI generation |
+| transform | Data transformation | mode: value|merge|input, pick, omit, rename, defaults |
+| convert | Format conversion | from: html|markdown|docx, to: html|markdown, options |
+| chart | Data visualization | type: bar|line|area|pie|scatter|sparkline, data, x, y, output: svg|url|vega|html |
 
 ## Flow Control (TypeScript)
 

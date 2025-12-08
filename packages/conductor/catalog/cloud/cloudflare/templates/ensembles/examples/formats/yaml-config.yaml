@@ -15,37 +15,24 @@ agents:
     operation: transform
     config:
       # Build a configuration object that will be serialized to YAML
-      expression: |
-        {
-          "version": "1.0",
-          "app": {
-            "name": "{{ input.appName }}",
-            "environment": "{{ input.environment }}",
-            "debug": {{ input.debug }}
-          },
-          "database": {
-            "host": "{{ input.dbHost }}",
-            "port": {{ input.dbPort }},
-            "name": "{{ input.dbName }}"
-          },
-          "features": {{ input.features | json }},
-          "logging": {
-            "level": "{{ input.logLevel }}",
-            "format": "json"
-          }
-        }
+      # Expression interpolation (${...}) is resolved by runtime before the agent runs
+      value:
+        version: "1.0"
+        app:
+          name: ${input.appName}
+          environment: ${input.environment}
+          debug: ${input.debug}
+        database:
+          host: ${input.dbHost}
+          port: ${input.dbPort}
+          name: ${input.dbName}
+        features: ${input.features}
+        logging:
+          level: ${input.logLevel}
+          format: "json"
 
 flow:
   - agent: build-config
-    input:
-      appName: ${input.appName}
-      environment: ${input.environment}
-      debug: ${input.debug}
-      dbHost: ${input.dbHost}
-      dbPort: ${input.dbPort}
-      dbName: ${input.dbName}
-      features: ${input.features}
-      logLevel: ${input.logLevel}
 
 input:
   appName:

@@ -248,34 +248,39 @@ export class PluginRegistry {
       }
     )
 
-    // transform-data: Universal data transformation operation
+    // transform: Declarative data transformation operation
+    // Note: The actual transform operation is implemented as an agent operation (TransformAgent)
+    // This registry entry provides metadata for discovery and documentation
     this.register(
-      'transform-data',
+      'transform',
       {
         async execute(operation: OperationConfig, _context: OperationContext) {
-          const { input, transform } = operation.config
+          // This is a stub - actual transform execution happens via TransformAgent
+          // The plugin registry version is for metadata/discovery purposes
+          const { value, input, merge } = operation.config
 
-          // TODO: Implement actual transformation logic
-          // - JSONata expressions
-          // - JavaScript functions
-          // - Template interpolation
-
-          return {
-            _mock: true,
-            input,
-            transform,
-            output: input, // Mock: return input unchanged
+          if (value !== undefined) {
+            return value
           }
+          if (merge && Array.isArray(merge)) {
+            return merge.reduce((acc, item) => ({ ...acc, ...item }), {})
+          }
+          return input
         },
       },
       {
-        name: 'transform-data',
-        description: 'Transform data using JSONata, JavaScript, or templates',
+        name: 'transform',
+        description:
+          'Declarative data transformations (return values, pick/omit fields, merge data)',
         contexts: ['all'],
         tags: ['data', 'transform', 'processing'],
         inputs: {
-          input: 'any (data to transform)',
-          transform: 'string (transformation expression)',
+          value: 'any (literal value to return)',
+          input: 'any (data to transform with modifiers)',
+          merge: 'array (items to merge)',
+          pick: 'string[] (fields to include)',
+          omit: 'string[] (fields to exclude)',
+          defaults: 'object (default values for missing fields)',
         },
         outputs: {
           output: 'any (transformed data)',
