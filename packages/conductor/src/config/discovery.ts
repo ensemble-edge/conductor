@@ -190,7 +190,7 @@ export const DEFAULT_DOCS_DISCOVERY: DocsDiscoveryConfig = {
  * Default scripts discovery configuration
  */
 export const DEFAULT_SCRIPTS_DISCOVERY: ScriptsDiscoveryConfig = {
-  enabled: false, // Scripts disabled by default
+  enabled: true, // Scripts enabled by default (consistent with agents, ensembles, docs)
   directory: 'scripts',
   patterns: ['**/*.ts'],
   excludeDirs: ['node_modules'],

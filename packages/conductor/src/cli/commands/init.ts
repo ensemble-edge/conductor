@@ -248,6 +248,7 @@ export function createInitCommand(): Command {
 
         // Generate project ID for Pulse
         const projectId = randomUUID()
+        console.log(chalk.cyan(`Project ID: ${projectId}`))
 
         // Copy template files
         await copyDirectory(

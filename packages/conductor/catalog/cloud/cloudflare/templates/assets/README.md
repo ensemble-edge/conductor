@@ -102,6 +102,102 @@ export default {
 } satisfies ConductorConfig;
 ```
 
+## Common Use Cases
+
+### Static robots.txt
+
+While the `robots` ensemble provides dynamic control, you can also use a static file:
+
+```
+assets/
+└── public/
+    └── robots.txt    # Served at /assets/public/robots.txt
+```
+
+```txt
+# assets/public/robots.txt
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Allow: /
+
+Sitemap: https://example.com/sitemap.xml
+```
+
+Then configure a redirect in `conductor.config.ts`:
+```typescript
+// Or use ensembles/system/robots.yaml for dynamic control
+```
+
+### Web Manifest (PWA)
+
+```
+assets/
+└── public/
+    └── manifest.json
+```
+
+```json
+{
+  "name": "My App",
+  "short_name": "App",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "/assets/public/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/public/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+### OpenAPI/Swagger Spec
+
+```
+assets/
+└── public/
+    └── openapi.yaml   # Served at /assets/public/openapi.yaml
+```
+
+Reference from your API docs:
+```html
+<script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+<script>
+  SwaggerUIBundle({ url: "/assets/public/openapi.yaml", dom_id: '#swagger' });
+</script>
+```
+
+### Font Files
+
+```
+assets/
+└── public/
+    └── fonts/
+        ├── inter-var.woff2
+        └── mono.woff2
+```
+
+```css
+/* In your CSS */
+@font-face {
+  font-family: 'Inter';
+  src: url('/assets/public/fonts/inter-var.woff2') format('woff2');
+  font-display: swap;
+}
+```
+
+### Well-Known Files
+
+```
+assets/
+└── public/
+    └── .well-known/
+        ├── security.txt      # Security contact info
+        ├── ai-plugin.json    # ChatGPT plugin manifest
+        └── apple-app-site-association  # iOS deep links
+```
+
 ## Best Practices
 
 1. **Optimize assets**: Compress images, minify CSS

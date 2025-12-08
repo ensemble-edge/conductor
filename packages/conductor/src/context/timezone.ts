@@ -241,7 +241,9 @@ export function getCurrentHour(timezone: string): number {
       hour: 'numeric',
       hour12: false,
     })
-    return parseInt(hourStr, 10)
+    // toLocaleString with hour12:false can return "24" at midnight in some locales
+    // (per Unicode CLDR), so normalize to 0-23 range
+    return parseInt(hourStr, 10) % 24
   } catch {
     return new Date().getUTCHours()
   }

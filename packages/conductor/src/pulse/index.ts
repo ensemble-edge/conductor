@@ -177,7 +177,7 @@ export async function sendPulse(
       const acknowledged = response.ok
 
       if (acknowledged) {
-        logger.debug('Pulse sent successfully', {
+        logger.info('Pulse sent', {
           projectId: projectId.slice(0, 8) + '...',
           version: payload.v,
         })
