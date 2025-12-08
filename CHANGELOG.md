@@ -1,5 +1,14 @@
 # @ensemble-edge/conductor
 
+## 0.5.1
+
+### Patch Changes
+
+- cde5532: Documentation and developer experience improvements:
+  - Add output reference syntax warning to AI context docs (CLAUDE-CONDUCTOR.md, templates/CLAUDE.md, ensembles/README.md)
+  - Add example agents for user registration flow (check-username, create-account)
+  - Document common pitfall: use `${agent-name.output.field}` not `${agent-name.field}`
+
 ## 0.5.0
 
 ### Minor Changes
