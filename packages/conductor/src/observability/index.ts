@@ -45,9 +45,16 @@ export type {
   ObservabilityProvider,
   TraceSpan,
   TraceEvent,
+  LogOutputFormat,
 } from './types.js'
 
-export { ConductorLogger, createLogger, setGlobalLogger, getGlobalLogger } from './logger.js'
+export {
+  ConductorLogger,
+  createLogger,
+  setGlobalLogger,
+  getGlobalLogger,
+  resetEnvironmentCache,
+} from './logger.js'
 
 export type { OpenTelemetryConfig } from './opentelemetry.js'
 export { OpenTelemetryLogger, createOpenTelemetryLogger } from './opentelemetry.js'

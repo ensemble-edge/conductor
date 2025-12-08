@@ -81,6 +81,19 @@ export interface TriggerMetadata {
    * Plugin that registered this trigger (optional)
    */
   plugin?: string
+
+  /**
+   * Whether this trigger registers routes/handlers at Worker runtime.
+   *
+   * - true (default): Trigger registers Hono routes or event handlers during startup
+   * - false: Trigger is handled elsewhere (build-time, CLI command, Cloudflare scheduled handler)
+   *
+   * Non-runtime triggers are silently skipped during route registration.
+   * Examples: build (Vite plugin), cli (ensemble conductor run), cron (wrangler.toml scheduled)
+   *
+   * @default true
+   */
+  runtime?: boolean
 }
 
 /**
@@ -192,6 +205,16 @@ export class TriggerRegistry {
     }
 
     for (const trigger of ensemble.trigger) {
+      const metadata = this.getMetadata(trigger.type)
+
+      // Skip non-runtime triggers silently - they're handled elsewhere:
+      // - build: Vite plugin runs these during build
+      // - cli: `ensemble conductor run` command handles these
+      // - cron: Cloudflare scheduled() handler, configured in wrangler.toml
+      if (metadata?.runtime === false) {
+        continue
+      }
+
       const handler = this.getHandler(trigger.type)
 
       if (!handler) {
