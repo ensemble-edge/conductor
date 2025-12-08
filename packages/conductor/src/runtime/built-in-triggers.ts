@@ -949,5 +949,7 @@ export function registerBuiltInTriggers(): void {
     }
   )
 
-  logger.info('[Built-in Triggers] Registered HTTP, Webhook, MCP, Startup, Build, CLI, and Cron triggers')
+  logger.info(
+    '[Built-in Triggers] Registered HTTP, Webhook, MCP, Startup, Build, CLI, and Cron triggers'
+  )
 }

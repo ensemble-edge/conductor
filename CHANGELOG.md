@@ -1,5 +1,16 @@
 # @ensemble-edge/conductor
 
+## 0.4.21
+
+### Patch Changes
+
+- 9622cb6: - Fix timezone `getCurrentHour()` returning 24 at midnight (now correctly returns 0)
+  - Enable scripts discovery by default (`DEFAULT_SCRIPTS_DISCOVERY.enabled: true`)
+  - Improve Pulse visibility: log at info level when pulse is sent
+  - Show Project ID during `conductor init`
+  - Add user-facing test templates (agent, ensemble, error-handling tests)
+  - Expand assets README with common use cases (robots.txt, PWA, OpenAPI, fonts, well-known files)
+
 ## 0.4.20
 
 ### Patch Changes
