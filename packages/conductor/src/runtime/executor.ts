@@ -42,6 +42,9 @@ import { HtmlMember } from '../agents/html/html-agent.js'
 import { PdfMember } from '../agents/pdf/pdf-agent.js'
 import { CookiesAgent } from '../agents/cookies/cookies-agent.js'
 import { TelemetryAgent } from '../agents/telemetry/telemetry-agent.js'
+import { TransformAgent } from '../agents/transform/transform-agent.js'
+import { ConvertAgent } from '../agents/convert/convert-agent.js'
+import { ChartAgent } from '../agents/chart/chart-agent.js'
 import { getBuiltInRegistry } from '../agents/built-in/registry.js'
 import { Result, type AsyncResult } from '../types/result.js'
 import {
@@ -488,6 +491,15 @@ export class Executor {
 
       case Operation.telemetry:
         return Result.ok(new TelemetryAgent(config))
+
+      case Operation.transform:
+        return Result.ok(new TransformAgent(config))
+
+      case Operation.convert:
+        return Result.ok(new ConvertAgent(config))
+
+      case Operation.chart:
+        return Result.ok(new ChartAgent(config))
 
       case Operation.code:
         // Try to create CodeAgent (supports both inline and script:// URIs)

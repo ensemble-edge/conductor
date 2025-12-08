@@ -23,6 +23,9 @@
  * - pdf: PDF document generation
  * - queue: Cloudflare Queues message processing and batch operations
  * - autorag: Cloudflare AutoRAG for automatic retrieval-augmented generation
+ * - transform: Declarative data transformations (return values, pick/omit fields, merge)
+ * - convert: Document format conversion (HTML to Markdown, DOCX extraction, Markdown rendering)
+ * - chart: Data visualization (bar, line, area, pie charts as SVG, image URLs, or specs)
  *
  * Note: Documentation is now handled via the first-class `docs/` directory,
  * not as an operation. See src/docs/ for the docs module.
@@ -44,6 +47,9 @@ export enum Operation {
   autorag = 'autorag',
   cookies = 'cookies',
   telemetry = 'telemetry',
+  transform = 'transform',
+  convert = 'convert',
+  chart = 'chart',
 }
 
 /**
@@ -66,6 +72,9 @@ export type OperationType =
   | 'autorag'
   | 'cookies'
   | 'telemetry'
+  | 'transform'
+  | 'convert'
+  | 'chart'
 
 /**
  * Type guard to check if a value is a valid Operation
@@ -102,6 +111,9 @@ export const getOperationDisplayName = (operation: Operation): string => {
     [Operation.autorag]: 'AutoRAG Agent',
     [Operation.cookies]: 'Cookies Agent',
     [Operation.telemetry]: 'Telemetry Agent',
+    [Operation.transform]: 'Transform Agent',
+    [Operation.convert]: 'Convert Agent',
+    [Operation.chart]: 'Chart Agent',
   }
   return names[operation]
 }
@@ -127,6 +139,12 @@ export const getOperationDescription = (operation: Operation): string => {
     [Operation.autorag]: 'Automatic retrieval-augmented generation with Cloudflare AutoRAG',
     [Operation.cookies]: 'HTTP cookie management with consent awareness',
     [Operation.telemetry]: 'Emit custom analytics events to Cloudflare Analytics Engine',
+    [Operation.transform]:
+      'Declarative data transformations (return values, pick/omit fields, merge)',
+    [Operation.convert]:
+      'Document format conversion (HTML to Markdown, DOCX extraction, Markdown rendering)',
+    [Operation.chart]:
+      'Data visualization (bar, line, area, pie charts as SVG, image URLs, or specs)',
   }
   return descriptions[operation]
 }
@@ -149,7 +167,9 @@ export const isExternalOperation = (operation: Operation): boolean => {
  * Check if an operation generates content
  */
 export const isContentGenerationOperation = (operation: Operation): boolean => {
-  return [Operation.think, Operation.html, Operation.pdf, Operation.form].includes(operation)
+  return [Operation.think, Operation.html, Operation.pdf, Operation.form, Operation.chart].includes(
+    operation
+  )
 }
 
 /**

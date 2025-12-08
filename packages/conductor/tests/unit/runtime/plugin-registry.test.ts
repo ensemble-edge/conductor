@@ -61,8 +61,8 @@ describe('PluginRegistry', () => {
       expect(registry.has('fetch-data')).toBe(true)
     })
 
-    it('should have transform-data operation registered', () => {
-      expect(registry.has('transform-data')).toBe(true)
+    it('should have transform operation registered', () => {
+      expect(registry.has('transform')).toBe(true)
     })
 
     it('should have custom-code operation registered', () => {
@@ -72,7 +72,7 @@ describe('PluginRegistry', () => {
     it('should list all built-in operations', () => {
       const operations = registry.list()
       expect(operations).toContain('fetch-data')
-      expect(operations).toContain('transform-data')
+      expect(operations).toContain('transform')
       expect(operations).toContain('custom-code')
     })
   })

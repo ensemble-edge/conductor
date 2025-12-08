@@ -229,7 +229,7 @@ Agents can introspect available components:
 - ctx.agentRegistry.list() / ctx.agentRegistry.get('name')
 - ctx.ensembleRegistry.list() / ctx.ensembleRegistry.get('name')
 
-## Operations (13 types)
+## Operations (16 types)
 
 | Operation | Purpose | Config Keys |
 |-----------|---------|-------------|
@@ -246,6 +246,9 @@ Agents can introspect available components:
 | form | Generate forms | fields, csrf |
 | queue | Queue messages | action: send|consume, queue, body |
 | docs | API docs | OpenAPI generation |
+| transform | Data transformation | mode: value|merge|input, pick, omit, rename, defaults |
+| convert | Format conversion | from: html|markdown|docx, to: html|markdown, options |
+| chart | Data visualization | type: bar|line|area|pie|scatter|sparkline, data, x, y, output: svg|url|vega|html |
 
 ## Triggers (8 types)
 
