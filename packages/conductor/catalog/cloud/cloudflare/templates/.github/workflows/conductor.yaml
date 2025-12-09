@@ -1,0 +1,383 @@
+# Conductor Deployment Workflow
+#
+# Triggered by git tag pushes. Tags are the deployment mechanism:
+# - components/* tags → Sync content to KV (hot-swappable)
+# - logic/* tags → Rebuild Worker (requires compilation)
+#
+# Tag format: {prefix}/{type}/{name}/{slot}
+# Examples:
+#   components/prompts/extraction/v1.0.0      → Sync prompt to KV
+#   components/prompts/extraction/production  → Sync prompt to KV
+#   logic/agents/classifier/production        → Rebuild production Worker
+#
+# Philosophy: Git is the single source of truth. Tags trigger deployments.
+# CLI (edgit) creates tags, this workflow handles the actual deployment.
+
+name: Conductor Deploy
+
+on:
+  push:
+    tags:
+      # Component tags (YAML/MD/JSON files - hot-swappable via KV)
+      - 'components/**'
+      # Logic tags (TypeScript - requires Worker rebuild)
+      - 'logic/**'
+  workflow_dispatch:
+    inputs:
+      sync_full:
+        description: 'Run full sync (rebuild all from tags)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: conductor-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Parse the tag and determine what action to take
+  # ─────────────────────────────────────────────────────────────────────────────
+  parse:
+    runs-on: ubuntu-latest
+    outputs:
+      tag_type: ${{ steps.parse.outputs.tag_type }}
+      component_type: ${{ steps.parse.outputs.component_type }}
+      component_name: ${{ steps.parse.outputs.component_name }}
+      slot: ${{ steps.parse.outputs.slot }}
+      environment: ${{ steps.parse.outputs.environment }}
+      is_version: ${{ steps.parse.outputs.is_version }}
+    steps:
+      - name: Parse tag
+        id: parse
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "Parsing tag: $TAG"
+
+          # Determine tag type (components vs logic)
+          if [[ "$TAG" == components/* ]]; then
+            echo "tag_type=component" >> $GITHUB_OUTPUT
+            # Remove 'components/' prefix for further parsing
+            REMAINDER="${TAG#components/}"
+          elif [[ "$TAG" == logic/* ]]; then
+            echo "tag_type=logic" >> $GITHUB_OUTPUT
+            # Remove 'logic/' prefix for further parsing
+            REMAINDER="${TAG#logic/}"
+          else
+            echo "tag_type=unknown" >> $GITHUB_OUTPUT
+            echo "Unrecognized tag format: $TAG"
+            exit 0
+          fi
+
+          # Parse: {type}/{name}/{slot}
+          # e.g., prompts/extraction/production → type=prompts, name=extraction, slot=production
+          COMPONENT_TYPE=$(echo "$REMAINDER" | cut -d'/' -f1)
+          COMPONENT_NAME=$(echo "$REMAINDER" | cut -d'/' -f2)
+          SLOT=$(echo "$REMAINDER" | cut -d'/' -f3)
+
+          echo "component_type=$COMPONENT_TYPE" >> $GITHUB_OUTPUT
+          echo "component_name=$COMPONENT_NAME" >> $GITHUB_OUTPUT
+          echo "slot=$SLOT" >> $GITHUB_OUTPUT
+
+          # Check if slot is a semver version (v1.0.0, v2.1.0-beta, etc.)
+          if [[ "$SLOT" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "is_version=true" >> $GITHUB_OUTPUT
+            echo "environment=" >> $GITHUB_OUTPUT
+          else
+            echo "is_version=false" >> $GITHUB_OUTPUT
+            echo "environment=$SLOT" >> $GITHUB_OUTPUT
+          fi
+
+          echo "─────────────────────────────────────────"
+          echo "Tag Type:       $(cat $GITHUB_OUTPUT | grep tag_type | cut -d= -f2)"
+          echo "Component Type: $COMPONENT_TYPE"
+          echo "Component Name: $COMPONENT_NAME"
+          echo "Slot:           $SLOT"
+          echo "Is Version:     $(cat $GITHUB_OUTPUT | grep is_version | cut -d= -f2)"
+          echo "─────────────────────────────────────────"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Sync component to KV (for component/* tags)
+  # ─────────────────────────────────────────────────────────────────────────────
+  sync-component:
+    needs: parse
+    if: needs.parse.outputs.tag_type == 'component'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Read conductor config
+        id: config
+        run: |
+          # Extract KV namespace binding name from conductor.config.ts
+          KV_NS=$(npx tsx -e "
+            import c from './conductor.config.ts';
+            console.log(c.kv?.namespace || 'COMPONENTS_KV');
+          " 2>/dev/null || echo "COMPONENTS_KV")
+          echo "kv_namespace=$KV_NS" >> $GITHUB_OUTPUT
+
+          # Extract retention policy
+          RETENTION=$(npx tsx -e "
+            import c from './conductor.config.ts';
+            console.log(c.versions?.retention || 'last-10');
+          " 2>/dev/null || echo "last-10")
+          echo "retention=$RETENTION" >> $GITHUB_OUTPUT
+
+      - name: Sync to KV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          COMPONENT_TYPE="${{ needs.parse.outputs.component_type }}"
+          COMPONENT_NAME="${{ needs.parse.outputs.component_name }}"
+          SLOT="${{ needs.parse.outputs.slot }}"
+
+          # KV key format: {type}/{name}@{slot}
+          KV_KEY="${COMPONENT_TYPE}/${COMPONENT_NAME}@${SLOT}"
+
+          echo "Syncing component to KV..."
+          echo "  Tag:     $TAG"
+          echo "  KV Key:  $KV_KEY"
+
+          # Find the component file
+          # Components can be in components/{type}/{name}.{ext} or components/{type}/{name}/index.{ext}
+          FILE_PATH=""
+          for ext in yaml yml md json ts; do
+            if [ -f "components/${COMPONENT_TYPE}/${COMPONENT_NAME}.${ext}" ]; then
+              FILE_PATH="components/${COMPONENT_TYPE}/${COMPONENT_NAME}.${ext}"
+              break
+            fi
+            if [ -f "components/${COMPONENT_TYPE}/${COMPONENT_NAME}/index.${ext}" ]; then
+              FILE_PATH="components/${COMPONENT_TYPE}/${COMPONENT_NAME}/index.${ext}"
+              break
+            fi
+          done
+
+          if [ -z "$FILE_PATH" ]; then
+            echo "Error: Could not find component file for ${COMPONENT_TYPE}/${COMPONENT_NAME}"
+            echo "Looked for: components/${COMPONENT_TYPE}/${COMPONENT_NAME}.{yaml,yml,md,json,ts}"
+            exit 1
+          fi
+
+          echo "  File:    $FILE_PATH"
+
+          # Get content at tagged commit
+          CONTENT=$(git show HEAD:"$FILE_PATH")
+          COMMIT_SHA=$(git rev-parse HEAD)
+
+          # Determine content type
+          case "$FILE_PATH" in
+            *.yaml|*.yml) CONTENT_TYPE="application/yaml" ;;
+            *.json) CONTENT_TYPE="application/json" ;;
+            *.md) CONTENT_TYPE="text/markdown" ;;
+            *) CONTENT_TYPE="text/plain" ;;
+          esac
+
+          # Sync to KV via Cloudflare API
+          echo "  Uploading to KV..."
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values/${KV_KEY}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: ${CONTENT_TYPE}" \
+            --data-binary "$CONTENT")
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✓ Synced: $KV_KEY"
+            echo "  Commit: ${COMMIT_SHA:0:7}"
+          else
+            echo "✗ Failed to sync: HTTP $HTTP_CODE"
+            cat /tmp/response.txt
+            exit 1
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Rebuild Worker (for logic/* environment tags)
+  # ─────────────────────────────────────────────────────────────────────────────
+  rebuild-worker:
+    needs: parse
+    if: needs.parse.outputs.tag_type == 'logic' && needs.parse.outputs.is_version == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Read conductor config
+        id: config
+        run: |
+          ENV="${{ needs.parse.outputs.environment }}"
+
+          # Get worker name for this environment from conductor.config.ts
+          WORKER=$(npx tsx -e "
+            import c from './conductor.config.ts';
+            const env = '$ENV';
+            const name = c.name || require('./package.json').name;
+            const workers = c.workers || {};
+            console.log(workers[env] || (env === 'main' ? name : name + '-' + env));
+          " 2>/dev/null)
+
+          echo "worker_name=$WORKER" >> $GITHUB_OUTPUT
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+
+          echo "Worker name: $WORKER"
+          echo "Environment: $ENV"
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          ENV="${{ steps.config.outputs.environment }}"
+          WORKER="${{ steps.config.outputs.worker_name }}"
+
+          echo "Deploying Worker: $WORKER (environment: $ENV)"
+
+          if [[ "$ENV" == "main" ]]; then
+            npx wrangler deploy
+          else
+            npx wrangler deploy --env "$ENV"
+          fi
+
+          echo "✓ Deployed Worker for environment: $ENV"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Full sync (manual trigger or recovery)
+  # Rebuilds all KV entries and Workers from current git tags
+  # ─────────────────────────────────────────────────────────────────────────────
+  sync-full:
+    if: github.event.inputs.sync_full == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Full sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
+        run: |
+          echo "Running full sync from git tags..."
+          echo "═══════════════════════════════════════════════════════════════"
+
+          # Get all conductor tags
+          COMPONENT_TAGS=$(git tag -l "components/*/*/*")
+          LOGIC_TAGS=$(git tag -l "logic/*/*/*")
+
+          echo "Found component tags:"
+          echo "$COMPONENT_TAGS" | head -20
+          [ $(echo "$COMPONENT_TAGS" | wc -l) -gt 20 ] && echo "  ... and more"
+
+          echo ""
+          echo "Found logic tags:"
+          echo "$LOGIC_TAGS" | head -20
+          [ $(echo "$LOGIC_TAGS" | wc -l) -gt 20 ] && echo "  ... and more"
+
+          echo ""
+          echo "───────────────────────────────────────────────────────────────"
+          echo "Syncing components to KV..."
+          echo ""
+
+          for TAG in $COMPONENT_TAGS; do
+            # Parse tag: components/{type}/{name}/{slot}
+            REMAINDER="${TAG#components/}"
+            COMPONENT_TYPE=$(echo "$REMAINDER" | cut -d'/' -f1)
+            COMPONENT_NAME=$(echo "$REMAINDER" | cut -d'/' -f2)
+            SLOT=$(echo "$REMAINDER" | cut -d'/' -f3)
+
+            KV_KEY="${COMPONENT_TYPE}/${COMPONENT_NAME}@${SLOT}"
+
+            # Find file
+            FILE_PATH=""
+            for ext in yaml yml md json ts; do
+              if [ -f "components/${COMPONENT_TYPE}/${COMPONENT_NAME}.${ext}" ]; then
+                FILE_PATH="components/${COMPONENT_TYPE}/${COMPONENT_NAME}.${ext}"
+                break
+              fi
+            done
+
+            if [ -n "$FILE_PATH" ]; then
+              CONTENT=$(git show "${TAG}:${FILE_PATH}" 2>/dev/null || echo "")
+              if [ -n "$CONTENT" ]; then
+                curl -s -X PUT \
+                  "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values/${KV_KEY}" \
+                  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                  -H "Content-Type: text/plain" \
+                  --data-binary "$CONTENT" > /dev/null
+                echo "  ✓ $KV_KEY"
+              fi
+            fi
+          done
+
+          echo ""
+          echo "───────────────────────────────────────────────────────────────"
+          echo "Rebuilding Workers for environment tags..."
+          echo ""
+
+          # Get unique environments from logic tags
+          ENVS=$(echo "$LOGIC_TAGS" | rev | cut -d'/' -f1 | rev | grep -v "^v[0-9]" | sort -u)
+
+          # Add 'main' if not present
+          if ! echo "$ENVS" | grep -q "^main$"; then
+            ENVS="main $ENVS"
+          fi
+
+          for ENV in $ENVS; do
+            echo "  Rebuilding: $ENV"
+            if [[ "$ENV" == "main" ]]; then
+              npx wrangler deploy 2>/dev/null && echo "    ✓ Deployed"
+            else
+              npx wrangler deploy --env "$ENV" 2>/dev/null && echo "    ✓ Deployed"
+            fi
+          done
+
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "✓ Full sync complete"

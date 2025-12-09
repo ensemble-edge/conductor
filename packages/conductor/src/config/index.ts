@@ -16,9 +16,13 @@ export type {
   PublicAssetsConfig,
   ProtectedAssetsConfig,
   ApiConfig,
+  // Deployment configuration types
+  VersionsConfig,
+  KVConfig,
+  VersionRetention,
 } from './types.js'
 
-export { DEFAULT_CONFIG } from './types.js'
+export { DEFAULT_CONFIG, defineConfig } from './types.js'
 
 // Discovery configuration
 export type {

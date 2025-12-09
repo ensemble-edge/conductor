@@ -108,6 +108,7 @@ export type {
 
 // Config Module (full config type for conductor.config.ts)
 export type { ConductorConfig as FullConductorConfig, CloudConfig } from './config/types.js'
+export { defineConfig } from './config/types.js'
 
 // Discovery Configuration (for build-time Vite plugins)
 export type {
