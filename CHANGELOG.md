@@ -1,5 +1,13 @@
 # @ensemble-edge/conductor
 
+## 0.5.4
+
+### Patch Changes
+
+- d1acbbd: docs: update quick start to use ensemble conductor start
+  - Replace `pnpm run build && npx wrangler dev` with `ensemble conductor start`
+  - Simplifies getting started experience with unified CLI command
+
 ## 0.5.3
 
 ### Patch Changes
