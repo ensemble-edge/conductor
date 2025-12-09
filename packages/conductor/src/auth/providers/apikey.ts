@@ -220,7 +220,7 @@ export function createApiKeyValidator(env: ConductorEnv): ApiKeyValidator | null
   if (env.API_KEY_SOURCES) {
     sources = env.API_KEY_SOURCES.split(',')
       .map((s: string) => s.trim())
-      .filter((s): s is 'header' | 'cookie' => s === 'header' || s === 'cookie')
+      .filter((s: string): s is 'header' | 'cookie' => s === 'header' || s === 'cookie')
   }
 
   return new ApiKeyValidator({
