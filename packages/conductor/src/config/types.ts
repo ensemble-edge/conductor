@@ -59,6 +59,44 @@ export interface ConductorConfig {
    * For protected assets, configure `api.protectedAssets`.
    */
   assets?: PublicAssetsConfig
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Deployment Configuration
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Environment tags that trigger deployments.
+   *
+   * 'main' is always implicit (maps to HEAD of main branch).
+   * Each environment gets its own Worker deployment.
+   *
+   * @default ['main']
+   * @example ['staging', 'production']
+   */
+  environments?: string[]
+
+  /**
+   * Worker name overrides per environment.
+   *
+   * By default, worker names follow the pattern:
+   * - main environment: {project-name}
+   * - other environments: {project-name}-{env}
+   *
+   * Use this to customize worker names per environment.
+   *
+   * @example { main: 'my-app', staging: 'my-app-staging', production: 'my-app-prod' }
+   */
+  workers?: Record<string, string>
+
+  /**
+   * Version tag settings for deployment management.
+   */
+  versions?: VersionsConfig
+
+  /**
+   * KV configuration for component storage.
+   */
+  kv?: KVConfig
 }
 
 /**
@@ -752,6 +790,69 @@ export interface CloudConfig {
   pulse?: boolean
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Deployment Configuration Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Version retention policy
+ *
+ * Controls how many version tags to keep in KV per component.
+ * Retention is enforced on sync: when a new version tag is synced,
+ * old versions beyond the limit are automatically deleted from KV.
+ */
+export type VersionRetention = 'all' | 'last-5' | 'last-10' | 'last-20' | 'last-50'
+
+/**
+ * Version tag settings for deployment management
+ */
+export interface VersionsConfig {
+  /**
+   * Sync semver tags (v1.0.0, v1.1.0, etc.) to KV
+   *
+   * When enabled, version tags are synced to KV alongside environment tags,
+   * allowing pinned version references (e.g., prompts/extraction@v1.0.0).
+   *
+   * @default true
+   */
+  sync?: boolean
+
+  /**
+   * Retention policy - how many versions to keep per component
+   *
+   * Enforced on sync: when a new version is synced, old versions
+   * beyond the retention limit are automatically deleted from KV.
+   *
+   * - 'all': Keep all versions (use with caution)
+   * - 'last-5': Keep 5 most recent versions
+   * - 'last-10': Keep 10 most recent versions (default)
+   * - 'last-20': Keep 20 most recent versions
+   * - 'last-50': Keep 50 most recent versions
+   *
+   * Note: Environment tags (@main, @staging, @production) are never deleted.
+   * Version tags referenced by environment tags are protected.
+   *
+   * @default 'last-10'
+   */
+  retention?: VersionRetention
+}
+
+/**
+ * KV configuration for component storage
+ */
+export interface KVConfig {
+  /**
+   * KV namespace binding name in wrangler.toml
+   *
+   * This is the binding name used to access the KV namespace where
+   * components are stored. Must match the binding in wrangler.toml.
+   *
+   * @default 'COMPONENTS_KV'
+   * @example 'COMPONENTS_KV'
+   */
+  namespace?: string
+}
+
 /**
  * Default configuration values
  */
@@ -824,4 +925,37 @@ export const DEFAULT_CONFIG: ConductorConfig = {
       },
     },
   },
+  // Deployment defaults
+  environments: ['main'],
+  versions: {
+    sync: true,
+    retention: 'last-10',
+  },
+  kv: {
+    namespace: 'COMPONENTS_KV',
+  },
+}
+
+/**
+ * Define a Conductor configuration with full TypeScript type safety
+ *
+ * This is a simple identity function that provides autocomplete and
+ * type checking for your conductor.config.ts file.
+ *
+ * @example
+ * ```typescript
+ * // conductor.config.ts
+ * import { defineConfig } from '@ensemble-edge/conductor';
+ *
+ * export default defineConfig({
+ *   environments: ['staging', 'production'],
+ *   versions: {
+ *     sync: true,
+ *     retention: 'last-10',
+ *   },
+ * });
+ * ```
+ */
+export function defineConfig(config: ConductorConfig): ConductorConfig {
+  return config
 }
