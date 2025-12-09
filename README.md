@@ -41,15 +41,10 @@ Think of it as the runtime engine for your AI workflows—agents are musicians, 
 npx @ensemble-edge/ensemble conductor init my-project
 cd my-project
 
-# Install and build
+# Install and start dev server
 pnpm install
-pnpm run build
-
-# Start development server
-npx wrangler dev --local-protocol http
+ensemble conductor start
 ```
-
-> **Note**: Dev container users should add `--ip 0.0.0.0` flag: `npx wrangler dev --local-protocol http --ip 0.0.0.0`
 
 > **Tip**: For CI/CD pipelines, use the `-y` flag to skip all interactive prompts:
 > ```bash
@@ -694,11 +689,8 @@ Create a new Conductor project
 ensemble conductor init my-project
 cd my-project
 pnpm install
-pnpm run build
-npx wrangler dev --local-protocol http
+ensemble conductor start
 ```
-
-> **Note**: Dev container users should add `--ip 0.0.0.0` flag
 
 > **Tip**: For CI/automated environments, use `--yes` to skip all interactive prompts:
 > ```bash
