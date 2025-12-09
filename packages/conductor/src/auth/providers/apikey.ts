@@ -10,12 +10,6 @@
  * - Metadata extraction
  * - Expiration checking
  *
- * SECURITY NOTE: Query parameter API keys are discouraged because they:
- * - Appear in server access logs
- * - Are stored in browser history
- * - Can leak via referer headers
- * - May be cached by proxies
- *
  * @see https://developers.cloudflare.com/kv
  */
 
@@ -32,27 +26,11 @@ export interface ApiKeyConfig {
   /** KV namespace binding name */
   kvNamespace: string
 
-  /**
-   * Key sources to check (default: ['header'] for security)
-   *
-   * SECURITY WARNING: 'query' is strongly discouraged because API keys in URLs:
-   * - Appear in server access logs
-   * - Are stored in browser history
-   * - Can leak via Referer headers
-   * - May be cached by proxies/CDNs
-   *
-   * Only use 'query' if you understand the risks and have a specific need.
-   */
-  sources?: ('header' | 'query' | 'cookie')[]
+  /** Key sources to check (default: ['header']) */
+  sources?: ('header' | 'cookie')[]
 
   /** Header name for API key (default: 'X-API-Key') */
   headerName?: string
-
-  /**
-   * Query parameter name for API key (default: 'api_key')
-   * @deprecated Use header-based auth instead for security
-   */
-  queryName?: string
 
   /** Cookie name for API key (default: 'api_key') */
   cookieName?: string
@@ -73,14 +51,11 @@ export class ApiKeyValidator implements AuthValidator {
   /**
    * Extract API key from request
    *
-   * Checks sources in order of preference: header → cookie → query
-   * Query is checked last and only if explicitly enabled (security risk)
+   * Checks sources in order of preference: header → cookie
    */
   extractToken(request: Request): string | null {
-    // Default to header-only for security (no query params)
     const sources = this.config.sources || ['header']
     const headerName = this.config.headerName || 'X-API-Key'
-    const queryName = this.config.queryName || 'api_key'
     const cookieName = this.config.cookieName || 'api_key'
 
     // Try header first (most secure)
@@ -100,20 +75,6 @@ export class ApiKeyValidator implements AuthValidator {
             return decodeURIComponent(value)
           }
         }
-      }
-    }
-
-    // Try query last (security risk - only if explicitly enabled)
-    if (sources.includes('query')) {
-      const url = new URL(request.url)
-      const queryValue = url.searchParams.get(queryName)
-      if (queryValue) {
-        // Log a warning - API keys in URLs are a security risk
-        logger.warn('API key extracted from query parameter - this is insecure', {
-          source: 'query',
-          warning: 'URLs appear in logs, browser history, and Referer headers',
-        })
-        return queryValue
       }
     }
 
@@ -240,7 +201,6 @@ export class ApiKeyValidator implements AuthValidator {
  * Environment variables:
  * - API_KEY_KV_NAMESPACE: KV binding name (default: 'API_KEYS')
  * - API_KEY_SOURCES: Comma-separated sources (default: 'header')
- *   WARNING: Including 'query' is a security risk
  * - API_KEY_HEADER_NAME: Custom header name (default: 'X-API-Key')
  * - API_KEY_COOKIE_NAME: Custom cookie name (default: 'api_key')
  * - API_KEY_PREFIX: Required key prefix
@@ -255,28 +215,18 @@ export function createApiKeyValidator(env: ConductorEnv): ApiKeyValidator | null
     return null
   }
 
-  // Parse sources - default to header-only for security
-  let sources: ('header' | 'query' | 'cookie')[] = ['header']
+  // Parse sources - default to header-only
+  let sources: ('header' | 'cookie')[] = ['header']
   if (env.API_KEY_SOURCES) {
-    sources = env.API_KEY_SOURCES.split(',').map((s: string) => s.trim()) as (
-      | 'header'
-      | 'query'
-      | 'cookie'
-    )[]
-
-    // Warn if query is enabled
-    if (sources.includes('query')) {
-      logger.warn('API_KEY_SOURCES includes "query" - this is insecure', {
-        warning: 'API keys in URLs appear in logs, browser history, and Referer headers',
-      })
-    }
+    sources = env.API_KEY_SOURCES.split(',')
+      .map((s: string) => s.trim())
+      .filter((s): s is 'header' | 'cookie' => s === 'header' || s === 'cookie')
   }
 
   return new ApiKeyValidator({
     kvNamespace,
     sources,
     headerName: env.API_KEY_HEADER_NAME || 'X-API-Key',
-    queryName: env.API_KEY_QUERY_NAME || 'api_key',
     cookieName: env.API_KEY_COOKIE_NAME || 'api_key',
     prefix: env.API_KEY_PREFIX,
     stealthMode: env.API_KEY_STEALTH_MODE === 'true',

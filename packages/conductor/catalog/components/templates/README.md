@@ -149,9 +149,10 @@ edgit components add main-layout templates/layouts/main.html template
 edgit tag create header v1.0.0
 edgit tag create main-layout v1.0.0
 
-# Deploy to production
-edgit deploy set header v1.0.0 --to production
-edgit deploy set main-layout v1.0.0 --to production
+# Set production environment tags
+edgit tag set header prod v1.0.0
+edgit tag set main-layout prod v1.0.0
+edgit push --tags --force
 ```
 
 ### 2. Manual KV Storage (Alternative)

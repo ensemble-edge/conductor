@@ -484,11 +484,9 @@ edgit components add header ./templates/components/header.html template
 # Create version tag
 edgit tag create header v1.0.0
 
-# Deploy to production
-edgit deploy set header v1.0.0 --to production
-
-# Deploy latest version
-edgit deploy set header latest --to production
+# Set production environment tag
+edgit tag set header prod v1.0.0
+edgit push --tags --force
 ```
 
 ### Manual KV Storage

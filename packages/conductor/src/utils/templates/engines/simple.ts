@@ -231,26 +231,6 @@ export class SimpleTemplateEngine extends BaseTemplateEngine {
   }
 
   /**
-   * Process {{#if condition}}...{{else}}...{{/if}} blocks (non-recursive, legacy)
-   * @deprecated Use processConditionalsRecursive instead
-   */
-  private processConditionals(template: string, data: Record<string, unknown>): string {
-    return template.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, key, content) => {
-      const value = this.resolveValue(data, key)
-
-      // Check if there's an {{else}} block
-      const elseMatch = content.match(/^([\s\S]*?)\{\{else\}\}([\s\S]*)$/)
-
-      if (elseMatch) {
-        const [, ifContent, elseContent] = elseMatch
-        return value ? ifContent : elseContent
-      }
-
-      return value ? content : ''
-    })
-  }
-
-  /**
    * Process {{#each array}}...{{/each}} blocks
    */
   private processLoops(template: string, data: Record<string, unknown>): string {

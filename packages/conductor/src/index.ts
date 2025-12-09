@@ -19,9 +19,6 @@ export {
 export {
   PluginRegistry,
   getPluginRegistry,
-  // Backwards compatibility
-  OperationRegistry,
-  getOperationRegistry,
   type OperationHandler,
   type OperationContext,
   type OperationConfig,
@@ -134,9 +131,8 @@ export type {
   EnsembleConfig,
   AgentConfig,
   FlowStep,
-  ExposeConfig,
   NotificationConfig,
-  ScheduleConfig,
+  CronTriggerConfig,
   BuildTriggerConfig,
   CLITriggerConfig,
   StartupTriggerConfig,

@@ -561,8 +561,6 @@ export class InternalError extends ConductorError {
  * Error factory for common error scenarios
  */
 export const Errors = {
-  /** @deprecated Use agentNotFound instead */
-  memberNotFound: (name: string) => new MemberNotFoundError(name),
   agentNotFound: (name: string) => new MemberNotFoundError(name),
   agentConfig: (name: string, reason: string) => new MemberConfigurationError(name, reason),
   memberExecution: (name: string, reason: string, cause?: Error) =>

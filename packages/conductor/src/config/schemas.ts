@@ -203,10 +203,6 @@ export const DocsConfigSchema = z.object({
 
   // Server URLs
   servers: z.array(ServerUrlSchema).optional(),
-
-  // Legacy (deprecated)
-  useAI: z.boolean().optional(),
-  aiAgent: z.string().optional(),
 })
 
 // ============================================================================

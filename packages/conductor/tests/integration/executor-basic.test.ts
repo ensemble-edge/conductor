@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TestConductor } from '../../src/testing/test-conductor';
 import type { EnsembleConfig, AgentConfig } from '../../src/runtime/parser';
+import type { AgentExecutionContext } from '../../src/agents/base-agent';
 
 describe('Executor - Basic Integration', () => {
 	let conductor: TestConductor;
@@ -22,7 +23,7 @@ describe('Executor - Basic Integration', () => {
 				name: 'simple',
 				operation: 'code',
 				config: {
-					handler: async (input: unknown) => ({ result: 'processed', receivedInput: input })
+					handler: async (ctx: AgentExecutionContext) => ({ result: 'processed', receivedInput: ctx.input })
 				}
 			};
 
@@ -45,7 +46,10 @@ describe('Executor - Basic Integration', () => {
 				name: 'step1',
 				operation: 'code',
 				config: {
-					handler: async (input: { value: number }) => ({ value: input.value + 1 })
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { value: number };
+						return { value: input.value + 1 };
+					}
 				}
 			};
 
@@ -53,7 +57,10 @@ describe('Executor - Basic Integration', () => {
 				name: 'step2',
 				operation: 'code',
 				config: {
-					handler: async (input: { value: number }) => ({ value: input.value * 2 })
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { value: number };
+						return { value: input.value * 2 };
+					}
 				}
 			};
 
@@ -91,8 +98,8 @@ describe('Executor - Basic Integration', () => {
 				name: 'consumer',
 				operation: 'code',
 				config: {
-					handler: async (input: unknown) => {
-						collector.calls.push(input);
+					handler: async (ctx: AgentExecutionContext) => {
+						collector.calls.push(ctx.input);
 						return { consumed: true };
 					}
 				}
@@ -127,10 +134,13 @@ describe('Executor - Basic Integration', () => {
 				name: 'process',
 				operation: 'code',
 				config: {
-					handler: async (input: { count: number }) => ({
-						step: 'process',
-						count: input.count + 5
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { count: number };
+						return {
+							step: 'process',
+							count: input.count + 5
+						};
+					}
 				}
 			};
 
@@ -138,10 +148,13 @@ describe('Executor - Basic Integration', () => {
 				name: 'finalize',
 				operation: 'code',
 				config: {
-					handler: async (input: { count: number }) => ({
-						step: 'finalize',
-						count: input.count * 10
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { count: number };
+						return {
+							step: 'finalize',
+							count: input.count * 10
+						};
+					}
 				}
 			};
 
@@ -206,7 +219,7 @@ describe('Executor - Basic Integration', () => {
 				name: 'processor',
 				operation: 'code',
 				config: {
-					handler: async (input: unknown) => ({ received: input, processed: true })
+					handler: async (ctx: AgentExecutionContext) => ({ received: ctx.input, processed: true })
 				}
 			};
 
@@ -229,15 +242,18 @@ describe('Executor - Basic Integration', () => {
 				name: 'processor',
 				operation: 'code',
 				config: {
-					handler: async (input: {
-						user: { name: string; age: number };
-						items: string[];
-						metadata: Record<string, unknown>;
-					}) => ({
-						userName: input.user.name,
-						itemCount: input.items.length,
-						hasMetadata: Object.keys(input.metadata).length > 0
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as {
+							user: { name: string; age: number };
+							items: string[];
+							metadata: Record<string, unknown>;
+						};
+						return {
+							userName: input.user.name,
+							itemCount: input.items.length,
+							hasMetadata: Object.keys(input.metadata).length > 0
+						};
+					}
 				}
 			};
 
@@ -272,7 +288,7 @@ describe('Executor - Basic Integration', () => {
 				name: 'simple',
 				operation: 'code',
 				config: {
-					handler: async (input: unknown) => ({ output: 'processed' })
+					handler: async () => ({ output: 'processed' })
 				}
 			};
 
@@ -295,8 +311,8 @@ describe('Executor - Basic Integration', () => {
 				name: 'reader',
 				operation: 'code',
 				config: {
-					handler: async (_input: unknown, context?: { state?: { counter: number } }) => ({
-						initialCounter: context?.state?.counter || 0
+					handler: async (ctx: AgentExecutionContext) => ({
+						initialCounter: (ctx as any).state?.counter || 0
 					})
 				}
 			};
@@ -356,9 +372,10 @@ describe('Executor - Basic Integration', () => {
 				name: 'receiver',
 				operation: 'code',
 				config: {
-					handler: async (input: { message: string }) => ({
-						received: input.message
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { message: string };
+						return { received: input.message };
+					}
 				}
 			};
 
@@ -386,9 +403,10 @@ describe('Executor - Basic Integration', () => {
 				name: 'greeter',
 				operation: 'code',
 				config: {
-					handler: async (input: { name: string }) => ({
-						greeting: `Hello, ${input.name}!`
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { name: string };
+						return { greeting: `Hello, ${input.name}!` };
+					}
 				}
 			};
 
@@ -418,10 +436,13 @@ describe('Executor - Basic Integration', () => {
 				name: 'processor',
 				operation: 'code',
 				config: {
-					handler: async (input: { email: string; age: number }) => ({
-						processedEmail: input.email,
-						processedAge: input.age
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { email: string; age: number };
+						return {
+							processedEmail: input.email,
+							processedAge: input.age
+						};
+					}
 				}
 			};
 
@@ -458,15 +479,18 @@ describe('Executor - Basic Integration', () => {
 				name: 'mixer',
 				operation: 'code',
 				config: {
-					handler: async (input: {
-						static: string;
-						dynamic: string;
-						nested: { value: string };
-					}) => ({
-						static: input.static,
-						dynamic: input.dynamic,
-						nested: input.nested.value
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as {
+							static: string;
+							dynamic: string;
+							nested: { value: string };
+						};
+						return {
+							static: input.static,
+							dynamic: input.dynamic,
+							nested: input.nested.value
+						};
+					}
 				}
 			};
 
@@ -505,10 +529,13 @@ describe('Executor - Basic Integration', () => {
 				name: 'array-processor',
 				operation: 'code',
 				config: {
-					handler: async (input: { items: string[] }) => ({
-						count: input.items.length,
-						items: input.items
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { items: string[] };
+						return {
+							count: input.items.length,
+							items: input.items
+						};
+					}
 				}
 			};
 
@@ -700,7 +727,8 @@ describe('Executor - Basic Integration', () => {
 				name: 'validator',
 				operation: 'code',
 				config: {
-					handler: async (input: { required?: string }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { required?: string };
 						if (!input.required) {
 							throw new Error('Required field missing');
 						}

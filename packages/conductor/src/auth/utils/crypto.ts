@@ -54,39 +54,6 @@ export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
 }
 
 /**
- * Synchronous timing-safe comparison (legacy compatibility)
- *
- * WARNING: This version has a small timing leak on length mismatch.
- * Prefer the async version (timingSafeEqual) for security-critical comparisons.
- *
- * This is provided for backwards compatibility where async is difficult.
- * It pads shorter strings to match the longer one's length to reduce
- * (but not eliminate) the timing leak.
- *
- * @param a - First string to compare
- * @param b - Second string to compare
- * @returns boolean - true if strings are equal
- */
-export function timingSafeEqualSync(a: string, b: string): boolean {
-  // Pad the shorter string to prevent length-based timing leak
-  const maxLen = Math.max(a.length, b.length)
-  const paddedA = a.padEnd(maxLen, '\0')
-  const paddedB = b.padEnd(maxLen, '\0')
-
-  // XOR all characters
-  let result = 0
-  for (let i = 0; i < maxLen; i++) {
-    result |= paddedA.charCodeAt(i) ^ paddedB.charCodeAt(i)
-  }
-
-  // Also include length comparison in constant time
-  // (Different lengths should return false even if padded comparison matches)
-  result |= a.length ^ b.length
-
-  return result === 0
-}
-
-/**
  * Compute HMAC signature using Web Crypto API
  *
  * @param message - The message to sign

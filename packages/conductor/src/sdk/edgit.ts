@@ -75,16 +75,10 @@ export interface ComponentWithMetadata {
 
 /**
  * Get the KV namespace for components
- * Falls back to EDGIT_KV for backwards compatibility
  */
 function getComponentsKV(env: ConductorEnv): KVNamespace | null {
-  // Check for COMPONENTS_KV first, then fall back to EDGIT_KV
   const kv = (env as Record<string, unknown>)[COMPONENTS_KV_BINDING] as KVNamespace | undefined
-  if (kv) return kv
-
-  // Fallback for backwards compatibility
-  const legacyKv = (env as Record<string, unknown>)['EDGIT_KV'] as KVNamespace | undefined
-  return legacyKv || null
+  return kv || null
 }
 
 /**

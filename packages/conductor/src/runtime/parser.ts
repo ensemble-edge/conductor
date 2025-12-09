@@ -844,10 +844,6 @@ export type TriggerConfig = NonNullable<EnsembleConfig['trigger']>[number]
 export type NotificationConfig = NonNullable<EnsembleConfig['notifications']>[number]
 export type MemoryConfigParsed = NonNullable<EnsembleConfig['memory']>
 
-// Legacy type aliases (deprecated - use TriggerConfig with type guards)
-export type ExposeConfig = TriggerConfig
-export type ScheduleConfig = Extract<TriggerConfig, { type: 'cron' }>
-
 // Specific trigger type exports
 export type HTTPTriggerConfig = Extract<TriggerConfig, { type: 'http' }>
 export type WebhookTriggerConfig = Extract<TriggerConfig, { type: 'webhook' }>

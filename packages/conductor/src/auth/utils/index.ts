@@ -2,4 +2,4 @@
  * Auth Utilities
  */
 
-export { timingSafeEqual, timingSafeEqualSync, computeHMAC } from './crypto.js'
+export { timingSafeEqual, computeHMAC } from './crypto.js'

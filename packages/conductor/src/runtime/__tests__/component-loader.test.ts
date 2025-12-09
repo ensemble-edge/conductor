@@ -291,7 +291,8 @@ describe('ComponentLoader', () => {
         expect(error.message).toContain('Component not found')
         expect(error.message).toContain('edgit components add')
         expect(error.message).toContain('edgit tag create')
-        expect(error.message).toContain('edgit deploy set')
+        expect(error.message).toContain('edgit tag set')
+        expect(error.message).toContain('edgit push --tags --force')
       }
     })
   })
@@ -327,48 +328,6 @@ describe('ComponentLoader', () => {
       expect(result.provider).toBe('anthropic')
       expect(result.model).toBe('claude-sonnet-4')
       expect(result.temperature).toBe(0.3)
-    })
-  })
-
-  describe('loadCompiled', () => {
-    it('should load and evaluate compiled script', async () => {
-      const compiledCode = `
-				exports.default = function transformData(context) {
-					const data = context.input.items;
-					return data.map(item => item * 2);
-				};
-			`
-      mockKV.get.mockResolvedValue(compiledCode)
-
-      const script = await loader.loadCompiled('script://transform-data@latest')
-
-      expect(typeof script).toBe('function')
-      const result = script({ input: { items: [1, 2, 3] } })
-      expect(result).toEqual([2, 4, 6])
-    })
-
-    it('should handle compiled script with exports', async () => {
-      const compiledScript = `
-				exports.default = async function processData(context) {
-					return { processed: true, count: context.input.items.length };
-				};
-			`
-      mockKV.get.mockResolvedValue(compiledScript)
-
-      const script = await loader.loadCompiled<any>('script://process-data@v1.0.0')
-
-      expect(typeof script).toBe('function')
-      const result = await script({ input: { items: [1, 2, 3] } })
-      expect(result.processed).toBe(true)
-      expect(result.count).toBe(3)
-    })
-
-    it('should throw on compilation error', async () => {
-      mockKV.get.mockResolvedValue('invalid javascript code }{')
-
-      await expect(loader.loadCompiled('script://broken-script@latest')).rejects.toThrow(
-        'Failed to load compiled component'
-      )
     })
   })
 

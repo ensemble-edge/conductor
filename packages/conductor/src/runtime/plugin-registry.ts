@@ -423,10 +423,3 @@ export class PluginRegistry {
 export function getPluginRegistry(): PluginRegistry {
   return PluginRegistry.getInstance()
 }
-
-// Backwards compatibility - export as OperationRegistry
-/** @deprecated Use PluginRegistry instead */
-export const OperationRegistry = PluginRegistry
-
-/** @deprecated Use getPluginRegistry instead */
-export const getOperationRegistry = getPluginRegistry

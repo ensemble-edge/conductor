@@ -51,27 +51,11 @@ export class FunctionAgent extends BaseAgent {
   /**
    * Execute the user-provided function
    *
-   * Supports two calling conventions:
-   * - Modern single-param: handler(context) where context.input contains the input
-   * - Legacy two-param: handler(input, context) for backward compatibility
-   *
-   * Detection uses Function.length to check declared parameter count.
+   * Handlers receive the full AgentExecutionContext and access input via context.input
    */
   protected async run(context: AgentExecutionContext): Promise<unknown> {
     try {
-      let result: unknown
-
-      // Detect calling convention based on function signature
-      // Function.length returns the number of declared parameters
-      if (this.implementation.length >= 2) {
-        // Legacy two-parameter style: handler(input, context)
-        // Cast to any to call with two arguments
-        result = await (this.implementation as any)(context.input, context)
-      } else {
-        // Modern single-parameter style: handler(context)
-        result = await this.implementation(context)
-      }
-
+      const result = await this.implementation(context)
       return result
     } catch (error) {
       // Wrap errors with context
@@ -92,25 +76,13 @@ export class FunctionAgent extends BaseAgent {
 
   /**
    * Create a FunctionAgent from a config with inline handler
-   * Supports test-style handlers: (input, context?) => result
    */
   static fromConfig(config: AgentConfig): FunctionAgent | null {
-    // Check if config has an inline handler function
-    // Handler signature: (input: unknown, context?: AgentExecutionContext) => Promise<unknown> | unknown
-    type InlineHandler = (
-      input: unknown,
-      context?: AgentExecutionContext
-    ) => Promise<unknown> | unknown
-    const agentConfig = config.config as { handler?: InlineHandler } | undefined
+    const agentConfig = config.config as { handler?: FunctionImplementation } | undefined
     const handler = agentConfig?.handler
 
     if (typeof handler === 'function') {
-      // Wrap the handler to match FunctionImplementation signature
-      const implementation: FunctionImplementation = async (context: AgentExecutionContext) => {
-        return await handler(context.input, context)
-      }
-
-      return new FunctionAgent(config, implementation)
+      return new FunctionAgent(config, handler)
     }
 
     return null

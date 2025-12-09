@@ -33,7 +33,7 @@ export type ConfigSource =
  * ```typescript
  * const config = await createConfig({
  *   type: 'object',
- *   config: { docs: { useAI: true } }
+ *   config: { docs: { ai: { enabled: true } } }
  * });
  * ```
  *
@@ -117,7 +117,8 @@ export async function createConfig(source?: ConfigSource): Promise<Result<Conduc
  * Supports both Node.js process.env and Cloudflare env bindings
  *
  * Env var format:
- * - CONDUCTOR_DOCS_USE_AI=true
+ * - CONDUCTOR_DOCS_AI_ENABLED=true
+ * - CONDUCTOR_DOCS_AI_MODEL=gpt-4
  * - CONDUCTOR_DOCS_FORMAT=json
  * - CONDUCTOR_OBSERVABILITY_LOG_LEVEL=debug
  */
@@ -125,13 +126,15 @@ function configFromEnv(env: Record<string, string>): Partial<ConductorConfig> {
   const config: Partial<ConductorConfig> = {}
 
   // Docs config
-  if (env.CONDUCTOR_DOCS_USE_AI !== undefined) {
+  if (env.CONDUCTOR_DOCS_AI_ENABLED !== undefined) {
     config.docs = config.docs || {}
-    config.docs.useAI = env.CONDUCTOR_DOCS_USE_AI === 'true'
+    config.docs.ai = config.docs.ai || {}
+    config.docs.ai.enabled = env.CONDUCTOR_DOCS_AI_ENABLED === 'true'
   }
-  if (env.CONDUCTOR_DOCS_AI_AGENT) {
+  if (env.CONDUCTOR_DOCS_AI_MODEL) {
     config.docs = config.docs || {}
-    config.docs.aiAgent = env.CONDUCTOR_DOCS_AI_AGENT
+    config.docs.ai = config.docs.ai || {}
+    config.docs.ai.model = env.CONDUCTOR_DOCS_AI_MODEL
   }
   if (env.CONDUCTOR_DOCS_FORMAT) {
     config.docs = config.docs || {}

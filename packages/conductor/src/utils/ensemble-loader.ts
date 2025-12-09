@@ -282,7 +282,6 @@ export class EnsembleLoader {
 
   /**
    * Get an ensemble config by name
-   * @deprecated Use getEnsembleInstance() to get the Ensemble instance directly
    */
   getEnsemble(name: string): EnsembleConfig | undefined {
     return this.loadedEnsembles.get(name)?.config
@@ -307,7 +306,6 @@ export class EnsembleLoader {
 
   /**
    * Get all loaded ensemble configs
-   * @deprecated Use getAllEnsembleInstances() to get Ensemble instances directly
    */
   getAllEnsembles(): EnsembleConfig[] {
     return Array.from(this.loadedEnsembles.values()).map((e) => e.config)

@@ -5,7 +5,7 @@
  * Handles registration, execution, and coordination of scheduled ensembles.
  */
 
-import type { EnsembleConfig, ScheduleConfig, TriggerConfig } from './parser.js'
+import type { EnsembleConfig, CronTriggerConfig, TriggerConfig } from './parser.js'
 import { Executor } from './executor.js'
 import { createLogger, type Logger } from '../observability/index.js'
 import type { ConductorEnv } from '../types/env.js'
@@ -192,9 +192,9 @@ export class ScheduleManager {
    */
   private findMatchingEnsembles(cron: string): Array<{
     ensemble: EnsembleConfig
-    schedule: ScheduleConfig
+    schedule: CronTriggerConfig
   }> {
-    const matches: Array<{ ensemble: EnsembleConfig; schedule: ScheduleConfig }> = []
+    const matches: Array<{ ensemble: EnsembleConfig; schedule: CronTriggerConfig }> = []
 
     for (const ensemble of this.ensembles.values()) {
       if (!ensemble.trigger) continue
@@ -244,9 +244,9 @@ export class ScheduleManager {
    */
   listScheduledEnsembles(): Array<{
     ensembleName: string
-    schedules: ScheduleConfig[]
+    schedules: CronTriggerConfig[]
   }> {
-    const scheduled: Array<{ ensembleName: string; schedules: ScheduleConfig[] }> = []
+    const scheduled: Array<{ ensembleName: string; schedules: CronTriggerConfig[] }> = []
 
     for (const ensemble of this.ensembles.values()) {
       if (ensemble.trigger) {
@@ -270,7 +270,7 @@ export class ScheduleManager {
   /**
    * Get schedules for a specific ensemble
    */
-  getEnsembleSchedules(ensembleName: string): ScheduleConfig[] | null {
+  getEnsembleSchedules(ensembleName: string): CronTriggerConfig[] | null {
     const ensemble = this.ensembles.get(ensembleName)
     if (!ensemble?.trigger) return null
 

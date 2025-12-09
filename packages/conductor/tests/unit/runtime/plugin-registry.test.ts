@@ -8,9 +8,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   PluginRegistry,
   getPluginRegistry,
-  // Test backwards compatibility exports
-  OperationRegistry,
-  getOperationRegistry,
   type OperationHandler,
   type OperationContext,
   type OperationConfig,
@@ -50,10 +47,6 @@ describe('PluginRegistry', () => {
       expect(instance1).toBe(instance2)
     })
 
-    it('should maintain backwards compatibility with OperationRegistry', () => {
-      expect(OperationRegistry).toBe(PluginRegistry)
-      expect(getOperationRegistry).toBe(getPluginRegistry)
-    })
   })
 
   describe('Built-in Operations', () => {
