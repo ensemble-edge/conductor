@@ -453,13 +453,6 @@ export interface DocsConfig {
     url: string
     description?: string
   }>
-
-  // === Legacy (deprecated, use 'ai' instead) ===
-  /** @deprecated Use ai.enabled instead */
-  useAI?: boolean
-
-  /** @deprecated Use ai.model instead */
-  aiAgent?: string
 }
 
 /**

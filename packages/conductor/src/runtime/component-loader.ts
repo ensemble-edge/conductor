@@ -195,7 +195,8 @@ export class ComponentLoader {
           `Make sure the component is deployed to KV with:\n` +
           `  edgit components add <name> <path> ${parsed.protocol}\n` +
           `  edgit tag create <name> ${parsed.version}\n` +
-          `  edgit deploy set <name> ${parsed.version} --to production`
+          `  edgit tag set <name> prod ${parsed.version}\n` +
+          `  edgit push --tags --force`
       )
     }
 
@@ -221,53 +222,6 @@ export class ComponentLoader {
       const err = error instanceof Error ? error : new Error(String(error))
       this.logger?.error('JSON parse error', err, { uri })
       throw new Error(`Failed to parse JSON component: ${uri}\n` + `Error: ${err.message}`)
-    }
-  }
-
-  /**
-   * Load and evaluate compiled component (for JSX components/pages)
-   *
-   * @deprecated This method uses new Function() which is blocked in Cloudflare Workers.
-   * For scripts, use the ScriptLoader with bundled scripts instead:
-   *
-   * ```typescript
-   * import { scriptsMap } from 'virtual:conductor-scripts'
-   * import { createScriptLoader } from '@ensemble-edge/conductor'
-   *
-   * const loader = createScriptLoader(scriptsMap)
-   * const handler = loader.resolve('script://my-script')
-   * ```
-   *
-   * For other compiled components, bundle them at build time using Vite plugins.
-   */
-  async loadCompiled<T = any>(uri: string, options?: ComponentLoadOptions): Promise<T> {
-    // Log deprecation warning
-    this.logger?.warn('loadCompiled() is deprecated and will not work in Cloudflare Workers', {
-      uri,
-    })
-
-    const content = await this.load(uri, options)
-
-    try {
-      // Compiled components are stored as ES module exports
-      // We wrap in a function and evaluate
-      // NOTE: This uses new Function() which is blocked in Cloudflare Workers
-      const module = new Function('exports', content)
-      const exports: any = {}
-      module(exports)
-
-      // Return default export or entire exports object
-      return (exports.default || exports) as T
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error))
-      this.logger?.error('Component compilation error', err, { uri })
-      throw new Error(
-        `Failed to load compiled component: ${uri}\n` +
-          `Error: ${err.message}\n\n` +
-          `Note: This method uses new Function() which is blocked in Cloudflare Workers.\n` +
-          `For Workers compatibility, use bundled scripts via script:// URIs instead.\n` +
-          `See: https://docs.ensemble.ai/conductor/guides/migrate-inline-code`
-      )
     }
   }
 

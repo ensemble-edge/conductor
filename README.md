@@ -1269,16 +1269,6 @@ Durable Objects use Cloudflare's strongly consistent storage:
 - **Automatic failover** - Cloudflare handles migration
 - **Low latency** - Co-located with execution
 
-### Migration from KV
-
-Previous versions used KV for state. Migration to Durable Objects provides:
-
-- ✅ Strong consistency (vs eventual consistency)
-- ✅ Transactional updates (vs atomic operations only)
-- ✅ Real-time queries (vs KV latency)
-- ✅ WebSocket streaming (vs polling)
-- ✅ Automatic cleanup (vs manual TTL)
-
 ## API Endpoints
 
 Conductor provides a comprehensive REST API for workflow management.
@@ -1736,6 +1726,23 @@ While AI providers are universal, platforms can provide additional features:
 
 Conductor works seamlessly with Edgit for versioning prompts, configs, and member configurations. This enables powerful versioning chains where ensembles reference versioned members, which in turn reference versioned prompts.
 
+**Key Principle: Edgit creates and manages git tags. That's it.** GitHub Actions handles deployment. Edgit is a tag manager, not a deployment tool.
+
+### Quick Example
+
+```bash
+# Version a prompt
+edgit tag create company-analysis-prompt v1.0.0
+
+# Deploy to staging
+edgit tag set company-analysis-prompt staging v1.0.0
+edgit push --tags --force
+
+# Promote to production
+edgit tag set company-analysis-prompt production v1.0.0
+edgit push --tags --force
+```
+
 ### What Gets Versioned with Edgit?
 
 **Edgit Components** (versioned artifacts in shared folders):
@@ -1875,7 +1882,7 @@ ensemble conductor add agent analyze-company --operation think --with-prompt
 # Read prompt.md from filesystem or include inline in agent config
 
 # 4. Future: When Edgit integration is complete
-# Register prompt: edgit component publish prompts/analyze-company.md
+# Version prompt: edgit tag create analyze-company-prompt v1.0.0
 # Load at runtime: loadComponent('analyze-company-prompt@v1.0.0', env)
 ```
 
@@ -1931,10 +1938,12 @@ config:
   prompt: company-analysis-prompt@v2.1.0
 
 # Deploy to preview
-edgit deploy set analyze-company v2.0.0 --to preview
+edgit tag set analyze-company preview v2.0.0
+edgit push --tags --force
 
 # Test, then promote to production
-edgit deploy promote analyze-company --from preview --to production
+edgit tag set analyze-company production v2.0.0
+edgit push --tags --force
 ```
 
 **No code deploy needed!** Same bundled code, different config.
@@ -1965,15 +1974,18 @@ flow:
 
 ```bash
 # Production: Stable model, proven prompt
-edgit deploy set analyze-company v1.0.0 --to production
+edgit tag set analyze-company production v1.0.0
+edgit push --tags --force
 # v1.0.0 → model: gpt-4, prompt@v1.0.0
 
 # Staging: Latest model, new prompt
-edgit deploy set analyze-company v2.0.0 --to staging
+edgit tag set analyze-company staging v2.0.0
+edgit push --tags --force
 # v2.0.0 → model: gpt-4-turbo, prompt@v2.0.0
 
 # Preview: Experimental settings
-edgit deploy set analyze-company v3.0.0-beta --to preview
+edgit tag set analyze-company preview v3.0.0-beta
+edgit push --tags --force
 # v3.0.0-beta → model: claude-3-opus, prompt@v3.0.0-beta
 ```
 
@@ -1994,14 +2006,18 @@ flow:
 ```bash
 # Rollback just the prompt (keep agent config)
 edgit tag create company-analysis-prompt v2.0.1
+edgit tag set company-analysis-prompt production v2.0.1
+edgit push --tags --force
 # agent.yaml stays at v1.0.0, uses new prompt
 
 # Rollback entire agent config
-edgit deploy set analyze-company v0.9.0 --to production
+edgit tag set analyze-company production v0.9.0
+edgit push --tags --force
 # Rolls back model, temperature, AND prompt reference
 
 # Emergency: rollback prompt instantly
-edgit deploy set company-analysis-prompt v1.0.0 --to production
+edgit tag set company-analysis-prompt production v1.0.0
+edgit push --tags --force
 ```
 
 ### Versioning Workflow
@@ -2017,7 +2033,6 @@ ensemble conductor add agent analyze-company --operation think --with-prompt
 # Edit agents/user/analyze-company/prompt.md
 
 # 3. Version the prompt
-edgit component publish prompts/company-analysis.md
 edgit tag create company-analysis-prompt v1.0.0
 
 # 4. Update agent.yaml to reference versioned prompt
@@ -2025,12 +2040,14 @@ edgit tag create company-analysis-prompt v1.0.0
 #   prompt: company-analysis-prompt@v1.0.0
 
 # 5. Version the agent config
-edgit component publish agents/user/analyze-company/agent.yaml
 edgit tag create analyze-company v1.0.0
 
 # 6. Deploy to staging
-edgit deploy set analyze-company v1.0.0 --to staging
-edgit deploy set company-analysis-prompt v1.0.0 --to staging
+edgit tag set analyze-company staging v1.0.0
+edgit push --tags --force
+
+edgit tag set company-analysis-prompt staging v1.0.0
+edgit push --tags --force
 
 # 7. Update ensemble to use versioned agent
 # flow:
@@ -2038,8 +2055,11 @@ edgit deploy set company-analysis-prompt v1.0.0 --to staging
 #     agent: analyze-company@staging
 
 # 8. Test, then promote to production
-edgit deploy promote analyze-company --from staging --to production
-edgit deploy promote company-analysis-prompt --from staging --to production
+edgit tag set analyze-company production v1.0.0
+edgit push --tags --force
+
+edgit tag set company-analysis-prompt production v1.0.0
+edgit push --tags --force
 ```
 
 ## Multi-Project Workflow

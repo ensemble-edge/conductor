@@ -134,8 +134,10 @@ export interface Tag {
 export interface GeneratorOptions {
   projectPath: string
   outputPath?: string
-  useAI?: boolean
-  aiAgent?: string
+  ai?: {
+    enabled?: boolean
+    model?: string
+  }
 }
 
 /**
@@ -163,8 +165,8 @@ export class OpenAPIGenerator {
     const spec = await this.generateBaseSpec()
 
     // Enhance with AI if enabled
-    if (options.useAI) {
-      return await this.enhanceWithAI(spec, options.aiAgent)
+    if (options.ai?.enabled) {
+      return await this.enhanceWithAI(spec, options.ai.model)
     }
 
     return spec
@@ -327,7 +329,7 @@ export class OpenAPIGenerator {
   /**
    * Enhance documentation with AI
    */
-  private async enhanceWithAI(spec: OpenAPISpec, aiAgent?: string): Promise<OpenAPISpec> {
+  private async enhanceWithAI(spec: OpenAPISpec, model?: string): Promise<OpenAPISpec> {
     // Import the AI enhancer dynamically to avoid bundling in non-AI contexts
     try {
       const { DocsAIEnhancer, createOpenAPIOperationPrompt } = await import('./docs-ai-enhancer.js')

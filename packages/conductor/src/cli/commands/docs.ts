@@ -27,9 +27,9 @@ export function createDocsCommand(): Command {
         console.log('')
 
         // Check for conductor.config.ts to determine AI default
-        const useAI = await shouldUseAI(projectPath, options.ai)
+        const aiEnabled = await shouldUseAI(projectPath, options.ai)
 
-        if (useAI) {
+        if (aiEnabled) {
           console.log(chalk.cyan('🤖 AI-powered documentation mode enabled'))
           console.log('')
         }
@@ -38,8 +38,7 @@ export function createDocsCommand(): Command {
         const generator = new OpenAPIGenerator(projectPath)
         const spec = await generator.generate({
           projectPath,
-          useAI,
-          aiAgent: 'docs-writer',
+          ai: aiEnabled ? { enabled: true, model: 'docs-writer' } : undefined,
         })
 
         // Determine output format
@@ -149,7 +148,7 @@ async function shouldUseAI(projectPath: string, cliOption?: boolean): Promise<bo
   const configResult = await loadConfig(projectPath)
 
   if (configResult.success) {
-    return configResult.value.docs?.useAI ?? false
+    return configResult.value.docs?.ai?.enabled ?? false
   }
 
   // Default to false if config can't be loaded

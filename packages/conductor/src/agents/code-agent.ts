@@ -19,15 +19,11 @@ import type { AgentConfig } from '../runtime/parser.js'
 import { hasGlobalScriptLoader, getGlobalScriptLoader } from '../utils/script-loader.js'
 
 /**
- * Function implementation type - supports two calling conventions:
- * 1. Modern (1 param): handler(context: AgentExecutionContext)
- * 2. Legacy (2 params): handler(input: unknown, context: AgentExecutionContext)
+ * Function implementation type
  *
- * The CodeAgent detects which convention to use via Function.length
+ * Handlers receive the full AgentExecutionContext and access input via context.input
  */
-export type FunctionImplementation =
-  | ((context: AgentExecutionContext) => Promise<unknown> | unknown)
-  | ((input: unknown, context: AgentExecutionContext) => Promise<unknown> | unknown)
+export type FunctionImplementation = (context: AgentExecutionContext) => Promise<unknown> | unknown
 
 interface CodeAgentConfig {
   script?: string // script:// URI to load from bundled scripts
@@ -91,22 +87,8 @@ export class CodeAgent extends BaseAgent {
         throw new Error('No code implementation available')
       }
 
-      // Execute the function - detect calling convention by parameter count
-      // Function.length returns the number of declared parameters
-      // - length === 1: Modern style handler(context)
-      // - length >= 2: Legacy style handler(input, context)
-      let result: unknown
-      if (this.compiledFunction.length >= 2) {
-        // Legacy two-parameter style: handler(input, context)
-        result = await (
-          this.compiledFunction as (input: unknown, ctx: AgentExecutionContext) => Promise<unknown>
-        )(context.input, context)
-      } else {
-        // Modern single-parameter style: handler(context)
-        result = await (this.compiledFunction as (ctx: AgentExecutionContext) => Promise<unknown>)(
-          context
-        )
-      }
+      // Execute the function with the full context
+      const result = await this.compiledFunction(context)
 
       return result
     } catch (error) {

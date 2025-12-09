@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TestConductor } from '../../src/testing/test-conductor';
 import type { AgentConfig, EnsembleConfig } from '../../src/runtime/parser';
+import type { AgentExecutionContext } from '../../src/agents/base-agent';
 
 describe('Function Workflows', () => {
 	let conductor: TestConductor;
@@ -22,7 +23,8 @@ describe('Function Workflows', () => {
 				name: 'parse-csv',
 				operation: 'code',
 				config: {
-					handler: async (input: { csv: string }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { csv: string };
 						const lines = input.csv.split('\n');
 						const records = lines.slice(1).map((line) => {
 							const [name, age] = line.split(',');
@@ -38,7 +40,8 @@ describe('Function Workflows', () => {
 				name: 'filter-adults',
 				operation: 'code',
 				config: {
-					handler: async (input: { records: Array<{ name: string; age: number }> }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { records: Array<{ name: string; age: number }> };
 						const adults = input.records.filter((r) => r.age >= 18);
 						return { adults };
 					}
@@ -50,7 +53,8 @@ describe('Function Workflows', () => {
 				name: 'calculate-stats',
 				operation: 'code',
 				config: {
-					handler: async (input: { adults: Array<{ age: number }> }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { adults: Array<{ age: number }> };
 						const avgAge = input.adults.reduce((sum, r) => sum + r.age, 0) / input.adults.length;
 						return { count: input.adults.length, averageAge: avgAge };
 					}
@@ -86,7 +90,8 @@ describe('Function Workflows', () => {
 				name: 'email-validator',
 				operation: 'code',
 				config: {
-					handler: async (input: any) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as any;
 						// Handle case where input is object with email property
 						const email = input.email || input;
 						const isValid = typeof email === 'string' && email.includes('@') && email.includes('.');
@@ -99,7 +104,8 @@ describe('Function Workflows', () => {
 				name: 'email-corrector',
 				operation: 'code',
 				config: {
-					handler: async (input: any) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as any;
 						const { valid, email } = input;
 						if (!valid && typeof email === 'string' && email.includes('AT')) {
 							// Try to fix common mistake
@@ -158,7 +164,8 @@ describe('Function Workflows', () => {
 				name: 'join-data',
 				operation: 'code',
 				config: {
-					handler: async (input: { users: any[]; posts: any[] }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { users: any[]; posts: any[] };
 						const enriched = input.users.map((user) => ({
 							...user,
 							posts: input.posts.filter((p) => p.userId === user.id)
@@ -201,10 +208,13 @@ describe('Function Workflows', () => {
 				name: 'check-balance',
 				operation: 'code',
 				config: {
-					handler: async (input: { balance: number }) => ({
-						balance: input.balance,
-						canPurchase: input.balance >= 100
-					})
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { balance: number };
+						return {
+							balance: input.balance,
+							canPurchase: input.balance >= 100
+						};
+					}
 				}
 			};
 
@@ -212,7 +222,8 @@ describe('Function Workflows', () => {
 				name: 'process-result',
 				operation: 'code',
 				config: {
-					handler: async (input: { canPurchase: boolean }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { canPurchase: boolean };
 						if (input.canPurchase) {
 							return { status: 'approved', message: 'Purchase approved' };
 						}
@@ -248,7 +259,8 @@ describe('Function Workflows', () => {
 				name: 'classify',
 				operation: 'code',
 				config: {
-					handler: async (input: { data: any }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { data: any };
 						const type = Array.isArray(input.data) ? 'array' : typeof input.data;
 						return { type, data: input.data };
 					}
@@ -259,7 +271,8 @@ describe('Function Workflows', () => {
 				name: 'process',
 				operation: 'code',
 				config: {
-					handler: async (input: { type: string; data: any }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { type: string; data: any };
 						switch (input.type) {
 							case 'array':
 								return { result: `Processed ${input.data.length} items` };
@@ -319,7 +332,7 @@ describe('Function Workflows', () => {
 				name: 'retry-wrapper',
 				operation: 'code',
 				config: {
-					handler: async (input: unknown, context: any) => {
+					handler: async (ctx: AgentExecutionContext) => {
 						// Simulate retry logic
 						for (let i = 0; i < 3; i++) {
 							try {
@@ -353,7 +366,8 @@ describe('Function Workflows', () => {
 				name: 'primary-service',
 				operation: 'code',
 				config: {
-					handler: async (input: { useFailure?: boolean }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { useFailure?: boolean };
 						if (input.useFailure) {
 							throw new Error('Primary service failed');
 						}
@@ -366,7 +380,7 @@ describe('Function Workflows', () => {
 				name: 'fallback-handler',
 				operation: 'code',
 				config: {
-					handler: async (input: any) => {
+					handler: async () => {
 						// If input has error, use fallback
 						return { source: 'fallback', data: 'from fallback cache' };
 					}
@@ -402,7 +416,8 @@ describe('Function Workflows', () => {
 				name: 'validate-input',
 				operation: 'code',
 				config: {
-					handler: async (input: { email?: string; age?: number }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { email?: string; age?: number };
 						const errors: string[] = [];
 
 						if (!input.email || !input.email.includes('@')) {
@@ -458,7 +473,8 @@ describe('Function Workflows', () => {
 				name: 'async-operation',
 				operation: 'code',
 				config: {
-					handler: async (input: { delay: number }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { delay: number };
 						await new Promise((resolve) => setTimeout(resolve, input.delay));
 						return { completed: true, delayed: input.delay };
 					}
@@ -544,7 +560,8 @@ describe('Function Workflows', () => {
 				name: 'heavy-computation',
 				operation: 'code',
 				config: {
-					handler: async (input: { iterations: number }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { iterations: number };
 						// Simulate computation
 						let result = 0;
 						for (let i = 0; i < input.iterations; i++) {
@@ -578,7 +595,8 @@ describe('Function Workflows', () => {
 				name: 'parse-request',
 				operation: 'code',
 				config: {
-					handler: async (input: { query: string }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { query: string };
 						const parts = input.query.split(' ');
 						return { intent: parts[0], entities: parts.slice(1) };
 					}
@@ -589,7 +607,8 @@ describe('Function Workflows', () => {
 				name: 'fetch-context',
 				operation: 'code',
 				config: {
-					handler: async (input: { entities: string[] }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { entities: string[] };
 						// Simulate fetching context for entities
 						const context = input.entities.map((e) => ({
 							entity: e,
@@ -605,7 +624,8 @@ describe('Function Workflows', () => {
 				name: 'format-response',
 				operation: 'code',
 				config: {
-					handler: async (input: { intent: string; context: any[] }) => {
+					handler: async (ctx: AgentExecutionContext) => {
+						const input = ctx.input as { intent: string; context: any[] };
 						return {
 							intent: input.intent,
 							enrichedData: input.context,

@@ -15,7 +15,7 @@ describe('Workers Config Loader', () => {
 				type: 'object',
 				config: {
 					docs: {
-						useAI: true,
+						ai: { enabled: true },
 						format: 'json'
 					}
 				}
@@ -23,7 +23,7 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.value.docs.useAI).toBe(true);
+				expect(result.value.docs.ai?.enabled).toBe(true);
 				expect(result.value.docs.format).toBe('json');
 			}
 		});
@@ -33,14 +33,14 @@ describe('Workers Config Loader', () => {
 				type: 'object',
 				config: {
 					docs: {
-						useAI: true
+						ai: { enabled: true }
 					}
 				}
 			});
 
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.value.docs.useAI).toBe(true);
+				expect(result.value.docs.ai?.enabled).toBe(true);
 				// Should have defaults for other properties
 				expect(result.value.observability).toBeDefined();
 				expect(result.value.execution).toBeDefined();
@@ -73,18 +73,18 @@ describe('Workers Config Loader', () => {
 			const result = await createConfig({
 				type: 'env',
 				env: {
-					CONDUCTOR_DOCS_USE_AI: 'true',
+					CONDUCTOR_DOCS_AI_ENABLED: 'true',
 					CONDUCTOR_DOCS_FORMAT: 'yaml',
-					CONDUCTOR_DOCS_AI_AGENT: 'gpt-4',
+					CONDUCTOR_DOCS_AI_MODEL: 'gpt-4',
 					CONDUCTOR_DOCS_OUTPUT_DIR: './docs-output'
 				}
 			});
 
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.value.docs.useAI).toBe(true);
+				expect(result.value.docs.ai?.enabled).toBe(true);
 				expect(result.value.docs.format).toBe('yaml');
-				expect(result.value.docs.aiAgent).toBe('gpt-4');
+				expect(result.value.docs.ai?.model).toBe('gpt-4');
 				expect(result.value.docs.outputDir).toBe('./docs-output');
 			}
 		});
@@ -156,19 +156,19 @@ describe('Workers Config Loader', () => {
 		it('should parse boolean env vars correctly', async () => {
 			const trueResult = await createConfig({
 				type: 'env',
-				env: { CONDUCTOR_DOCS_USE_AI: 'true' }
+				env: { CONDUCTOR_DOCS_AI_ENABLED: 'true' }
 			});
 
 			const falseResult = await createConfig({
 				type: 'env',
-				env: { CONDUCTOR_DOCS_USE_AI: 'false' }
+				env: { CONDUCTOR_DOCS_AI_ENABLED: 'false' }
 			});
 
 			expect(trueResult.success).toBe(true);
 			expect(falseResult.success).toBe(true);
 			if (trueResult.success && falseResult.success) {
-				expect(trueResult.value.docs.useAI).toBe(true);
-				expect(falseResult.value.docs.useAI).toBe(false);
+				expect(trueResult.value.docs.ai?.enabled).toBe(true);
+				expect(falseResult.value.docs.ai?.enabled).toBe(false);
 			}
 		});
 
@@ -197,7 +197,7 @@ describe('Workers Config Loader', () => {
 					if (key === 'conductor-config' && type === 'json') {
 						return {
 							docs: {
-								useAI: true,
+								ai: { enabled: true },
 								format: 'json'
 							}
 						};
@@ -213,7 +213,7 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.value.docs.useAI).toBe(true);
+				expect(result.value.docs.ai?.enabled).toBe(true);
 				expect(result.value.docs.format).toBe('json');
 			}
 		});
@@ -223,7 +223,7 @@ describe('Workers Config Loader', () => {
 				get: async (key: string, type: string) => {
 					if (key === 'custom-config' && type === 'json') {
 						return {
-							docs: { useAI: false }
+							docs: { ai: { enabled: false } }
 						};
 					}
 					return null;
@@ -238,7 +238,7 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.value.docs.useAI).toBe(false);
+				expect(result.value.docs.ai?.enabled).toBe(false);
 			}
 		});
 
@@ -283,7 +283,7 @@ describe('Workers Config Loader', () => {
 			const mockModule = {
 				default: {
 					docs: {
-						useAI: true,
+						ai: { enabled: true },
 						format: 'yaml' as const
 					},
 					observability: {
@@ -300,7 +300,7 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.value.docs.useAI).toBe(true);
+				expect(result.value.docs.ai?.enabled).toBe(true);
 				expect(result.value.docs.format).toBe('yaml');
 				expect(result.value.observability?.logging).toBe(true);
 			}
@@ -456,7 +456,7 @@ describe('Workers Config Loader', () => {
 				type: 'object',
 				config: {
 					docs: {
-						useAI: undefined
+						ai: { enabled: undefined }
 					}
 				} as any
 			});
@@ -496,7 +496,7 @@ describe('Workers Config Loader', () => {
 		it('should support production Workers deployment pattern', async () => {
 			// Simulate a real Workers fetch handler pattern
 			const env = {
-				CONDUCTOR_DOCS_USE_AI: 'true',
+				CONDUCTOR_DOCS_AI_ENABLED: 'true',
 				CONDUCTOR_OBSERVABILITY_LOGGING: 'true'
 			};
 
@@ -507,7 +507,7 @@ describe('Workers Config Loader', () => {
 
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.value.docs.useAI).toBe(true);
+				expect(result.value.docs.ai?.enabled).toBe(true);
 				expect(result.value.observability?.logging).toBe(true);
 			}
 		});
@@ -516,7 +516,7 @@ describe('Workers Config Loader', () => {
 			const result = await createConfig({
 				type: 'object',
 				config: {
-					docs: { useAI: false },
+					docs: { ai: { enabled: false } },
 					observability: { logging: true, logLevel: 'debug' }
 				}
 			});
