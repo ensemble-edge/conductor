@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@ensemble-edge/conductor": "workspace:*",
-    "@cloudflare/workers-types": "^4.20250110.0",
+    "@cloudflare/workers-types": "^4.20251211.0",
     "typescript": "^5.5.2",
     "vitest": "~3.2.0"
   }
