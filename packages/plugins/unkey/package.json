@@ -44,7 +44,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@ensemble-edge/conductor": "^0.5.3"
+    "@ensemble-edge/conductor": "^0.5.4"
   },
   "dependencies": {
     "@unkey/api": "^0.25.0"
