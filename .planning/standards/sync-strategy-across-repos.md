@@ -78,7 +78,7 @@ For npx-enabled repos (edgit, conductor):
 ### Copyright Format
 All repositories must use this copyright format:
 ```
-Copyright (c) 2024-2025 Higher Order Capital
+Copyright (c) 2024-2026 Ensemble Edge AI LLC
 All rights reserved.
 ```
 
@@ -90,13 +90,13 @@ Include in appropriate locations (README files, documentation, website footers):
 Ensemble® is a registered trademark of Higinio O. Maycotte.
 ```
 
-**Important**: The trademark owner is **Higinio O. Maycotte**, not Higher Order Capital.
+**Important**: The trademark owner is **Higinio O. Maycotte**, not Ensemble Edge AI LLC.
 
 ### License Headers
 
 **MIT Licensed Files** (edgit, docs, examples):
 ```
-Copyright (c) 2024-2025 Higher Order Capital
+Copyright (c) 2024-2026 Ensemble Edge AI LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -106,7 +106,7 @@ in the Software without restriction...
 
 **Apache 2.0 Licensed Files** (conductor):
 ```
-Copyright 2024-2025 Higher Order Capital
+Copyright 2024-2026 Ensemble Edge AI LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License...
@@ -116,9 +116,9 @@ you may not use this file except in compliance with the License...
 **NOTICE file for Apache 2.0** (conductor only):
 ```
 Ensemble Conductor
-Copyright 2024-2025 Higher Order Capital
+Copyright 2024-2026 Ensemble Edge AI LLC
 
-This product includes software developed at Higher Order Capital.
+This product includes software developed at Ensemble Edge AI LLC.
 Ensemble® is a registered trademark of Higinio O. Maycotte.
 ```
 
@@ -212,7 +212,7 @@ When synchronizing repositories from edgit:
 1. Copy COPYRIGHT file
 2. Replace LICENSE with Apache 2.0 version
 3. Create/update NOTICE file with Apache 2.0 requirements
-4. Update package.json (license: "Apache-2.0", author: "Higher Order Capital")
+4. Update package.json (license: "Apache-2.0", author: "Ensemble Edge AI LLC")
 
 # Sync to docs/examples:
 1. Copy COPYRIGHT file
@@ -303,12 +303,12 @@ Each repo can override organizational defaults by creating local versions. Local
 ```
 MIT repos (edgit, docs, examples):
 - Standard MIT LICENSE file
-- COPYRIGHT file with Higher Order Capital
+- COPYRIGHT file with Ensemble Edge AI LLC
 
 Apache 2.0 repo (conductor):  
 - Apache 2.0 LICENSE file
 - NOTICE file with trademark notice
-- COPYRIGHT file with Higher Order Capital
+- COPYRIGHT file with Ensemble Edge AI LLC
 
 Private repo (cloud):
 - No public LICENSE file
@@ -438,4 +438,4 @@ When bringing repos into sync:
 
 ---
 
-**Goal**: A contributor moving between repos should find familiar processes, standards, and legal notices while respecting each project's unique requirements. All work should properly attribute Higher Order Capital and protect the Ensemble® trademark.
+**Goal**: A contributor moving between repos should find familiar processes, standards, and legal notices while respecting each project's unique requirements. All work should properly attribute Ensemble Edge AI LLC and protect the Ensemble® trademark.
