@@ -65,10 +65,10 @@ importers:
         version: 2.29.7(@types/node@20.19.25)
       '@cloudflare/vite-plugin':
         specifier: ^1.14.1
-        version: 1.15.2(vite@7.2.4(@types/node@20.19.25)(lightningcss@1.30.2)(yaml@2.8.1))(workerd@1.20251118.0)(wrangler@4.50.0(@cloudflare/workers-types@4.20251121.0))
+        version: 1.15.2(vite@7.2.4(@types/node@20.19.25)(lightningcss@1.30.2)(yaml@2.8.1))(workerd@1.20251118.0)(wrangler@4.50.0(@cloudflare/workers-types@4.20251211.0))
       '@cloudflare/workers-types':
-        specifier: ^4.20241127.0
-        version: 4.20251121.0
+        specifier: ^4.20251211.0
+        version: 4.20251211.0
       '@types/archiver':
         specifier: ^6.0.3
         version: 6.0.4
@@ -113,7 +113,7 @@ importers:
         version: 3.2.4(@types/node@20.19.25)(lightningcss@1.30.2)(yaml@2.8.1)
       wrangler:
         specifier: ^4.45.2
-        version: 4.50.0(@cloudflare/workers-types@4.20251121.0)
+        version: 4.50.0(@cloudflare/workers-types@4.20251211.0)
     optionalDependencies:
       archiver:
         specifier: ^7.0.1
@@ -148,13 +148,13 @@ importers:
     devDependencies:
       wrangler:
         specifier: ^3.107.0
-        version: 3.114.15(@cloudflare/workers-types@4.20251121.0)
+        version: 3.114.15(@cloudflare/workers-types@4.20251211.0)
 
   packages/plugins/attio:
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20251121.0
-        version: 4.20251121.0
+        specifier: ^4.20251211.0
+        version: 4.20251211.0
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../../conductor
@@ -168,8 +168,8 @@ importers:
   packages/plugins/cloudflare:
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20250110.0
-        version: 4.20251121.0
+        specifier: ^4.20251211.0
+        version: 4.20251211.0
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../../conductor
@@ -183,8 +183,8 @@ importers:
   packages/plugins/payload:
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20251121.0
-        version: 4.20251121.0
+        specifier: ^4.20251211.0
+        version: 4.20251211.0
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../../conductor
@@ -198,8 +198,8 @@ importers:
   packages/plugins/twilio:
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20251121.0
-        version: 4.20251121.0
+        specifier: ^4.20251211.0
+        version: 4.20251211.0
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../../conductor
@@ -220,8 +220,8 @@ importers:
         version: 0.25.0
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^4.20251121.0
-        version: 4.20251121.0
+        specifier: ^4.20251211.0
+        version: 4.20251211.0
       '@ensemble-edge/conductor':
         specifier: workspace:*
         version: link:../../conductor
@@ -410,8 +410,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@cloudflare/workers-types@4.20251121.0':
-    resolution: {integrity: sha512-jzFg7hEGKzpEalxTCanN6lM8IdkvO/brsERp/+OyMms4Zi0nhDPUAg9dUcKU8wDuDUnzbjkplY6YRwle7Cq6gA==}
+  '@cloudflare/workers-types@4.20251211.0':
+    resolution: {integrity: sha512-e87o6KbelCz7dnI5ngrGT2ca15vJZ+COb2eqJ52iDHmOaujyC6aYZ71e2vor8X6V9T6tcDElC5sAqPR93j09EA==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -2878,7 +2878,7 @@ snapshots:
     optionalDependencies:
       workerd: 1.20251118.0
 
-  '@cloudflare/vite-plugin@1.15.2(vite@7.2.4(@types/node@20.19.25)(lightningcss@1.30.2)(yaml@2.8.1))(workerd@1.20251118.0)(wrangler@4.50.0(@cloudflare/workers-types@4.20251121.0))':
+  '@cloudflare/vite-plugin@1.15.2(vite@7.2.4(@types/node@20.19.25)(lightningcss@1.30.2)(yaml@2.8.1))(workerd@1.20251118.0)(wrangler@4.50.0(@cloudflare/workers-types@4.20251211.0))':
     dependencies:
       '@cloudflare/unenv-preset': 2.7.11(unenv@2.0.0-rc.24)(workerd@1.20251118.0)
       '@remix-run/node-fetch-server': 0.8.1
@@ -2888,7 +2888,7 @@ snapshots:
       tinyglobby: 0.2.15
       unenv: 2.0.0-rc.24
       vite: 7.2.4(@types/node@20.19.25)(lightningcss@1.30.2)(yaml@2.8.1)
-      wrangler: 4.50.0(@cloudflare/workers-types@4.20251121.0)
+      wrangler: 4.50.0(@cloudflare/workers-types@4.20251211.0)
       ws: 8.18.0
     transitivePeerDependencies:
       - bufferutil
@@ -2925,7 +2925,7 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20251118.0':
     optional: true
 
-  '@cloudflare/workers-types@4.20251121.0': {}
+  '@cloudflare/workers-types@4.20251211.0': {}
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -4898,7 +4898,7 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20251118.0
       '@cloudflare/workerd-windows-64': 1.20251118.0
 
-  wrangler@3.114.15(@cloudflare/workers-types@4.20251121.0):
+  wrangler@3.114.15(@cloudflare/workers-types@4.20251211.0):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.3.4
       '@cloudflare/unenv-preset': 2.0.2(unenv@2.0.0-rc.14)(workerd@1.20250718.0)
@@ -4911,14 +4911,14 @@ snapshots:
       unenv: 2.0.0-rc.14
       workerd: 1.20250718.0
     optionalDependencies:
-      '@cloudflare/workers-types': 4.20251121.0
+      '@cloudflare/workers-types': 4.20251211.0
       fsevents: 2.3.3
       sharp: 0.33.5
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  wrangler@4.50.0(@cloudflare/workers-types@4.20251121.0):
+  wrangler@4.50.0(@cloudflare/workers-types@4.20251211.0):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.4.0
       '@cloudflare/unenv-preset': 2.7.11(unenv@2.0.0-rc.24)(workerd@1.20251118.0)
@@ -4929,7 +4929,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20251118.0
     optionalDependencies:
-      '@cloudflare/workers-types': 4.20251121.0
+      '@cloudflare/workers-types': 4.20251211.0
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil

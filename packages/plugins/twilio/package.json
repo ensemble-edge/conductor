@@ -48,7 +48,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20251121.0",
+    "@cloudflare/workers-types": "^4.20251211.0",
     "@ensemble-edge/conductor": "workspace:*",
     "typescript": "^5.5.2",
     "vitest": "~3.2.0",
